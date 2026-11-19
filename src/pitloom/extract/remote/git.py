@@ -20,9 +20,10 @@ does not need (a server without partial clone sends them; one that rejects
 the filter is asked again without it): a large file in the checked-out tree
 is still fetched, at checkout. It follows no redirect itself and runs with
 git-lfs off; with ``max_bytes`` it stops past a disk cap (``git.too-large``),
-which bounds a large file too. Once checked out, the URL git wrote to
-``.git/config`` loses its user information, and a symbolic link out of the
-checkout, into its ``.git`` or to a folder is removed.
+which bounds a large file too. Git is never given a URL's user information
+(:mod:`~pitloom.extract.remote._git_credentials`), so ``.git/config`` holds
+none; once checked out, a symbolic link out of the checkout, into its
+``.git`` or to a folder is removed.
 One ``INFO:`` names the URL given and the URL cloned when they differ.
 
 Needs the ``git`` program. Every failure is a :class:`~pitloom.extract.remote.
@@ -48,8 +49,8 @@ from pitloom.core.url_masking import (
     CHECKOUT_DIR_PREFIX,
     sanitize_url,
     sanitize_url_credentials,
-    url_without_credentials,
 )
+from pitloom.extract.remote._git_credentials import host_is_plain
 from pitloom.extract.remote._git_folder import (
     checkout_folder,
     checkout_has_file,
@@ -158,7 +159,7 @@ class GitCheckout:
         explained (:meth:`explaining_failures`), and a Git LFS pointer
         is reported as in a temporary clone, out of whose :attr:`root`
         nothing is read
-        (:func:`~pitloom.core.lfs_pointer.reading_remote_clone`)."""
+        (:func:`~pitloom.core.clone_mark.reading_remote_clone`)."""
         with (
             reading_remote_clone(self.root, trust_model_files=self.trust_model_files),
             self.explaining_failures(),
@@ -180,7 +181,7 @@ def fetch_git_project(
     open on Windows) is left behind with one ``WARNING:``, never an error.
 
     Within the block, the reads are a temporary clone's
-    (:func:`~pitloom.core.lfs_pointer.reading_remote_clone`, as in
+    (:func:`~pitloom.core.clone_mark.reading_remote_clone`, as in
     :meth:`GitCheckout.reading`): nothing out of the checkout's root is read,
     the model readers a wheel scan does not run are not run, and the
     repository's build-time code is not run. The mark is reset on every exit
@@ -229,7 +230,8 @@ def _prepare(
     url: str, work_dir: str, runner: GitRunner, policy: RemoteFetchPolicy
 ) -> GitCheckout:
     """Fetch what *url* names into *work_dir* and describe it."""
-    shown = loggable(sanitize_url(url))
+    # The second pass masks what is no URL: an scp-style address.
+    shown = loggable(sanitize_url_credentials(sanitize_url(url)))
     if is_pypi_url(url):
         # PyPI is no Git host: refused, never cloned.
         raise RemoteSourceError(
@@ -249,7 +251,6 @@ def _prepare(
     clone_url, page, target = _resolve(runner, page, policy.check_url)
     _log_resolution(url, clone_url, target, page)
     _checkout(runner, clone_url, work_dir, target)
-    _forget_credentials(runner, clone_url, work_dir)
     _drop_outside_links(work_dir)
     folder, file = _folder(work_dir, target)
     commit = _head(runner, work_dir, shown)
@@ -270,7 +271,7 @@ def _read_url(url: str, shown: str) -> GitPage:
 
     Raises:
         RemoteSourceError: ``git.url-invalid``, a scheme other than http(s),
-            a host that is not plain ASCII (:func:`_host_as_typed`,
+            a host that is not plain (:func:`_host_as_typed`,
             ``url-unsafe/host-spelling``) or a path that leaves the checkout.
     """
     if not scheme_allowed(url.strip()):
@@ -289,15 +290,18 @@ def _read_url(url: str, shown: str) -> GitPage:
 
 
 def _host_as_typed(url: str) -> bool:
-    """Whether the host of *url* is plain ASCII, not percent-encoded: curl
-    maps any other spelling (``pypi%2Eorg``, a full-width dot) to a host
-    the URL's text does not name, which no check of that text (a PyPI host
-    is never cloned) would see.
+    """Whether the host of *url* is plain (:func:`host_is_plain`; no host at
+    all is left to the later checks): curl maps another spelling
+    (``pypi%2Eorg``, a full-width dot) to a host the URL's text does not
+    name, which no check of that text (a PyPI host is never cloned) would
+    see; a host holding ``=``, ``!`` or white space, or starting with
+    ``-``, names none; and a bracketed name (``[v1.x]``) would lose its
+    brackets in the clone URL and name a DNS host.
 
     *url* is one :func:`scheme_allowed` accepted, so it parses: a URL
     ``urlsplit`` refuses never reaches here."""
-    host = urlsplit(url).hostname or ""
-    return host.isascii() and "%" not in host
+    parts = urlsplit(url)
+    return not parts.hostname or host_is_plain(parts)
 
 
 def _resolve(
@@ -441,22 +445,6 @@ def _fetch(
         "clone",
         watch=work_dir,
     )
-
-
-def _forget_credentials(runner: GitRunner, clone_url: str, work_dir: str) -> None:
-    """Rewrite the URL git wrote to the clone's ``.git/config`` (``clone``
-    and ``remote add`` keep it as given) without its user information
-    (:func:`~pitloom.core.url_masking.url_without_credentials`): no read of
-    the clone, a link into ``.git`` included, can find the credential.
-    Nothing else of the clone holds the URL whole (git writes it to
-    ``FETCH_HEAD`` and the reflog without the user information)."""
-    stored = url_without_credentials(clone_url)
-    if stored != clone_url:
-        runner.run(
-            ["-C", work_dir, "config", "remote.origin.url", stored],
-            "config",
-            echo=False,
-        )
 
 
 def _head(runner: GitRunner, work_dir: str, shown: str) -> str:

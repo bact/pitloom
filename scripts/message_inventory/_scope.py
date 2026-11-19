@@ -73,6 +73,7 @@ DETAIL_EXC = frozenset(
         "NotAModel",
         "_shape_error",
         "MemberReadError",
+        "_MarkersTypeError",
     }
 )
 #: Exception classes that are programming errors or process control.
@@ -90,21 +91,21 @@ INTERNAL_PAT = re.compile(
     r"already entered|outlived its with-block|outside its with-block|"
     r"re-entrantly|CREATOR_TYPES keys|merkle_root\(\)|Limits\.\{name\}|"
     r"does not accept .*INERT|not a scalar|names must be a sequence|"
-    r"RegistryEntry\.sha256|file path must be a str|no ID registry loaded in "
+    r"RegistryEntry\.sha256|file path must be a str|refuse_credentials must "
+    r"be a bool|no ID registry loaded in "
     r"this session|No path given and registry|capture state lock|has no spdxId "
     r"assigned|Duplicate spdxId|Dependency\.base_pep_508_name|type parameters|"
     r"EmbedFileCache: every call|build option \{name\} must be bool|"
     r"build timeout must be an int|max_bytes must be a positive|"
     r"Failed to build relationship|^received \{|no id prefix for an empty|"
     r"GGUF array field without|Unknown provenance schema|duplicate key$|"
-    r"^not JSON: |is not a JSON value|^\{name\} must be a table|"
-    r"content_type_method must be one of|Invalid creator type person"
+    r"^not JSON: |is not a JSON value|"
+    r"content_type_method must be one of"
 )
 #: Message texts of errors raised to a Python caller of the library.
 LIBRARY_PAT = re.compile(
     r"No active loom\.run|No model set|^loom: |generate_project_sbom\(\)|"
-    r"local enrichment does not apply|caller (info|script path)|"
-    r"Invalid creator type|Creator name must|Tool name must"
+    r"local enrichment does not apply|caller (info|script path)"
 )
 #: A template that is only another message passed through.
 PASSTHROUGH_PAT = re.compile(
@@ -172,19 +173,48 @@ def reach(rec: dict[str, Any]) -> str:
     return renamed.get(str(rec["level"]), str(rec["level"]))
 
 
+#: The catalogue's helper that says a summary (an ``INFO:`` line of no
+#: condition), and the module that defines it.
+SUMMARY_HELPER = "say_summary"
+SUMMARY_MODULE = f"{MECHANISM}_summary.py:"
+
+
+def is_summary(rec: dict[str, Any]) -> bool:
+    """Whether *rec* says a summary: a call of the catalogue's own
+    :data:`SUMMARY_HELPER`, known by the definition it reaches, never by
+    the call's name or text alone (a module's own ``say_summary`` says
+    anything)."""
+    return (
+        rec["site_kind"] == "helper_call"
+        and rec.get("helper") == SUMMARY_HELPER
+        and rec.get("helper_def", "").startswith(SUMMARY_MODULE)
+    )
+
+
+def _excluded(rec: dict[str, Any]) -> bool:
+    """Whether *rec* is left out whatever it reaches."""
+    # A helper's call whose text is in the helper body is counted there; but
+    # the body of a catalogue helper (``emit``) is the mechanism, so its
+    # callers count.
+    in_helper_body = (
+        rec["site_kind"] == "helper_call"
+        and rec.get("tmpl_source") == "helper"
+        and not rec.get("helper_def", "").startswith(MECHANISM)
+    )
+    template = rec["template"]
+    return any(
+        (
+            # the logging plumbing and the KEY=VALUE writer
+            rec["file"].endswith(("logging_config.py", "cli/kv_output.py")),
+            rec["file"].startswith(MECHANISM),  # the coding mechanism itself
+            is_summary(rec),  # kind summary: no condition, so no code (R1)
+            in_helper_body,
+            template is not None and bool(PASSTHROUGH_PAT.match(template)),
+            bool(rec.get("relays")),  # another's text said again (_relay.py)
+        )
+    )
+
+
 def in_scope(rec: dict[str, Any]) -> bool:
     """Whether the ratchet counts *rec*."""
-    if rec["file"].endswith(("logging_config.py", "cli/kv_output.py")):
-        return False  # the logging plumbing and the KEY=VALUE writer
-    if rec["file"].startswith(MECHANISM):
-        return False  # the coding mechanism itself
-    if rec["site_kind"] == "helper_call" and rec.get("tmpl_source") == "helper":
-        # Its text is in the helper body, counted there; but the body of a
-        # catalogue helper (``emit``) is the mechanism, so its callers count.
-        if not rec.get("helper_def", "").startswith(MECHANISM):
-            return False
-    if rec["template"] is not None and PASSTHROUGH_PAT.match(rec["template"]):
-        return False
-    if rec.get("relays"):
-        return False  # another's text said again (``_relay.py``)
-    return reach(rec) in _VISIBLE
+    return not _excluded(rec) and reach(rec) in _VISIBLE

@@ -47,7 +47,7 @@ from pitloom.extract.lock._pins import (
     resolve_pinned_dependencies,
     single_exact_pin,
 )
-from pitloom.logging_config import loggable
+from pitloom.messages.lock_files import KEY_LIST_LINE, say_lock_entry
 
 log = logging.getLogger(__name__)
 
@@ -160,17 +160,17 @@ def find_first_present_key(
 
 
 def shape_validated_package(
-    pkg: object, lock_file: str, entry_label: str = "[[package]]"
+    pkg: object, lock_file: str, lock_key: str = "package"
 ) -> dict[str, Any] | None:
     """*pkg* when it is a table with a usable ``name`` and ``version``, else
     ``None`` after a ``WARNING:``. Shared by the flat ``name``/``version``
     formats (``poetry.lock``, ``pdm.lock``)."""
     if not isinstance(pkg, dict):
-        warn_malformed_entry_not_table(lock_file, entry_label, pkg)
+        warn_malformed_entry_not_table(lock_file, lock_key, pkg)
         return None
     name = pkg.get("name")
     if not is_usable_name(name):
-        warn_missing_name(f"Skipping malformed {lock_file} {entry_label} entry", name)
+        warn_missing_name(lock_file, lock_key, name)
         return None
     version = pkg.get("version")
     if not is_usable_version(version):
@@ -188,11 +188,13 @@ def default_group_included(
     ``poetry.lock`` (``"main"``) and ``pdm.lock`` (``"default"``)."""
     groups = validated.get("groups", [default_group])
     if not isinstance(groups, list):
-        log.warning(
-            "Skipping malformed %s entry %r: 'groups' is %s, expected a list",
-            loggable(lock_file),
-            name,
-            type(groups).__name__,
+        say_lock_entry(
+            log,
+            KEY_LIST_LINE,
+            file=lock_file,
+            package=name,
+            lock_key="groups",
+            value_type=groups,
         )
         return None
     return default_group in groups

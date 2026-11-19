@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-30
-Last-Modified: 2026-11-11
+Last-Modified: 2026-11-17
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -228,6 +228,8 @@ Breakdown in [g7-ai-sbom-coverage.md](../design/g7-ai-sbom-coverage.md).
 
 ## Shipped in 0.22.0 (PRs #374-#410)
 
+Released 2026-10-30. Keeps `licenseid>=0.6.0,<0.7`.
+
 - [x] **Model licence from Safetensors and GGUF** (#376): `modelspec.license`,
   and `general.license.name` when `general.license` is blank or `other`.
 - [x] **Git LFS pointers** (#378): one detector; a checkout pointer is listed
@@ -252,6 +254,8 @@ Breakdown in [g7-ai-sbom-coverage.md](../design/g7-ai-sbom-coverage.md).
 
 ## Shipped in 0.22.1 (PRs #413-#433)
 
+Released 2026-11-03. Keeps `licenseid>=0.6.0,<0.7`.
+
 - [x] **`--scan-model-usage` reads ASTs** (#413): the edge `comment` is read,
   write, read and write, or unknown access; mentions are skipped; codes
   `usage-unparseable`, `usage-unparseable/mention`, `usage-unusable`. Limits
@@ -268,6 +272,8 @@ Breakdown in [g7-ai-sbom-coverage.md](../design/g7-ai-sbom-coverage.md).
   and ONNX text fields; a PT2 tag holding a lone surrogate is kept.
 
 ## Shipped in 0.23.0 (PRs #434-#446)
+
+Released 2026-11-05. Requires `licenseid>=0.7.1,<0.8`; the ratchet fell from 498 to 469; the generated message reference was split in #480.
 
 Cut early (maintainer ruling 2026-11-04).
 
@@ -288,6 +294,8 @@ Cut early (maintainer ruling 2026-11-04).
 
 ## Shipped in 0.23.1 (PRs #450-#455)
 
+Released 2026-11-07, a patch release. Requires `licenseid>=0.7.2,<0.8`; the skills require `pitloom>=0.23.1` (#456).
+
 - [x] **LicenseID 0.7.2** (#455): its `too few words for text` notice (no
   licence in a short text) is relayed at `DEBUG`, not `WARNING:`; its
   `text_title` and `alias_name` readings (`New BSD`, `CC0 1.0 Universal`) are
@@ -295,6 +303,8 @@ Cut early (maintainer ruling 2026-11-04).
   has not decided on.
 
 ## Shipped in 0.23.2 (PRs #457-#459)
+
+Released 2026-11-07, a patch release. Requires `licenseid>=0.7.3,<0.8`; the skills require `pitloom>=0.23.2`.
 
 - [x] **Missing licence database** (#458): with no LicenseID database, a
   declared licence name (`New BSD`) says nothing; a declared licence text or a
@@ -304,6 +314,8 @@ Cut early (maintainer ruling 2026-11-04).
 
 ## Shipped in 0.23.3 (PR #461)
 
+Released 2026-11-09, a patch release. Requires `licenseid>=0.8.1,<0.9`; the skills require `pitloom>=0.23.3`.
+
 - [x] **LicenseID 0.8.1**: reads a licence URL as its id
   (`https://www.apache.org/licenses/LICENSE-2.0` is `Apache-2.0`, category
   `license_url`) and drops a control or format character at either end of a
@@ -312,6 +324,8 @@ Cut early (maintainer ruling 2026-11-04).
   as `onnx`) have no 3.15 build yet.
 
 ## Shipped in 0.23.4 (PRs #462, #464, #465)
+
+Released 2026-11-09, a patch release. Requires `licenseid>=0.8.4,<0.9`; the skills require `pitloom>=0.23.4`.
 
 - [x] **LicenseID 0.8.4** (#462, #465, #464): 0.8.2 changed no Pitloom
   reading; 0.8.3 reads a `licenses.nuget.org` expression URL as its
@@ -334,6 +348,8 @@ Cut early (maintainer ruling 2026-11-04).
   [model-sbom-from-git.md](model-sbom-from-git.md).
 
 ## Shipped in 0.24.0 (PRs #468, #469, #471)
+
+Released 2026-11-11, cut for its breaking changes (ruling 2026-11-11). The skills require `pitloom>=0.24.0`.
 
 - [x] **PyPI URL targets and one remote-fetch policy** (#468): `loom wheel`,
   `loom project` and `loom generate` read a PyPI project or release URL (the

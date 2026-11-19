@@ -22,9 +22,9 @@ from typing import TYPE_CHECKING, NamedTuple, Protocol, TypedDict
 from pitloom.core.clone_mark import in_remote_clone
 from pitloom.core.content_type_config import ContentTypeOverride
 from pitloom.core.internal_error import InternalError
-from pitloom.core.quote_source import quote_source
 from pitloom.logging_config import one_line
 from pitloom.messages import CodedValueError
+from pitloom.messages.file_discovery import FAILED_LINE, warn_discovery
 from pitloom.messages.options import BUILD_PREFIX, OPTION_INVALID
 
 if TYPE_CHECKING:
@@ -78,11 +78,12 @@ def warn_discovery_failed(
     if isinstance(exc, DiscoveryTimeoutError):
         mark_discovery_failed()
         return
-    log.warning(
-        "%s file discovery failed for %s: %s",
-        backend,
-        quote_source(project_dir),
-        discovery_failure_text(exc),
+    warn_discovery(
+        log,
+        FAILED_LINE,
+        dir=project_dir,
+        discoverer=backend,
+        error=discovery_failure_text(exc),
     )
     mark_discovery_failed()
 

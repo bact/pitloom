@@ -183,9 +183,12 @@ def test_no_usable_path_is_keyed_by_name(
 @pytest.mark.parametrize(
     ("entries", "needle"),
     [
-        ({}, "'m.bin' not found in registry"),
-        ({(FILE_TYPE, "m.bin"): (f"{_NS}#File-1", "0" * 64)}, "untracked entity"),
-        ({(AI_PACKAGE_TYPE, "m.bin"): (f"{_NS}#AIPackage-1", "0" * 64)}, "changed"),
+        ({}, "model m.bin not found"),
+        ({(FILE_TYPE, "m.bin"): (f"{_NS}#File-1", "0" * 64)}, "model m.bin not found"),
+        (
+            {(AI_PACKAGE_TYPE, "m.bin"): (f"{_NS}#AIPackage-1", "0" * 64)},
+            "model m.bin: its SHA-256 no longer matches",
+        ),
     ],
     ids=["absent", "file-same-key", "retrained"],
 )
@@ -197,7 +200,7 @@ def test_path_key_miss_warning_never_claims_another_type(
 ) -> None:
     """With ``update-id-registry = false`` a miss warns once. A model's own
     ``software_File`` shares its path key, so "different type" would be
-    noise: only untracked or content changed."""
+    noise: only not found or content changed."""
     registry = _registry(project, entries)
     out = project / "out.json"
     with caplog.at_level(logging.WARNING, logger="pitloom"):
@@ -212,7 +215,7 @@ def test_path_key_miss_warning_never_claims_another_type(
         r.getMessage() for r in caplog.records if r.levelno == logging.WARNING
     ]
     assert needle in warning
-    assert "different type" not in warning
+    assert "another type" not in warning
     assert entries_of(IdRegistry.load(registry)) == dict(entries)
 
 

@@ -144,7 +144,7 @@ def test_model_with_a_file_is_gated_and_recorded(
 
 @pytest.mark.parametrize(
     ("registry_kind", "needle"),
-    [("no-update", "not found in registry"), ("in-memory", "no file path resolved")],
+    [("no-update", "model m.bin not found"), ("in-memory", "no file to save to")],
     ids=["update-false", "in-memory"],
 )
 def test_a_miss_not_recorded_mints_with_one_warning(
@@ -172,9 +172,31 @@ def test_a_miss_not_recorded_mints_with_one_warning(
     (model,) = _models(project / "out.json")
     assert not model["spdxId"].startswith(_NS)
     assert _sha_of(model) == _SHA
-    (warning,) = _logged(caplog, logging.WARNING)
-    assert needle in warning
+    (warning,) = [r for r in caplog.records if r.levelno == logging.WARNING]
+    assert needle in warning.getMessage()
+    # Both coded: registry-entry-missing, registry-file-missing.
+    assert getattr(warning, "pitloom_code", None) is not None
     assert path.read_bytes() == before
+
+
+def test_a_registry_with_no_file_is_said_once_per_run_not_per_model(
+    project: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Two models missing in a registry with no file: one WARNING for the
+    run (not one per miss), and another in a second run of the process (so
+    not a once-per-process line)."""
+    (project / "m2.bin").write_bytes(b"weights v2")
+
+    def one_run() -> list[logging.LogRecord]:
+        caplog.clear()
+        with caplog.at_level(logging.WARNING, logger="pitloom"):
+            with loom.run(project / "out.json", id_registry=make_registry()):
+                loom.set_model("m", path="m.bin")
+                loom.set_model("m2", path="m2.bin")
+        return [r for r in caplog.records if "no file to save to" in r.getMessage()]
+
+    assert len(one_run()) == 1
+    assert len(one_run()) == 1
 
 
 @pytest.mark.parametrize(
@@ -363,8 +385,11 @@ def test_the_fragment_is_written_before_the_registry(
     assert seen == [True]
     (model,) = _models(output)
     assert _sha_of(model) == _SHA
-    (warning,) = _logged(caplog, logging.WARNING)
-    assert warning.startswith(f"ID registry: failed to save '{path}'")
+    (warning,) = [r for r in caplog.records if r.levelno == logging.WARNING]
+    assert warning.getMessage() == (
+        f"FILE={path}: could not write for the ID registry; disk full"
+    )
+    assert getattr(warning, "pitloom_code", None) == "file-unwritable"
 
 
 def test_training_and_evaluation_share_one_id_and_a_retrain_mints_one(
@@ -464,8 +489,8 @@ def test_a_registry_gone_before_exit_is_one_warning(
     project: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
     """The registry file removed during the run: the model is still minted
-    and hashed and the fragment written; the save is one ``failed to save``
-    WARNING, not an exception."""
+    and hashed and the fragment written; the save is one coded
+    ``input-not-found`` WARNING, not an exception."""
     path = _registry(project)
     with caplog.at_level(logging.WARNING, logger="pitloom"):
         with loom.run(project / "out.json", id_registry=path):
@@ -474,8 +499,9 @@ def test_a_registry_gone_before_exit_is_one_warning(
 
     (model,) = _models(project / "out.json")
     assert _sha_of(model) == _SHA
-    (warning,) = _logged(caplog, logging.WARNING)
-    assert warning.startswith(f"ID registry: failed to save '{path}'")
+    (warning,) = [r for r in caplog.records if r.levelno == logging.WARNING]
+    assert warning.getMessage() == f"ID registry file not found: '{path}'"
+    assert getattr(warning, "pitloom_code", None) == "input-not-found"
     assert not path.exists()
 
 

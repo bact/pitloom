@@ -46,8 +46,10 @@ from pitloom.extract.binary import find_phantom_dependencies
 from pitloom.extract.project.hatchling import metadata_from_hatchling
 from pitloom.extract.scanner_project import scan_project_for_ai_models
 from pitloom.id_registry import IdRegistry, registry_file_path, resolve_registry
-from pitloom.logging_config import configure_logging, one_line
-from pitloom.messages import HOOK_FRAME, code_extra_of
+from pitloom.logging_config import configure_logging, error_frame, one_line
+from pitloom.messages import HOOK_FRAME, code_extra_of, emit
+from pitloom.messages.config import DATETIME_UNPINNED
+from pitloom.messages.url_credentials import ADVICE_CONFIG, credential_advice
 from pitloom.plugins._hatch_config import validate_config
 
 log = logging.getLogger(__name__)
@@ -120,10 +122,7 @@ def _resolve_build_datetime(pitloom_config: PitloomConfig) -> str:
         return pitloom_config.creation_datetime
     if epoch_dt is not None:
         return to_spdx3_datetime(epoch_dt).isoformat()
-    log.info(
-        "Pitloom build hook: created and builtTime come from the clock; "
-        "set SOURCE_DATE_EPOCH or creation-datetime to pin them."
-    )
+    emit(log, DATETIME_UNPINNED, logging.INFO)
     return to_spdx3_datetime(datetime.now(timezone.utc)).isoformat()
 
 
@@ -359,7 +358,11 @@ class PitloomBuildHook(_PitloomBuildHookBase):
         # pip/hatchling set up, and lines lack the "WARNING: " prefix.
         configure_logging()
         try:
-            self._generate(version, build_data)
+            # Each ERROR line said while the SBOM is made carries the hook's
+            # frame (the configured handler writes it), and a refused URL
+            # value names the pyproject.toml list that accepts it.
+            with error_frame(HOOK_FRAME.render({})), credential_advice(ADVICE_CONFIG):
+                self._generate(version, build_data)
         # pylint: disable-next=broad-exception-caught
         except Exception as exc:
             # The one place a failure is reported, as the CLI's handler does;
@@ -408,7 +411,7 @@ class PitloomBuildHook(_PitloomBuildHookBase):
 
         project_dir = Path(self.root)
         pitloom_config: PitloomConfig = read_pitloom_config(
-            project_dir / "pyproject.toml"
+            project_dir / "pyproject.toml", source="pyproject.toml"
         )
         settle_inert(
             HOOK,
@@ -423,7 +426,12 @@ class PitloomBuildHook(_PitloomBuildHookBase):
         )
         self._check_name_is_free(sbom_filename, build_data)
 
-        registry = resolve_registry(None, pitloom_config.id_registry, project_dir)
+        registry = resolve_registry(
+            None,
+            pitloom_config.id_registry,
+            project_dir,
+            refuse_credentials=pitloom_config.credential_policy.refuse,
+        )
 
         document, merkle_root, enrichment_results_by_model = _build_document_model(
             project_dir, self.metadata, pitloom_config, registry
@@ -443,7 +451,10 @@ class PitloomBuildHook(_PitloomBuildHookBase):
         # canonical SBOM regardless of the project's [tool.pitloom] pretty
         # setting or any --pretty CLI flag.  Canonicalization is required by
         # the SPDX JSON Serialization Scheme.
-        sbom_json = exporter.to_json(pretty=False)
+        # The pyproject.toml settings only: url-credentials, accept-url-credentials.
+        sbom_json = exporter.to_json(
+            pretty=False, credentials=pitloom_config.credential_policy
+        )
 
         staging_dir, sbom_staging_path = _stage_sbom_file(sbom_json, sbom_filename)
         try:

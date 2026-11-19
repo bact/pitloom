@@ -20,8 +20,14 @@ from pitloom.core.requirements import normalize_dependency_specifier
 from pitloom.extract._extract_utils import field_declared
 from pitloom.extract.project._optional_dependencies import add_optional_dependencies
 from pitloom.extract.project._pyproject_license import license_from_project_table
-from pitloom.extract.project._sdist_scan import PKG_INFO, PYPROJECT
-from pitloom.logging_config import field_loss_suffix, loggable
+from pitloom.extract.project._sdist_scan import PYPROJECT
+from pitloom.messages import emit
+from pitloom.messages.metadata import (
+    DYNAMIC_FIELD_NEEDS_BUILD,
+    METADATA_INVALID,
+    SDIST_DYNAMIC_LINE,
+    TYPE_LINE,
+)
 
 log = logging.getLogger(__name__)
 
@@ -31,14 +37,18 @@ _PYPROJECT_DEPENDENCIES_SOURCE = "Source: pyproject.toml | Field: project.depend
 
 def _warn_ignored(where: str, key: str, value: object, expected: str) -> None:
     """One ``WARNING:``: *key* of the archive's ``pyproject.toml`` (*where*,
-    ``<archive>:pyproject.toml``) is ignored for not being *expected*. The
-    key may hold an untrusted extra name: ``%r`` escapes it."""
-    log.warning(
-        "%s: %r is %s, expected %s -- ignoring it",
-        loggable(where),
-        key,
-        type(value).__name__,
-        expected,
+    ``<archive>:pyproject.toml``) holds *value*, not what *expected* (an id
+    of :data:`~pitloom.messages.config.EXPECTED`) names, and is ignored. The
+    key may hold an untrusted extra name: the field escapes it."""
+    emit(
+        log,
+        METADATA_INVALID,
+        logging.WARNING,
+        line=TYPE_LINE,
+        file=where,
+        field=key,
+        got=value,
+        expected=expected,
     )
 
 
@@ -51,7 +61,7 @@ def _base_dependencies(proj: dict[str, Any], where: str) -> list[str] | None:
     if deps is None:
         return None
     if not isinstance(deps, list) or not all(isinstance(d, str) for d in deps):
-        _warn_ignored(where, "project.dependencies", deps, "list of strings")
+        _warn_ignored(where, "project.dependencies", deps, "array-of-strings")
         return None
     return [normalize_dependency_specifier(d) for d in deps]
 
@@ -76,7 +86,7 @@ def _optional_dependencies_table(
             usable[extra] = items
             continue
         key = f"project.optional-dependencies.{extra}"
-        _warn_ignored(where, key, items, "list of strings")
+        _warn_ignored(where, key, items, "array-of-strings")
     return usable
 
 
@@ -135,9 +145,11 @@ def _warn_dynamic_unresolved(proj: dict[str, Any], where: str) -> None:
         return
     unresolved = [field for field in _FALLBACK_FIELDS if field in dynamic]
     if unresolved:
-        log.warning(
-            "%s: dynamic field(s) not resolved without %s%s",
-            loggable(where),
-            PKG_INFO,
-            field_loss_suffix("skipped", *unresolved),
+        emit(
+            log,
+            DYNAMIC_FIELD_NEEDS_BUILD,
+            logging.WARNING,
+            line=SDIST_DYNAMIC_LINE,
+            file=where,
+            metadata_fields=unresolved,
         )

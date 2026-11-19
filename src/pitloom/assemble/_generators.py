@@ -39,6 +39,7 @@ from pitloom.core.config_cascade import (
     require_download_override,
 )
 from pitloom.core.creation import CreationMetadata
+from pitloom.core.credential_policy import CredentialPolicy
 from pitloom.core.document import DocumentModel
 from pitloom.core.given_path import TypedPath
 from pitloom.core.inert_options import (
@@ -120,6 +121,7 @@ def generate_project_sbom(
     check_url: Callable[[str], None] | None = None,
     max_download_bytes: int | None = None,
     acquisition: Acquisition | None = None,
+    credentials: CredentialPolicy | None = None,
 ) -> str:
     """Generate a Source SPDX 3 SBOM for a Python project or sdist archive.
 
@@ -177,6 +179,9 @@ def generate_project_sbom(
     without a registry it has no effect, with one ``WARNING:``, and for a
     directory target it has none (that directory is the project).
 
+    *credentials* (:class:`~pitloom.core.credential_policy.CredentialPolicy`)
+    adds to the credentials *pitloom_config* accepts; it never replaces them.
+
     Raises:
         FileNotFoundError: *project_dir* is given for an sdist and is not a
             directory.
@@ -221,6 +226,7 @@ def generate_project_sbom(
             build_options=build_options,
             max_source_metadata_bytes=max_source_metadata_bytes,
             project_dir=project_dir,
+            credentials=credentials,
         )
     if max_download_bytes is not None:
         require_download_override(max_download_bytes)  # even if inert
@@ -287,6 +293,7 @@ def generate_project_sbom(
             describe_relationship=describe_relationship,
             update_id_registry=update_id_registry,
             max_source_metadata_bytes=max_source_metadata_bytes,
+            credentials=credentials,
         ),
     )
 
@@ -294,6 +301,7 @@ def generate_project_sbom(
         id_registry,
         cfg.id_registry,
         registry_base_dir(target_path),
+        refuse_credentials=cfg.credential_policy.refuse,
     )
     sdist_project_dir = (
         archive_project_dir(project_dir, resolved_registry, target_path)
@@ -387,12 +395,14 @@ def generate_project_sbom(
     if target_path.is_dir():
         merge_fragments(target_path, cfg.fragments, exporter)
 
-    _sync_registry(exporter, resolved_registry, cfg.update_id_registry)
-
+    # Before the registry is written: a refused SBOM leaves it unchanged.
     sbom_json = exporter.to_json(
         pretty=cfg.pretty,
         describe_relationship=bool(cfg.describe_relationship),
+        credentials=cfg.credential_policy,
     )
+
+    _sync_registry(exporter, resolved_registry, cfg.update_id_registry)
 
     write_sbom_output(sbom_json, output_path)
 

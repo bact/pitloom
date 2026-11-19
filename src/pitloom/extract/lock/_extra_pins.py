@@ -33,6 +33,7 @@ from packaging.utils import canonicalize_name
 from pitloom.core.extra_gate import is_extra_gated
 from pitloom.core.pep508 import parse_requirement
 from pitloom.core.project import ProjectMetadata
+from pitloom.messages.lock_files import Said
 
 log = logging.getLogger(__name__)
 
@@ -43,9 +44,10 @@ __all__ = [
     "requirement_names",
 ]
 
-#: ``(project_dir, project name, wanted PEP 503 names) -> name==version
-#: pins`` resolved for the project's extras, limited to *wanted*.
-ExtraPinExtractor = Callable[[Path, str, frozenset[str]], list[str]]
+#: ``(project_dir, project name, wanted PEP 503 names, memo of the run) ->
+#: name==version pins`` resolved for the project's extras, limited to
+#: *wanted*.
+ExtraPinExtractor = Callable[[Path, str, frozenset[str], Said], list[str]]
 
 _HashExtractor = Callable[[Path, list[str]], dict[str, str] | None]
 
@@ -86,6 +88,7 @@ def apply_extra_pins(
     project_dir: Path,
     extractor: ExtraPinExtractor,
     hash_extractor: _HashExtractor,
+    said: Said,
 ) -> None:
     """Append the winning lock's pins for the project's extras to
     *metadata*'s ``locked_dependencies`` (sorted by PEP 503 name), and
@@ -95,7 +98,8 @@ def apply_extra_pins(
     required one (the runtime closure's pass read, pinned or warned about
     it: a required dependency wins and is pinned or warned about once) and
     those ``locked_dependencies`` already pins. Running twice adds nothing
-    the second time.
+    the second time. *said*: the memo of the run, shared with the runtime
+    pass.
     """
     wanted = frozenset(
         requirement_names(metadata.dependencies, gated=True)
@@ -104,7 +108,7 @@ def apply_extra_pins(
         - {canonicalize_name(metadata.name)}
     )
     pins = sorted(
-        extractor(project_dir, metadata.name, wanted),
+        extractor(project_dir, metadata.name, wanted, said),
         key=lambda pin: canonicalize_name(parse_requirement(pin).name),
     )
     if not pins:

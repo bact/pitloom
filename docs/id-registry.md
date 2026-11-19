@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-07
-Last-Modified: 2026-11-14
+Last-Modified: 2026-11-17
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -71,15 +71,29 @@ Windows drive path works, as in
 blank `NAME` or a package `NAME` that is not a PEP 508 name (`foo==1.0`:
 write `foo@1.0`) is a usage error too.
 `--namespace IRI` sets a new registry's document namespace (an
-absolute IRI without `#`; default: the project directory's name and a
-random UUID4); an existing registry with another namespace is one `ERROR:`,
-exit 1. A
-registry whose `namespace` is not a valid namespace IRI, or whose `spdxId`
-is not a non-empty string, does not load. `id import` into an empty
+absolute IRI without `#`, and without user information, a secret query
+value such as `token` or an access token, or a query nested or encoded too
+deeply to read, also in a URL anywhere in it
+(`urn:x:https://user:pw@host/ns`): any user name is refused,
+`ssh://git@...` too; a
+`code`, `session`, `ticket`, `sid` or `otp` parameter is accepted as
+written; default: the project directory's name and a random UUID4); an
+existing registry with another namespace is one `ERROR:`, exit 1. The
+library's `IdRegistry(namespace=...)` and `IdRegistry.new(namespace=...)`
+refuse such a namespace with a `ValueError`, coded
+`credentials-unsafe/registry` for a credential. A
+registry whose `namespace` is not a valid namespace IRI (one holding a
+credential included), or whose `spdxId` is not a non-empty string, does not
+load. One with an entry whose key or `spdxId` holds a credential loads
+with a `WARNING:` per entry by default, and in the `refuse` mode
+(`url-credentials = "refuse"`, `--refuse-url-credentials`) does not load: it
+is refused, left as it is. Either way you remove the entry (see
+[Credentials in a key](id-registry-keys.md#credentials-in-a-key)). `id import` into an empty
 registry adopts the SBOM document's namespace only when it is a valid
-namespace IRI; otherwise one `WARNING: ID registry: not adopting the
-namespace ...` and the registry keeps its own. It keeps the namespace it
-adopted unless another run changed the file's namespace meanwhile.
+namespace IRI; otherwise one
+`WARNING: FILE=<sbom>: SBOM namespace <why>; the ID registry keeps its
+own, not <namespace> [sbom-invalid]`. It keeps the namespace it adopted
+unless another run changed the file's namespace meanwhile.
 `id import SBOM_FILE` takes `-o`/`--id-registry FILE` and `--project-dir DIR`.
 
 A new registry stores its project root (`--project-dir`, default the current
@@ -115,15 +129,30 @@ A broken `pyproject.toml`/`setup.cfg` is one `ERROR:` line, never a
 traceback, and takes precedence over that error.
 
 - A missing target is created. An existing target that cannot be loaded (not
-  JSON, wrong version, a version 3 or 2 file) is one `ERROR:` and exit 1,
-  never silently replaced.
+  JSON, wrong version, a version 3 or 2 file, a key the format does not have:
+  `ID registry: FILE=<path>: unknown top-level key(s): 'files'
+  [registry-unknown-key]`) is one `ERROR:` and exit 1, never silently
+  replaced. A registry file that cannot record its project root (on
+  Windows, a file on another drive than the project) is not saved: `ID
+  registry: FILE=<path>: project root '<root>' has no path relative to the
+  file's directory; <reason> [registry-unusable]` (`ERROR:` for `loom id`,
+  `WARNING:` where the SBOM is already built; the library raises it
+  coded). A registry file inside the project always works.
+- A registry file is read whole, up to the fixed 50 MiB cap for a JSON
+  document: a larger one is not read (`FILE=<path>: larger than the
+  <limit>-byte JSON-document cap for the ID registry; not read [over-cap]`,
+  exit 1). Only a regular file is read: a
+  FIFO or a device there is `input-not-found` (`is not a file`), opened
+  without waiting for a writer.
 - Registry keys, and the default `PATH`s (`src`, `data`, `models`), stay
   relative to `--project-dir`; a relative `-o` or `PATH` resolves against the
   current directory.
 - `--project-dir` must be an existing directory, else `ERROR: loom id <command>: project directory not found: '<p>'
-  [input-not-found]` (a file there adds `is not a directory`; exit 1). Each `PATH` must resolve inside it, else
-  `ERROR: loom id <command>: PATH '<p>' is outside --project-dir '<dir>'` (exit 1), whether directly
-  or only through a symlink. `..` is collapsed lexically before any symlink
+  [input-not-found]` (a file there adds `is not a directory`; exit 1). Each `PATH` must exist, else
+  `ERROR: loom id generate: PATH not found: '<p>' [input-not-found]` (exit 1, nothing written), and
+  must resolve inside `--project-dir`, else
+  `ERROR: loom id generate: PATH '<p>' is outside --project-dir '<dir>' [option-invalid]` (exit 1),
+  whether directly or only through a symlink. Both name the `PATH` as typed. `..` is collapsed lexically before any symlink
   is followed (`link/..` is the directory above `link` as written). A symlink
   that itself lives inside the project is fine even if it points outside: it
   is indexed under its in-project location, as the default `PATH`s are,
@@ -134,11 +163,17 @@ traceback, and takes precedence over that error.
 - A file or directory below a `PATH` that cannot be read or listed gets the
   shared `WARNING: FILE=<path>: ...` or `WARNING: DIR=<path>: ...` line (the
   path project-relative, `/`-separated) and the run continues; a partial tree
-  is never indexed silently. So does a file whose name a registry cannot hold
-  (not UTF-8 encodable). A `PATH` argument itself that cannot be read or
-  listed is `ERROR: loom id <command>: PATH '<path>': could not be read: <reason>` (exit 1, nothing
-  written) on every Python version; an unreadable default directory (`src`,
-  `data`, `models`) is the `DIR=` warning instead.
+  is never indexed silently. A file whose name a registry cannot hold (not
+  UTF-8 encodable) gets `WARNING: ID registry: FILE=<path>: name cannot be
+  encoded as UTF-8 (lone surrogate); not indexed [text-malformed/registry]`.
+  A `PATH` argument itself that cannot be read or listed is an `ERROR:` (exit
+  1, nothing written) on every Python version, naming it as typed:
+  `FILE=<path>: could not read for ID registry indexing; <reason>
+  [file-unreadable]`, `DIR=<path>: could not list for ID registry indexing;
+  <reason> [dir-unlistable]`, or, when its directory cannot be searched,
+  `FILE=<path>: could not read for the input check; <reason>`. An
+  unreadable default directory (`src`, `data`, `models`) is the `DIR=`
+  warning instead, and a missing one is left out.
 - Build, virtual-environment, VCS and cache directories are not indexed; see
   [Directories that are skipped](#directories-that-are-skipped). A `PATH`
   that is, or lies below, one of them indexes nothing and gets one
@@ -191,8 +226,9 @@ Exceptions:
   stem are two models with two ids. A dataset pin with no recorded SHA-256
   hits any content: see [Content gates](id-registry-keys.md#content-gates).
 - A registry inside the project tree is left out of the SBOM's file set
-  (and of a wheel's Merkle root), with one `WARNING: ID registry: <path> is
-  inside the project's file set; left out of it` per run when the file set
+  (and of a wheel's Merkle root), with one `WARNING: ID registry:
+  FILE=<path>: inside the project's file set; left out of it
+  [registry-conflict/file-set]` per run when the file set
   actually contains it; `id generate` does not index it either. With
   `--allow-build`, the copy found in the build-and-read extraction is left
   out too (recognised as a file the build extracted, wherever `TMPDIR` is,
@@ -215,7 +251,7 @@ Exceptions:
   not record it, and a pinned id goes to the first of them, with a
   `WARNING:`. `loom id import` skips every key held by several elements, with
   one `INFO: ID registry: not imported (name held by several elements): <type>
-  '<key>', ...` line.
+  '<key>', ... [registry-key-ambiguous]` line.
 - A `project` run of a project with a dynamic version states `unknown` and so
   keys its own package by name alone; a wheel or hook run of it states the
   version: the two give that package two ids.
@@ -250,10 +286,10 @@ document is not written.
 A harvest records a SHA-256 only for `software_File` and `ai_AIPackage`
 entries (the two content-gated types) and never erases one already recorded:
 an element with no hash and another id leaves such an entry as is, with one
-`INFO: ID registry: content gate kept for <type> '<key>': harvested id <id>
+`INFO: ID registry: content gate kept for '<type>' <key>: harvested id <id>
 not recorded over <id>`. `loom id import` is the exception: there the
 imported id wins and the hash goes, with one `INFO: ID registry: content gate
-dropped for <type> '<key>': imported id <id> replaces <id>` per entry, so
+dropped for '<type>' <key>: imported id <id> replaces <id>` per entry, so
 importing an older SBOM of a model gives it that SBOM's id back.
 `dataset_DatasetPackage` elements are the exception: a dataset id is pinned
 deliberately (`-e NAME:dataset_DatasetPackage` or `id import`), never from a
@@ -280,10 +316,17 @@ registry in a read-only directory is written in place, which is not atomic. A
 exists, merges into that file and never overwrites it. There is no lock.
 
 A read-only registry file is never overwritten, on any platform. A failed save
-logs `WARNING: ID registry: failed to save <path>: <reason>` (the registry's
-path, never a temporary file's) and the run's output is already written;
-`loom id generate` and `loom id import` print the same line as their one
-`ERROR:` and exit 1.
+logs one `WARNING:`, what stopped it with its code: a write the system refused
+is `WARNING: FILE=<path>: could not write for the ID registry; <reason>
+[file-unwritable]` (the registry as given, never a temporary file), a file
+that no longer loads says its own line. The run's SBOM is built before the
+save and still written. The registry is written through a temporary file, so
+a failure leaves it as it was; where the directory refuses a temporary file it
+is written in place, and a full disk can leave it part-written. `loom
+id generate` and `loom id import` print the same line as their one `ERROR:`
+and exit 1. A library `IdRegistry` with no file logs `WARNING: ID registry: no
+file to save to; the ids this run added are not saved
+[registry-file-missing]`.
 
 Two `loom.Run` blocks that exit at the very same moment against one registry
 can each write the same id for a different model into their fragments: the
@@ -306,11 +349,15 @@ current directory for any other target, an sdist included. The CLI makes
 it always means the file under the current directory. A declared
 registry file that's missing (or not a file) raises `FileNotFoundError`
 (`ID registry file not found: '<path>'`, adding `is not a file` when
-something else is there), naming the path as given -- the flag or argument
+something else is there, a FIFO or device included, code `input-not-found`),
+naming the path as given -- the flag or argument
 as typed, the configured `id-registry` value as written -- never the
 resolved absolute path; one that's unreadable or invalid raises
-`ValueError` (`"ID registry file '<path>': <reason>"`, naming the resolved
-path).
+`ValueError` carrying its code (`registry-malformed`, `registry-wrong-format`,
+`registry-unknown-key`, `json-malformed`, `file-unreadable`: `ID registry:
+FILE=<path>: <reason>` or `FILE=<path>: not valid JSON for the ID registry;
+<reason>`), naming the path as given too. See
+[ID registry message codes](message-codes-id-registry.md).
 Neither is silently skipped or replaced. `loom.run` reads no `[tool.pitloom]` unless given one
 as `pitloom_config=`; its own `id_registry=` resolves against the current
 directory, a `pitloom_config=` file's `id-registry` against that file's
@@ -318,15 +365,29 @@ directory.
 
 `IdRegistry.load()` takes a `str` or path-like (else `TypeError`). `register()`
 and the loader reject a name that UTF-8 cannot hold (a lone surrogate) with
-`ValueError`; `generate()` skips such a file with the `FILE=` `WARNING:`, and
-harvest and `id import` skip such an element with a `WARNING:`. `generate()`
-raises `ID registry: '<path>' is outside the project root '<root>'` for a path
-outside the root; a symlink inside the project that points outside is keyed
+`ValueError` (`text-malformed/registry`, `registry-malformed`); `generate()`
+skips such a file with the `PATH` `WARNING:`, and harvest and `id import`
+skip such an element with a `WARNING:` (both `text-malformed/registry`).
+`register()` stores a key holding user information, a secret query value
+or an access token, or a query nested or encoded too deeply to read (a PURL
+qualifier and a dotless scp-style address included) with a `WARNING:`, and
+raises `ValueError` for it in the `refuse` mode (`refuse_credentials=True` on
+`IdRegistry.load()`, `IdRegistry.new()` or the constructor); harvest and `id
+import` skip an element whose key or `spdxId` holds one, with a `WARNING:`, in
+either mode; `IdRegistry.load()` and `IdRegistry.rebase()` load a file that
+holds such an entry with a `WARNING:`, and in the `refuse` mode raise
+`ValueError` and leave it as it is (all `credentials-unsafe/registry`; see
+[Credentials in a key](id-registry-keys.md#credentials-in-a-key)).
+`generate()` raises `FileNotFoundError` (`PATH not found: '<path>'
+[input-not-found]`) for a path that is not there, and `ValueError` (`ID
+registry: PATH '<path>' is not inside the project root '<root>'
+[option-invalid]`) for
+a path outside the root; a symlink inside the project that points outside is keyed
 by its project path. `id import` of an SBOM whose `@graph` is not a list is
 `ERROR: loom id import: FILE=<path>: SBOM @graph is not a list [sbom-invalid]`,
-as `embed-wheel --sbom` refuses it;
-any other failure without a code is
-`ERROR: loom id import: failed to import SBOM '<path>': <reason>`.
+as `embed-wheel --sbom` refuses it; one the SPDX 3 reader refuses (an object
+with no type) is `ERROR: loom id import: FILE=<path>: SBOM cannot be read as
+SPDX 3; <reason> [sbom-invalid]`.
 
 ## In CI
 

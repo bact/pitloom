@@ -61,6 +61,7 @@ from pitloom.extract.authors import AuthorSplit
 from pitloom.extract.wheel import read_wheel, wheel_identity
 from pitloom.id_registry import IdRegistry
 from pitloom.logging_config import configure_logging
+from pitloom.messages.config import Parameter
 
 log = logging.getLogger(__name__)
 
@@ -214,13 +215,18 @@ def embed_wheel_sbom(
         FileNotFoundError: Nothing is at *wheel_path*, or not a regular
             file (``input-not-found``, carrying the code).
         pitloom.messages.CodedValueError: *wheel_path* cannot be looked at
-            (``file-unreadable``: a directory on its way refuses search).
+            (``file-unreadable``: a directory on its way refuses search), or
+            a URL field of the SBOM holds a credential the run does not
+            accept in the ``refuse`` mode (``credentials-unsafe/refused``;
+            the SBOM at *sbom_path* is
+            checked as given, by ``overrides.credentials``
+            alone, and never rewritten). The wheel is left as it was.
         OSError: The file itself cannot be opened (its own permissions, a
             transient I/O error).
     """
     configure_logging()
     if sbom_basename:
-        sbom_basename = sbom_base_name(sbom_basename, "--sbom-basename")
+        sbom_basename = sbom_base_name(sbom_basename, Parameter("--sbom-basename"))
     require_wheel_file(wheel_path)
     # Not resolved: a symlink's name is the one judged, and the one the
     # embed reports; ``embed_sbom_in_wheel`` resolves to write.
@@ -231,7 +237,9 @@ def embed_wheel_sbom(
         # external SBOM never touches the registry, so only without
         # *sbom_path*. The resolved registry replaces *id_registry*, so
         # _generate_embed_sbom_json() does not load the file again.
-        id_registry = _resolve_embed_registry(project_dir, pitloom_config, id_registry)
+        id_registry = _resolve_embed_registry(
+            project_dir, pitloom_config, id_registry, eff_overrides.credentials
+        )
     # Before the SBOM is generated: that may run a build.
     refuse_unembeddable_wheel(wheel_obj, allow_signed_wheel)
     # The wheel's split Author-email is warned about only where its authors

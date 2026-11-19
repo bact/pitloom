@@ -31,7 +31,6 @@ from collections.abc import Sequence
 
 from licenseid import DatabaseNotReadyError, Detection, LicenseDetector
 
-from pitloom.core.quote_source import quote_source
 from pitloom.extract._license_detect import (
     _looks_like_spdx_license_expression,
     _looks_like_spdx_license_id,
@@ -39,7 +38,10 @@ from pitloom.extract._license_detect import (
 from pitloom.extract._license_resolve import resolve_value
 from pitloom.extract._licenseid_relay import relay_licenseid_warnings
 from pitloom.extract.copyright_notices import COPYRIGHT_NOTICE_LINE_RE
-from pitloom.logging_config import log_once, one_line, warn_once
+from pitloom.messages.licences import (
+    say_license_db_missing,
+    warn_license_db_unusable,
+)
 
 _logger = logging.getLogger(__name__)
 
@@ -57,60 +59,52 @@ def _get_detector() -> LicenseDetector:
         return LicenseDetector()
 
 
-#: The sub-prefix of every message about the database, so the sibling lines
-#: of :func:`_database_unusable` keep one grammar.
-_DB_PREFIX = "licenseid database"
+#: The memo key of the ``WARNING:`` about the database: one per process,
+#: whichever of :func:`_database_unusable`'s warnings comes first.
+_DB_WARNED = "licenseid database"
+#: The memo key of the ``INFO:`` for a missing database.
+_DB_MISSING_INFO = "licenseid database missing"
 
 
-def _database_missing(exc: BaseException) -> bool:
-    """True when *exc* says the database file is absent (condition ``not
-    found``, the path as its detail), not empty, invalid or unreadable.
-    ``no home directory`` is a setup problem (``pass --db``), not a database
-    to build: it stays a warning."""
-    return (
+def _missing_database_path(exc: BaseException) -> str | None:
+    """The path LicenseID looked for when *exc* says the database file is
+    absent there (condition ``not found``, the path as its detail), so a
+    missing database names where Pitloom looked; ``None`` for an empty,
+    invalid or unreadable database. ``no home directory`` is a setup problem
+    (no path was looked at), not a database to build: ``None`` too."""
+    if (
         isinstance(exc, DatabaseNotReadyError)
         and exc.condition == "not found"
-        and exc.detail is not None
+        and exc.detail
         and exc.detail != "no home directory"
-    )
-
-
-def _missing_database_path(exc: BaseException) -> str:
-    """The path LicenseID says it looked for (the detail of its ``not
-    found``), so a missing database names where Pitloom looked."""
-    detail = exc.detail if isinstance(exc, DatabaseNotReadyError) else None
-    return detail or ""
+    ):
+        return exc.detail
+    return None
 
 
 def _database_unusable(exc: BaseException, *, declared: bool = False) -> None:
-    """Warn once per process that the database cannot be used, and drop the
+    """Say once per process that the database cannot be used, and drop the
     cached detector, so the next lookup builds (and checks) it again.
 
-    With *declared* (a licence is stated, so only the licence-file second
-    opinion needs the database) a missing database is said once at INFO: the
-    stated value is recorded as it is. A declared licence text, which only
-    the database can read, is no *declared* lookup: it warns, as does an
-    empty, invalid or unreadable database. A declared name too short to be
-    a licence text never gets here (:data:`_MIN_LICENSE_TEXT_LENGTH`)."""
+    A missing database is ``license-db-missing``: with *declared* (a licence
+    is stated, so only the licence-file second opinion needs the database)
+    said once at INFO, the stated value recorded as it is; else a
+    ``WARNING:``. A declared licence text, which only the database can read,
+    is no *declared* lookup. An empty, invalid or unreadable database, or no
+    home directory, is ``license-db-unusable``. Either ``WARNING:`` is said
+    once per process, whichever comes first. A declared name too short to
+    be a licence text never gets here (:data:`_MIN_LICENSE_TEXT_LENGTH`)."""
     _get_detector.cache_clear()
-    if declared and _database_missing(exc):
-        log_once(
+    path = _missing_database_path(exc)
+    if path is not None:
+        say_license_db_missing(
             _logger,
-            logging.INFO,
-            "licenseid database missing",
-            "%s not found: %s -- license text detection skipped; "
-            "run 'licenseid update --source packaged'",
-            _DB_PREFIX,
-            quote_source(_missing_database_path(exc)),
+            declared=declared,
+            once=_DB_MISSING_INFO if declared else _DB_WARNED,
+            path=path,
         )
         return
-    warn_once(
-        _logger,
-        "licenseid database",
-        "%s cannot be used: %s -- license text detection skipped",
-        _DB_PREFIX,
-        one_line(exc),
-    )
+    warn_license_db_unusable(_logger, once=_DB_WARNED, failure=exc)
 
 
 def _detector(*, declared: bool = False) -> LicenseDetector | None:

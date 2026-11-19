@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-29
-Last-Modified: 2026-11-13
+Last-Modified: 2026-11-18
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -16,7 +16,10 @@ API](python-api.md) for the library.
 Pitloom reports what it decided on stderr, one line per event. A
 **catalogued** message ends in a stable code, so a script, a CI step or an
 agent can tell which condition it is without matching free text. A line
-without a code is not catalogued yet.
+without a code is not catalogued yet, or is a **summary**: an `INFO:` line
+that reports what a run did under its own rule (a count, the key it wrote)
+and names no condition, so it never takes a code. The reference lists each
+topic's summaries under "Summaries"; never trust a code appended to one.
 
 ## Line grammar
 
@@ -37,6 +40,12 @@ LEVEL: [FRAME: ][SUBJECT=value: ]CONDITION[; ACTION] [code]
   Hatchling hook's line starts `Pitloom build hook: `. A model scan's line may
   also start with the model it read: the prefixes are listed with the
   catalogue, in [Message codes](message-codes.md).
+
+A line after `licenseid: ` (`WARNING: licenseid: database: build v3
+outdated: current v4; run 'licenseid update'`) is a warning of LicenseID,
+the licence library Pitloom reads licences with, relayed once per run in
+LicenseID's own words and grammar. It carries no code and never will:
+Pitloom does not own its wording. Report it with the licence it concerns.
 
 To read a line back, match this regular expression on the line without its
 line ending. The groups are the level, the text and the code:

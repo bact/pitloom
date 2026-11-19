@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-05
-Last-Modified: 2026-11-14
+Last-Modified: 2026-11-17
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -258,3 +258,193 @@ or action differs (a git command, a Hugging Face file's `WARNING:` ending
 in what is not read). `offline-unusable` names its cause, offline mode,
 and takes `unusable` from the closed vocabulary (no word says "forbidden"). See
 [remote-fetch-policy.md](remote-fetch-policy.md).
+
+## ID registry file errors (#485, catalogue PR 5)
+
+- New topic `id-registry` (`pitloom.messages.id_registry`): `registry-malformed`,
+  `registry-unknown-key`, `registry-wrong-format` (the version) and
+  `registry-unusable` (a project root the file cannot record, on save). Every
+  line starts with the literal `REGISTRY_PREFIX` (`ID registry: `) and names
+  the file as `FILE=`, as given (rule 2 of
+  [message-frames-forward.md](../design/message-frames-forward.md)).
+  `registry_file_error` and `unencodable_message` are gone, so the stacked
+  `ID registry file 'p': ID registry: key ...` (the unencodable name) is
+  fixed. Another stack, fixed in #492: a load or save failure inside
+  `failed_to_save_message` printed `ID registry: failed to save
+  '<absolute path>': ID registry: FILE=<path as given>: ...`: the file twice,
+  spelt two ways, and no code.
+- Reused by advice: `file-unreadable` (`/not-utf8`) and `json-malformed`
+  read `for the ID registry` (a new `READ_USES` value); a version or key
+  literal that `pitloom.messages` cannot import (`4`, `MAX_ID_NUMBER`) is a
+  constant there, held equal by a drift test.
+- The namespace and project-root mismatch are `option-conflict` (actor
+  `caller`, advice widened: deleting a registry is the user's decision); a
+  `PATH` outside `--project-dir`, and its library twin in
+  `IdRegistry.generate`, are `option-invalid`.
+- A name the registry cannot hold (a lone surrogate) is the variant
+  `text-malformed/registry`: an `ERROR` from `register()`, a `WARNING` for
+  an SBOM element (import, harvest) or a file name (`id generate`). Inside
+  the registry file it is `registry-malformed`.
+- A `PATH` argument: missing is `input-not-found` (kind `PATH`; maintainer
+  ruling 2026-11-14, a change from the old skipping `WARNING:`); unreadable
+  is `file-unreadable` (`for ID registry indexing`, or `for the input check`
+  when it cannot be looked at) or `dir-unlistable` (its new `ERROR` line,
+  `dir_unlistable_error`). A default root (`src`, `data`, `models`) that
+  went away is left out silently. Each names the path as typed.
+- A registry path keeps its typed spelling through `resolve_registry`, the
+  `loom id` `-o` flag and the configured `id-registry` (`TypedPath`), and
+  `IdRegistry.load` keeps it on `IdRegistry.path`.
+- `registry-wrong-format` advice goes by the version found: older,
+  delete and `loom id import` (the user's decision); newer, upgrade Pitloom
+  and keep the file; none, restore from version control. `VERSION_LINE`
+  keeps its old "delete it and re-run" bracket on purpose.
+- A UTF-16 or UTF-32 registry (the reader takes them, more lenient than
+  RFC 8259) that does not decode is `json-malformed` in the decoder's words,
+  not `not-utf8`.
+- `PATH ... is outside --project-dir`, `not inside the project root` and the
+  project-root conflict quote the directory (field `root`) as they quote the
+  path, so a `; ` in it cannot split the line.
+- Not coded here: the save wrapper (fixed in #492: `say_save_failure`) and
+  the skipped-directory decision line (`_types.py`, PR 6).
+
+## ID registry ids and keys (#486, catalogue PR 6)
+
+- New topic `id-registry-ids` (`pitloom.messages.id_registry_ids`), split
+  from `id-registry` for page size. Codes by the condition each line
+  answers (R1): `registry-conflict` (one id, two elements; `/concurrent`
+  another run saved it first, `/held` an import meets an id held under
+  another key, `/spelling` a dataset named two ways, `/type` a name held
+  under another type), `registry-hash-conflict` (`/gate`: a harvest keeps,
+  or an import drops, a content gate), `registry-hash-missing`,
+  `registry-entry-missing`, `registry-path-key-unusable` (keyed by name or
+  by the path as read: closed `key_reason` table), `registry-identity-missing`,
+  `registry-key-ambiguous`, `registry-key-moved` (the layout-alias counts),
+  `index-path-no-effect` (a PATH under a skipped directory name).
+- The summary kind: `Summary` and `say_summary` (`messages/_summary.py`),
+  an `INFO:` of no condition with no code; `scripts/message_inventory`
+  leaves a call out when it reaches that definition
+  (`_scope.is_summary`), never by name or text, and a module's own
+  `say_summary` stays counted (`_walker._pick_def` now prefers the
+  caller's own definition). The reference lists each topic's summaries.
+  Since the rule keys on the call, `tests/messages/test_summary_guard.py`
+  holds the summaries to the catalogue: every `Summary(...)` is built in
+  `messages/` and listed in `SUMMARIES`, `say_summary` is only called
+  by that name, and outside `messages/` a summary imported by name is
+  only its argument (an alias, a `functools.partial`, a stored reference,
+  a `dataclasses.replace`, `type(S)(...)` or `S.__replace__` fails the
+  test, never hides a line; a module attribute `m.S` and a copy inside
+  `messages/` are the guard's stated limits).
+  Two here (`id import`'s dataset path key and model file-entry key); PR 7
+  adds six.
+- New fields in `_fields_registry.py` (`_fields.py` split first):
+  `entity`, `entities`, `claimant` (free; a URL's credentials masked, a
+  control character escaped), `spdx_id`, `element_type` (quoted),
+  `element_kind` and `key_reason` (closed). `_fields._merged` refuses a
+  duplicate name across the two tables.
+- FILE= after `ID registry: ` names only the registry file (ruling Q2):
+  PR 5's two indexed-file lines say `PATH '<p>'`; the SBOM namespace an
+  import cannot adopt is `sbom-invalid` (a new `WARNING` line, `FILE=` the
+  SBOM, no prefix, the namespace said once and the reason from a closed
+  table, `core.iri.NAMESPACE_PROBLEMS`). The mint refusal is
+  `registry-malformed`, `FILE=` the registry (`(no file)` for one in memory).
+- `loom.Run`'s registry lines take `ID registry: ` (ruling Q4) and name
+  the element kind on a miss too (`model m not found`, was `entity`).
+- Fixed with it: `register()`'s content-changed `INFO:` wrote the key raw
+  (a newline forged a line), and a dataset's URL was printed with its
+  credentials; both now go through `entity_text`.
+- Ratchet 366 to 328: the 35 coded sites, per module in
+  `tests/fixtures/message-inventory/uncoded.txt`; the two summary calls
+  are out of scope, not coded. `core/iri.py` goes 4 to 1: its three
+  namespace raises are one (`namespace_problem()` gives the reason, which
+  the `sbom-invalid` line now says without the value).
+- `registry-conflict` (one id, two claimants) is said by a document build
+  (generate, project, wheel, env, embed-wheel, the hook, the library) and
+  `loom.Run` only: `model` and `enrich` look one model up, `id generate`
+  and `id import` never claim (checked by real runs, 2026-11-15).
+- A PATH given twice to `id generate` is walked and said once; the
+  skipped-directory line names the PATH as typed.
+- `spdx_id` and `namespace` print through `entity_text` (a URL's
+  credentials masked): an imported SBOM's ids are read text. A registry
+  file's bad `namespace` (`registry-malformed`) says the closed reason and
+  the masked value, and `require_namespace_iri`'s own `ValueError` masks
+  it too, so the library error never holds a password. A `--namespace`
+  conflict whose two sides print alike once masked says `(they differ in
+  masked credentials)` rather than `X is not X`.
+- A PATH repeat is keyed on (normalised place, typed spelling): one
+  spelling of two places is two PATHs.
+- The drift test refuses a free value quoted as one placeholder
+  (`'<key>'` where the line prints `<entity>`); a quoted field still
+  matches its shown form.
+- Left for PR 7: the save wrapper, `ENTITY_STORED_AS_INFO` and the other
+  summaries, `_loom_dataset.py:108` (the registry inside a dataset
+  directory), and the hook's `did` texts (the hook never saves).
+
+## ID registry saves, left-out files and summaries (catalogue PR 7, #492)
+
+- A failed save says the line of what stopped it, never a wrapper:
+  `failed_to_save_message` is gone, and with it `ID registry: failed to
+  save '<absolute path>': ID registry: FILE=<as given>: ...` (the file
+  twice, two spellings, no code). One helper,
+  `say_save_failure(log, exc, *, file, fatal)` (`messages/_registry_save_say.py`;
+  entries and summaries in `_registry_save.py`, split so `_catalogue` never
+  imports `_emit`): `ERROR` for `loom id generate`/`import` (the output is
+  the registry), the `WARNING` twin for a run whose SBOM is written
+  (`loom generate`, `project`, `wheel`, `env`, the library,
+  `loom.Run`). A coded failure says its own text with its code (its entry's
+  line at that level, `relay_extra`); an uncoded `OSError`
+  is the write the system refused; any other uncoded failure is an
+  `InternalError` (none is reachable: `save()`'s no-path raise is guarded).
+- New condition `unwritable` (ruling Q1, 25 words now) and family
+  `file-unwritable` (topic `files`): `FILE=<file>: could not write <use>;
+  <failure>`, `ERROR` and `WARNING`, `use` from `READ_USES` (`for the ID
+  registry`; the field now says "read or written for"). The failure is
+  the `strerror`, so a temporary file's name never shows (the old line
+  could print `.reg.json.<hex>.tmp` from `os.replace`).
+- `WARNING` twins (same template): every `ERROR` line of
+  `registry-malformed`, `-unknown-key`, `-wrong-format`, `-unusable`
+  (built by `_warning_twins`), both `json-malformed` lines, and, found by
+  the save tests, `input-not-found`'s `<input> not found: <path>` (and its
+  `is not a file` line: a registry deleted mid-run) and `over-cap`'s JSON
+  document line, and `credentials-unsafe/registry`'s "is not loaded" line
+  (another run wrote a credential entry while this one refuses them). A
+  coded failure whose entry has no line at the level raises
+  `InternalError` rather than print uncoded (`relay_extra` itself still
+  returns `None`, which the scanner's relay relies on).
+- `registry-file-missing` (`missing`, actor `caller`): `ID registry: no
+  file to save to; the ids this run added are not saved`, for an
+  `IdRegistry` with no path (`warn_no_registry_path` keeps its name and
+  callers).
+- `registry-conflict/file-set` (topic `id-registry-ids`, with its
+  family): `ID registry: FILE=<file>: inside the project's file set; left
+  out of it` and `... inside dataset directory <dir>; left out of its
+  Merkle root` (no `loom:`); said once per run (embed batch memo) and per
+  directory (`loom.Run`), as before. `REGISTRY_IN_FILE_SET_WARNING` and
+  `REGISTRY_IN_DATASET_WARNING` are gone.
+- Summaries (six, not five: the configuration hint is one per action, so
+  each template is literal): `holds`, `added N new id(s) to`, `updated
+  stale entries in`, `-e NAME stored as KEY`, the add and change hints.
+  The `-e` line is said after the save succeeds: `entity_entry` returns an
+  `EntityEntry` whose `respelt` says whether to say it (a package with no
+  version never is, as before); a repeated `-e` is said once.
+- `cli/id.py` drops its two `print_error(str(exc), code=...)` blocks and
+  `_import_failure_text`: `cli_error_handler` relays the same line. A `{}`
+  SBOM (or an element with no type) used to reach it uncoded from the
+  SPDX 3 deserialiser; `read_sbom_objects` now raises `sbom-invalid`
+  (`FILE=<sbom>: SBOM cannot be read as SPDX 3; <failure>`).
+- `did` texts: PR 5's said the build hook re-reads the file to save; the
+  hook never saves. `VERSION_LINE` lost its `delete it and re-run`
+  bracket (wrong for a newer file; the advice is the entry's).
+- Ratchet 328 to 316 (`_persist` 3, `cli.id` 5, `_id_entity`, `_id_target`,
+  `walk_rules`, `_loom_dataset` 1 each).
+
+## `credentials-unsafe` subjects (#489)
+
+- A refusal of a dotless scp-style key (`alice:pw@host:repo`) says it as
+  `URL=<value>`, though it is no URL: accepted. Every line of the family
+  keys on one subject, `URL`, so a skill reads one field; a second subject
+  for the scp case would split the family for one shape.
+- `credentials-unsafe` gained a line for a value the SBOM strip leaves that
+  the detector refuses ("which the SBOM states as written"),
+  said once per value, masked; PR 2 (#490) replaced the strip with the
+  detector and retired the line (`credentials-unsafe/written`, `/refused` and
+  `/accepted` took its place: warn by default, refuse opt-in).

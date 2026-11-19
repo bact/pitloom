@@ -19,12 +19,15 @@ from pathlib import Path
 from typing import NamedTuple
 
 from pitloom.core.config import PitloomConfig
+from pitloom.core.given_path import GivenPath, TypedPath, keep_spelling
 from pitloom.core.walk_rules import PROJECT_FILES
 from pitloom.extract.project import read_project
 from pitloom.id_registry import DATASET_PACKAGE_TYPE
-from pitloom.messages import CodedValueError
+from pitloom.messages import CodedValueError, say_summary
+from pitloom.messages.id_registry import CONFIG_HINT_ADD, CONFIG_HINT_CHANGE
 from pitloom.messages.options import OPTION_MISSING
 from pitloom.messages.targets import is_input_file
+from pitloom.messages.url_credentials import say_mode_unread
 
 log = logging.getLogger("pitloom.id_registry")
 
@@ -76,6 +79,33 @@ def _read_project_config(project_dir: Path) -> tuple[PitloomConfig, str]:
         else _PYPROJECT_TABLE
     )
     return pitloom_config, table
+
+
+def resolve_id_refuse(
+    flag: bool | None, project_dir: Path, *, read_config: bool, best_effort: bool
+) -> bool:
+    """Whether `loom id` refuses a key or registry file entry that holds a
+    credential: *flag* (``--refuse-url-credentials``), else, with
+    *read_config* (no ``-o``, or an explicit ``--project-dir``), the
+    project's own ``url-credentials`` (:func:`_read_project_config`, which
+    it raises like unless *best_effort*), else the ``warn`` mode's
+    ``False``. With ``-o`` and no ``--project-dir`` the working directory's
+    config is not read, as for the registry's location; with ``-o`` and
+    ``--project-dir`` (*best_effort*) a project whose config cannot be read
+    (a bare ``setup()``) does not fail the run, as
+    :func:`_resolve_id_registry_target` reads its ``id-registry`` then: a
+    ``WARNING:`` says the ``warn`` mode is used."""
+    if flag is True:
+        return True
+    if not read_config:
+        return False
+    try:
+        return _read_project_config(project_dir)[0].credential_policy.refuse
+    except (ValueError, OSError) as exc:
+        if not best_effort:
+            raise
+        say_mode_unread(project_dir, exc)
+        return False
 
 
 def _project_configured_id_registry(project_dir: Path) -> tuple[str | None, str]:
@@ -138,13 +168,12 @@ def _resolve_id_registry_target(
     """
     # .absolute() only, never .resolve(): resolving would follow a dangling
     # symlink at the final path component to its (nonexistent) target and
-    # write through it there instead of surfacing IdRegistry.load()'s own
-    # "ID registry file not found" error at the symlink's own path.
-    # normpath() after .absolute() only collapses lexical ".."/"." noise
-    # (e.g. a `-o ../x` display) -- it never touches a symlink itself, so
-    # the dangling-symlink behaviour above is preserved.
+    # write through it there; the path stays the link's own, the one every
+    # message names. normpath() after .absolute() collapses lexical ".."/"."
+    # only (a `-o ../x`), never a symlink.
     if flag is not None:
-        path = _normalized_absolute(flag)
+        # The spelling typed rides along, for a message to name it.
+        path = keep_spelling(_normalized_absolute(flag), flag)
         # A broken/invalid config must not fail this call when a flag
         # already names the target explicitly (see
         # _project_configured_id_registry's own callers for the case where
@@ -166,7 +195,10 @@ def _resolve_id_registry_target(
     # "nothing declared" error below.
     configured, table = _project_configured_id_registry(project_dir)
     if configured is not None:
-        path = _normalized_absolute(project_dir / configured)
+        # Named as the configuration writes it.
+        path = TypedPath(
+            GivenPath(_normalized_absolute(project_dir / configured), configured)
+        )
         # Declared by the config itself, so no hint is logged: the slot is unused.
         return path, True, _ConfigSlot(table, True)
     raise _no_id_registry_declared_error(table)
@@ -192,7 +224,20 @@ def _log_config_hint(registry_path: Path, project_dir: Path, slot: _ConfigSlot) 
         rel = registry_path.relative_to(project_dir).as_posix()
     except ValueError:
         rel = registry_path.as_posix()
-    where = f"{slot.table} in {_TABLE_CONFIG_FILE[slot.table]}"
     value = json.dumps(rel) if slot.table == _PYPROJECT_TABLE else rel
-    action = f"change id-registry in {where} to" if slot.has_key else f"add to {where}"
-    log.info("ID registry: to use this registry, %s: id-registry = %s", action, value)
+    if slot.has_key:
+        say_summary(
+            log,
+            CONFIG_HINT_CHANGE,
+            table=slot.table,
+            file=_TABLE_CONFIG_FILE[slot.table],
+            value=value,
+        )
+    else:
+        say_summary(
+            log,
+            CONFIG_HINT_ADD,
+            table=slot.table,
+            file=_TABLE_CONFIG_FILE[slot.table],
+            value=value,
+        )

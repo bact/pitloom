@@ -135,9 +135,9 @@ def test_file_dataset_contains_its_keyed_file(
 @pytest.mark.parametrize(
     ("entry_type", "needle"),
     [
-        (FILE_TYPE, "no longer matches"),
-        (DATASET_PACKAGE_TYPE, "untracked file"),
-        (None, "untracked file"),
+        (FILE_TYPE, ": its SHA-256 no longer matches the entry"),
+        (DATASET_PACKAGE_TYPE, " not found"),
+        (None, " not found"),
     ],
     ids=["file-other-hash", "package-only", "absent"],
 )
@@ -162,9 +162,8 @@ def test_file_miss_warning(
 
     (held,) = _of(graph, "software_File")
     assert held["spdxId"] != f"{_NS}#X-1"
-    (warning,) = [w for w in _warnings(caplog) if "entity" not in w]
-    assert warning.startswith("loom: ")
-    assert needle in warning
+    (warning,) = [w for w in _warnings(caplog) if " file " in w]
+    assert warning.startswith(f"ID registry: file data/t.txt{needle}")
 
 
 def test_changed_content_says_which_element_it_is_for(
@@ -182,9 +181,9 @@ def test_changed_content_says_which_element_it_is_for(
         _run(project / "out.json", registry, lambda _: loom.add_dataset("data/t.txt"))
 
     changed = [w for w in _warnings(caplog) if "no longer matches" in w]
-    assert [w.split(" exists")[0] for w in changed] == [
-        "loom: registry entry for dataset package 'data/t.txt'",
-        "loom: registry entry for file 'data/t.txt'",
+    assert [w.split(": its")[0] for w in changed] == [
+        "ID registry: dataset package data/t.txt",
+        "ID registry: file data/t.txt",
     ]
 
 
@@ -218,6 +217,7 @@ def test_directory_dataset_has_its_merkle_root_and_no_file(
     assert roots == [expected, expected]
 
 
+@pytest.mark.platform  # the registry's path named in the line
 def test_registry_inside_a_directory_dataset_is_left_out_with_one_warning(
     project: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
@@ -239,8 +239,18 @@ def test_registry_inside_a_directory_dataset_is_left_out_with_one_warning(
         for h in p["verifiedUsing"]
     }
     assert roots == {without}
-    left_out = [w for w in _warnings(caplog) if "left out of its Merkle root" in w]
-    assert len(left_out) == 1
+    left_out = [
+        r
+        for r in caplog.records
+        if r.levelno == logging.WARNING and "of its Merkle root" in r.getMessage()
+    ]
+    # Said once for the repeated directory, coded, FILE= first, no "loom:".
+    (record,) = left_out
+    assert record.getMessage() == (
+        f"ID registry: FILE={registry.path}: inside dataset directory corpus; "
+        "left out of its Merkle root"
+    )
+    assert getattr(record, "pitloom_code", None) == "registry-conflict/file-set"
 
 
 def test_registry_alone_in_a_directory_dataset_is_still_said(
@@ -261,7 +271,7 @@ def test_remote_dataset_is_looked_up_by_name(
     project: Path, caplog: pytest.LogCaptureFixture, pinned: bool
 ) -> None:
     """A name that is no local path: a package with no hash and no file;
-    its registry id when pinned, else an "untracked entity" warning."""
+    its registry id when pinned, else a ``registry-entry-missing`` warning."""
     name = "hf://datasets/org/corpus"
     entries: Entries = (
         {(DATASET_PACKAGE_TYPE, name): (f"{_NS}#DatasetPackage-9", None)}
@@ -277,7 +287,9 @@ def test_remote_dataset_is_looked_up_by_name(
     assert "verifiedUsing" not in package
     assert not _of(graph, "software_File")
     assert (package["spdxId"] == f"{_NS}#DatasetPackage-9") is pinned
-    untracked = [w for w in _warnings(caplog) if "untracked entity" in w]
+    untracked = [
+        w for w in _warnings(caplog) if f"dataset package {name} not found" in w
+    ]
     assert len(untracked) == int(not pinned)
 
 
@@ -311,7 +323,9 @@ def test_file_outside_the_root_is_minted_with_one_warning(
     files = _of(graph, "software_File")
     assert [f["name"] for f in files] == [given, str(project / ".." / "outside.txt")]
     assert all(f["spdxId"] != f"{_NS}#File-5" for f in files)
-    outside_warnings = [w for w in _warnings(caplog) if "is outside the ID" in w]
+    outside_warnings = [
+        w for w in _warnings(caplog) if "is outside the project root" in w
+    ]
     assert len(outside_warnings) == int(with_registry)
 
 

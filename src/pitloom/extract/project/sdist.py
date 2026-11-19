@@ -25,12 +25,14 @@ from pathlib import Path
 from typing import Any, NamedTuple, TypeVar
 
 from pitloom._toml_io import load_toml_bytes
+from pitloom.core._project_toml import decode_member_text, load_project_toml_bytes
 from pitloom.core.config import (
     PitloomConfig,
     parse_pitloom_config,
     pyproject_config_applies,
     select_project_config,
 )
+from pitloom.core.internal_error import InternalError
 from pitloom.core.project import ProjectFile, ProjectMetadata
 from pitloom.core.provenance import provenance_source
 from pitloom.core.quote_source import quote_source
@@ -54,13 +56,14 @@ from pitloom.extract.project.poetry import (
 )
 from pitloom.extract.project.setuptools_cfg import setup_cfg_pitloom_config
 from pitloom.logging_config import field_loss_suffix
-from pitloom.messages import CodedValueError
+from pitloom.messages import CodedValueError, code_of
 from pitloom.messages.files import (
     CONFIG_MEMBER_LINE,
     OVER_CAP,
     Cap,
     warn_over_cap,
 )
+from pitloom.messages.metadata import METADATA_USE, relay_coded_warning
 from pitloom.messages.targets import input_not_found, is_input_file
 
 log = logging.getLogger(__name__)
@@ -153,6 +156,15 @@ def _member_bytes(root: dict[str, bytes | Cap], member: str, sdist_name: str) ->
     return raw
 
 
+def _load_pyproject(raw: bytes, sdist_name: str) -> Any:
+    """The root ``pyproject.toml`` of the archive *sdist_name* parsed,
+    ``ValueError`` (``config-malformed`` or ``file-unreadable/not-utf8``)
+    naming the member when it cannot be."""
+    return load_project_toml_bytes(
+        raw, file=f"{sdist_name}:{PYPROJECT}", use=METADATA_USE
+    )
+
+
 def _metadata_pyproject(raw: bytes | Cap, sdist_name: str) -> Any:
     """The root ``pyproject.toml`` parsed for metadata only (no PKG-INFO,
     config not read), or ``None`` with one ``WARNING:`` when it cannot be."""
@@ -161,13 +173,10 @@ def _metadata_pyproject(raw: bytes | Cap, sdist_name: str) -> Any:
         warn_over_cap(log, raw, f"{sdist_name}:{PYPROJECT}", f"not read{skipped}")
         return None
     try:
-        return load_toml_bytes(raw)
-    except ValueError as exc:  # TOMLDecodeError, UnicodeDecodeError
-        log.warning(
-            "Failed to parse pyproject.toml from sdist member: %s%s",
-            f"{quote_source(sdist_name)}: {exc}",
-            skipped,
-        )
+        return _load_pyproject(raw, sdist_name)
+    except ValueError as exc:  # config-malformed or file-unreadable/not-utf8
+        # The fields left unset are the entry's `did`.
+        relay_coded_warning(log, exc, quiet=False)
         return None
 
 
@@ -267,14 +276,20 @@ _T = TypeVar("_T")
 
 
 def _member_config(sdist_name: str, member: str, parse: Callable[[], _T]) -> _T:
-    """*parse*, with a failure naming the archive member (as
-    :func:`pitloom.core.config_cascade.load_config_file` names a file)."""
+    """*parse*; a coded failure names the archive member already, an uncoded
+    one is a programming error (:func:`pitloom.core.config_cascade
+    .load_config_file` is the directory route)."""
     try:
         return parse()
+    except InternalError:
+        raise  # already named: not re-wrapped (an InternalError is a ValueError)
     except ValueError as exc:
-        raise ValueError(
-            f"config file {quote_source(sdist_name + ':' + member)}: {exc}"
-        ) from exc
+        if code_of(exc) is None:
+            raise InternalError(
+                f"config file {quote_source(sdist_name + ':' + member)}: "
+                f"the reader raised an uncoded {type(exc).__name__}"
+            ) from None
+        raise  # names the file already
 
 
 def _config(
@@ -295,11 +310,12 @@ def _config(
 
     def read_setup_cfg() -> PitloomConfig:
         raw = _member_bytes(root, SETUP_CFG, sdist_name)
+        where = f"{sdist_name}:{SETUP_CFG}"
         return _member_config(
             sdist_name,
             SETUP_CFG,
             lambda: setup_cfg_pitloom_config(
-                raw.decode("utf-8"), f"{sdist_name}:{SETUP_CFG}"
+                decode_member_text(raw, file=where, use=METADATA_USE), where
             ),
         )
 
@@ -345,7 +361,7 @@ def read_sdist(sdist_path: Path, *, read_config: bool = True) -> SdistContents:
     pyproject: Any = None
     if PYPROJECT in members.root and read_config:
         raw = _member_bytes(members.root, PYPROJECT, name)
-        pyproject = _member_config(name, PYPROJECT, lambda: load_toml_bytes(raw))
+        pyproject = _member_config(name, PYPROJECT, lambda: _load_pyproject(raw, name))
     elif PYPROJECT in members.root and not isinstance(raw_pkg_info, bytes):
         pyproject = _metadata_pyproject(members.root[PYPROJECT], name)
     elif PYPROJECT in members.root:
@@ -391,7 +407,7 @@ def sdist_config_source(sdist_path: Path) -> tuple[str | None, dict[str, Any]]:
     if PYPROJECT in root:
         raw = _member_bytes(root, PYPROJECT, str(sdist_path))
         pyproject = _member_config(
-            str(sdist_path), PYPROJECT, lambda: load_toml_bytes(raw)
+            str(sdist_path), PYPROJECT, lambda: _load_pyproject(raw, str(sdist_path))
         )
     _, member = _config(root, pyproject, str(sdist_path))
     tool = pyproject.get("tool") if isinstance(pyproject, dict) else None

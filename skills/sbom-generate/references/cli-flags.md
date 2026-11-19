@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-29
-Last-Modified: 2026-11-10
+Last-Modified: 2026-11-17
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -24,7 +24,9 @@ where they differ, and a flag with no effect on a target logs
   `model` target, or `enrich`/`embed-wheel` without `--project-dir`, a
   `[tool.pitloom]` at all (they never read the current directory). On a
   project target it replaces the project's own config outright, not merges
-  with it.
+  with it. A bad setting is an `ERROR:` naming the file and the key and
+  ending in a code (`[config-invalid]`, `[config-moved]`, `[config-malformed]`);
+  a file with no `[tool.pitloom]` table gets a `WARNING:` and the defaults.
 - `--pretty` -- indent the JSON (default: compact).
 - `--offline`/`--no-offline` -- forbid/allow network (`project`, `wheel`,
   `env`, `model`, `embed-wheel`; `generate` follows its target; `enrich` has
@@ -38,8 +40,9 @@ where they differ, and a flag with no effect on a target logs
 - `--creator-name NAME` (repeatable), `--creator-type TYPE`, `--creator-email
   EMAIL` -- who created the SBOM (BSI: a person or organisation with an
   e-mail); the first creator that is not a `software-agent` is also the main
-  package's supplier, never a dependency's or a model's. `--creation-datetime`,
-  `--creation-comment`, `--creation-tool`/`--no-creation-tool` set the rest of
+  package's supplier, never a dependency's or a model's. `--creation-datetime
+  ISO8601`, else `SOURCE_DATE_EPOCH`, else the clock, sets `created`: pin
+  one for a bit-for-bit reproducible SBOM. `--creation-comment`, `--creation-tool`/`--no-creation-tool` set the rest of
   the creation info.
 - `--enrich` / `--no-enrich` -- Pitloom's own deterministic, local,
   frontmatter-only enrichment pass, in the same generate call. Add it only
@@ -96,6 +99,15 @@ where they differ, and a flag with no effect on a target logs
   no effect). Both registry flags: [id-registry.md](id-registry.md).
   `--project-dir DIR` on `wheel`/`project <sdist>` keys their files below
   DIR in a registry rooted above it (reads nothing from DIR).
+- `--refuse-url-credentials` (also `loom merge`, `loom id generate`/`import`)
+  -- write no SBOM (exit 1) when a URL value holds a credential; by default
+  it is written with a `[credentials-unsafe/written]` warning. Same as
+  `[tool.pitloom] url-credentials = "refuse"`; offer it for CI.
+- `--accept-url-credential sha256:<hex>` (repeatable; also `loom merge`)
+  -- accept one URL value that holds a credential, by the fingerprint its
+  `[credentials-unsafe/written]` or `[credentials-unsafe/refused]` line
+  prints. Only after the user confirms that value is no secret: see
+  [url-credentials.md](url-credentials.md).
 - `--describe-relationship` (relationship text), `--max-source-metadata-bytes
   BYTES` (cap the `artifact-metadata` annotation; 0, the default, is no cap) and
   `--no-build-isolation` ([build-timeout.md](build-timeout.md)): only when

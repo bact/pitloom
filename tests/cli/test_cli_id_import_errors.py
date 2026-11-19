@@ -91,17 +91,43 @@ def test_an_unreadable_sbom_is_named_as_typed(
     assert trusted_message(line) is FILE_UNREADABLE
 
 
-def test_an_uncoded_import_error_keeps_the_lead(
+@pytest.mark.parametrize(
+    "content",
+    [
+        b"{}",
+        b'{"@graph": [{}]}',
+        b'{"@graph": [{"type": "software_Package", "spdxId": 5}]}',
+    ],
+    ids=["empty-object", "untyped-element", "non-iri-id"],
+)
+def test_an_sbom_the_reader_refuses_is_coded(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
+    content: bytes,
 ) -> None:
+    """The SPDX 3 reader's own refusal is ``sbom-invalid``, the SBOM named
+    ``FILE=`` as typed, its text after the ``;``."""
     monkeypatch.chdir(tmp_path)
-    (tmp_path / "sbom.json").write_bytes(b"{}")
+    (tmp_path / "sbom.json").write_bytes(content)
     (line,) = _errors(
         ["import", "sbom.json", "--id-registry", "r.json"], monkeypatch, capsys
     )
-    assert line.startswith("ERROR: loom id import: failed to import SBOM 'sbom.json': ")
+    assert line.startswith(
+        "ERROR: loom id import: FILE=sbom.json: SBOM cannot be read as SPDX 3; "
+    )
+    assert line.endswith(" [sbom-invalid]")
+    assert trusted_message(line) is SBOM_INVALID
+    assert not (tmp_path / "r.json").exists()
+
+
+def test_the_library_import_of_an_sbom_the_reader_refuses_is_coded(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "sbom.json").write_bytes(b"{}")
+    with pytest.raises(ValueError) as caught:
+        IdRegistry(namespace=_NS).import_sbom(tmp_path / "sbom.json")
+    assert raised_as(caught.value, SBOM_INVALID)
 
 
 @pytest.mark.parametrize(

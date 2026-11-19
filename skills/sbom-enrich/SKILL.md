@@ -1,6 +1,6 @@
 ---
 # Created: 2026-07-05
-# Last-Modified: 2026-11-14
+# Last-Modified: 2026-11-16
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -293,10 +293,13 @@ any hit, even on exit 0. When a line ends in a `[code]`, read
 its advice, never run the fix. Expect the dangling-reference `WARNING:` plus
 `ERROR:` above. After an ambiguous-name pin (`sbom-generate`'s
 `references/id-registry.md`), a `WARNING: ID registry: ... is registered for
-both` line on every run is expected. `ERROR: loom <command>: ID registry file ...: version 3,
-expected 4` means an old-format registry: never delete or rewrite it from this
+both` line on every run is expected. `ERROR: loom <command>: ID registry: FILE=...: version 3,
+expected 4 ... [registry-wrong-format]` means an old-format registry: never delete or rewrite it from this
 skill; hand the user to `sbom-generate` ("Pinning element ids"), or when
-non-interactive stop and report the `ERROR:`.
+non-interactive stop and report the `ERROR:`. A
+`[credentials-unsafe/written]` `WARNING:` (the SBOM holds a credential) or
+`[credentials-unsafe/refused]` `ERROR:` (no SBOM written): follow
+`sbom-generate`'s "Check stderr".
 
 ## See also
 

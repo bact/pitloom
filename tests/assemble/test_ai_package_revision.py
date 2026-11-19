@@ -58,7 +58,16 @@ def test_release_time(stamp: str | None, expected: str | None) -> None:
     assert _package(_with_time(stamp)).get("releaseTime") == expected
 
 
-@pytest.mark.parametrize("stamp", ["yesterday", "2024-13-45T00:00:00Z", "1704164645"])
+@pytest.mark.parametrize(
+    "stamp",
+    [
+        "yesterday",
+        "2024-13-45T00:00:00Z",
+        "1704164645",
+        "0001-01-01T00:00:00+05:00",  # before year 1 once read as UTC
+        "9999-12-31T23:59:59-05:00",  # after year 9999 once read as UTC
+    ],
+)
 def test_a_release_time_that_is_not_iso_8601_is_left_out_with_a_warning(
     stamp: str, caplog: pytest.LogCaptureFixture
 ) -> None:

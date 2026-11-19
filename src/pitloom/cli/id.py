@@ -17,34 +17,37 @@ from typing import Any
 
 from packaging.utils import InvalidName, canonicalize_name
 
-from pitloom.cli._id_entity import entity_entry
+from pitloom.cli._id_entity import EntityEntry, entity_entry, say_stored_as
 from pitloom.cli._id_target import (
     _log_config_hint,
     _normalized_absolute,
     _resolve_id_registry_target,
     resolve_dataset_hash_ceiling,
+    resolve_id_refuse,
+)
+from pitloom.cli._parser_credentials import (
+    REFUSE_HELP_ID_GENERATE,
+    REFUSE_HELP_ID_IMPORT,
+    add_refuse_argument,
 )
 from pitloom.cli.commands.utils import cli_error_handler
 from pitloom.cli.kv_output import print_kv
 from pitloom.cli.options import positive_byte_ceiling
 from pitloom.core.given_path import TypedPath, keep_spelling
 from pitloom.core.iri import require_namespace_iri
-from pitloom.core.quote_source import quote_given, quote_source
 from pitloom.id_registry import (
     AI_PACKAGE_TYPE,
     DATASET_PACKAGE_TYPE,
     FILE_TYPE,
     PACKAGE_TYPE,
     IdRegistry,
-    ambiguous_keys_message,
-    failed_to_save_message,
+    check_key_credentials,
     save_registry,
+    say_ambiguous_keys,
 )
-from pitloom.logging_config import print_error
-from pitloom.messages import (
-    CodedValueError,
-    code_of,
-)
+from pitloom.messages import CodedValueError, say_summary
+from pitloom.messages.id_registry import HOLDS_IDS, say_save_failure
+from pitloom.messages.options import OPTION_INVALID, PATH_OUTSIDE_LINE
 from pitloom.messages.targets import (
     INPUT_NOT_FOUND,
     NO_ID_PATHS_LINE,
@@ -77,10 +80,12 @@ def _load_or_create_registry(
     *,
     namespace: str | None = None,
     project_root: Path | None = None,
+    refuse_credentials: bool = False,
 ) -> IdRegistry:
     """Load the registry at *registry_path*, or create a fresh one if
     nothing exists there yet, with *namespace* and *project_root* (both
-    only for a new registry: an existing one keeps its own).
+    only for a new registry: an existing one keeps its own), in the
+    ``url-credentials`` mode *refuse_credentials*.
 
     Raises ``ValueError`` (from :meth:`~pitloom.id_registry.IdRegistry.load`)
     when *registry_path* exists but doesn't load, or ``FileNotFoundError``
@@ -92,8 +97,9 @@ def _load_or_create_registry(
             path=registry_path,
             namespace=namespace,
             project_root=project_root,
+            refuse_credentials=refuse_credentials,
         )
-    return IdRegistry.load(registry_path)
+    return IdRegistry.load(registry_path, refuse_credentials=refuse_credentials)
 
 
 def _namespace_arg(text: str) -> str:
@@ -108,10 +114,11 @@ def _namespace_arg(text: str) -> str:
 
 def _registry_file_arg(text: str) -> Path:
     """``type=`` callable for ``-o``: a file path, never ``-``: a registry is
-    not written to stdout, and ``-`` would name a file called ``-``."""
+    not written to stdout, and ``-`` would name a file called ``-``. The path
+    keeps the spelling typed, for a message to name it."""
     if text == "-":
         raise argparse.ArgumentTypeError("'-' (stdout) is not supported")
-    return Path(text)
+    return TypedPath(text)
 
 
 def _entity_arg(text: str) -> tuple[str, str]:
@@ -209,19 +216,20 @@ def _report_registry_written(registry_path: Path, registry: IdRegistry) -> None:
     """Print the ``PITLOOM_ID_REGISTRY_PATH=<path>`` data line for the
     registry just saved, and log what it now holds."""
     print_kv(PITLOOM_ID_REGISTRY_PATH=registry_path)
-    log.info("ID registry: holds %d id(s)", registry.id_count())
+    say_summary(log, HOLDS_IDS, number=registry.id_count())
 
 
 def _save(registry: IdRegistry, registry_path: Path) -> bool:
     """Save *registry* (loaded from or created for *registry_path*) through
     the one registry write routine
     (:func:`~pitloom.id_registry.save_registry`), which keeps what another
-    run saved meanwhile; on failure print the one ``ERROR:`` failed-to-save
-    line and return ``False``."""
+    run saved meanwhile; on failure say the one ``ERROR:`` line of what
+    stopped it (:func:`~pitloom.messages.id_registry.say_save_failure`) and
+    return ``False``."""
     try:
         save_registry(registry)
     except (ValueError, OSError) as exc:
-        print_error(failed_to_save_message(registry_path, exc))
+        say_save_failure(log, exc, file=registry_path, fatal=True)
         return False
     return True
 
@@ -243,9 +251,11 @@ def _generate_paths(args: argparse.Namespace, project_dir: Path) -> list[Path]:
         for path in args.paths:
             resolved = _resolve_id_generate_path(path, project_dir, lexical_project_dir)
             if resolved is None:
-                raise ValueError(
-                    f"PATH {quote_given(path)} is outside "
-                    f"--project-dir {quote_given(args.project_dir or project_dir)}"
+                raise CodedValueError(
+                    OPTION_INVALID,
+                    line=PATH_OUTSIDE_LINE,
+                    path=path,
+                    root=args.project_dir or project_dir,
                 )
             # The typed spelling rides along, for a warning to name it.
             paths.append(keep_spelling(resolved, path))
@@ -260,6 +270,19 @@ def _generate_paths(args: argparse.Namespace, project_dir: Path) -> list[Path]:
     return paths
 
 
+def _id_refuse(args: argparse.Namespace, project_dir: Path) -> bool:
+    """Whether this `loom id` run refuses a credential (see
+    :func:`pitloom.cli._id_target.resolve_id_refuse`): the project's config
+    is read without ``-o``, or best-effort with ``-o`` and an explicit
+    ``--project-dir``."""
+    return resolve_id_refuse(
+        args.refuse_url_credentials,
+        project_dir,
+        read_config=args.id_registry is None or args.project_dir is not None,
+        best_effort=args.id_registry is not None,
+    )
+
+
 def _open_generate_registry(
     args: argparse.Namespace, project_dir: Path, registry_path: Path, is_new: bool
 ) -> IdRegistry:
@@ -270,6 +293,7 @@ def _open_generate_registry(
         project_dir.name,
         namespace=args.namespace,
         project_root=project_dir,
+        refuse_credentials=_id_refuse(args, project_dir),
     )
     if not is_new:
         registry.require_project_root(project_dir)
@@ -280,17 +304,24 @@ def _open_generate_registry(
 
 def _register_entities(
     args: argparse.Namespace, project_dir: Path, registry: IdRegistry
-) -> None:
-    """Register each ``-e`` entity under its key and SHA-256; raises
-    ``ValueError`` for an unreadable project config when a dataset needs
-    its ``max-dataset-hash-bytes``."""
+) -> list[tuple[str, EntityEntry]]:
+    """Register each ``-e`` entity under its key and SHA-256, and return
+    each NAME and entry for :func:`~pitloom.cli._id_entity.say_stored_as`
+    to say once the registry is saved; raises ``ValueError`` for an
+    unreadable project config when a dataset needs its
+    ``max-dataset-hash-bytes``."""
     entities: list[tuple[str, str]] = args.entity or []
     ceiling = resolve_dataset_hash_ceiling(
         args.max_dataset_hash_bytes, project_dir, [t for t, _ in entities]
     )
+    stored: list[tuple[str, EntityEntry]] = []
     for type_name, name in entities:
-        key, sha256 = entity_entry(registry, project_dir, type_name, name, ceiling)
-        registry.register(type_name, key, sha256=sha256)
+        # Before entity_entry says anything about the entity.
+        check_key_credentials(type_name, name, refuse=registry.refuse_credentials)
+        entry = entity_entry(registry, project_dir, type_name, name, ceiling)
+        registry.register(type_name, entry.key, sha256=entry.sha256)
+        stored.append((name, entry))
+    return stored
 
 
 def _run_id_generate(args: argparse.Namespace) -> int:
@@ -299,36 +330,26 @@ def _run_id_generate(args: argparse.Namespace) -> int:
     if not is_input_dir(project_dir, shown=args.project_dir or project_dir):
         say_input_not_found("project directory", args.project_dir or project_dir)
         return 1
-    try:
-        registry_path, from_project_key, slot = _resolve_id_registry_target(
-            args.id_registry, project_dir
-        )
-        is_new = not os.path.lexists(registry_path)
-        registry = _open_generate_registry(args, project_dir, registry_path, is_new)
-        paths = _generate_paths(args, project_dir)
-        registry.generate(
-            paths, project_dir, exclude=registry_path, explicit=bool(args.paths)
-        )
-        _register_entities(args, project_dir, registry)
-    except (ValueError, OSError) as exc:
-        print_error(str(exc), code=code_of(exc))
-        return 1
+    # A failure here is the one ERROR line of cli_error_handler.
+    registry_path, from_project_key, slot = _resolve_id_registry_target(
+        args.id_registry, project_dir
+    )
+    is_new = not os.path.lexists(registry_path)
+    registry = _open_generate_registry(args, project_dir, registry_path, is_new)
+    paths = _generate_paths(args, project_dir)
+    registry.generate(
+        paths, project_dir, exclude=registry_path, explicit=bool(args.paths)
+    )
+    stored = _register_entities(args, project_dir, registry)
     if not _save(registry, registry_path):
         return 1
+    # A repeated -e is said once, in the order first given.
+    for name, entry in dict.fromkeys(stored):
+        say_stored_as(name, entry)
     _report_registry_written(registry_path, registry)
     if is_new and not from_project_key:
         _log_config_hint(registry_path, project_dir, slot)
     return 0
-
-
-def _import_failure_text(sbom_path: Path, exc: Exception) -> str:
-    """The line for an SBOM that could not be imported: a catalogued error
-    (one with a code) says its own text, which names the SBOM (every coded
-    error :meth:`~pitloom.id_registry.IdRegistry.import_sbom` raises has it
-    as its ``FILE=`` or path), any other is named after the file."""
-    if code_of(exc) is not None:
-        return str(exc)
-    return f"failed to import SBOM {quote_source(sbom_path)}: {exc}"
 
 
 def _run_id_import(args: argparse.Namespace) -> int:
@@ -342,33 +363,27 @@ def _run_id_import(args: argparse.Namespace) -> int:
     if not is_input_dir(project_dir, shown=args.project_dir or project_dir):
         say_input_not_found("project directory", args.project_dir or project_dir)
         return 1
-    try:
-        registry_path, from_project_key, slot = _resolve_id_registry_target(
-            args.id_registry, project_dir
-        )
-        is_new = not os.path.lexists(registry_path)
-        registry = _load_or_create_registry(
-            registry_path, sbom_path.stem, project_root=project_dir
-        )
-        if not is_new and args.project_dir is not None:
-            registry.require_project_root(project_dir)
-    except (ValueError, OSError) as exc:
-        print_error(str(exc), code=code_of(exc))
-        return 1
-
-    try:
-        # The path as given: a line about the SBOM names it as the user did.
-        skipped = registry.import_sbom(args.sbom)
-    # pylint: disable-next=broad-exception-caught
-    except Exception as exc:
-        print_error(_import_failure_text(args.sbom, exc), code=code_of(exc))
-        return 1
+    # A failure here is the one ERROR line of cli_error_handler.
+    registry_path, from_project_key, slot = _resolve_id_registry_target(
+        args.id_registry, project_dir
+    )
+    is_new = not os.path.lexists(registry_path)
+    registry = _load_or_create_registry(
+        registry_path,
+        sbom_path.stem,
+        project_root=project_dir,
+        refuse_credentials=_id_refuse(args, project_dir),
+    )
+    if not is_new and args.project_dir is not None:
+        registry.require_project_root(project_dir)
+    # The path as given: a line about the SBOM names it as the user did.
+    skipped = registry.import_sbom(args.sbom)
 
     if not _save(registry, registry_path):
         return 1
     _report_registry_written(registry_path, registry)
     if skipped:
-        log.info("%s", ambiguous_keys_message("not imported", skipped))
+        say_ambiguous_keys(log, "not imported", skipped)
     if is_new and not from_project_key:
         _log_config_hint(registry_path, project_dir, slot)
     return 0
@@ -458,6 +473,7 @@ def add_parser(subparsers: Any, _parent_parser: argparse.ArgumentParser) -> None
             "@VERSION holds only a package that states no version."
         ),
     )
+    add_refuse_argument(gen_parser, REFUSE_HELP_ID_GENERATE)
     gen_parser.add_argument(
         "--max-dataset-hash-bytes",
         type=positive_byte_ceiling,
@@ -506,5 +522,6 @@ def add_parser(subparsers: Any, _parent_parser: argparse.ArgumentParser) -> None
             "existing registry)."
         ),
     )
+    add_refuse_argument(imp_parser, REFUSE_HELP_ID_IMPORT)
 
     id_parser.set_defaults(func=_run_id_command)

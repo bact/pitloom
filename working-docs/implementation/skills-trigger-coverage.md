@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-18
-Last-Modified: 2026-11-14
+Last-Modified: 2026-11-17
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -316,6 +316,36 @@ drift is silent.
   (the asks are the same; `sbom-generate`'s body stays at 16,376 bytes); the
   references carry it: `pypi-url.md`, `git-url.md`, `cli-flags.md`,
   `known-limitations.md` and `sbom-enrich`'s `pypi-url-base.md`.
+- **URL credential refusal (2026-11-16, credentials PR 2).** No subcommand
+  was added; every generating command and `merge` gained
+  `--accept-url-credential` and `--allow-url-credentials`, and an SBOM
+  whose URL field holds a credential now fails (`[credentials-unsafe/refused]`,
+  exit 1, no SBOM). A user meets it mid-run or pastes it from a build hook
+  failure in CI, so `sbom-generate`'s description gained `"holds a
+  credential" errors` (1021 to 1023 of 1024 characters, YAML parsed; the room
+  came from dropping "; enriching: sbom-enrich", which the earlier "Combined
+  asks (hand off to sbom-enrich)" and `sbom-enrich`'s own description already
+  cover). `sbom-enrich` and `sbom-validate` descriptions are unchanged (the
+  refusal is not an enrichment or a validity question; `loom fragment
+  validate` does not check credentials). Body: four lines in `sbom-generate`'s
+  "Check stderr" (16,332 of 16,384 bytes) carrying the two rules a move must
+  not lose (never suggest `--allow-url-credentials`; offer the fingerprint
+  only once the user confirms the value is no secret), and one sentence in
+  `sbom-enrich` that hands the line to `sbom-generate`. The flow (which
+  value and field, rotate because it is in history, then the fingerprint,
+  which surface reads the flag or the `pyproject.toml` list, the
+  non-interactive stop) is in the new `references/url-credentials.md`;
+  `cli-flags.md` names the flags and `id-registry.md` the registry file
+  refusal (it said the entry was dropped).
+  **Revised the same day (warn by default):** `--allow-url-credentials` was
+  removed; the default writes the SBOM with `WARNING: ...
+  [credentials-unsafe/written]`, and `--refuse-url-credentials` or
+  `url-credentials = "refuse"` restore the refusal. Descriptions unchanged
+  ("holds a credential" matches both lines). The "Check stderr" lines now
+  name the `written` warning and the `refused` error and point to the
+  reference (rotate, offer `refuse` for CI, fingerprint only once the value
+  is confirmed no secret); `sbom-enrich`'s hand-off names both codes; the
+  reference's last step is "never suggest turning `refuse` off".
 
 ## Portability across clients (2026-09-29, PR #235)
 
@@ -349,7 +379,8 @@ clients (Codex, Gemini CLI, GitHub Copilot / VS Code, claude.ai). Decisions:
   checks only structured version fields, and could also assert the
   skills' floor is at most `__about__.__version__` (it would fail until
   the release bump lands).
-  The floor moved to 0.24.1 on 2026-11-14 (PR #482: the message codes
+  The floor moved to 0.24.1 on 2026-11-14 (0.24.1 was never released: it is
+  raised to 0.25.0 at the cut, roadmap "0.25.0 cut sweep"; PR #482: the message codes
   `input-not-found`, `sbom-invalid`, `hf-url-invalid`, `file-unreadable`
   for the input check and their wording); feature floors (PyPI URL
   targets, 0.24.0) stay.

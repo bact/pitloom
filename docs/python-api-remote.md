@@ -55,7 +55,7 @@ fetched project yourself, use `pitloom.extract.remote.fetch_git_project(url)`
 `pitloom.core.config_cascade.resolve_fetch_policy()` as every surface makes
 it;
 it is checked when built: a `max_bytes` that is not an integer of at least 1
-(a `bool` or a `float` is none) raises `ValueError`, and an `offline` that is
+(a `bool` or a `float` is none) raises `ValueError` (`option-invalid`), and an `offline` that is
 not a `bool` or a `check_url` that is not callable raises
 `pitloom.core.internal_error.InternalError`, a `ValueError` subclass),
 a context manager yielding a `GitCheckout` (`folder` is the directory to read,
@@ -98,7 +98,7 @@ checked against the one PyPI declares, and read as a local file; the SBOM
 carries one provenance record of how it was obtained. A PyPI URL is never
 sent to Git. `max_download_bytes=` (else `pitloom_config=`'s
 `max-download-bytes`, else 512 MiB) caps the file; a value that is not an
-integer of at least 1 raises `ValueError` on every target, and on a target
+integer of at least 1 raises `ValueError` (`option-invalid`) on every target, and on a target
 that downloads nothing it warns that it has no effect. A malformed URL raises
 a `pitloom.messages.CodedValueError` (`pypi-url-invalid`); any other failure is
 a `pitloom.extract.remote.RemoteSourceError` whose `code` (`pypi.*`) names it

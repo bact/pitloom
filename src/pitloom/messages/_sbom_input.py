@@ -6,7 +6,8 @@
 """An SBOM Pitloom was given to read (``embed-wheel --sbom``, ``loom id
 import``) that it cannot use: one named as SPDX 3 that is another format
 (``sbom-wrong-format``), or one whose content fails a check
-(``sbom-invalid``). ``ERROR`` only: nothing is written.
+(``sbom-invalid``). ``ERROR``: nothing is written (``sbom-invalid`` also
+has a ``WARNING`` line for an SBOM namespace the registry does not take).
 
 An SBOM that is not UTF-8, not valid JSON or not a JSON object says
 ``file-unreadable/not-utf8`` and ``json-malformed``, read ``for the SBOM``.
@@ -19,9 +20,9 @@ from __future__ import annotations
 
 from typing import Final
 
-from pitloom.messages._types import Line, Message
+from pitloom.messages._types import ASK_FIRST, Line, Message
 
-_SINCE: Final = "0.24.1"
+_SINCE: Final = "0.25.0"
 
 #: A file named ``.spdx3.json`` whose content is not SPDX 3 JSON-LD.
 NOT_SPDX3_LINE: Final = Line(
@@ -42,8 +43,7 @@ SBOM_WRONG_FORMAT: Final = Message(
     actor="user",
     advice="Tell the user which file is named as SPDX 3 but is not, as the "
     "line names it. They give the right file, or rename it to match its "
-    "format, and run again. Do not rename or convert the file for them; ask "
-    "first, and with nobody to ask, report it only.",
+    f"format, and run again. Do not rename or convert the file for them; {ASK_FIRST}",
     subject_key="FILE",
     since=_SINCE,
 )
@@ -62,25 +62,64 @@ SBOM_GRAPH_ELEMENT_LINE: Final = Line(
     level="ERROR",
     template="FILE=%(file)s: SBOM @graph holds an element that is not an object",
 )
+#: An SBOM with an object that names one key twice: readers disagree on
+#: which value counts (Python's last, others the first), so a check on one
+#: reading leaves the other in the bytes embedded.
+SBOM_DUPLICATE_KEY_LINE: Final = Line(
+    level="ERROR",
+    template="FILE=%(file)s: SBOM holds an object with a key given twice",
+)
+
+#: An SBOM the SPDX 3 reader refuses (an object with no type, a property
+#: of the wrong kind) when it is imported into an ID registry.
+SBOM_UNREADABLE_LINE: Final = Line(
+    level="ERROR",
+    template="FILE=%(file)s: SBOM cannot be read as SPDX 3; %(failure)s",
+)
+
+#: An SBOM imported into an empty ID registry, whose namespace cannot be
+#: the registry's.
+SBOM_NAMESPACE_LINE: Final = Line(
+    level="WARNING",
+    template="FILE=%(file)s: SBOM namespace %(namespace_problem)s; the ID "
+    "registry keeps its own, not %(namespace)s",
+)
 
 SBOM_INVALID: Final = Message(
     code="sbom-invalid",
     condition="invalid",
-    lines=(SBOM_NOT_VALID_LINE, SBOM_GRAPH_NOT_LIST_LINE, SBOM_GRAPH_ELEMENT_LINE),
+    lines=(
+        SBOM_NOT_VALID_LINE,
+        SBOM_GRAPH_NOT_LIST_LINE,
+        SBOM_GRAPH_ELEMENT_LINE,
+        SBOM_DUPLICATE_KEY_LINE,
+        SBOM_UNREADABLE_LINE,
+        SBOM_NAMESPACE_LINE,
+    ),
     summary="An SBOM given to read is JSON but not a valid SPDX 3 document: "
     "its @graph is not a list of objects ('embed-wheel --sbom', 'loom id "
-    "import'; checked before the format, whatever the file is named), or "
+    "import'; checked before the format, whatever the file is named), an "
+    "object of it names one key twice (JSON readers disagree on which value "
+    "counts, so what was checked may not be what is embedded), the SPDX 3 "
+    "reader refuses it ('loom id import': an object with no type, a property "
+    "of the wrong kind; the reader's text after the line's ';'), or "
     "spdx3-validate refuses it ('embed-wheel --sbom --validate'; its own "
-    "lines before say why).",
+    "lines before say why). As a WARNING: 'loom id import' into an empty "
+    "registry finds a document id that cannot be a namespace: not an "
+    "absolute IRI, holding '#', or holding a character an IRI cannot hold "
+    "(a space).",
     did="Wrote nothing: no wheel is changed, no ID is imported. The command "
     "exits 1; the library (embed_wheel_sbom with sbom_path, "
     "IdRegistry.import_sbom) raises ValueError carrying the code for an "
-    "@graph that is not a list of objects.",
+    "@graph that is not a list of objects, a key given twice or an SBOM the "
+    "SPDX 3 reader refuses. As a "
+    "WARNING, the import goes on and the registry keeps the namespace it was "
+    "created with.",
     effect="not-written",
     actor="user",
     advice="Tell the user which SBOM is not valid, and what the validator "
     "reported. They fix or regenerate it and run again. Do not edit the SBOM "
-    "for them; ask first, and with nobody to ask, report it only.",
+    f"for them; {ASK_FIRST}",
     subject_key="FILE",
     since=_SINCE,
 )

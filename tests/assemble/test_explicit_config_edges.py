@@ -130,9 +130,9 @@ def test_sdist_does_not_search_for_a_registry_beside_it(
     loaded: list[Path] = []
     load = IdRegistry.load
 
-    def spy_load(path: Path) -> IdRegistry:
+    def spy_load(path: Path, **kwargs: bool) -> IdRegistry:
         loaded.append(Path(path))
-        return load(path)
+        return load(path, **kwargs)
 
     monkeypatch.setattr(IdRegistry, "load", spy_load)
 
@@ -214,9 +214,9 @@ def test_enrich_model_registry_follows_the_base_project_config(
     loaded: list[Path] = []
     load = IdRegistry.load
 
-    def spy_load(path: Path) -> IdRegistry:
+    def spy_load(path: Path, **kwargs: bool) -> IdRegistry:
         loaded.append(Path(path))
-        return load(path)
+        return load(path, **kwargs)
 
     monkeypatch.setattr(IdRegistry, "load", spy_load)
     config = (
@@ -294,9 +294,9 @@ def test_sdist_relative_registry_resolves_as_for_a_wheel(
     loaded: list[Path] = []
     load = IdRegistry.load
 
-    def spy_load(path: Path) -> IdRegistry:
+    def spy_load(path: Path, **kwargs: bool) -> IdRegistry:
         loaded.append(Path(path))
-        return load(path)
+        return load(path, **kwargs)
 
     monkeypatch.setattr(IdRegistry, "load", spy_load)
     generate_project_sbom(sdist, creation_metadata=_PINNED, id_registry="ids.json")
@@ -331,9 +331,9 @@ def test_enrich_against_an_sdist_does_not_search_for_a_registry(
     loaded: list[Path] = []
     load = IdRegistry.load
 
-    def spy_load(path: Path) -> IdRegistry:
+    def spy_load(path: Path, **kwargs: bool) -> IdRegistry:
         loaded.append(Path(path))
-        return load(path)
+        return load(path, **kwargs)
 
     monkeypatch.setattr(IdRegistry, "load", spy_load)
     enrich_model(
@@ -373,9 +373,9 @@ def test_standalone_embed_uses_the_config_id_registry(
     loaded: list[Path] = []
     load = IdRegistry.load
 
-    def spy_load(path: Path) -> IdRegistry:
+    def spy_load(path: Path, **kwargs: bool) -> IdRegistry:
         loaded.append(Path(path))
-        return load(path)
+        return load(path, **kwargs)
 
     monkeypatch.setattr(IdRegistry, "load", spy_load)
     config = dataclasses.replace(PitloomConfig(), id_registry=str(named))

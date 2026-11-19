@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-30
-Last-Modified: 2026-11-14
+Last-Modified: 2026-11-17
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -26,11 +26,11 @@ and none of them passes an `onerror` or reports the failure:
 
 | Discovery path | Walk |
 | --- | --- |
-| Hatchling (also the fallback for `uv_build` and unknown backends) | `hatchling.builders.utils.safe_walk()` → `os.walk()` |
-| flit-core | `Module.iter_files()`, `walk_data_dir()` → `os.walk()` |
+| Hatchling (also the fallback for `uv_build` and unknown backends) | `hatchling.builders.utils.safe_walk()` -> `os.walk()` |
+| flit-core | `Module.iter_files()`, `walk_data_dir()` -> `os.walk()` |
 | pdm-backend | `os.walk()`, `glob.iglob()`, `Path.glob()` |
 | poetry-core | `Path.glob("**/*")` |
-| setuptools | `find_packages()` → `os.walk()`; `package_data` → `glob` |
+| setuptools | `find_packages()` -> `os.walk()`; `package_data` -> `glob` |
 
 `glob` and `Path.glob()` swallow `OSError` themselves, so even a
 wrapper around `os.walk` would not cover them.

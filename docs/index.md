@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-08
-Last-Modified: 2026-11-10
+Last-Modified: 2026-11-17
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -87,6 +87,8 @@ generate one:
 - [Dependency sources and precedence](dependency-sources.md) -- what a Source
   SBOM's dependency list holds, which lock file wins, and which commands use
   lock files.
+- [Credentials in URLs](url-credentials.md) -- why an SBOM with a credential in
+  a URL field is warned of or refused, and how to accept one value.
 - [Creation metadata](creation-metadata.md) -- who/what/when/how each element
   records about its own creation.
 - [Metadata provenance](metadata-provenance.md) -- how Pitloom tracks the

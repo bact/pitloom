@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-05
-Last-Modified: 2026-11-08
+Last-Modified: 2026-11-16
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -120,6 +120,52 @@ explicitly. The raw echo of `loom`'s output is fenced with `::stop-commands::`
 (random token) so a `::` line in it is logged, not run as a workflow command;
 stdout is redirected to stderr for the rest of the step because the runner
 does not order the two streams against each other.
+
+## URL credentials: inputs and masks
+
+`scripts/action/url-credentials.sh` (builtins only: no python, no external
+program; bash 3.2 and Git Bash) is sourced first by the Generate step.
+
+- `mask_url_secrets` prints one `::add-mask::` per credential-shaped piece of
+  each URL word (`://` or `:/` after a scheme of two or more characters,
+  once an option prefix such as `--model=` and a leading quote are
+  dropped, one rule for both: the detector reads `https:/u:p@h` as a URL;
+  `C:/x` and `123:/x` are paths) in
+  `project-path`, `model`, `args` and `accept-url-credentials`: the user
+  information up to the last `@` before the first `/` (as git reads it),
+  its password, the query and fragment, each `name=value` pair and each
+  value. A quote, bracket, `,` or `;` at either end of a piece is dropped
+  (review: `--x "https://h/r?token=T"` masked `token=T"`, which matched no
+  output printing the URL unquoted). A query value is masked whatever its
+  name (a non-secret value of 6 or more characters is hidden too: the safe
+  direction, no second copy of the detector's name list). A password
+  holding a space is split by the word split and not masked whole (limit).
+  These are the inputs that can hold a URL; `embed-wheel`,
+  `output`, `config`, `id-registry` are paths and `pitloom-version` is
+  prefixed `pitloom==` (no URL). A value is split into lines and then on
+  space and tab (each mask is one line), `%` is written `%25` and a CR
+  `%0D` (the runner decodes both). Pieces under 6 characters are not masked:
+  a mask is a substring rule over the whole log, and `h=1` or `git` would
+  hide every such run.
+- Limits: the runner prints the step's `env:` (the inputs) before the step
+  runs, so a mask covers loom's output and the later steps, never that echo.
+  Only a credential given as `${{ secrets.X }}` is masked from the start.
+  The decoded form of a percent-encoded password is not masked (Pitloom
+  masks its own output).
+- `add_url_credential_args` maps `url-credentials` (`warn` default or empty:
+  no flag; `refuse`: `--refuse-url-credentials`; else `::error::`, exit 1)
+  and `accept-url-credentials` (commas or line breaks; each entry trimmed,
+  shape-checked as `sha256:` and 16 to 64 lowercase hex, the CLI's
+  `FINGERPRINT_RE`, a drift test compares them) into `loom_args`, before the
+  `args` words. A refused entry is masked and its position, never its
+  value, is printed. Default `warn` matches the CLI; the docs recommend
+  `refuse` in CI. `warn` cannot turn off a project's `refuse` (the flag
+  only turns it on).
+- Tests: `tests/scripts/action/test_url_credentials.py`; each decision was
+  mutation-checked (10 mutants, all killed). `shellcheck -x` passes on
+  `scripts/action/*.sh` and on the extracted `run:` block (one older
+  SC2154 on `python_bin`, set by the sourced resolver); `actionlint` does
+  not read action metadata, only `.github/workflows/` (clean).
 
 ## Version pinning and Python selection
 

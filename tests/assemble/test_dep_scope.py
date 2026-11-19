@@ -25,6 +25,7 @@ from pitloom.assemble.spdx3 import _dep_scope
 from pitloom.assemble.spdx3._dep_scope import DependencyEdge, is_self_reference
 from pitloom.core.extra_gate import Gate, MarkerShapeError, parse_gate
 from tests._bounded import run_bounded
+from tests._code_records import coded, has_parts
 
 _REQ = spdx3.RelationshipType.dependsOn
 _OPT = spdx3.RelationshipType.hasOptionalDependency
@@ -130,10 +131,9 @@ def test_unisolatable_extra_gate_is_required_with_one_warning(
         edge = dependency_edge([dep, dep], "demo")
 
     assert (edge.rel_type, edge.comment) == (_REQ, None)
-    assert [r.getMessage() for r in caplog.records] == [
-        f"Dependency 'foo' declared as {dep!r} has an extra marker that can't be"
-        " isolated -- recorded as a required dependency"
-    ]
+    ((code, message),) = coded(caplog)
+    assert code == "extra-gate-unusable"
+    assert has_parts(message, "PACKAGE=foo", repr(dep), "cannot be isolated")
 
 
 #: An entry with its own extra marker, declared in extra ``dev``, as each
@@ -168,14 +168,11 @@ def test_entry_requiring_extras_together_is_optional(
         edge = dependency_edge([dep, dep], "demo")
 
     assert (edge.rel_type, edge.scope, edge.comment) == (_OPT, None, comment)
-    assert caplog.messages == (
-        [
-            f"Ignoring the inner extra condition of extra entry {dep!r}: recorded"
-            f" as optional ({comment})"
-        ]
-        if warned
-        else []
-    )
+    lines = coded(caplog)
+    assert len(lines) == warned
+    for code, message in lines:
+        assert code == "extra-gate-ambiguous"
+        assert has_parts(message, repr(dep), "needs extras", "together")
 
 
 _LONG_UNPARSABLE = "foo >= ; extra == " + '"x" or ' * 300
@@ -202,10 +199,9 @@ def test_unparsable_dependency_is_required_with_one_warning(
         spdx3.LifecycleScopeType.runtime,
         None,
     )
-    assert [r.getMessage() for r in caplog.records] == [
-        f"Dependency {shown} is not a valid PEP 508 requirement"
-        " -- recorded as a required dependency"
-    ]
+    ((code, message),) = coded(caplog)
+    assert code == "requirement-invalid"
+    assert has_parts(message, shown, "not a PEP 508", "recorded as required")
 
 
 def test_unisolatable_self_reference_warns_what_it_does(
@@ -218,9 +214,9 @@ def test_unisolatable_self_reference_warns_what_it_does(
         scopes = _dep_scope.DependencyScopes(declared, "demo")
 
     assert scopes.edge([declared[0]]).rel_type == _REQ
-    [record] = caplog.records
-    assert "requirements of the extras it requests" in record.getMessage()
-    assert "recorded as a required dependency" not in record.getMessage()
+    ((code, message),) = coded(caplog)
+    assert code == "extra-gate-unusable"
+    assert has_parts(message, "PACKAGE=demo", "self-reference", "extras it requests")
 
 
 @pytest.mark.parametrize(

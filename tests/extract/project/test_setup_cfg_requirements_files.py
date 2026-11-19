@@ -25,6 +25,7 @@ import pytest
 
 from pitloom.core.clone_mark import reading_remote_clone
 from pitloom.extract.project import _requirements_files, read_project
+from tests._code_records import coded
 from tests._symlink import CAN_SYMLINK
 
 _HEAD = "[metadata]\nname = demo\nversion = 1\n"
@@ -73,12 +74,13 @@ _ROWS: list[Any] = [
     pytest.param(
         _cfg("install_requires = file: a.txt\n"),
         {"a.txt": "foo; python_version>'3'"}, ["foo"], _REQ,
-        "Skipping dependency \"python_version>'3'\" (options.install_requires)",
+        "dependency \"python_version>'3'\" (options.install_requires): not a PEP 508",
         id="one-line-split-on-semicolon",
     ),
     pytest.param(
         _cfg("install_requires = file: gone.txt\n"), {}, [], _REQ,
-        f"FILE=gone.txt: {_FOR}; not found", id="missing",
+        "FILE=gone.txt: listed by options.install_requires, not found; skipped",
+        id="missing",
     ),
     pytest.param(
         _cfg("install_requires = file: ../out.txt\n"), {}, [], _REQ,
@@ -92,7 +94,8 @@ _ROWS: list[Any] = [
     pytest.param(
         _cfg("install_requires = file: a.txt\n"), {"a.txt": "-r b.txt\nc\n"},
         ["c"], _REQ,
-        "setup.cfg: skipping pip option line(s) -r in options.install_requires",
+        "FILE=setup.cfg: options.install_requires: pip option lines -r, which "
+        "setuptools does not accept; skipped",
         id="pip-option",
     ),
     pytest.param(
@@ -105,11 +108,11 @@ _ROWS: list[Any] = [
     pytest.param(
         _cfg("", "dev = file: d.txt\n"), {"d.txt": "!!\nc\n"},
         ['c; extra == "dev"'], _EXTRAS,
-        "Skipping extra entry '!!' of 'dev' (extras_require)", id="extra-invalid",
+        "extra 'dev' entry '!!' (extras_require): not a PEP 508", id="extra-invalid",
     ),
     pytest.param(
         _cfg("install_requires = attr: demo.X\n"), {}, [], _REQ,
-        "Skipping dependency 'attr: demo.X' (options.install_requires)",
+        "dependency 'attr: demo.X' (options.install_requires): not a PEP 508",
         id="attr-is-no-directive",
     ),
 ]  # fmt: skip
@@ -288,8 +291,8 @@ def test_dynamic_project_fields_from_setup_files(
 @pytest.mark.parametrize(
     ("name", "text", "reason"),
     [
-        ("setup.py", "setup(\n", "setup.py"),
-        ("setup.cfg", "[options\n", "setup.cfg"),
+        ("setup.py", "setup(\n", "not valid Python; "),
+        ("setup.cfg", "[options\n", "not valid INI; "),
     ],
     ids=["setup-py", "setup-cfg"],
 )
@@ -312,10 +315,7 @@ def test_unreadable_setup_file_warns(
 
     assert metadata.dependencies == []
     (message,) = caplog.messages
-    assert message.startswith(
-        "pyproject.toml: dynamic dependencies, optional-dependencies not read"
-        f" from {reason}: "
-    )
+    assert message.startswith(f"FILE={project / name}: {reason}")
 
 
 @pytest.mark.parametrize("clone", [False, True], ids=["local", "clone"])
@@ -339,7 +339,8 @@ def test_a_clones_listed_line_that_is_no_requirement_is_not_shown(
     assert ("LINETEXT" in caplog.text) is not clone
     if clone:
         line = "'<a line of the downloaded repository, not shown>'"
-        reason = "not a valid PEP 508 requirement"
+        reason = "not a PEP 508 requirement; skipped"
         assert caplog.messages == 2 * [
-            f"Skipping dependency {line} (options.install_requires): {reason}"
-        ] + 2 * [f"Skipping extra entry {line} of 'x' (extras_require): {reason}"]
+            f"dependency {line} (options.install_requires): {reason}"
+        ] + 2 * [f"extra 'x' entry {line} (extras_require): {reason}"]
+        assert {code for code, _ in coded(caplog)} == {"requirement-invalid"}

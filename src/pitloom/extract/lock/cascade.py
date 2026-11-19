@@ -31,13 +31,13 @@ from pathlib import Path
 from typing import NamedTuple
 
 from pitloom.core.file_identity import file_id
+from pitloom.core.internal_error import InternalError
 from pitloom.core.project import ProjectMetadata
 from pitloom.core.provenance import (
     parse_provenance_value,
     provenance_segment,
     provenance_source,
 )
-from pitloom.core.quote_source import quote_source
 from pitloom.extract.lock._extra_pins import ExtraPinExtractor, apply_extra_pins
 from pitloom.extract.lock.common import POETRY_LOCK_SOURCE_NAME
 from pitloom.extract.lock.pdm import (
@@ -62,12 +62,13 @@ from pitloom.extract.lock.uv import (
     extract_uv_lock_extra_pins,
 )
 from pitloom.extract.lock.uv_hash import extract_uv_lock_hashes
+from pitloom.messages.lock_files import LOCK_CONFLICT_LINE, Said, say_lock_file
 
 log = logging.getLogger(__name__)
 
 __all__ = ["apply_locked_dependencies"]
 
-_LockExtractor = Callable[[Path, str | None], list[str] | None]
+_LockExtractor = Callable[[Path, str | None, Said], list[str] | None]
 _LockHashExtractor = Callable[[Path, list[str]], dict[str, str] | None]
 
 
@@ -75,13 +76,14 @@ def _ignore_expected_name(
     extractor: Callable[[Path], list[str] | None],
 ) -> _LockExtractor:
     """Adapt a single-argument extractor to :data:`_LockExtractor`'s
-    uniform ``(project_dir, expected_name)`` shape.
+    uniform ``(project_dir, expected_name, said)`` shape.
 
     Only ``uv.lock``'s extractor needs *expected_name* (to pick the project
     among a workspace lock's local packages, see
-    :func:`pitloom.extract.lock.uv.extract_uv_lock_dependencies`).
+    :func:`pitloom.extract.lock.uv.extract_uv_lock_dependencies`) and
+    *said* (the memo of one cascade run, shared with its extras pass).
     """
-    return lambda project_dir, _expected_name: extractor(project_dir)
+    return lambda project_dir, _expected_name, _said: extractor(project_dir)
 
 
 class _LockSource(NamedTuple):
@@ -104,7 +106,7 @@ def _ignore_project_name(
 ) -> ExtraPinExtractor:
     """:func:`_ignore_expected_name`'s counterpart for an extras-pin
     extractor."""
-    return lambda project_dir, _name, wanted: extractor(project_dir, wanted)
+    return lambda project_dir, _name, wanted, _said: extractor(project_dir, wanted)
 
 
 #: Full priority order (highest first) across every lock/pin source. A
@@ -165,12 +167,20 @@ _LOCK_SOURCES: list[_LockSource] = [
 
 
 def _apply_source_extra_pins(
-    metadata: ProjectMetadata, project_dir: Path, source: _LockSource
+    metadata: ProjectMetadata,
+    project_dir: Path,
+    source: _LockSource,
+    said: Said,
 ) -> None:
-    """Pin the project's extras from *source*, the winning lock."""
+    """Pin the project's extras from *source*, the winning lock; *said*
+    is the memo of this run."""
     if source.extra_pins is not None and source.hash_extractor is not None:
         apply_extra_pins(
-            metadata, project_dir, source.extra_pins, source.hash_extractor
+            metadata,
+            project_dir,
+            source.extra_pins,
+            source.hash_extractor,
+            said,
         )
 
 
@@ -211,14 +221,22 @@ def apply_locked_dependencies(metadata: ProjectMetadata, project_dir: Path) -> N
 
     If *metadata* already carries a ``locked_dependencies`` result and a
     higher-priority source wins, that source replaces it, a ``WARNING:``
-    names the override, and the resulting
+    (``lock-file-conflict``) names the override, and the resulting
     ``provenance["locked_dependencies"]`` ends in ``| Note: supersedes
     <name>``.
 
     A source the project reads its dependencies from
     (``[tool.setuptools.dynamic]`` naming ``requirements.txt``) is not a
     lock and is not tried: nothing in it is ignored.
+
+    Raises:
+        pitloom.core.internal_error.InternalError: *metadata*'s
+            ``locked_dependencies`` provenance names a source that is none of
+            :data:`_LOCK_SOURCES` (a table that has drifted).
     """
+    # One memo per run: the runtime walk and the extras pass of a lock say a
+    # line once between them, and a later run on another project says it again.
+    said: Said = set()
     previous = metadata.provenance.get("locked_dependencies")
     previous_source = (
         parse_provenance_value(previous).get("source") if previous is not None else None
@@ -238,12 +256,9 @@ def apply_locked_dependencies(metadata: ProjectMetadata, project_dir: Path) -> N
         # every remaining rank's override-guard below would silently
         # never fire, letting even the lowest-priority format overwrite
         # an unrecognised-but-real prior result with no warning at all.
-        log.warning(
-            "%s: previously-resolved locked_dependencies source %r doesn't "
-            "match any known lock source -- can't rank it, so any "
-            "cascade-tried format may override it",
-            quote_source(project_dir),
-            previous_source,
+        raise InternalError(
+            f"locked_dependencies provenance names a source that is no "
+            f"lock source of the cascade: {previous_source}"
         )
 
     sources_to_try = (
@@ -252,7 +267,7 @@ def apply_locked_dependencies(metadata: ProjectMetadata, project_dir: Path) -> N
     for source in sources_to_try:
         if _declares_dependencies(metadata, project_dir, source.name):
             continue
-        dependencies = source.extractor(project_dir, metadata.name)
+        dependencies = source.extractor(project_dir, metadata.name, said)
         if dependencies is None:
             continue
 
@@ -260,15 +275,8 @@ def apply_locked_dependencies(metadata: ProjectMetadata, project_dir: Path) -> N
             provenance_source(source.name), "Method", source.method
         )
         if previous is not None:
-            superseded = previous_source or "unknown source"
-            log.warning(
-                "%s: both %s and %s resolved-dependency data are present -- "
-                "%s takes priority",
-                quote_source(project_dir),
-                superseded,
-                source.name,
-                source.name,
-            )
+            superseded = str(previous_source)
+            say_lock_file(log, LOCK_CONFLICT_LINE, kept=source.name, dropped=superseded)
             provenance = provenance_segment(
                 provenance, "Note", f"supersedes {superseded}"
             )
@@ -284,9 +292,11 @@ def apply_locked_dependencies(metadata: ProjectMetadata, project_dir: Path) -> N
             if source.hash_extractor is not None
             else {}
         )
-        _apply_source_extra_pins(metadata, project_dir, source)
+        _apply_source_extra_pins(metadata, project_dir, source, said)
         return
     if previous_rank is not None:
         # The source applied before this cascade (`_try_read_poetry()`)
         # still wins: pin the extras from it.
-        _apply_source_extra_pins(metadata, project_dir, _LOCK_SOURCES[previous_rank])
+        _apply_source_extra_pins(
+            metadata, project_dir, _LOCK_SOURCES[previous_rank], said
+        )

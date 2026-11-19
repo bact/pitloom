@@ -29,9 +29,12 @@ import pytest
 
 from pitloom.cli.id import _run_id_command
 from pitloom.cli.parser import _build_parser
+from pitloom.logging_config import configure_logging
 
 
 def _run(args: list[str]) -> int:
+    """*args* run as ``loom`` runs them: its log lines on stderr."""
+    configure_logging()
     parser = _build_parser()
     return _run_id_command(parser.parse_args(args))
 
@@ -130,7 +133,8 @@ def test_id_generate_dash_o_nonexistent_dir_is_one_error(
     assert exit_code == 1
     err_lines = [line for line in capsys.readouterr().err.splitlines() if line]
     assert len(err_lines) == 1
-    assert err_lines[0].startswith("ERROR: ")
+    assert err_lines[0].startswith(f"ERROR: FILE={bad_target}: could not write ")
+    assert err_lines[0].endswith(" [file-unwritable]")
 
 
 def test_id_import_dash_o_nonexistent_dir_is_one_error(
@@ -156,7 +160,8 @@ def test_id_import_dash_o_nonexistent_dir_is_one_error(
     assert exit_code == 1
     err_lines = [line for line in capsys.readouterr().err.splitlines() if line]
     assert len(err_lines) == 1
-    assert err_lines[0].startswith("ERROR: ")
+    assert err_lines[0].startswith(f"ERROR: FILE={bad_target}: could not write ")
+    assert err_lines[0].endswith(" [file-unwritable]")
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="symlinks need admin on Windows")

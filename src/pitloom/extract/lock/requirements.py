@@ -58,15 +58,19 @@ from pathlib import Path
 from packaging.requirements import InvalidRequirement
 
 from pitloom.core.pep508 import parse_requirement
-from pitloom.core.quote_source import quote_source
-from pitloom.core.url_masking import sanitize_url_credentials
 from pitloom.extract.lock.common import (
     read_lock_bytes,
     resolve_pinned_dependencies,
     single_exact_pin,
     warn_unreadable_lock_file,
 )
-from pitloom.logging_config import loggable
+from pitloom.messages.lock_files import (
+    DIRECT_LINE,
+    OPTION_LINE,
+    RANGE_LINE,
+    REQUIREMENT_LINE,
+    say_lock_entry,
+)
 
 log = logging.getLogger(__name__)
 
@@ -175,44 +179,45 @@ def _pinned_name_version_for_line(
     single ``WARNING:`` naming why) when it disqualifies the whole file."""
     if line.startswith(_OPTION_LINE_PREFIX):
         option = line.split()[0].split("=")[0]
-        log.warning(
-            "%s:%d: option %r means this file isn't fully pinned -- "
-            "ignoring requirements.txt",
-            quote_source(lock_path),
-            lineno,
-            option,
+        say_lock_entry(
+            log,
+            OPTION_LINE,
+            file=lock_path,
+            line_number=lineno,
+            lock_value=option,
         )
         return None
     try:
         requirement = parse_requirement(line)
     except InvalidRequirement as exc:
         # The message quotes the source line and a caret line: its first
-        # line says what is wrong.
-        exc_msg = loggable(sanitize_url_credentials(str(exc).split("\n", 1)[0]))
-        log.warning(
-            "%s:%d: malformed requirement line: %s -- ignoring requirements.txt",
-            quote_source(lock_path),
-            lineno,
-            exc_msg,
+        # line says what is wrong (the helper masks a URL's credentials).
+        say_lock_entry(
+            log,
+            REQUIREMENT_LINE,
+            file=lock_path,
+            line_number=lineno,
+            why=str(exc).split("\n", 1)[0],
         )
         return None
     if requirement.url is not None:
-        log.warning(
-            "%s:%d: %r is a direct URL reference, not a version pin -- "
-            "ignoring requirements.txt",
-            quote_source(lock_path),
-            lineno,
-            requirement.name,
+        # Never the URL: it can carry a credential.
+        say_lock_entry(
+            log,
+            DIRECT_LINE,
+            file=lock_path,
+            line_number=lineno,
+            package=requirement.name,
         )
         return None
     pinned = single_exact_pin(requirement.specifier)
     if pinned is None:
-        log.warning(
-            "%s:%d: %r isn't pinned to a single exact version -- "
-            "ignoring requirements.txt",
-            quote_source(lock_path),
-            lineno,
-            requirement.name,
+        say_lock_entry(
+            log,
+            RANGE_LINE,
+            file=lock_path,
+            line_number=lineno,
+            package=requirement.name,
         )
         return None
     op, version = pinned

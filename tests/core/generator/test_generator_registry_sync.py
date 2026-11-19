@@ -95,7 +95,11 @@ def test_sync_registry_skips_when_registry_has_no_path(
         _sync_registry(exporter, registry, True)
 
     assert not registry.elements
-    assert "no file path resolved" in caplog.text
+    (record,) = caplog.records
+    assert record.getMessage() == (
+        "ID registry: no file to save to; the ids this run added are not saved"
+    )
+    assert getattr(record, "pitloom_code", None) == "registry-file-missing"
 
 
 def test_sync_registry_logs_warning_on_save_failure(
@@ -111,7 +115,12 @@ def test_sync_registry_logs_warning_on_save_failure(
         with caplog.at_level("WARNING"):
             _sync_registry(exporter, registry, True)
 
-    assert "failed to save" in caplog.text
+    (record,) = caplog.records
+    assert record.levelname == "WARNING"
+    assert record.getMessage() == (
+        f"FILE={registry_path}: could not write for the ID registry; disk full"
+    )
+    assert getattr(record, "pitloom_code", None) == "file-unwritable"
     assert not registry_path.exists()
 
 

@@ -19,10 +19,7 @@ from __future__ import annotations
 
 from typing import Final
 
-from pitloom.messages._types import Line, Message
-
-#: The end of every advice an agent relays without acting on it.
-_ASK: Final = "ask first, and with nobody to ask, report it only."
+from pitloom.messages._types import ASK_FIRST, Line, Message
 
 USAGE_UNUSABLE: Final = Message(
     code="usage-unusable",
@@ -43,7 +40,7 @@ USAGE_UNUSABLE: Final = Message(
     advice="Tell the user which file was not scanned. If it is a Python "
     "script that uses a model, they rename it to a lower-case .py extension "
     "and generate again; if it is not Python, it needs nothing. Do not "
-    f"rename the file for them; {_ASK}",
+    f"rename the file for them; {ASK_FIRST}",
     subject_key="FILE",
     since="0.22.1",
 )

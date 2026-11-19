@@ -23,7 +23,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Callable
 from pathlib import Path
-from typing import NamedTuple
+from typing import Final, NamedTuple
 
 from pitloom.core import _models_wheel_hatchling
 from pitloom.core._models_wheel_lock import _DISCOVERY_LOCK
@@ -37,8 +37,30 @@ from pitloom.core._models_wheel_types import (
     take_discovery_failure,
 )
 from pitloom.core.quote_source import quote_source
+from pitloom.messages.file_discovery import (
+    BUILD_FAILED_LINE,
+    BUILD_FAILED_NO_PROJECT_LINE,
+    FAILED_HEURISTIC_LINE,
+    FAILED_NO_PROJECT_LINE,
+    INTROSPECTION_LINE,
+    NO_STATIC_HEURISTIC_LINE,
+    NO_STATIC_LINE,
+    NOT_AWARE_LINE,
+    NOT_AWARE_NO_PROJECT_LINE,
+    UV_OVERRIDES_LINE,
+    warn_discovery,
+)
 
 log = logging.getLogger(__name__)
+
+
+#: The display name of each registered backend's discoverer, by backend key.
+_DISCOVERER_NAMES: Final = {
+    "setuptools": "Setuptools",
+    "poetry": "Poetry",
+    "flit": "Flit",
+    "pdm": "PDM",
+}
 
 
 class _RegisteredBackend(NamedTuple):
@@ -91,58 +113,32 @@ def _skip_hatchling_fallback(
     (the discoverer already logged ``file discovery failed``) the wording
     does not claim the config is absent.
     """
+    name = _DISCOVERER_NAMES[backend]
     if _has_project_table(pyproject_data):
-        cause = (
-            "File discovery failed (above)"
-            if failed
-            else f"No static {backend} config resolvable"
-        )
-        log.warning(
-            "%s%s in %s -- falling back to Hatchling-based heuristic, "
-            "file list may be inaccurate",
-            BUILD_LOG_PREFIX,
-            cause,
-            quote_source(project_dir),
-        )
+        if failed:
+            warn_discovery(log, FAILED_HEURISTIC_LINE, dir=project_dir)
+        else:
+            warn_discovery(
+                log, NO_STATIC_HEURISTIC_LINE, dir=project_dir, discoverer=name
+            )
         return False
 
     if pyproject_data is not None and has_resolvable_pyproject_config(
         pyproject_data, backend
     ):
-        log.warning(
-            "%s%s's static config failed introspection in "
-            "%s -- file discovery is unsupported for this project this run "
-            "(Hatchling's own WheelBuilder also requires a [project] "
-            "table, so that fallback would fail too)",
-            BUILD_LOG_PREFIX,
-            backend,
-            quote_source(project_dir),
-        )
+        warn_discovery(log, INTROSPECTION_LINE, dir=project_dir, discoverer=name)
     elif failed:
-        log.warning(
-            "%sFile discovery failed (above) in %s and no [project] table "
-            "is present -- file discovery is unsupported for this project",
-            BUILD_LOG_PREFIX,
-            quote_source(project_dir),
-        )
+        warn_discovery(log, FAILED_NO_PROJECT_LINE, dir=project_dir)
     else:
-        log.warning(
-            "%sNo static %s config resolvable in %s and "
-            "no [project] table present -- file discovery is unsupported "
-            "for this project (packages only resolvable via an "
-            "imperative setup.py build)",
-            BUILD_LOG_PREFIX,
-            backend,
-            quote_source(project_dir),
-        )
+        warn_discovery(log, NO_STATIC_LINE, dir=project_dir, discoverer=name)
     return True
 
 
-def _unhandled_backend_hint(
+def _uv_overrides_unseen(
     backend: str, pyproject_data: dict[str, object] | None, *, allow_build: bool
-) -> str:
-    """The optional, sharpened suffix for the "not backend-aware"
-    fallback ``WARNING:`` below -- non-empty only for the one known,
+) -> bool:
+    """Whether the "not backend-aware" fallback ``WARNING:`` below is
+    followed by the ``uv_build`` hint -- true only for the one known,
     confirmed divergence risk (see
     :func:`~pitloom.core._models_wheel_types.has_uv_build_backend_overrides`'s
     docstring), never a general "you might want --allow-build" nudge.
@@ -153,19 +149,12 @@ def _unhandled_backend_hint(
     a flag they already passed -- and that just failed -- would be
     self-contradictory, not a genuine hint.
     """
-    if (
+    return (
         not allow_build
         and backend == "uv_build"
         and pyproject_data is not None
         and has_uv_build_backend_overrides(pyproject_data)
-    ):
-        return (
-            " (this project's pyproject.toml declares "
-            "[tool.uv.build-backend] overrides the heuristic cannot see "
-            "-- pass --allow-build for an exact file list via a real "
-            "build)"
-        )
-    return ""
+    )
 
 
 def _noop_cleanup() -> None:
@@ -240,37 +229,20 @@ def _discover_with_no_static_module(
         # _try_build_and_read/build_and_read_wheel() already logged its
         # own specific failure WARNING:; fall through to the generic
         # "not backend-aware" warning.
-    build_and_read_failed = "" if build is None else " (build-and-read failed)"
-    hint = _unhandled_backend_hint(
-        backend, pyproject_data, allow_build=build is not None
-    )
-    if not _has_project_table(pyproject_data):
-        # Same guard _discover_with_registered_backend applies (via
-        # _skip_hatchling_fallback) when its own discoverer gives up:
-        # Hatchling's WheelBuilder requires a [project] table, so with
-        # none present the fallback attempt below is guaranteed to also
-        # fail -- skip the doomed, confusingly Hatchling-branded error
-        # for a project that has nothing to do with Hatchling, and don't
-        # claim the Hatchling heuristic is "in use" when it never runs.
-        log.warning(
-            "%sfile discovery for build backend %r is not yet "
-            "backend-aware%s and no [project] table is present -- "
-            "file discovery is unsupported for this project%s",
-            BUILD_LOG_PREFIX,
-            backend,
-            build_and_read_failed,
-            hint,
-        )
+    has_project = _has_project_table(pyproject_data)
+    if build is None:
+        line = NOT_AWARE_LINE if has_project else NOT_AWARE_NO_PROJECT_LINE
+    else:
+        line = BUILD_FAILED_LINE if has_project else BUILD_FAILED_NO_PROJECT_LINE
+    # With no [project] table, the Hatchling fallback attempt is guaranteed
+    # to fail (its WheelBuilder requires one), as _skip_hatchling_fallback
+    # decides for a registered backend: skip it rather than raise a
+    # Hatchling-branded error for a project that has nothing to do with it.
+    warn_discovery(log, line, dir=project_dir, backend=backend)
+    if _uv_overrides_unseen(backend, pyproject_data, allow_build=build is not None):
+        warn_discovery(log, UV_OVERRIDES_LINE, dir=project_dir)
+    if not has_project:
         return [], _noop_cleanup
-    log.warning(
-        "%sfile discovery for build backend %r is not yet "
-        "backend-aware%s -- using Hatchling-based heuristic, "
-        "file list may be inaccurate for this project%s",
-        BUILD_LOG_PREFIX,
-        backend,
-        build_and_read_failed,
-        hint,
-    )
     return None
 
 

@@ -39,13 +39,22 @@ from tests.id_registry._persist_registry_shared import (
 )
 from tests.registry_helpers import entries_of, make_registry
 
+pytestmark = pytest.mark.platform  # failed writes, a file gone, a path named
+
+
+def _warning(caplog: pytest.LogCaptureFixture) -> tuple[str, object]:
+    """The one ``WARNING`` record's text and code."""
+    (record,) = [r for r in caplog.records if r.levelno == logging.WARNING]
+    return record.getMessage(), getattr(record, "pitloom_code", None)
+
 
 @pytest.mark.parametrize("damage", ["deleted", "corrupted"])
 def test_a_file_that_no_longer_loads_is_one_warning(
     tmp_path: Path, caplog: pytest.LogCaptureFixture, damage: str
 ) -> None:
-    """Re-reading fails after the run's output was written: one
-    ``failed to save`` WARNING, nothing raised, nothing recreated."""
+    """Re-reading fails after the run's output was written: the re-read's
+    own line as one coded WARNING (its WARNING twin), nothing raised,
+    nothing recreated."""
     path = _registry_file(tmp_path)
     registry = IdRegistry.load(path)
     registry.register(AI_PACKAGE_TYPE, "m", sha256="1" * 64)
@@ -57,8 +66,16 @@ def test_a_file_that_no_longer_loads_is_one_warning(
     with caplog.at_level(logging.INFO, logger="pitloom"):
         persist_registry(registry, 1, True)
 
-    (warning,) = _messages(caplog, logging.WARNING)
-    assert warning.startswith(f"ID registry: failed to save '{path}'")
+    text, code = _warning(caplog)
+    if damage == "deleted":
+        assert (text, code) == (
+            f"ID registry file not found: '{path}'",
+            "input-not-found",
+        )
+    else:
+        # The parser's own text follows; only its lead is stable.
+        assert text.startswith(f"FILE={path}: not valid JSON for the ID registry; ")
+        assert code == "json-malformed"
     assert not _messages(caplog, logging.INFO)
     assert path.exists() is (damage == "corrupted")
 
@@ -90,8 +107,11 @@ def test_a_failed_write_leaves_the_old_file_and_no_temporary(
 
     assert path.read_bytes() == before
     assert sorted(os.listdir(tmp_path)) == ["reg.json"]
-    (warning,) = _messages(caplog, logging.WARNING)
-    assert "failed to save" in warning
+    assert _warning(caplog) == (
+        f"FILE={path}: could not write for the ID registry; "
+        f"{os.strerror(errno.ENOSPC)}",
+        "file-unwritable",
+    )
 
 
 @pytest.mark.parametrize(
@@ -116,8 +136,15 @@ def test_nothing_is_saved(
         persist_registry(registry, 0, changed)
 
     assert path.read_bytes() == before
-    expected = ["ID registry: no file path resolved; skipping auto-update."]
-    assert [r.getMessage() for r in caplog.records] == (expected if warns else [])
+    expected = [
+        (
+            "ID registry: no file to save to; the ids this run added are not saved",
+            "registry-file-missing",
+        )
+    ]
+    assert [
+        (r.getMessage(), getattr(r, "pitloom_code", None)) for r in caplog.records
+    ] == (expected if warns else [])
 
 
 def test_a_registry_that_read_no_file_is_saved_as_it_is(tmp_path: Path) -> None:
@@ -165,8 +192,11 @@ def test_an_unread_registry_never_replaces_a_file_that_does_not_load(
         persist_registry(registry, 1, True)
 
     assert path.read_bytes() == b"{"
-    (warning,) = _messages(caplog, logging.WARNING)
-    assert warning.startswith(f"ID registry: failed to save '{path}'")
+    text, code = _warning(caplog)
+    assert (text.startswith(f"FILE={path}: not valid JSON "), code) == (
+        True,
+        "json-malformed",
+    )
 
 
 def test_a_loom_run_with_an_unread_registry_keeps_the_file(

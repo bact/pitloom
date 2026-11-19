@@ -22,6 +22,7 @@ from pitloom.core.config import PitloomConfig
 from pitloom.core.config_cascade import resolve_fetch_policy
 from pitloom.core.fetch_policy import RemoteFetchPolicy
 from pitloom.core.model_extract_limit import DEFAULT_MAX_DOWNLOAD_BYTES
+from pitloom.messages import code_of
 
 _CONFIG = PitloomConfig(offline=True, max_download_bytes=1000)
 
@@ -71,11 +72,14 @@ def test_the_policy_is_frozen() -> None:
 @pytest.mark.parametrize(
     ("kwargs", "match"),
     [
-        ({"max_bytes": 0}, "max_bytes must be a positive integer, got 0"),
-        ({"max_bytes": -1}, "max_bytes must be a positive integer, got -1"),
-        ({"max_bytes": True}, "max_bytes must be an integer, got bool"),
-        ({"max_bytes": 1.5}, "max_bytes must be an integer, got float"),
-        ({"max_bytes": "5"}, "max_bytes must be an integer, got str"),
+        (
+            {"max_bytes": 0},
+            "max_bytes: must be an integer of at least 1, got an integer 0",
+        ),
+        ({"max_bytes": -1}, "of at least 1, got an integer -1"),
+        ({"max_bytes": True}, "max_bytes: must be an integer, got a boolean true"),
+        ({"max_bytes": 1.5}, "max_bytes: must be an integer, got a float 1.5"),
+        ({"max_bytes": "5"}, "max_bytes: must be an integer, got a string '5'"),
         ({"offline": 1}, "offline must be a bool, got int"),
         ({"offline": None}, "offline must be a bool, got NoneType"),
         ({"check_url": "https://h/"}, "check_url must be callable or None"),
@@ -88,8 +92,10 @@ def test_a_policy_made_by_hand_is_checked(
 ) -> None:
     """Direct construction (a library caller's) is checked as the resolver's
     value is: a ``ValueError``, never a ``TypeError`` later in a route."""
-    with pytest.raises(ValueError, match=match):
+    with pytest.raises(ValueError, match=match) as exc:
         RemoteFetchPolicy(**kwargs)  # type: ignore[arg-type]
+    # A byte ceiling is a library parameter here, not a file setting.
+    assert code_of(exc.value) == ("option-invalid" if "max_bytes" in kwargs else None)
 
 
 def test_a_valid_policy_made_by_hand_is_kept() -> None:

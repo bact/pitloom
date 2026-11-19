@@ -16,6 +16,8 @@ from typing import Any
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
+from pitloom.core.url_masking import masked_given_path
+
 #: Left out of an object's description: its blank-node id and its shared
 #: creation info.
 _UNDESCRIBED = frozenset({"_id", "creationInfo"})
@@ -50,8 +52,10 @@ def describe_graph_element(element: dict[str, Any]) -> str:
 
 def describe_value(value: Any) -> str:
     """*value* for a message: an element by id and name, an object with no
-    id (a ``Hash``) by its type and sorted non-empty values, a string as its
-    repr, a list item by item."""
+    id (a ``Hash``) by its type and sorted non-empty values, a string as the
+    repr of it masked
+    (:func:`~pitloom.core.url_masking.masked_given_path`), a list item by
+    item."""
     if isinstance(value, spdx3.SHACLObject):
         spdx_id = getattr(value, "spdxId", None)
         if isinstance(value, spdx3.Element) and spdx_id:
@@ -66,5 +70,7 @@ def describe_value(value: Any) -> str:
     if isinstance(value, (list, tuple, spdx3.ListProxy)):
         return "[" + ", ".join(describe_value(v) for v in value) + "]"
     if isinstance(value, str):
-        return repr(value)
+        # Masked before repr() escapes a format character, which would hide
+        # the credential behind it from the masker of the log line.
+        return repr(masked_given_path(value))
     return str(value)

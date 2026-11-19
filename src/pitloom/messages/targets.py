@@ -34,6 +34,7 @@ from pitloom.messages._input_not_found import (
     NO_ID_PATHS_LINE,
     NO_WHEEL_MATCH_LINE,
     REQUIRED_FRAGMENT_LINE,
+    WHEEL_PATTERN_TOO_DEEP_LINE,
 )
 from pitloom.messages._input_not_found_say import (
     input_exists,
@@ -45,10 +46,13 @@ from pitloom.messages._input_not_found_say import (
 )
 from pitloom.messages._sbom_input import (
     NOT_SPDX3_LINE,
+    SBOM_DUPLICATE_KEY_LINE,
     SBOM_GRAPH_ELEMENT_LINE,
     SBOM_GRAPH_NOT_LIST_LINE,
     SBOM_INVALID,
+    SBOM_NAMESPACE_LINE,
     SBOM_NOT_VALID_LINE,
+    SBOM_UNREADABLE_LINE,
     SBOM_WRONG_FORMAT,
 )
 from pitloom.messages._sbom_target import (
@@ -106,13 +110,17 @@ __all__ = [
     "PROJECT_NOT_FOUND_LINE",
     "PROJECT_NOT_FOUND_MODEL_FILES",
     "REQUIRED_FRAGMENT_LINE",
+    "SBOM_DUPLICATE_KEY_LINE",
     "SBOM_GRAPH_ELEMENT_LINE",
+    "SBOM_NAMESPACE_LINE",
     "SBOM_GRAPH_NOT_LIST_LINE",
     "SBOM_INVALID",
     "SBOM_NOT_VALID_LINE",
+    "SBOM_UNREADABLE_LINE",
     "SBOM_WRONG_FORMAT",
     "TARGET_AMBIGUOUS",
     "TARGET_WRONG_FORMAT",
+    "WHEEL_PATTERN_TOO_DEEP_LINE",
     "input_exists",
     "input_not_found",
     "is_input_dir",

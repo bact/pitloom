@@ -14,6 +14,7 @@ and :mod:`pitloom.assemble.spdx3.deps_phantom` for bundled phantom dependencies.
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from packaging.utils import canonicalize_name
@@ -59,6 +60,9 @@ from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id, sha256
 from pitloom.extract.copyright_notices import COPYRIGHT_NOASSERTION
 from pitloom.extract.lock.common import is_same_version
 from pitloom.extract.remote.pypi_url import PYPI_JSON_API
+from pitloom.messages.dependencies import say_direct_reference
+
+log = logging.getLogger(__name__)
 
 __all__ = [
     "_DOWNLOAD_LABELS",
@@ -275,6 +279,19 @@ def _finish_dependency_enrichment(
 
 # pylint: disable=too-many-arguments,too-many-positional-arguments
 # pylint: disable=too-many-locals
+def _memo_of(memo: set[str] | None) -> set[str]:
+    """*memo* as given (shared by the caller), else a new one for this call."""
+    return set() if memo is None else memo
+
+
+def _say_direct_reference(name: str, silent: bool, said: set[str]) -> None:
+    """Say, as an ``INFO:`` line, that the direct reference *name* is not looked
+    up on PyPI, once per package in *said*; nothing when *silent* (the name is
+    on PyPI, or the run is offline)."""
+    if not silent:
+        say_direct_reference(log, name, said=said)
+
+
 def add_dependencies(
     dependencies: list[str],
     dep_provenance: str,
@@ -297,9 +314,17 @@ def add_dependencies(
     resolved_ids: DependencyIdHits | None = None,
     project_name: str | None = None,
     groups: DependencyGroups | None = None,
+    direct_references_said: set[str] | None = None,
 ) -> None:
     """Build SPDX ``software_Package`` and ``Relationship`` elements for
     dependencies.
+
+    A package declared as a direct reference (``name @ URL``) is not looked
+    up on PyPI, and an online run says so with one ``INFO:``
+    (:func:`~pitloom.messages.dependencies.say_direct_reference`): once per
+    package in *direct_references_said*, the memo of the document (a call
+    of its own when ``None``). An offline run looks up no name, so says
+    nothing.
 
     *groups*, when given, is *dependencies* already resolved and grouped
     (:func:`~pitloom.assemble.spdx3._dep_groups.group_dependencies`, with
@@ -382,6 +407,7 @@ def add_dependencies(
             locked_provenance=locked_provenance,
         )
     scopes = groups.scopes
+    said = _memo_of(direct_references_said)
     if release_info_cache is None and not offline:
         release_info_cache = _prefetch_pypi_release_infos(groups.release_pairs())
 
@@ -426,6 +452,7 @@ def add_dependencies(
         dep_package.software_packageVersion = dep_version
         dep_package.software_primaryPurpose = spdx3.software_SoftwarePurpose.library
 
+        _say_direct_reference(display_dep_name, group.on_pypi or offline, said)
         _finish_dependency_enrichment(
             display_dep_name,
             dep_version,

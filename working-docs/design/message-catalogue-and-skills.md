@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-29
-Last-Modified: 2026-11-13
+Last-Modified: 2026-11-17
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -20,7 +20,8 @@ Status: decided 2026-10-29 (the four decisions, then decisions A to L of
 the review of #390, then M after it merged, built in #395). Scope was split
 between 0.22.0 and 0.23.0, then re-cut on 2026-11-04 (maintainer ruling):
 0.23.0 held PRs 1b, 1c and 2b only; the frames, PRs 3 to 18, the licence
-provenance mapping and `--report`/SARIF are 0.24.0 (counts and order:
+provenance mapping and `--report`/SARIF come after 0.24.0 (PRs 3 to 7 target
+0.25.0, the rest is not set; counts and order:
 [message-catalogue-migration-plan.md](message-catalogue-migration-plan.md)).
 Built: the inventory (step 1; results and the printed form it settled are in
 "Inventory results"); the `lfs-pointer` families with the plumbing, schema and

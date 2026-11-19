@@ -38,18 +38,18 @@ from pitloom.id_registry import (
     LookupKey,
     registry_file_path,
 )
-from pitloom.id_registry.import_keys import DATASET_NAME_KEY_INFO as NAME_KEY_INFO
 from pitloom.id_registry.import_keys import name_key_reason
-from pitloom.logging_config import loggable
+from pitloom.messages import emit
+from pitloom.messages.id_registry_ids import (
+    HASHLESS_PIN_LINE,
+    REGISTRY_HASH_MISSING,
+    UNGATED_LINE,
+    info_name_key,
+)
 
 log = logging.getLogger("pitloom.loom")
 
 __all__ = [
-    "HASHLESS_PIN_INFO",
-    "NAME_KEY_INFO",
-    "PIN_WITHOUT_HASH_INFO",
-    "SPELLING_PIN_WARNING",
-    "UNGATED_INFO",
     "DigestEvidence",
     "dataset_digest",
     "digest_evidence",
@@ -58,22 +58,6 @@ __all__ = [
     "name_key_reason",
     "record_size",
 ]
-
-#: ``log.warning()`` format for a later spelling of a dataset whose registry id
-#: differs from the first spelling's. Arguments: the later spelling, its pinned
-#: id, the first spelling.
-SPELLING_PIN_WARNING = (
-    "ID registry: dataset %s is pinned to %s, but it is read as %s, whose id is used"
-)
-
-#: ``log.info()`` formats for a dataset package keyed or gated otherwise than
-#: by its path and content, each said once per package per run (loom) or per
-#: pin (``id generate -e``). Arguments: the key, then (where taken) why.
-PIN_WITHOUT_HASH_INFO = "ID registry: dataset %s pinned without SHA-256: %s"
-HASHLESS_PIN_INFO = (
-    "ID registry: dataset %s matched a pin without SHA-256; content not checked"
-)
-UNGATED_INFO = "ID registry: dataset %s looked up ungated: not hashed"
 
 
 def _files(count: int) -> str:
@@ -114,15 +98,22 @@ def info_key(
     registered: str | None,
 ) -> None:
     """The one ``INFO:`` for a dataset package not keyed by its path or
-    not gated by its content, if any: keyed by its name, looked up ungated,
-    or matched a pin recording no hash."""
-    key = loggable(lookup.key)
+    not gated by its content, if any: keyed by its name
+    (``registry-path-key-unusable``), looked up ungated or matched a pin
+    recording no hash (``registry-hash-missing``)."""
+    key = lookup.key
     if not lookup.path:
-        log.info(NAME_KEY_INFO, key, name_key_reason(name))
+        info_name_key(log, "dataset", key, name_key_reason(name))
     elif digest is None:
-        log.info(UNGATED_INFO, key)
+        emit(log, REGISTRY_HASH_MISSING, logging.INFO, line=UNGATED_LINE, entity=key)
     elif registered is not None and digest not in _held_hashes(registry, lookup.key):
-        log.info(HASHLESS_PIN_INFO, key)
+        emit(
+            log,
+            REGISTRY_HASH_MISSING,
+            logging.INFO,
+            line=HASHLESS_PIN_LINE,
+            entity=key,
+        )
 
 
 def _held_hashes(registry: IdRegistry, key: str) -> set[str | None]:

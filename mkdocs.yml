@@ -40,6 +40,7 @@ nav:
   - Reference:
       - Configuration: configuration.md
       - Dependency sources: dependency-sources.md
+      - Credentials in URLs: url-credentials.md
       - Creation metadata: creation-metadata.md
       - Metadata provenance: metadata-provenance.md
       - Metadata provenance, artefact metadata: metadata-provenance-artifact-metadata.md
@@ -53,10 +54,19 @@ nav:
           - Model fields: message-codes-model-fields.md
           - Targets: message-codes-targets.md
           - Options: message-codes-options.md
+          - Configuration: message-codes-config.md
+          - Project metadata: message-codes-metadata.md
+          - File discovery: message-codes-file-discovery.md
           - Files and text: message-codes-files.md
+          - Lock files: message-codes-lock-files.md
+          - Dependencies: message-codes-dependencies.md
           - PyPI: message-codes-pypi.md
           - Network: message-codes-network.md
+          - URL credentials: message-codes-url-credentials.md
+          - ID registry: message-codes-id-registry.md
+          - ID registry ids and keys: message-codes-id-registry-ids.md
           - Licences: message-codes-licences.md
+          - Values: message-codes-values.md
       - Resources: resources.md
 
 theme:

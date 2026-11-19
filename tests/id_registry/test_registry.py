@@ -34,6 +34,7 @@ from pitloom.id_registry import (
     type_id_prefix,
 )
 from pitloom.id_registry._types import _element_key
+from pitloom.messages import code_of
 from tests.id_registry.surfaces_base import _run_cli
 from tests.registry_helpers import entries_of, make_registry
 
@@ -48,7 +49,7 @@ def test_resolve_registry_error(tmp_path: Path) -> None:
     invalid_file = tmp_path / DEFAULT_ID_REGISTRY_FILENAME
     invalid_file.write_text("{")  # Malformed JSON
 
-    with pytest.raises(ValueError, match="ID registry file"):
+    with pytest.raises(ValueError, match="not valid JSON for the ID registry"):
         resolve_registry(invalid_file, None, tmp_path)
 
     missing_file = tmp_path / "missing.json"
@@ -386,5 +387,6 @@ def test_register_refuses_a_lone_surrogate_and_stores_nothing(
     assert f"ID registry: {'name' if which == 'name' else 'type name'} " in str(
         excinfo.value
     )
+    assert code_of(excinfo.value) == "text-malformed/registry"
     assert not registry.elements
     registry.save()

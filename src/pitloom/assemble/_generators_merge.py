@@ -23,6 +23,7 @@ from pitloom.assemble.spdx3._fragments_envelope import (
 )
 from pitloom.assemble.spdx3.fragments import fragment_files, merge_fragments
 from pitloom.core.config import FragmentConfig
+from pitloom.core.credential_policy import CredentialPolicy
 from pitloom.logging_config import configure_logging
 from pitloom.messages import CodedValueError
 from pitloom.messages.targets import (
@@ -38,6 +39,7 @@ def generate_merged_sbom(
     *,
     output_path: Path | str | None = None,
     pretty: bool = True,
+    credentials: CredentialPolicy | None = None,
 ) -> str:
     """Merge every ``*.json`` SPDX 3 fragment in *fragments_dir* into one
     SBOM, as ``loom merge`` does, and return it as JSON-LD.
@@ -46,6 +48,11 @@ def generate_merged_sbom(
     envelopes rooted; equal elements unify as in a project build with
     fragments. The same fragments give the same bytes, whatever the
     directory or the order the files were written in.
+
+    A fragment field holding a credential that *credentials*
+    (:class:`~pitloom.core.credential_policy.CredentialPolicy`) does not
+    accept is warned of, or, in its ``refuse`` mode, refused; fragments
+    have no ``[tool.pitloom]`` to add to it.
 
     Raises:
         FileNotFoundError: *fragments_dir* does not exist, or is not a
@@ -73,6 +80,8 @@ def generate_merged_sbom(
         adopt_fragment_roots=True,
     )
     finish_merge_document(exporter)
-    sbom_json = exporter.to_json(pretty=pretty)
+    sbom_json = exporter.to_json(
+        pretty=pretty, credentials=credentials or CredentialPolicy()
+    )
     write_sbom_output(sbom_json, output_path)
     return sbom_json

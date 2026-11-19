@@ -22,15 +22,13 @@ from __future__ import annotations
 
 from typing import Final
 
-from pitloom.messages._types import Line, Message
+from pitloom.messages._types import ASK_FIRST, Line, Message
 
 #: The release that first prints an ``ERROR`` line for an SBOM given to read
 #: (``file-unreadable`` and ``file-unreadable/not-utf8``: to import into an
 #: ID registry or to embed); the entries' other lines print since their own
 #: ``since``.
-_SINCE_SBOM: Final = "0.24.1"
-#: The end of every advice an agent relays without acting on it.
-_ASK: Final = "ask first, and with nobody to ask, report it only."
+_SINCE_SBOM: Final = "0.25.0"
 #: What every line ends in when the content is outside the project.
 _OUTSIDE: Final = "outside the project directory"
 
@@ -68,7 +66,8 @@ FILE_UNREADABLE: Final = Message(
     "project, a configuration, an ID registry, an SBOM) under a directory "
     "without search permission says so 'for the input check', not that it "
     "is not found. The ERROR line for an SBOM given to 'loom id import' or "
-    f"to embed, and for the input check, prints since {_SINCE_SBOM}.",
+    "to embed, for an ID registry file, for a 'loom id generate' PATH, for "
+    f"a configuration file and for the input check, prints since {_SINCE_SBOM}.",
     did="Read nothing more of it and went on without what it holds, as the "
     "line says what it was read for: a file scan leaves the file out of the "
     "SBOM (loom embed-wheel keeps it, with the wheel's own hash); a hash "
@@ -76,12 +75,20 @@ FILE_UNREADABLE: Final = Message(
     "a dataset's provenance says Evidence: not_measured | Reason: "
     "file-unreadable); a project setting's field is not set from the file; "
     "the usage scan records no model reference from it; ID registry indexing "
-    "leaves it out of the index; no dependency pins are read from a lock "
+    "leaves it out of the index; an ID registry file read again to save the "
+    "ids a run added is not saved; no dependency pins are read from a lock "
     "file; a model whose header could not be read is not listed as an AI "
-    "model; a model or dataset card sets none of the fields it states. As an "
+    "model; a model or dataset card sets none of the fields it states; "
+    "installed project metadata is ignored, and a setup.cfg or setup.py read "
+    "beside another source leaves the project read without it. As an "
     "ERROR, the call that named the file raises (a Croissant document: the "
     "dataset declaration fails; an SBOM to import: the ID registry is not "
-    "written; an SBOM to embed: no wheel is changed; the only possible "
+    "written; an SBOM to embed: no wheel is changed; an ID registry file, "
+    "or a 'loom id generate' PATH: no registry or SBOM is written; a "
+    "configuration file, or a project metadata file (a project's "
+    "pyproject.toml read by the build hook says for the configuration): "
+    "nothing is written; the only "
+    "possible "
     "model file of a folder named for a model SBOM: no SBOM is written; the "
     "input check: the command writes nothing and exits 1, the library "
     "raises ValueError carrying the code).",
@@ -91,7 +98,7 @@ FILE_UNREADABLE: Final = Message(
     "reported, as the line says. They give the account Pitloom runs as read "
     "access to it (or close the program that holds it), or restore a damaged "
     "copy, and generate again. Do not change permissions or ownership, or "
-    f"copy, move or replace the file, for them; {_ASK}",
+    f"copy, move or replace the file, for them; {ASK_FIRST}",
     subject_key="FILE",
 )
 
@@ -120,18 +127,20 @@ FILE_UNREADABLE_NOT_UTF8: Final = Message(
     summary="A text file Pitloom read is not UTF-8, the encoding it must be "
     "in: a requirements file or a file a setup.cfg directive lists, a "
     "Python file read for the model usage scan (a WARNING:), or an SBOM "
-    "given to embed or to import into an ID registry (an ERROR:, which "
-    f"prints since {_SINCE_SBOM}).",
+    "given to embed or to import into an ID registry, an ID registry file "
+    f"(an ERROR:, which prints since {_SINCE_SBOM}), or a configuration file "
+    "(an ERROR:).",
     did="Went on without what the file holds: the field is not set from it, "
     "or the usage scan records no model reference from it. For an SBOM, "
     "wrote nothing: to embed, no wheel is changed; to import, the ID "
-    "registry is not written.",
+    "registry is not written. For an ID registry file or a configuration "
+    "file, wrote nothing: no registry and no SBOM.",
     effect="thinner",
     actor="user",
     advice="Tell the user which file is not UTF-8 and what the decoder "
     "reported, as the line says. They save it as UTF-8 (an SBOM: generate it "
     "again) and run again. Do not convert, edit or replace the file for "
-    f"them; {_ASK}",
+    f"them; {ASK_FIRST}",
     subject_key="FILE",
 )
 
@@ -161,7 +170,7 @@ FILE_UNREADABLE_OUTSIDE: Final = Message(
     "the file into the project, or point the setting at a file inside it, "
     "and generate again; for an installed dependency, only its maintainers "
     "can fix it. Do not move, copy or link files, or edit the setting, for "
-    f"them; {_ASK}",
+    f"them; {ASK_FIRST}",
     subject_key="FILE",
 )
 
@@ -194,33 +203,40 @@ FILE_UNREADABLE_OUTSIDE_REPOSITORY: Final = Message(
     "files outside it, which were left out, as the line says. To have them in "
     "the SBOM, they clone the repository, check what those paths name, and "
     "generate from the local copy. Do not clone or run on a local copy for "
-    f"them; {_ASK}",
+    f"them; {ASK_FIRST}",
     subject_key="FILE",
     since="0.23.4",
 )
 
+#: A directory listed for a purpose of the closed table.
+DIR_LINE: Final = Line(
+    level="WARNING", template="DIR=%(dir)s: could not list %(use)s; %(failure)s"
+)
+#: The same, where the listing raises (a directory named as a 'loom id
+#: generate' PATH).
+DIR_ERROR_LINE: Final = Line(level="ERROR", template=DIR_LINE.template)
+
 DIR_UNLISTABLE: Final = Message(
     code="dir-unlistable",
     condition="unlistable",
-    lines=(
-        Line(
-            level="WARNING",
-            template="DIR=%(dir)s: could not list %(use)s; %(failure)s",
-        ),
-    ),
+    lines=(DIR_LINE, DIR_ERROR_LINE),
     summary="A directory could not be listed (no read or search permission): "
-    "the files under it were not seen.",
+    "the files under it were not seen. The ERROR line, for a directory named "
+    f"as a 'loom id generate' PATH, prints since {_SINCE_SBOM}.",
     did="Went on without them: file discovery leaves them out of the SBOM (a "
     "build backend that lists before it excludes can name a directory it "
     "would leave out anyway); a dataset directory gets no hash (Evidence: "
     "not_measured | Reason: dir-unlistable); ID registry indexing leaves them "
-    "out of the index; a model or dataset card in it is not found.",
+    "out of the index; a model or dataset card in it is not found. As an "
+    "ERROR (a directory named as a PATH to index), 'loom id generate' writes "
+    "no registry and exits 1, and the library raises ValueError carrying the "
+    "code.",
     effect="thinner",
     actor="user",
     advice="Tell the user which directory could not be listed and what the "
     "system reported, as the line says. They give the account Pitloom runs "
     "as read and search access to it and generate again. Do not change "
-    f"permissions or ownership, or copy or move files, for them; {_ASK}",
+    f"permissions or ownership, or copy or move files, for them; {ASK_FIRST}",
     subject_key="DIR",
 )
 

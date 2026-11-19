@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-29
-Last-Modified: 2026-10-10
+Last-Modified: 2026-11-17
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -48,3 +48,11 @@ introspection only, pass `--no-use-lockfile` (on `project`/`generate`, or on
 without `--project-dir`, since no project metadata is read in that case) or
 set `[tool.pitloom] use-lockfile = false` in `pyproject.toml`. On by
 default; an explicit CLI flag always wins over the config value.
+
+A lock file or entry Pitloom cannot use, or a requirement it skips, is said
+on stderr as a coded line (`WARNING:`, or `INFO:` for a direct reference).
+Most drop the pin; a line saying `pin kept` or an extra's gate keeps it. Read the line's `[code]` in
+[messages-lock-files.md](messages-lock-files.md) (a lock file or an entry in
+it) or [messages-dependencies.md](messages-dependencies.md) (a requirement,
+an extra's entry, a direct reference) for the cause and what to tell the
+user; do not edit or regenerate the lock for them without asking.

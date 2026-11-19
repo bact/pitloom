@@ -371,7 +371,10 @@ def test_hook_invalid_config_raises_before_io() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         hook = make_hook(tmp, {"enabled": "yes"})
         build_data: dict[str, Any] = {}
-        with pytest.raises(ValueError, match="'enabled' must be a boolean"):
+        with pytest.raises(
+            ValueError,
+            match=r"\[tool.hatch.build.hooks.pitloom\] enabled: must be true or false",
+        ):
             hook.initialize("standard", build_data)
 
         assert hook._staging_dir is None

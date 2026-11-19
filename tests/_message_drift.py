@@ -32,6 +32,7 @@ from pitloom.messages import (
     trusted_message,
 )
 from pitloom.messages._templates import PLACEHOLDER
+from pitloom.messages.config import ConfigPlace
 from tests._docs_scan import REPO_ROOT
 
 SRC_ROOT = REPO_ROOT / "src" / "pitloom"
@@ -44,28 +45,63 @@ TEST_LOGGER_PREFIX = "pitloom.test_"
 SAMPLES: dict[str, object] = {
     "answered": "other-project",
     "arity": "one argument",
+    "backend": "mesonpy",
     "card": "model card",
+    "classifiers": ["License :: OSI Approved :: MIT License"],
+    "claimant": "src/a.txt",
     "command": "clone",
+    "config_key": ConfigPlace("tool.pitloom.fragment", "files", entry=2, sub="role"),
     "count": 2,
     "declared": "b" * 64,
+    "declared_in": "optional-dependencies",
+    "destination": "[tool.pitloom] id-registry",
+    "dependency": "demo[dev]",
+    "dropped": ("1.0", "2.0"),
+    "extra_name": "dev",
+    "kept": "uv.lock",
+    "line_number": 3,
+    "lock_key": "package",
+    "lock_value": "==1.*",
+    "package": "flask",
+    "source_kind": "git",
+    "value_type": [],
     "dir": "m/sub",
+    "discoverer": "Setuptools",
+    "element": "https://example.org/ns#Package-1",
+    "element_type": "software_File",
+    "element_kind": "dataset package",
     "elements": ("model-architecture (written in ai_typeOfModel)",),
+    "entities": ("software_File 'a.txt'", "src/a.txt"),
+    "entries": ("prety", "fragments-dir"),
+    "entity": "data/imdb",
     "entry": "archive/data.pkl",
     "error": "Error while deserializing header: invalid header length",
+    "expected": "boolean",
+    "expression": "Apache-2.0 AND MIT",
     "failure": PermissionError(13, "Permission denied", "/abs/m/a.bin"),
     "field": "project.readme",
     "file": "m/a.bin",
     "files": "a.gguf, b.bin and 3 more",
+    "fingerprint": "sha256:0123456789abcdef",
     "format": "gguf",
     "formats": ["gguf", "onnx"],
     "hosts": "files.pythonhosted.org",
     "input": "wheel file",
     "key": "FIELD",
+    "key_reason": "outside the project root",
+    "kwargs": ["packages", "**kwargs"],
+    "license": "MIT OR",
+    "license_reason": "not found: Acme-Terms",
     "limit": 1024,
     "fields": ("type_of_model", "properties.tags (kept as raw string)"),
     "measured": "a" * 64,
+    "metadata_fields": ["version", "optional-dependencies"],
     "module": "h5py",
     "name": "a.txt",
+    "namespace": "https://example.org/ns",
+    "namespace_problem": "must not contain '#'",
+    "given_namespace": "https://example.org/other",
+    "got": "maybe",
     "number": 2,
     "oid": "0f" * 32,
     "option": "--allow-build",
@@ -73,17 +109,24 @@ SAMPLES: dict[str, object] = {
     "outcome": "skipped",
     "part": "training_config.optimizer",
     "path": "m.gguf",
+    "pointer": "software_downloadLocation",
+    "root": "proj",
     "purpose": "per-wheel model-scan budget",
     "python": "3.10",
     "reason": "GGUF header declares 1000000 tensors",
     "refusal": "invalid choice: 'x'",
+    "registry_part": "spdxId",
     "requirement": "pitloom[gguf]",
     "seconds": 30,
+    "setting": "url-credentials",
     "settings": ("tool.setuptools.cmdclass", "metadata.version"),
     "size": 3,
     "source": "the PyPI JSON API",
+    "spdx_id": "https://example.org/ns#File-1",
+    "steps": "separator, version_spelling",
     "subcommand": "fragment validate",
     "table": "[tool.pitloom]",
+    "tables": (ConfigPlace("tool.pitloom.provenance"), ConfigPlace("tool.pitloom")),
     "target": "https://example.org/x.whl",
     "unit": "byte",
     "url": "https://pypi.org/project/demo/1.0/",
@@ -266,14 +309,15 @@ def _takes(name: str, run: tuple[object, ...], marker: str) -> bool:
     """Whether field *name* can print as the quote's *run*, which starts
     with text (:func:`_piece_of` reads a wildcard standing for the field):
     the value as the reference shows it (``'<path>'``); for a free field,
-    any text without the family's *marker*; for any other, text of its own
-    shape."""
+    any text without the family's *marker*, but never one placeholder in
+    quotes, which says the field prints quoted when it does not
+    (``'<key>'`` for ``<entity>``); for any other, text of its own shape."""
     field = FIELDS[name]
     if run == _quote_tokens(field.shown):
         return True
     text = "".join(t for t in run if isinstance(t, str))
     if field.free:
-        return marker not in text
+        return marker not in text and run != ("'", _ANY, "'")
     return _ANY not in run and re.fullmatch(field.pattern, text) is not None
 
 

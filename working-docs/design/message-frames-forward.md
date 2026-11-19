@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-14
-Last-Modified: 2026-11-14
+Last-Modified: 2026-11-17
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -16,7 +16,7 @@ built), [message-catalogue-migration-plan.md](message-catalogue-migration-plan.m
 
 Status: design, 2026-11-14, written during PR 3 from three read-only surveys
 of `main` plus the PR 3 tree. Tags: (V) verified in code, (I) inferred.
-Nothing here is built. It settles how a prefix before a catalogued line is
+Rule 2 is built for PRs 5 to 7 (#485, #486, #492); the rest is not. It settles how a prefix before a catalogued line is
 spelt and matched, so each later PR applies a rule instead of debating one.
 Codes themselves stay each PR's plan (decision L makes them promises).
 
@@ -135,14 +135,18 @@ Only what each PR must know; the PR's own Opus plan re-lists sites by AST.
   callers) becomes the subject form `ID registry: <file subject>:
   CONDITION`; the PR picks the field (`path` quoted, as the 26 lines write it
   now, is the least change).
-- `failed_to_save_message` wraps `{exc}`: the outer line states its own
-  condition (`registry-unwritable` or the plan's name) with the inner text as
-  `(detail)`. The inner code is not printed (one line, one code), which is
-  right only because the outer condition differs (see "Wrappers" below).
+- A failed save adds no condition, so it states none (built in catalogue
+  PR 7, "Wrappers keep the inner code" below): `failed_to_save_message` is
+  gone and `say_save_failure` says the inner coded line alone, its code
+  kept; an uncoded `OSError` on write is `file-unwritable` (`FILE=<file>:
+  could not write for the ID registry; <failure>`). No `registry-unwritable`
+  was added.
 - One helper, two levels: `unencodable_message` is ERROR at PR 5's sites and
-  WARNING at `_harvest.py:447`; `failed_to_save_message` WARNING at
-  `_persist.py:206`, ERROR at `cli/id.py:221`. One entry with an ERROR and a
-  WARNING line each (decision E).
+  WARNING at `_harvest.py:447`; a failed save is ERROR for `loom id` and
+  WARNING for a run whose SBOM is written. One entry with an ERROR and a
+  WARNING line each (decision E): every entry a save can say has a
+  `WARNING` twin, and a missing one raises `InternalError`, never prints
+  uncoded.
 - `ambiguous_keys_message` is INFO or DEBUG at run time; a `Line` has one
   level. The INFO case goes through `emit`; the DEBUG case stays a plain
   `log.debug` (developer-only, out of scope). Same rule for every dynamic
@@ -152,6 +156,11 @@ Only what each PR must know; the PR's own Opus plan re-lists sites by AST.
   (ruling 2), not the registry's.
 - The two `PATH '<p>'` ERRORs (`cli/id.py`, `_types.py:364`) and
   `_types.py:329` are PR 5's (forward requirement from PR 3).
+- Applied in PR 5 (#485): `registry_file_error` became the subject form
+  `ID registry: FILE=<file>: CONDITION` (the file as given, URL masked);
+  `unencodable_message` became `text-malformed/registry` (an `ERROR` and
+  two `WARNING` lines). Catalogue PR 7 removed `failed_to_save_message`:
+  `registry-unusable` now prints with its code on the CLI.
 
 ### PRs 8 and 9: configuration
 
@@ -291,8 +300,11 @@ Only what each PR must know; the PR's own Opus plan re-lists sites by AST.
 - `DATASET_PREFIX = "dataset metadata: "` from the four constants in
   `extract/dataset/values.py:58-76`.
 - The SDK's `loom: ` on about 13 constants (`_loom_dataset*.py`,
-  `_loom_model.py:84`, `_loom_caller.py:199-220`, `_loom_active_run.py:372`)
-  is the text of `TOP_FRAME`. As `TOP_FRAME` is ERROR-only it is never
+  `_loom_model.py:84`, `_loom_active_run.py:372`) is the text of
+  `TOP_FRAME`. The registry lines (`_loom_caller.py`'s misses,
+  `_loom_dataset.py`'s spelling and outside-root lines) took `ID registry: `
+  in PR 6 (#486, ruling Q4); `_loom_dataset.py:108` (the registry inside a
+  dataset directory) does so in PR 7. As `TOP_FRAME` is ERROR-only it is never
   matched as a frame, but a reader takes it for one (ruling 2).
 - Escaped text: 3 sites in scope (`_embed_generate:96`,
   `_loom_dataset_meta:283`, `_ai_package:398`), not 5.
@@ -351,7 +363,7 @@ Only what each PR must know; the PR's own Opus plan re-lists sites by AST.
   (`file-unreadable` would become `unreadable`). May land with PR 14 or
   alone.
 - **`since`**: a new entry takes the next release after the last tag at the
-  time it merges. PR 3 uses 0.24.1 (maintainer, 2026-11-13); later PRs check
+  time it merges. PRs 3 to 7 use 0.25.0 (the next release; 0.24.1 was not cut); later PRs check
   `git tag` before choosing.
 - **Topic pages** (`messages/_topics.py`, page guard 30 KB): new topics
   `id-registry` (5 to 7), `config` (8, 9), `lock-files` (10, 11),

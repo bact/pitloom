@@ -4,9 +4,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Drift guard: a path or file name in a log record or a stderr line goes
-through `quote_source` or `quote_given` (a path), `loggable` or `one_line`
-(other untrusted text), as AGENTS.md's "CLI output" section says, so Windows
-backslashes are not doubled and a newline cannot start another line.
+through `quote_source` (a path), `loggable` or `one_line` (other untrusted
+text), as AGENTS.md's "CLI output" section says, so Windows backslashes are
+not doubled and a newline cannot start another line.
 
 The formatter of `configure_logging` escapes control characters whatever a call
 site did, so this guards the display, not the line structure. It reads the
@@ -38,7 +38,6 @@ _PART_ATTRIBUTES = frozenset({"name", "parent", "stem", "suffix"})
 _SAFE_CALLS = frozenset(
     {
         "quote_source",
-        "quote_given",
         "loggable",
         "one_line",
         "type",
@@ -62,15 +61,17 @@ _QUOTING_CALLS = frozenset(
         "CodedImportError",
         "CodedValueError",
         "_interpolation_error",
+        "dir_unlistable_error",
         "file_unreadable_error",
         "input_not_found",
-        "_import_failure_text",
+        "_malformed",
         "NotAWheelError",
         "_fragment_read_failure_message",
         "_same_document_message",
-        "failed_to_save_message",
         "refusal_error",
         "render",
+        "_invalid_project",
+        "_NoProjectNameError",
         "name_key_reason",
         "detail",
         "detect_ai_model_format_from_name",
@@ -86,10 +87,6 @@ _NOT_PATHS: frozenset[tuple[str, str]] = frozenset(
         ("core/_config_keys.py", "path"),
         ("extract/_license_detect.py", "path"),
         ("extract/project/_pyproject_fields.py", "project_dir"),
-        # A TOML table path and a regex, shown with repr().
-        ("core/_config_read.py", "table_path"),
-        ("core/model_extract_limit.py", "table_path"),
-        ("core/_config_parse_scan.py", "pattern"),
         # A URL shown with repr(), its credentials masked.
         ("_loom_dataset_meta.py", "location"),
         ("_loom_dataset_meta.py", "masked_given_path"),
@@ -126,7 +123,7 @@ def _is_message_call(node: ast.Call) -> bool:
 
 
 #: Calls that quote their leading path arguments (how many) and show the rest as given.
-_QUOTING_FIRST = {"registry_file_error": 1, "refusal": 2, "unreadable_member_error": 2}
+_QUOTING_FIRST = {"refusal": 2, "unreadable_member_error": 2}
 #: Constructors whose filename argument ``OSError`` shows with ``repr()``.
 _OS_ERRORS = frozenset({"PermissionError", "FileNotFoundError", "OSError"})
 
@@ -235,8 +232,8 @@ def test_the_guard_sees_a_bare_path() -> None:
         "log.warning(*args, wheel_path)\n"
         "raise ValueError(f'x {path}')\n"
         "raise ValueError(f'x {quote_source(path)}')\n"
-        "raise registry_file_error(path, f'x {root}')\n"
-        "raise registry_file_error(path, f'x {quote_source(root)}')\n"
+        "raise unreadable_member_error(a, path, f'x {root}')\n"
+        "raise unreadable_member_error(a, path, f'x {quote_source(root)}')\n"
         "raise PermissionError(1, 'x', str(path))\n"
         "raise PermissionError(1, f'x {path}', str(path))\n"
         "raise RemoteError(code='c', message=f'x {path}')\n"

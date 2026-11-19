@@ -7,8 +7,9 @@ message, so its line ends in `` [code]``.
 
 A call has a *static* code when it
 
-- is ``emit(...)``, ``CodedValueError(...)``, ``CodedImportError(...)`` or
-  ``CodedFileNotFoundError(...)``, or
+- is ``emit(...)``, ``CodedValueError(...)``, ``CodedImportError(...)``,
+  ``CodedFileNotFoundError(...)``, or a coded exception said again
+  (``recoded(...)``, ``exc.located(...)``), or
 - passes ``code=`` (or ``pitloom_code=``, as an exception class's own
   keyword) a string or a ``pitloom.messages`` constant, or
 - passes ``extra=`` holding a ``pitloom_code`` key (``CODE_ATTR``), or
@@ -41,9 +42,19 @@ if TYPE_CHECKING:
 
 STATIC = "static"
 FORWARD = "forward"
-#: Calls that put a fixed catalogued code on a record or an exception.
+#: Calls that put a fixed catalogued code on a record or an exception. A
+#: ``recoded(cls, exc)`` or ``exc.located(...)`` raise says a coded
+#: exception again (as another class, or with its file): it refuses one
+#: without a catalogued code, so its line always ends in one.
 STATIC_CALLS = frozenset(
-    {"emit", "CodedFileNotFoundError", "CodedImportError", "CodedValueError"}
+    {
+        "emit",
+        "CodedFileNotFoundError",
+        "CodedImportError",
+        "CodedValueError",
+        "located",
+        "recoded",
+    }
 )
 #: Calls that read the code from an exception or a relayed record.
 FORWARD_CALLS = frozenset({"code_extra_of", "relay_extra"})

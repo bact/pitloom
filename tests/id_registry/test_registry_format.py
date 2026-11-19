@@ -33,6 +33,7 @@ from pitloom.id_registry import (
     IdRegistry,
     RegistryEntry,
 )
+from pitloom.messages import code_of
 from tests._symlink import CAN_SYMLINK
 from tests.id_registry.shared import valid_registry_data
 from tests.json_text_helpers import without_token_whitespace
@@ -173,8 +174,11 @@ def test_save_reports_a_project_root_it_cannot_store(
     with patch("pitloom.id_registry._format.relpath", autospec=True) as fake:
         fake.side_effect = raises
         fake.return_value = returns
-        with pytest.raises(ValueError, match=f"^ID registry file .*{reason}"):
+        with pytest.raises(
+            ValueError, match=f"^ID registry: FILE=.*{reason}"
+        ) as caught:
             registry.save(path)
+    assert code_of(caught.value) == "registry-unusable"
 
     assert not path.exists()
 
@@ -330,13 +334,19 @@ def test_require_project_root_accepts_another_spelling_of_the_root(
 def test_require_project_root_rejects_another_root(tmp_path: Path) -> None:
     registry = _saved_registry(tmp_path)
 
-    with pytest.raises(ValueError, match="^ID registry file .*project root .* is not"):
+    with pytest.raises(
+        ValueError, match="^ID registry: FILE=.*project root .* is not"
+    ) as caught:
         registry.require_project_root(tmp_path / "build")
+    assert code_of(caught.value) == "option-conflict"
 
 
 def test_require_namespace_names_both_namespaces(tmp_path: Path) -> None:
     registry = _saved_registry(tmp_path)
 
     registry.require_namespace(registry.namespace)  # the same one: no-op
-    with pytest.raises(ValueError, match="is not --namespace urn:other; delete it"):
+    with pytest.raises(
+        ValueError, match="is not --namespace urn:other; delete it"
+    ) as caught:
         registry.require_namespace("urn:other")
+    assert code_of(caught.value) == "option-conflict"

@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-07
-Last-Modified: 2026-11-14
+Last-Modified: 2026-11-16
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -77,6 +77,13 @@ that
 under another name is embedded, with a `WARNING:` that its name and version
 cannot be cross-checked. The file is stored as `<basename>.spdx3.json`
 whatever it is called or holds.
+
+An external SBOM is also checked for a credential in a URL field: it is
+embedded unchanged, with a `WARNING:` per value, or, with
+`--refuse-url-credentials`, refused (exit 1, no wheel written) unless
+`--accept-url-credential` accepts it; a `[tool.pitloom]` setting does not apply
+to a file Pitloom did not make. See
+[Credentials in URLs](url-credentials.md).
 
 Embedding again replaces an earlier SBOM only when Pitloom made it, it is a
 build or analyzed SBOM (`software_sbomType`), and it is of the same name and

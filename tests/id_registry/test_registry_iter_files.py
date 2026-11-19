@@ -62,18 +62,19 @@ def test_walk_root_that_cannot_be_stat_ed_raises_on_every_version(
     caplog: pytest.LogCaptureFixture,
     mode: str,
 ) -> None:
-    """Present but not ``stat()``-able: the ``ValueError`` naming the PATH (the CLI's
-    ``ERROR:``), never "path not found" -- ``Path.exists()`` says ``False``
-    for it on Python 3.14 only."""
+    """Present but not ``stat()``-able: ``file-unreadable`` for the input
+    check, naming the PATH (the CLI's ``ERROR:``), never not found --
+    ``Path.exists()`` says ``False`` for it on Python 3.14 only."""
     root = _project(tmp_path)
     walk_root = root / "src" / "a.py"
     with (
         caplog.at_level(logging.WARNING),
         deny(walk_root, mode, monkeypatch),
-        pytest.raises(ValueError, match="PATH .*could not be read"),
+        pytest.raises(ValueError, match="could not read for the input check") as caught,
     ):
         list(_iter_files([walk_root], root))
-    assert "path not found" not in caplog.text
+    assert getattr(caught.value, CODE_ATTR) == "file-unreadable"
+    assert "not found" not in caplog.text
 
 
 @_POSIX

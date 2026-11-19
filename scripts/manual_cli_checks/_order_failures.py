@@ -10,9 +10,10 @@ v2 or unparsable registry, or a read-only one.
   exactly one ``ERROR:`` naming the registry file (``version 2, expected
   4`` for a v2 file); ``loom.Run`` raises ``ValueError`` instead.
 - Read-only (build notes, order-matrix round): the registry is not
-  overwritten; one ``ID registry: failed to save <path>: <reason>`` line,
-  the only ``ERROR:`` and exit 1 for ``id generate``/``id import``, else a
-  ``WARNING:``, no ``ERROR:`` and exit 0.
+  overwritten; one ``FILE=<path>: could not write for the ID registry;
+  <reason> [file-unwritable]`` line, the only ``ERROR:`` and exit 1 for
+  ``id generate``/``id import``, else a ``WARNING:``, no ``ERROR:`` and
+  exit 0.
 
 See also: ``_order_invariants.py`` (A-F, which skip these steps).
 """
@@ -24,8 +25,10 @@ from _order_ops import BAD_JSON, V2_REGISTRY
 
 _FORBIDDEN = ("shares spdxId", "another run saved")
 _ID_COMMANDS = frozenset({"gen", "gen-ds", "gen-min", "import", "import0"})
-#: The one failed-save wording on every surface (``failed_to_save_message``).
-_FAILED_SAVE = "ID registry: failed to save "
+#: The one failed-save wording on every surface (``file-unwritable``), after
+#: ``FILE=<path>``, and its code.
+_FAILED_SAVE = ": could not write for the ID registry; "
+_SAVE_CODE = " [file-unwritable]"
 
 
 def clean(cap: Captured) -> list[tuple[str, str]]:
@@ -55,6 +58,12 @@ def clean(cap: Captured) -> list[tuple[str, str]]:
     return found
 
 
+#: What the one line says, all of it, for a version 2 registry and for one
+#: that is not JSON.
+_V2_NEEDLES = ("ID registry: FILE=", ": version 2, expected 4")
+_BAD_JSON_NEEDLES = ("not valid JSON for the ID registry; ",)
+
+
 def injected(cap: Captured) -> list[tuple[str, str]]:
     """(code, message) for each way *cap*, run against a v2 or invalid
     registry, broke H."""
@@ -71,13 +80,13 @@ def injected(cap: Captured) -> list[tuple[str, str]]:
     ]
     v2 = cap.step.kind == "v2"
     if cap.step.op in LOOM_SURFACES:
-        needle = "version 2, expected 4" if v2 else "ID registry"
-        if needle not in cap.stderr:
-            found.append(("H/message", f"no {needle!r}"))
+        needles = _V2_NEEDLES if v2 else _BAD_JSON_NEEDLES
+        if not all(needle in cap.stderr for needle in needles):
+            found.append(("H/message", f"no {needles!r}"))
         return found
     errors = [ln for ln in cap.stderr_lines if ln.startswith("ERROR: ")]
-    wanted = "version 2, expected 4" if v2 else "ID registry file"
-    if len(errors) != 1 or wanted not in errors[0]:
+    wanted = _V2_NEEDLES if v2 else _BAD_JSON_NEEDLES
+    if len(errors) != 1 or not all(needle in errors[0] for needle in wanted):
         found.append(
             ("H/message", f"not one ERROR with {wanted!r}: {cap.stderr_lines[:3]}")
         )
@@ -93,11 +102,11 @@ def read_only(cap: Captured, prev: Captured | None) -> list[tuple[str, str]]:
     id_command = cap.step.op in _ID_COMMANDS
     # A command's ERROR line starts with its frame (``loom id generate: ``).
     level = "ERROR: loom id " if id_command else "WARNING: "
-    saves = [ln for ln in cap.stderr_lines if "failed to save" in ln]
-    head = saves[0].partition(_FAILED_SAVE)[0] if saves else ""
+    saves = [ln for ln in cap.stderr_lines if _FAILED_SAVE in ln]
+    head = saves[0].partition("FILE=")[0] if saves else ""
     if (
         len(saves) != 1
-        or _FAILED_SAVE not in saves[0]
+        or not saves[0].endswith(_SAVE_CODE)
         or not head.startswith(level)
         or (id_command and not head.endswith(": "))
         or (not id_command and head != level)

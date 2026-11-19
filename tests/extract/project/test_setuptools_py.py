@@ -246,7 +246,7 @@ def test_read_setup_py_syntax_error() -> None:
     """read_setup_py raises ValueError on invalid Python syntax."""
     with tempfile.TemporaryDirectory() as d:
         (Path(d) / "setup.py").write_text("def unclosed_syntax(")
-        with pytest.raises(ValueError, match="Could not parse setup.py"):
+        with pytest.raises(ValueError, match="not valid Python"):
             read_setup_py(Path(d))
 
 
@@ -291,18 +291,18 @@ def test_ast_literal_dict_unpacking_and_calls() -> None:
         "**extra)\n"
     )
     tree = ast.parse(code)
-    kwargs = _extract_setup_kwargs(tree)
+    kwargs = _extract_setup_kwargs(tree, file=Path("setup.py"))
     assert kwargs.get("name") == "pkg"
     # a dict is a literal only whole: setup.cfg's is used instead
     assert "project_urls" not in kwargs
     for urls in ("{'Docs': U, 'H': 'h'}", "{U: 'x'}", "{1: 'x', 'D': 'd'}", "{**E}"):
         tree = ast.parse(f"setup(project_urls={urls})")
-        assert "project_urls" not in _extract_setup_kwargs(tree)
+        assert "project_urls" not in _extract_setup_kwargs(tree, file=Path("setup.py"))
 
     # No setup call in AST returns empty dict
     no_setup_tree = ast.parse("x = 1\ny = 2\n")
     # pylint: disable-next=use-implicit-booleaness-not-comparison
-    assert _extract_setup_kwargs(no_setup_tree) == {}
+    assert _extract_setup_kwargs(no_setup_tree, file=Path("setup.py")) == {}
 
     # a non-string key: not a dict setuptools reads as Pitloom does
     expr_stmt = ast.parse("{1: 'val', 'k': 'v'}").body[0]
@@ -341,13 +341,21 @@ def test_read_setup_py_options_directory_is_no_setup_py(tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize(
-    "error",
+    ("error", "message"),
     # a too deeply nested expression (a crash on Python 3.10)
-    [PermissionError("denied"), RecursionError(), MemoryError()],
-    ids=["unreadable", "recursion", "memory"],
+    [
+        (PermissionError("denied"), "could not read for the project metadata"),
+        (FileNotFoundError(), "setup.py"),  # gone since the check
+        (RecursionError(), "not valid Python"),
+        (MemoryError(), "not valid Python"),
+    ],
+    ids=["unreadable", "vanished", "recursion", "memory"],
 )
 def test_read_setup_py_options_unreadable_file(
-    error: BaseException, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    error: BaseException,
+    message: str,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     (tmp_path / "setup.py").write_bytes(b"setup()\n")
 
@@ -364,5 +372,5 @@ def test_read_setup_py_options_unreadable_file(
     else:
         project_dir = tmp_path
         monkeypatch.setattr(setuptools_py, "ast", SimpleNamespace(parse=fail))
-    with pytest.raises(ValueError, match="^Could not parse setup.py: "):
+    with pytest.raises((ValueError, FileNotFoundError), match=message):
         read_setup_py_options(project_dir)

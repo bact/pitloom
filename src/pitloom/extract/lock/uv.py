@@ -32,7 +32,6 @@ from typing import Any
 
 from packaging.utils import canonicalize_name
 
-from pitloom.core.quote_source import quote_source
 from pitloom.extract.lock._uv_graph import (
     collect_transitive_dependencies,
     find_root_package,
@@ -43,7 +42,14 @@ from pitloom.extract.lock._uv_graph import (
 from pitloom.extract.lock.common import (
     is_format_version_number,
     load_lock_toml,
+    warn_not_genuine_lock_file,
     warn_top_level_key_wrong_type,
+)
+from pitloom.messages.lock_files import (
+    NO_ROOT_LINE,
+    ROOT_KEY_LINE,
+    Said,
+    say_lock_file,
 )
 
 log = logging.getLogger(__name__)
@@ -79,18 +85,12 @@ def _read_root_package(
         return None
     # The format marker is a flat top-level int ``version``.
     if not is_format_version_number(data.get("version")):
-        log.warning(
-            "%s: no top-level 'version' key (int) -- doesn't look like a "
-            "genuine uv.lock, ignoring",
-            quote_source(lock_path),
-        )
+        warn_not_genuine_lock_file(lock_path, "version")
         return None
 
     packages = data.get("package", [])
     if not isinstance(packages, list):
-        warn_top_level_key_wrong_type(
-            lock_path, "package", packages, "a list", "uv.lock"
-        )
+        warn_top_level_key_wrong_type(lock_path, "package", packages, "list")
         return None
     by_name, root_candidates = scan_packages(packages, warn=warn_entries)
 
@@ -98,11 +98,7 @@ def _read_root_package(
         # An unresolved name arrives as ``""``, not ``None``: both fall back.
         expected_name = _expected_project_name(project_dir)
     if not root_candidates:
-        log.warning(
-            "%s: no project package found (no 'editable'/'virtual' "
-            "source entry) -- ignoring uv.lock",
-            quote_source(lock_path),
-        )
+        say_lock_file(log, NO_ROOT_LINE, file=lock_path)
         return None
     # No match among candidates: find_root_package has warned.
     root = find_root_package(root_candidates, expected_name, lock_path=lock_path)
@@ -110,7 +106,7 @@ def _read_root_package(
 
 
 def extract_uv_lock_dependencies(
-    project_dir: Path, expected_name: str | None = None
+    project_dir: Path, expected_name: str | None = None, said: Said | None = None
 ) -> list[str] | None:
     """The project's transitive main/runtime dependencies from the
     ``uv.lock`` beside ``pyproject.toml``, as exact-pin strings.
@@ -119,6 +115,9 @@ def extract_uv_lock_dependencies(
     :func:`~pitloom.extract.lock._uv_graph.find_root_package`); omitted, it
     is read from ``pyproject.toml``. ``None`` means no usable lock or root
     entry; ``[]`` is a real lock whose root has no runtime dependencies.
+    *said*: the memo of the run (the cascade's), so a line is said once
+    between this walk and :func:`extract_uv_lock_extra_pins`; omitted, one
+    per call.
     """
     loaded = _read_root_package(project_dir, expected_name)
     if loaded is None:
@@ -127,26 +126,31 @@ def extract_uv_lock_dependencies(
 
     root_dependencies = root.get("dependencies", [])
     if not isinstance(root_dependencies, list):
-        log.warning(
-            "%s: project package's 'dependencies' key is %s, expected a "
-            "list -- ignoring uv.lock",
-            quote_source(project_dir / "uv.lock"),
-            type(root_dependencies).__name__,
+        say_lock_file(
+            log,
+            ROOT_KEY_LINE,
+            file=project_dir / "uv.lock",
+            lock_key="dependencies",
+            value_type=root_dependencies,
         )
         return None
 
-    return collect_transitive_dependencies(root_dependencies, by_name)
+    return collect_transitive_dependencies(root_dependencies, by_name, said)
 
 
 def extract_uv_lock_extra_pins(
-    project_dir: Path, expected_name: str | None, wanted: frozenset[str]
+    project_dir: Path,
+    expected_name: str | None,
+    wanted: frozenset[str],
+    said: Said | None = None,
 ) -> list[str]:
     """Exact pins for the requirements the project's own extras list
     directly (the root entry's ``optional-dependencies`` table), limited
     to the PEP 503 names in *wanted*; no transitive walk.
 
     A reference resolves as in the runtime walk: an ambiguous or
-    non-registry one is skipped with its ``WARNING:``.
+    non-registry one is skipped with its ``WARNING:``, said once between
+    this pass and the runtime walk when both share *said*.
     """
     if not wanted:
         return []
@@ -160,8 +164,8 @@ def extract_uv_lock_extra_pins(
         return []
     pins: list[str] = []
     for ref in _wanted_refs(optional, wanted):
-        pkg = resolved_package_for_dependency(ref, by_name)
-        pin = pinned_dep_for_package(pkg) if pkg is not None else None
+        pkg = resolved_package_for_dependency(ref, by_name, said=said)
+        pin = pinned_dep_for_package(pkg, said) if pkg is not None else None
         if pin is not None:
             pins.append(pin)
     return pins

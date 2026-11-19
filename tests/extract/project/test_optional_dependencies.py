@@ -29,6 +29,7 @@ from pitloom.extract.project.hatchling import metadata_from_hatchling
 from pitloom.extract.project.pyproject import read_pyproject
 from pitloom.extract.project.sdist import read_sdist
 from pitloom.extract.project.setuptools import read_setuptools
+from tests._code_records import coded
 
 from ..conftest import _fake_hatch_metadata, write_pyproject
 
@@ -225,8 +226,8 @@ def test_setuptools_extras_require(
         meta, _ = read_setuptools(tmp_path)
     assert meta.dependencies == expected
     assert _fields(meta.provenance["dependencies"]) == fields
-    for needle in ("bad !!", "z:??", "' w : '"):
-        assert (needle in caplog.text) == (needle.strip("'") in (py or ""))
+    for needle in ("bad !!", "z:??", "w :"):
+        assert (needle in caplog.text) == (needle in (py or ""))
 
 
 @pytest.mark.parametrize("value", ["['a']", "{'x': 5}", "{1: ['a']}"], ids=str)
@@ -246,12 +247,12 @@ def test_setuptools_unreadable_extras_require_is_undeclared(
 _CFG_INVALID_EXTRA = (
     "setup.cfg",
     "[metadata]\nname = pkg\n[options.extras_require]\na = !!\n",
-    "'!!' of 'a' (extras_require): not a valid PEP 508 requirement",
+    "extra 'a' entry '!!' (extras_require): not a PEP 508 requirement",
 )
 _PY_MARKER_EXTRA = (
     "setup.py",
     "setup(name='pkg', extras_require={'b:os_name==1': ['c']})\n",
-    "'c' of 'b:os_name==1' (extras_require): not a valid PEP 508 requirement or marker",
+    "extra 'b:os_name==1' entry 'c' (extras_require): its marker does not parse",
 )
 
 
@@ -277,7 +278,12 @@ def test_setuptools_invalid_extra_warning_names_extras_require(
     with caplog.at_level(logging.WARNING):
         meta = read_project(tmp_path, quiet=quiet)[0]
     assert meta.dependencies == []
-    assert caplog.messages == ([] if quiet else [f"Skipping extra entry {message}"])
+    if quiet:
+        assert not caplog.records
+        return
+    ((code, line),) = coded(caplog)
+    assert code == "requirement-invalid"
+    assert line.startswith(message)
 
 
 def _sdist(tmp_path: Path, pyproject: str) -> ProjectMetadata:
@@ -321,18 +327,18 @@ def test_sdist_pyproject_fallback_drops_invalid_extra(
     ("lines", "expected", "needle"),
     [
         pytest.param(
-            'optional-dependencies = ["x"]\n', [], "is list", id="table-is-list"
+            'optional-dependencies = ["x"]\n', [], "is an array", id="table-is-list"
         ),
         pytest.param(
             "[project.optional-dependencies]\ndev = [1]\n",
             [],
-            "optional-dependencies.dev' is list",
+            "optional-dependencies.dev is an array",
             id="item-is-int",
         ),
         pytest.param(
             '[project.optional-dependencies]\ndev = "pytest"\n',
             [],
-            "optional-dependencies.dev' is str",
+            "optional-dependencies.dev is a string",
             id="value-is-str",
         ),
         pytest.param(
@@ -371,4 +377,4 @@ def test_sdist_pyproject_fallback_non_table_extras_not_credited(
     assert meta.dependencies == ["a"]
     assert _fields(meta.provenance["dependencies"]) == _ONLY
     assert len(caplog.records) == 1
-    assert "'project.optional-dependencies' is" in caplog.messages[0]
+    assert "project.optional-dependencies is " in caplog.messages[0]

@@ -99,11 +99,11 @@ def _expected(
             continue
         source = next((key for key in _NON_REGISTRY if key in pkg), None)
         if source:
-            warned[pkg["name"]] = f"{source}-sourced"
+            warned[pkg["name"]] = f"{source} source"
             continue
         name = canonicalize_name(pkg["name"])
         versions.setdefault(name, set()).add(Version(pkg["version"]))
-    warned |= {n: "conflicting versions" for n, f in versions.items() if len(f) > 1}
+    warned |= {n: "several versions" for n, f in versions.items() if len(f) > 1}
     pins = {
         (name, v) for name, found in versions.items() if len(found) == 1 for v in found
     }
@@ -138,7 +138,7 @@ def test_reader_matches_independent_parse(
     messages = [r.getMessage() for r in caplog.records if r.levelno >= logging.WARNING]
     assert len(messages) == len(warned)
     for name, reason in warned.items():
-        assert any(f"'{name}'" in m and reason in m for m in messages), name
+        assert any(f"PACKAGE={name}" in m and reason in m for m in messages), name
     # A directory entry is always the project itself, at the project root.
     project = _toml(lock.parent / "pyproject.toml").get("project", {})
     for pkg in data["packages"]:

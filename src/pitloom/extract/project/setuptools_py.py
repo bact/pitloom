@@ -21,14 +21,27 @@ from typing import Any
 from pitloom.core.config import PitloomConfig
 from pitloom.core.project import ProjectMetadata
 from pitloom.core.provenance import provenance_segment, provenance_source
+from pitloom.extract.project._field_agreement import shown_value
 from pitloom.extract.project._requirements_files import requirement_lines
 from pitloom.extract.project._setuptools_options import (
     SetupOption,
     SetupOptions,
     build_setuptools_metadata,
-    shown_value,
 )
-from pitloom.logging_config import one_line
+from pitloom.messages import CodedValueError, Line, emit
+from pitloom.messages.files import file_unreadable_error
+from pitloom.messages.metadata import (
+    KEYWORD_BLANK_LINE,
+    KEYWORD_NOT_LITERAL_LINE,
+    KEYWORD_UNPACKED_LINE,
+    KEYWORD_UNREAD_LINE,
+    METADATA_INVALID,
+    METADATA_MALFORMED,
+    METADATA_USE,
+    PROJECT_NAME_MISSING,
+    PYTHON_LINE,
+    SETUP_PY_NAME_LINE,
+)
 from pitloom.messages.targets import input_not_found, is_input_file
 
 log = logging.getLogger(__name__)
@@ -95,19 +108,31 @@ def _ast_literal(node: ast.expr) -> Any:
     return _UNRESOLVABLE
 
 
-#: The ``WARNING:`` tail for a ``setup()`` keyword Pitloom cannot use.
-_UNDECLARED = (
-    " -- treating it as undeclared and falling back to a lower-priority source"
-)
-
-
-def _warn_undeclared(key: str, reason: str, quiet: bool) -> None:
+def _warn_undeclared(
+    file: Path, line: Line, quiet: bool, *, name: str, **values: object
+) -> None:
+    """The ``WARNING:`` *line* (of ``metadata-invalid``) that the ``setup()``
+    keyword *name* of *file* is treated as undeclared, with *values*; silent
+    when *quiet*."""
     if not quiet:
-        log.warning("setup.py: %r %s%s", key, reason, _UNDECLARED)
+        emit(
+            log,
+            METADATA_INVALID,
+            logging.WARNING,
+            line=line,
+            once=None,
+            extra=None,
+            file=file,
+            name=name,
+            **values,
+        )
 
 
-def _extract_setup_kwargs(tree: ast.Module, *, quiet: bool = False) -> dict[str, Any]:
-    """Extract keyword arguments from a ``setup()`` or ``setuptools.setup()`` call.
+def _extract_setup_kwargs(
+    tree: ast.Module, *, file: Path, quiet: bool = False
+) -> dict[str, Any]:
+    """Extract keyword arguments from a ``setup()`` or ``setuptools.setup()``
+    call in *file* (parsed to *tree*).
 
     Returns the first matching call's kwargs as a dict. A kwarg whose value
     isn't a resolvable literal (a variable, function call, ...) is omitted
@@ -128,17 +153,13 @@ def _extract_setup_kwargs(tree: ast.Module, *, quiet: bool = False) -> dict[str,
         if kw.arg is None:  # **expansion: the keywords it holds are unknown
             # Named only when a plain name: unparsing an expression recurses.
             held = kw.value.id if isinstance(kw.value, ast.Name) else "..."
-            _warn_undeclared(f"**{held}", "is not read", quiet)
+            _warn_undeclared(file, KEYWORD_UNPACKED_LINE, quiet, name=f"**{held}")
         else:
             value = _ast_literal(kw.value)
             if value is _UNRESOLVABLE:
                 if kw.arg not in _OPTIONS:
                     continue
-                _warn_undeclared(
-                    kw.arg,
-                    "is declared but its value isn't a statically resolvable literal",
-                    quiet,
-                )
+                _warn_undeclared(file, KEYWORD_NOT_LITERAL_LINE, quiet, name=kw.arg)
                 continue
             kwargs[kw.arg] = value
     return kwargs
@@ -235,8 +256,9 @@ _OPTIONS: dict[str, tuple[str, Callable[[Any], Any]]] = {
 _NORMALISED = frozenset({"version", "install_requires"})
 
 
-def _option(key: str, raw: Any, quiet: bool) -> SetupOption | None:
-    """*raw* as an option, or ``None``: quietly for ``None`` (setuptools'
+def _option(key: str, raw: Any, file: Path, quiet: bool) -> SetupOption | None:
+    """*raw*, the value of the ``setup()`` keyword *key* of *file*, as an
+    option, or ``None``: quietly for ``None`` (setuptools'
     own "not set"), with a ``WARNING:`` when Pitloom cannot use it: of a
     type it does not read (some setuptools converts, as ``url=1``), or a
     blank string (setuptools keeps it, stating nothing)."""
@@ -246,11 +268,11 @@ def _option(key: str, raw: Any, quiet: bool) -> SetupOption | None:
     value = parse(raw)
     if value is _UNREADABLE:
         _warn_undeclared(
-            key, f"has a value Pitloom does not read ({shown_value(raw)})", quiet
+            file, KEYWORD_UNREAD_LINE, quiet, name=key, value=shown_value(raw)
         )
         return None
     if isinstance(raw, str) and raw and not raw.strip():
-        _warn_undeclared(key, "is blank", quiet)
+        _warn_undeclared(file, KEYWORD_BLANK_LINE, quiet, name=key)
         return None
     if isinstance(value, str):
         value = value or None
@@ -272,7 +294,9 @@ def read_setup_py_options(project_dir: Path, *, quiet: bool = False) -> SetupOpt
 
     Raises:
         FileNotFoundError: no ``setup.py``.
-        ValueError: ``setup.py`` cannot be read or parsed; one line.
+        ValueError: ``setup.py`` cannot be read (``file-unreadable``) or
+            parsed (``metadata-malformed``); a
+            :class:`~pitloom.messages.CodedValueError`.
     """
     setup_py_path = project_dir / "setup.py"
     # A directory or a FIFO is none, as for setup.cfg.
@@ -281,13 +305,21 @@ def read_setup_py_options(project_dir: Path, *, quiet: bool = False) -> SetupOpt
     try:
         # Bytes: the parser honours a BOM and a PEP 263 coding line.
         tree = ast.parse(setup_py_path.read_bytes(), filename="setup.py")
+    except FileNotFoundError:  # gone since the check
+        raise input_not_found("setup.py", setup_py_path) from None
+    except OSError as exc:
+        raise file_unreadable_error(exc, file=setup_py_path, use=METADATA_USE) from None
     # ValueError: a null byte before Python 3.12; RecursionError and
     # MemoryError: a too deeply nested expression.
-    except (OSError, SyntaxError, ValueError, RecursionError, MemoryError) as exc:
-        raise ValueError(f"Could not parse setup.py: {one_line(exc)}") from exc
-    kwargs = _extract_setup_kwargs(tree, quiet=quiet)
+    except (SyntaxError, ValueError, RecursionError, MemoryError) as exc:
+        raise CodedValueError(
+            METADATA_MALFORMED, line=PYTHON_LINE, file=setup_py_path, failure=exc
+        ) from exc
+    kwargs = _extract_setup_kwargs(tree, file=setup_py_path, quiet=quiet)
     options = {
-        key: _option(key, kwargs[key], quiet) for key in _OPTIONS if key in kwargs
+        key: _option(key, kwargs[key], setup_py_path, quiet)
+        for key in _OPTIONS
+        if key in kwargs
     }
     return {key: option for key, option in options.items() if option is not None}
 
@@ -303,13 +335,14 @@ def read_setup_py(
     Raises:
         FileNotFoundError: no ``setup.py``.
         ValueError: ``setup.py`` cannot be parsed, or has no literal
-            ``name``.
+            ``name`` (``project-name-missing``).
     """
     options = read_setup_py_options(project_dir, quiet=quiet)
     metadata = build_setuptools_metadata({}, options, quiet=quiet)
     if not metadata.name:
-        raise ValueError(
-            "Could not extract project name from setup.py. "
-            "The name= argument must be a string literal."
+        raise CodedValueError(
+            PROJECT_NAME_MISSING,
+            line=SETUP_PY_NAME_LINE,
+            file=project_dir / "setup.py",
         )
     return metadata, PitloomConfig()

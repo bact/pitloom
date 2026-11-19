@@ -20,7 +20,8 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from pitloom.core.quote_source import quote_source
+from pitloom.messages import emit
+from pitloom.messages.metadata import METADATA_INVALID, TYPE_LINE
 
 log = logging.getLogger(__name__)
 
@@ -43,20 +44,21 @@ def is_table(value: Any) -> bool:
 
 
 #: Accepted shape of each ``[tool.poetry]`` key this extractor reads, with
-#: the phrase naming it in the wrong-type warning.
+#: the id (:data:`~pitloom.messages.config.EXPECTED`) of what it must be in
+#: the wrong-type warning.
 _FIELD_SHAPES: dict[str, tuple[Callable[[Any], bool], str]] = {
-    "name": (_is_str, "a string"),
-    "version": (_is_str, "a string"),
-    "description": (_is_str, "a string"),
-    "readme": (_is_str_or_str_list, "a string or list of strings"),
-    "license": (_is_str, "a string"),
-    "authors": (_is_str_list, "a list of strings"),
-    "keywords": (_is_str_list, "a list of strings"),
-    "homepage": (_is_str, "a string"),
-    "repository": (_is_str, "a string"),
-    "documentation": (_is_str, "a string"),
-    "dependencies": (is_table, "a table"),
-    "extras": (is_table, "a table"),
+    "name": (_is_str, "string"),
+    "version": (_is_str, "string"),
+    "description": (_is_str, "string"),
+    "readme": (_is_str_or_str_list, "string-or-array"),
+    "license": (_is_str, "string"),
+    "authors": (_is_str_list, "array-of-strings"),
+    "keywords": (_is_str_list, "array-of-strings"),
+    "homepage": (_is_str, "string"),
+    "repository": (_is_str, "string"),
+    "documentation": (_is_str, "string"),
+    "dependencies": (is_table, "table"),
+    "extras": (is_table, "table"),
 }
 
 
@@ -70,8 +72,7 @@ def read_poetry_section(
     """
     tool = data.get("tool", {})
     if not is_table(tool):
-        got = type(tool).__name__
-        warn_wrong_type(pyproject_path, "[tool]", got, "a table", quiet=quiet)
+        warn_wrong_type(pyproject_path, "[tool]", tool, "table", quiet=quiet)
         return None
     return tool.get("poetry")
 
@@ -89,32 +90,25 @@ def drop_wrong_typed_fields(
     for key, (has_shape, expected) in _FIELD_SHAPES.items():
         if key in poetry and not has_shape(poetry[key]):
             where = f"[tool.poetry] '{key}'"
-            # A shape that accepts an empty list expects a list of strings.
-            got = _describe(poetry[key], list_expected=has_shape([]))
-            warn_wrong_type(pyproject_path, where, got, expected, quiet=quiet)
+            warn_wrong_type(pyproject_path, where, poetry[key], expected, quiet=quiet)
             del kept[key]
     return kept
 
 
 def warn_wrong_type(
-    pyproject_path: Path, where: str, got: str, expected: str, *, quiet: bool
+    pyproject_path: Path, where: str, got: object, expected: str, *, quiet: bool
 ) -> None:
-    """Warn that the value at *where* (e.g. ``[tool.poetry] 'version'``),
-    described by *got*, is ignored for having the wrong type."""
+    """Warn that the value *got* at *where* (e.g. ``[tool.poetry]
+    'version'``) is ignored for having the wrong type; *expected* is an id of
+    :data:`~pitloom.messages.config.EXPECTED`."""
     if not quiet:
-        log.warning(
-            "%s: %s is %s, expected %s -- ignoring it",
-            quote_source(pyproject_path),
-            where,
-            got,
-            expected,
+        emit(
+            log,
+            METADATA_INVALID,
+            logging.WARNING,
+            line=TYPE_LINE,
+            file=pyproject_path,
+            field=where,
+            got=got,
+            expected=expected,
         )
-
-
-def _describe(value: Any, *, list_expected: bool) -> str:
-    """Name *value*'s type; when a list was expected, name the first
-    non-string item that made the list wrong instead."""
-    bad = [v for v in value if not _is_str(v)] if isinstance(value, list) else []
-    if list_expected and bad:
-        return f"a list with a non-string item ({type(bad[0]).__name__})"
-    return type(value).__name__

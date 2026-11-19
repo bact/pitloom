@@ -37,8 +37,10 @@ from pitloom.cli.options_resolve import (
 )
 from pitloom.core._models_wheel_types import parse_build_timeout
 from pitloom.core.build_options import BuildOptions
-from pitloom.core.model_extract_limit import require_positive_ceiling
-from pitloom.core.provenance import require_max_source_metadata_bytes
+from pitloom.core.creation import iso_datetime_or_none
+from pitloom.core.model_extract_limit import positive_problem
+from pitloom.core.provenance import budget_problem
+from pitloom.messages.config import must_be
 
 __all__ = [
     "_load_pitloom_tool_section",
@@ -231,30 +233,41 @@ def build_options_from_args(args: argparse.Namespace) -> BuildOptions:
     )
 
 
+def _flag_integer(text: str) -> int:
+    """*text* as an ``int``, else the flag's refusal (``must be an integer``)."""
+    try:
+        return int(text)
+    except ValueError:
+        raise argparse.ArgumentTypeError(must_be("integer", text)) from None
+
+
 def byte_budget(text: str) -> int:
     """``--max-source-metadata-bytes``: ``0`` or at least 8, as
-    :func:`~pitloom.core.provenance.require_max_source_metadata_bytes`."""
-    try:
-        value = int(text)
-    except ValueError:
-        raise argparse.ArgumentTypeError(f"invalid int value: {text!r}") from None
-    try:
-        return require_max_source_metadata_bytes(value, "")
-    except ValueError as exc:
-        raise argparse.ArgumentTypeError(str(exc)) from None
+    :func:`~pitloom.core.provenance.budget_problem` says."""
+    value = _flag_integer(text)
+    problem = budget_problem(value)
+    if problem is not None:
+        raise argparse.ArgumentTypeError(must_be(problem, value))
+    return value
 
 
 def positive_byte_ceiling(text: str) -> int:
     """A byte ceiling: a plain integer of at least 1, as
-    :func:`~pitloom.core.model_extract_limit.require_positive_ceiling`."""
-    try:
-        value = int(text)
-    except ValueError:
-        raise argparse.ArgumentTypeError(f"invalid int value: {text!r}") from None
-    try:
-        return require_positive_ceiling(value, "")
-    except ValueError as exc:
-        raise argparse.ArgumentTypeError(str(exc)) from None
+    :func:`~pitloom.core.model_extract_limit.positive_problem` says."""
+    value = _flag_integer(text)
+    problem = positive_problem(value)
+    if problem is not None:
+        raise argparse.ArgumentTypeError(must_be(problem, value))
+    return value
+
+
+def creation_datetime(text: str) -> str:
+    """``--creation-datetime``: *text* as given when it is an ISO 8601
+    date and time
+    (:func:`~pitloom.core.creation.iso_datetime_or_none`)."""
+    if iso_datetime_or_none(text) is None:
+        raise argparse.ArgumentTypeError(must_be("datetime", text))
+    return text
 
 
 def add_debug_argument(parser: argparse.ArgumentParser) -> None:

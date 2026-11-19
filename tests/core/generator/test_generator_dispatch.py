@@ -41,6 +41,7 @@ from pitloom.core.ai_metadata import AiModelFormat
 from pitloom.core.build_options import BuildOptions
 from pitloom.core.config import PitloomConfig
 from pitloom.core.creation import CreationMetadata
+from pitloom.core.credential_policy import CredentialPolicy
 from pitloom.core.provenance import ProvenanceConfig
 from tests._model_fixtures import fixture_path
 
@@ -76,6 +77,8 @@ _SENTINELS: dict[str, Any] = {
     # A PyPI URL only (the wheel and project generators delegate one).
     "check_url": print,
     "max_download_bytes": 4323,
+    # Every target: the URL credentials the caller accepts.
+    "credentials": CredentialPolicy(accepted=frozenset({"sha256:" + "ab" * 8})),
 }
 
 

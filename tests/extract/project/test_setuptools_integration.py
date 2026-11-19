@@ -75,7 +75,12 @@ def test_read_setuptools_invalid_pitloom_config_raises() -> None:
     with tempfile.TemporaryDirectory() as d:
         (Path(d) / "setup.cfg").write_text(cfg)
         (Path(d) / "setup.py").write_text(py)
-        with pytest.raises(ValueError, match="Invalid creator type"):
+        with pytest.raises(
+            ValueError,
+            match=r"^FILE=.*setup\.cfg: \[tool:pitloom:creator\] entry 0 type: "
+            r"must be one of agent, organization, person, software-agent, "
+            r"got a string 'bogus'",
+        ):
             read_setuptools(Path(d))
 
 

@@ -99,8 +99,11 @@ def _probe_url(url: str) -> str:
         host = f"[{host}]"
     try:
         port = f":{parts.port}" if parts.port else ""
-    except ValueError as exc:
-        raise RemoteSourceError("git.url-invalid", f"Invalid URL: {exc}") from exc
+    except ValueError:
+        # The text of *exc* quotes the URL's authority, a password included.
+        raise RemoteSourceError(
+            "git.url-invalid", "Invalid URL: the port is not a number."
+        ) from None
     path = parts.path.rstrip("/") + _INFO_REFS
     return urlunsplit((parts.scheme, host + port, path, _PROBE_QUERY, ""))
 

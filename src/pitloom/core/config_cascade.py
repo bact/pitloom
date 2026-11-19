@@ -45,20 +45,24 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from pitloom._toml_io import load_toml_file
 from pitloom.core._config_types import _require_valid_content_type_method
+from pitloom.core._project_toml import load_project_toml
 from pitloom.core.build_options import BuildOptions
 from pitloom.core.config import PitloomConfig, parse_pitloom_config
+from pitloom.core.credential_policy import MODE_REFUSE, MODE_WARN, CredentialPolicy
 from pitloom.core.fetch_policy import RemoteFetchPolicy
 from pitloom.core.given_path import GivenPath
+from pitloom.core.internal_error import InternalError
 from pitloom.core.model_extract_limit import (
     require_max_download_bytes,
     require_positive_ceiling,
 )
-from pitloom.core.no_effect import INERT_LOG_PREFIX
 from pitloom.core.provenance import ProvenanceConfig, require_max_source_metadata_bytes
 from pitloom.core.quote_source import quote_source
-from pitloom.messages.targets import input_not_found, is_input_file
+from pitloom.messages import code_of, emit
+from pitloom.messages.config import Parameter
+from pitloom.messages.files import CONFIG_USE
+from pitloom.messages.options import CONFIG_NO_TABLE_LINE, OPTION_NO_EFFECT
 
 log = logging.getLogger(__name__)
 
@@ -117,6 +121,14 @@ class ConfigOverrides:
             wheel. Like ``build_options``, no ``[tool.pitloom]`` cascade (a config must
             not opt in) and :func:`apply_overrides` never touches it; only a
             standalone wheel embed reads it, and any other embed warns.
+        credentials: ``--accept-url-credential`` and
+            ``--refuse-url-credentials``. Unlike every other field it adds to
+            the config rather than replacing it: :func:`apply_overrides`
+            unites its fingerprints with the config's
+            ``accept-url-credentials``, and its ``refuse`` sets
+            ``url_credentials`` to ``"refuse"`` (a policy without it leaves
+            the config's mode), so a flag never drops a fingerprint the
+            project accepts nor turns its refusal off.
         build_options: ``--allow-build`` and its companion flags (see
             :class:`~pitloom.core.build_options.BuildOptions`). No
             ``[tool.pitloom]`` cascade, and read by ``embed-wheel`` alone:
@@ -143,6 +155,7 @@ class ConfigOverrides:
     max_model_extract_bytes: int | None = None
     max_download_bytes: int | None = None
     trust_model_files: bool | None = None
+    credentials: CredentialPolicy | None = None
     build_options: BuildOptions = BuildOptions()
 
 
@@ -153,7 +166,7 @@ def require_model_extract_override(value: object) -> int:
     Raises:
         ValueError: *value* is not an integer of at least 1.
     """
-    return require_positive_ceiling(value, "max_model_extract_bytes")
+    return require_positive_ceiling(value, Parameter("max_model_extract_bytes"))
 
 
 def require_download_override(value: object) -> int:
@@ -163,7 +176,7 @@ def require_download_override(value: object) -> int:
     Raises:
         ValueError: *value* is not an integer of at least 1.
     """
-    return require_positive_ceiling(value, "max_download_bytes")
+    return require_positive_ceiling(value, Parameter("max_download_bytes"))
 
 
 def load_config_file(path: Path, *, source: str = "--config") -> PitloomConfig:
@@ -186,26 +199,36 @@ def load_config_file(path: Path, *, source: str = "--config") -> PitloomConfig:
         FileNotFoundError: *path* is not a regular file (missing, or a
             directory). ``os.path.isfile`` never raises, on any Python
             version (see AGENTS.md on ``Path.exists()``).
-        ValueError: the file is not UTF-8, not valid TOML, or its settings
-            are invalid (a wrong value or a wrong table shape); the message
-            names *path*; or *path* cannot be looked at
-            (``file-unreadable``, a :class:`~pitloom.messages.CodedValueError`).
-        OSError: the file cannot be read.
+        ValueError: the file is not UTF-8 (``file-unreadable/not-utf8``),
+            not valid TOML (``config-malformed``), cannot be read
+            (``file-unreadable``), or its settings are invalid
+            (``config-invalid``): a
+            :class:`~pitloom.messages.CodedValueError` naming *path*.
     """
-    if not is_input_file(path):
-        raise input_not_found("config file", path)
+    data = load_project_toml(path, kind="config file", use=CONFIG_USE)
     try:
-        data = load_toml_file(Path(path))
         cfg = parse_pitloom_config(data, source=str(path))
-    except ValueError as exc:  # also TOMLDecodeError, UnicodeDecodeError
-        raise ValueError(f"config file {quote_source(path)}: {exc}") from exc
+    except InternalError:
+        raise  # already named: not re-wrapped (an InternalError is a ValueError)
+    except ValueError as exc:
+        if code_of(exc) is None:
+            # Every [tool.pitloom] key times a wrong type, NUL, huge integer
+            # and empty value raises a coded error; only the type is named,
+            # a value may hold a credential.
+            raise InternalError(
+                f"config file {quote_source(path)}: parse_pitloom_config "
+                f"raised an uncoded {type(exc).__name__}"
+            ) from None
+        raise  # names the file already
     tool = data.get("tool")
     if not isinstance(tool, dict) or not isinstance(tool.get("pitloom"), dict):
-        log.warning(
-            "%s%s: %s file has no [tool.pitloom] table; using the defaults",
-            INERT_LOG_PREFIX,
-            quote_source(path),
-            source,
+        emit(
+            log,
+            OPTION_NO_EFFECT,
+            logging.WARNING,
+            line=CONFIG_NO_TABLE_LINE,
+            file=path,
+            option=source,
         )
     # Every relative path in the file means the same thing wherever
     # Pitloom runs: it resolves against the file's own directory.
@@ -279,9 +302,24 @@ def apply_overrides(cfg: PitloomConfig, overrides: ConfigOverrides) -> PitloomCo
         changes["max_download_bytes"] = require_download_override(
             overrides.max_download_bytes
         )
+    if overrides.credentials is not None:
+        changes.update(_united_credentials(cfg, overrides.credentials))
     merged = dataclasses.replace(cfg, **changes)
     _require_valid_content_type_method(merged.content_type_method)
     return merged
+
+
+def _united_credentials(
+    cfg: PitloomConfig, credentials: CredentialPolicy
+) -> dict[str, Any]:
+    """The credential fields of *cfg* with *credentials* added: the union of
+    the fingerprints (sorted, each once), and the ``refuse`` mode when
+    either refuses."""
+    united = cfg.credential_policy.union(credentials)
+    return {
+        "accept_url_credentials": tuple(sorted(united.accepted)),
+        "url_credentials": MODE_REFUSE if united.refuse else MODE_WARN,
+    }
 
 
 def resolve_standalone_config(
@@ -327,7 +365,9 @@ def resolve_fetch_policy(
         ConfigOverrides(offline=offline, max_download_bytes=max_download_bytes),
     )
     return RemoteFetchPolicy(
-        max_bytes=require_max_download_bytes(cfg.max_download_bytes, "pitloom_config"),
+        max_bytes=require_max_download_bytes(
+            cfg.max_download_bytes, Parameter("PitloomConfig.max_download_bytes")
+        ),
         offline=cfg.offline,
         check_url=check_url,
     )

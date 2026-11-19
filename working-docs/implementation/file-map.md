@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-17
-Last-Modified: 2026-11-13
+Last-Modified: 2026-11-19
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -41,7 +41,7 @@ pitloom/
 │   ├── id-registry-keys.md
 │   ├── index.md
 │   ├── mascot.png
-│   ├── message-codes.md  # Index of the codes, generated (scripts/generate_message_reference.py); pages: message-codes-{models,model-fields,targets,files,pypi,network,licences}.md
+│   ├── message-codes.md  # Index of the codes, generated (scripts/generate_message_reference.py); pages: message-codes-{models,model-fields,targets,files,pypi,network,licences,values}.md (values: what each `<name>` stands for)
 │   ├── messages.md
 │   ├── metadata-provenance.md  # Also metadata-provenance-{artifact-metadata,authors,licences}.md
 │   ├── metadata-reading-back.md
@@ -147,6 +147,7 @@ pitloom/
 │       │   ├── options_config.py  # args -> library kwargs/ConfigOverrides map; --config loading
 │       │   ├── options_resolve.py  # CLI > --config > pyproject.toml > default resolution
 │       │   ├── parser.py  # argparse tree: parent parser + every subcommand
+│       │   ├── _parser_credentials.py  # --accept-url-credential, --refuse-url-credentials -> CredentialPolicy
 │       │   └── verbose.py  # --verbose effective-options report (project targets only)
 │       ├── core/                   # Format-neutral data models (no SBOM lib deps)
 │       │   ├── _config_keys.py  # Keys of [tool.pitloom] and the warning for any other key
@@ -178,6 +179,7 @@ pitloom/
 │       │   ├── config_cascade.py  # ConfigOverrides + the one [tool.pitloom] cascade every surface resolves through; resolve_fetch_policy()
 │       │   ├── content_type_config.py # [tool.pitloom.content-type] settings
 │       │   ├── creation.py  # CreationMetadata (creator / timestamp)
+│       │   ├── credential_policy.py  # URL credential fingerprint; CredentialPolicy: which values a run accepts
 │       │   ├── dataset_hash.py  # Hash a dataset path: file SHA-256 or directory Merkle root
 │       │   ├── dataset_merge.py  # One dataset referenced more than once becomes one dataset
 │       │   ├── dataset_names.py  # When two dataset spellings are one dataset; the listing cap
@@ -216,7 +218,7 @@ pitloom/
 │       │   ├── quote_source.py  # Quote a path or file name for a message
 │       │   ├── untrusted_text.py  # Untrusted text shown to a reader, controls made visible
 │       │   ├── temp_dirs.py  # registered_temp_dir(): temp dirs removed via TerminationGuard
-│       │   ├── url_masking/  # Masking of URL credentials and the temporary Git checkout (__init__.py: public functions; _params.py: secret parameters; _scan.py: URL scanner)
+│       │   ├── url_masking/  # URL credentials: masking, the detector, the temporary Git checkout (__init__.py: public functions; _detect.py: detector; _hits.py: what it reads; _mask.py: masker; _tokens.py: token shapes; _userinfo.py: user information rule; _params.py: secret parameters; _scan.py: masker's scanner; _urls.py: detector's URL scanner)
 │       │   ├── walk_rules.py  # Rules shared by every project file walk
 │       │   ├── warning_capture.py  # The one lock on Python's warning state; per-thread warning recorder
 │       │   └── wheel_dist_info.py  # A wheel's own .dist-info: resolve_own_dist_info(), wheel_members(), open_wheel_zip(), WheelRefused
@@ -224,6 +226,10 @@ pitloom/
 │       │   ├── base.py  # Enricher protocol + run_enrichers_for_models()
 │       │   └── readme.py  # README.md/MODEL_CARD.md YAML frontmatter enricher
 │       ├── export/                 # Layer 4 -- serialise to physical format
+│       │   ├── _spdx3_credentials/  # Warn of or refuse an SBOM whose URL-typed field holds a credential; __init__ re-exports
+│       │   │   ├── _check.py  # check_graph_credentials(): warn/refuse/accept per policy, stale fingerprints
+│       │   │   ├── _fields.py  # URL_FIELDS, REFERENCE_FIELDS, NOT_READ, Reading; statement/comment separators
+│       │   │   └── _find.py  # find_graph_credentials(), GraphFinding: the walk of fields, statements, comments
 │       │   ├── hashes.py  # sha256_of, file_digests_of: read an element's SHA-256/SHA-512
 │       │   ├── spdx3_describe.py  # One way to name an SPDX 3 element or value in a message
 │       │   └── spdx3_json.py  # SPDX 3 JSON-LD serialiser
@@ -278,7 +284,7 @@ pitloom/
 │       │   ├── keys.py  # Loom ID registry keys: the one place every surface computes them
 │       │   ├── _types.py  # Registry dataclasses, element keys, file traversal
 │       │   └── resolve.py  # resolve_registry(id_registry, configured, base_dir)
-│       ├── messages/               # Message catalogue: one module per family, emit() and the codes
+│       ├── messages/               # Message catalogue: one module per family, emit() and the codes (url_credentials, _url_credentials: the credentials-unsafe family)
 │       ├── plugins/                # Build-system integrations
 │       │   ├── _hatch_config.py  # Validation of the [tool.hatch.build.hooks.pitloom] table
 │       │   └── hatch.py  # Hatchling BuildHookInterface (PEP 770)

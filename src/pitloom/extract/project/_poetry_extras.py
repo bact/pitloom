@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable
+from pathlib import Path
 from typing import Any
 
 from packaging.utils import canonicalize_name
@@ -28,6 +29,12 @@ from pitloom.core.requirements import (
 from pitloom.extract.project.setuptools import (
     backend_identifier,
     declared_build_backend,
+)
+from pitloom.messages import emit
+from pitloom.messages.metadata import (
+    METADATA_NO_EFFECT,
+    POETRY_BACKEND_LINE,
+    POETRY_TABLE_LINE,
 )
 
 log = logging.getLogger(__name__)
@@ -88,27 +95,36 @@ def defer_to_poetry_lists(
 
 
 def drop_ignored_extras(
-    poetry: dict[str, Any], data: dict[str, Any], *, quiet: bool
+    poetry: dict[str, Any],
+    data: dict[str, Any],
+    pyproject_path: Path,
+    *,
+    quiet: bool,
 ) -> dict[str, Any]:
-    """*poetry* without ``extras`` when ``[project]`` has a non-empty
-    ``dependencies`` or ``optional-dependencies``
-    (:func:`project_lists_used`): Poetry then reads those and ignores
-    ``[tool.poetry.extras]``; with a ``WARNING:``."""
+    """*poetry*, the ``[tool.poetry]`` table of *pyproject_path*, without
+    ``extras`` when ``[project]`` has a non-empty ``dependencies`` or
+    ``optional-dependencies`` (:func:`project_lists_used`): Poetry then reads
+    those and ignores ``[tool.poetry.extras]``; with a ``WARNING:``."""
     if "extras" not in poetry or not project_lists_used(data):
         return poetry
     warn_ignored_poetry_table(
+        pyproject_path,
         "[tool.poetry.extras]",
-        "[project] declares dependencies or optional-dependencies, "
-        "which Poetry reads instead",
+        ["dependencies", "optional-dependencies"],
         quiet=quiet,
     )
     return {key: value for key, value in poetry.items() if key != "extras"}
 
 
 def drop_ignored_dependencies(
-    poetry: dict[str, Any], data: dict[str, Any], *, quiet: bool
+    poetry: dict[str, Any],
+    data: dict[str, Any],
+    pyproject_path: Path,
+    *,
+    quiet: bool,
 ) -> tuple[dict[str, Any], bool]:
-    """*poetry* with only the ``python`` key of ``dependencies``, and
+    """*poetry*, the ``[tool.poetry]`` table of *pyproject_path*, with only
+    the ``python`` key of ``dependencies``, and
     ``True``, when poetry-core 2.4 ignores the table's dependencies:
     ``[project]`` has a non-empty ``optional-dependencies`` entry, no
     non-empty ``dependencies`` and lists neither in ``dynamic``
@@ -129,9 +145,9 @@ def drop_ignored_dependencies(
     kept = {name: spec for name, spec in deps.items() if name.lower() == "python"}
     if len(kept) < len(deps):
         warn_ignored_poetry_table(
+            pyproject_path,
             "[tool.poetry.dependencies]",
-            "[project] declares optional-dependencies and no dependencies, "
-            "which Poetry reads instead",
+            ["optional-dependencies"],
             quiet=quiet,
         )
     return {**poetry, "dependencies": kept}, True
@@ -146,15 +162,19 @@ def poetry_backend_reads(data: dict[str, Any]) -> bool:
 
 
 def warn_unread_poetry_fields(
-    metadata: ProjectMetadata, data: dict[str, Any], *, quiet: bool
+    metadata: ProjectMetadata,
+    data: dict[str, Any],
+    pyproject_path: Path,
+    *,
+    quiet: bool,
 ) -> None:
-    """One ``WARNING:`` naming the ``[tool.poetry]`` keys that would fill
-    a gap in *metadata* but are not read: the build backend is not
-    Poetry's (:func:`poetry_backend_reads`)."""
+    """One ``WARNING:`` naming the ``[tool.poetry]`` keys of *pyproject_path*
+    that would fill a gap in *metadata* but are not read: the build backend
+    is not Poetry's (:func:`poetry_backend_reads`)."""
     backend = declared_build_backend(data)
     tool = data.get("tool")
     poetry = tool.get("poetry") if isinstance(tool, dict) else None
-    if poetry_backend_reads(data) or not isinstance(poetry, dict):
+    if backend is None or poetry_backend_reads(data) or not isinstance(poetry, dict):
         return
     unread = [
         key
@@ -163,20 +183,33 @@ def warn_unread_poetry_fields(
         and not getattr(metadata, field)
         and provenance_key_for(field) not in metadata.provenance
     ]
-    if unread:
-        warn_ignored_poetry_table(
-            f"[tool.poetry] {', '.join(unread)}",
-            f"build-backend {backend!r} does not read it",
-            quiet=quiet,
+    if unread and not quiet:
+        emit(
+            log,
+            METADATA_NO_EFFECT,
+            logging.WARNING,
+            line=POETRY_BACKEND_LINE,
+            file=pyproject_path,
+            entries=unread,
+            backend=backend,
         )
 
 
-def warn_ignored_poetry_table(what: str, reason: str, *, quiet: bool) -> None:
-    """``WARNING:`` that *what* (a table, or a table's keys) is not read,
-    and why: the one wording of every ignored ``[tool.poetry]`` part.
-    Silent when *quiet*."""
+def warn_ignored_poetry_table(
+    pyproject_path: Path, table: str, read_instead: list[str], *, quiet: bool
+) -> None:
+    """``WARNING:`` that *table* of *pyproject_path* is not read, as Poetry
+    reads the ``[project]`` keys *read_instead*. Silent when *quiet*."""
     if not quiet:
-        log.warning("Ignoring %s: %s", what, reason)
+        emit(
+            log,
+            METADATA_NO_EFFECT,
+            logging.WARNING,
+            line=POETRY_TABLE_LINE,
+            file=pyproject_path,
+            field=table,
+            metadata_fields=read_instead,
+        )
 
 
 def requirements_per_table(
@@ -233,17 +266,10 @@ def extras_requirements(
                 listed.add(key)
             elif key not in declared:
                 warn_skipped_extra_entry(
-                    "Poetry",
-                    extra,
-                    name,
-                    "not declared in [tool.poetry.dependencies]",
-                    quiet=quiet,
+                    "Poetry", extra, name, "undeclared-dependency", quiet=quiet
                 )
     for key in sorted(optional - listed if warn_unlisted else ()):
         warn_skipped_dependency(
-            "Poetry",
-            entries[key][0],
-            "optional and listed in no [tool.poetry.extras] extra",
-            quiet=quiet,
+            "Poetry", entries[key][0], "unlisted-optional", quiet=quiet
         )
     return by_extra, listed

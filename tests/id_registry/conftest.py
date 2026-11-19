@@ -22,11 +22,14 @@ def _load_spy(monkeypatch: pytest.MonkeyPatch) -> list[Path]:
     calls: list[Path] = []
     real_load = IdRegistry.load.__func__  # type: ignore[attr-defined]
 
-    def spy(cls: type[IdRegistry], path: Path) -> IdRegistry:
+    def spy(
+        cls: type[IdRegistry], path: Path, *, refuse_credentials: bool = False
+    ) -> IdRegistry:
         calls.append(path)
         # pylint mistakes the unbound ``__func__`` for the bound classmethod.
         # pylint: disable-next=too-many-function-args
-        return cast(IdRegistry, real_load(cls, path))
+        loaded = real_load(cls, path, refuse_credentials=refuse_credentials)
+        return cast(IdRegistry, loaded)
 
     monkeypatch.setattr(IdRegistry, "load", classmethod(spy))
     return calls

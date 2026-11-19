@@ -7,6 +7,8 @@
 
 See also: :mod:`pitloom.id_registry._types` for the registry dataclasses,
 :mod:`pitloom.id_registry._ambiguous` for the keys left out,
+:mod:`pitloom.id_registry._harvest._index` (the id index) and
+:mod:`pitloom.id_registry._harvest._skip` (the elements left out),
 :mod:`pitloom.id_registry._registry` for ``IdRegistry`` itself (it imports
 this module, so the reverse import is ``TYPE_CHECKING``-only).
 """
@@ -16,14 +18,13 @@ from __future__ import annotations
 import logging
 from collections import Counter
 from collections.abc import Iterable
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, TypeGuard
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.id_registry._ambiguous import (
     GATED_TYPES,
-    MODEL_NOT_RECORDED_INFO,
     TWIN_DEBUG,
     DerivedKeys,
     KeptPairs,
@@ -33,19 +34,30 @@ from pitloom.id_registry._ambiguous import (
     _ambiguous_keys,
     _stale,
     _written_key,
-    ambiguous_keys_message,
     harvest_sha256,
     pointer_twins,
+    say_ambiguous_keys,
     unique_file_keys,
 )
+from pitloom.id_registry._harvest._index import SpdxIdIndex
+from pitloom.id_registry._harvest._skip import unrecordable
 from pitloom.id_registry._types import (
     AI_PACKAGE_TYPE,
     DATASET_PACKAGE_TYPE,
     RegistryEntry,
-    is_utf8_text,
-    unencodable_message,
 )
 from pitloom.logging_config import loggable
+from pitloom.messages import emit
+from pitloom.messages.id_registry_ids import (
+    GATE_DROPPED_LINE,
+    GATE_KEPT_LINE,
+    GATE_KEPT_OLDER_LINE,
+    HELD_LINE,
+    MODEL_NOT_RECORDED_LINE,
+    REGISTRY_CONFLICT_HELD,
+    REGISTRY_HASH_CONFLICT_GATE,
+    REGISTRY_PATH_KEY_UNUSABLE,
+)
 
 if TYPE_CHECKING:
     from pitloom.id_registry._registry import IdRegistry
@@ -58,12 +70,12 @@ log = logging.getLogger("pitloom.id_registry")
 _HASH_KEPT_TYPES = GATED_TYPES | {DATASET_PACKAGE_TYPE}
 
 __all__ = [
-    "_SpdxIdIndex",
+    "SpdxIdIndex",
     "_harvest_elements",
     "_import_sbom_element",
     "_release_stale_keys_for_id",
     "_sorted_by_spdx_id",
-    "content_gate_message",
+    "say_content_gate",
 ]
 
 
@@ -80,48 +92,10 @@ def _sorted_by_spdx_id(object_set: spdx3.SHACLObjectSet) -> list[Any]:
     return sorted(object_set.objects, key=lambda o: getattr(o, "spdxId", None) or "")
 
 
-@dataclass
-class _SpdxIdIndex:
-    """``spdx_id -> keys`` reverse index for a registry's ``elements``
-    table, built per :func:`_harvest_elements` pass and kept in sync as
-    entries are added or removed during it.
-
-    :func:`_release_stale_keys_for_id` uses it to find every OTHER key
-    sharing an id without scanning the whole table per harvested element.
-    """
-
-    keys: dict[str, set[tuple[str, str]]] = field(default_factory=dict)
-
-    @classmethod
-    def from_registry(cls, registry: IdRegistry) -> _SpdxIdIndex:
-        """Build the index from *registry*'s current table contents."""
-        keys: dict[str, set[tuple[str, str]]] = {}
-        for key, entry in registry.elements.items():
-            keys.setdefault(entry.spdx_id, set()).add(key)
-        return cls(keys=keys)
-
-    def set_entry(
-        self, registry: IdRegistry, key: tuple[str, str], entry: RegistryEntry
-    ) -> None:
-        """Write *entry* to ``registry.elements[key]``, keeping this index
-        in sync with both the old spdx_id (if *key* had another) and the
-        new one."""
-        old = registry.elements.get(key)
-        if old is not None:
-            self.keys.get(old.spdx_id, set()).discard(key)
-        registry.elements[key] = entry
-        self.keys.setdefault(entry.spdx_id, set()).add(key)
-
-    def drop(self, registry: IdRegistry, spdx_id: str, key: tuple[str, str]) -> None:
-        """Delete ``registry.elements[key]``, keeping this index in sync."""
-        del registry.elements[key]
-        self.keys.get(spdx_id, set()).discard(key)
-
-
 def _release_stale_keys_for_id(
     registry: IdRegistry,
     spdx_id: str,
-    index: _SpdxIdIndex,
+    index: SpdxIdIndex,
     *,
     key: tuple[str, str],
 ) -> None:
@@ -141,7 +115,7 @@ def _release_stale_keys_for_id(
 
 
 def _held_under(
-    index: _SpdxIdIndex, spdx_id: str, written: WrittenKey
+    index: SpdxIdIndex, spdx_id: str, written: WrittenKey
 ) -> list[tuple[str, str]]:
     """The other keys of *written*'s type holding *spdx_id*, sorted; none
     for a recorded key (R-keep applies to a name only)."""
@@ -162,20 +136,29 @@ _KeptBy = dict[tuple[str, tuple[str, str]], tuple[str, str]]
 
 def _log_r_kept(written: WrittenKey, held: tuple[str, str], *, imported: bool) -> None:
     """The one line for an element R-keep skips, its id held under *held*:
-    an ``INFO:`` for ``id import`` (*imported*), DEBUG for a run's merged
-    fragment."""
-    log.log(
-        logging.INFO if imported else logging.DEBUG,
-        "ID registry: %s %r not %s: its id is held under %r",
-        written.key[0],
-        written.key[1],
-        "imported" if imported else "harvested",
-        held[1],
-    )
+    an ``INFO:`` for ``id import`` (*imported*, ``registry-conflict/held``),
+    DEBUG with no code for a run's merged fragment."""
+    if imported:
+        emit(
+            log,
+            REGISTRY_CONFLICT_HELD,
+            logging.INFO,
+            line=HELD_LINE,
+            element_type=written.key[0],
+            entity=written.key[1],
+            claimant=held[1],
+        )
+    else:
+        log.debug(
+            "ID registry: %s %r not harvested: its id is held under %r",
+            written.key[0],
+            written.key[1],
+            held[1],
+        )
 
 
 def _r_kept(
-    index: _SpdxIdIndex, objects: list[Any], keys: RecordedKeys | None
+    index: SpdxIdIndex, objects: list[Any], keys: RecordedKeys | None
 ) -> _KeptBy:
     """The (spdxId, written key) pairs of *objects* R-keep skips, decided
     once before the pass so the spdxId order never changes them: the
@@ -213,7 +196,7 @@ class _Pass:
     *index*, R-keep's *kept* (:func:`_r_kept`) and the *ambiguous* keys
     (:func:`~pitloom.id_registry._ambiguous._ambiguous_keys`)."""
 
-    index: _SpdxIdIndex
+    index: SpdxIdIndex
     kept: _KeptBy
     ambiguous: frozenset[tuple[str, str]]
 
@@ -226,7 +209,7 @@ class _Pass:
         stale: KeptPairs = frozenset(),
     ) -> _Pass:
         """The pass over *objects*, *stale* pairs never written."""
-        index = _SpdxIdIndex.from_registry(registry)
+        index = SpdxIdIndex.from_registry(registry)
         kept = _r_kept(index, objects, keys)
         ambiguous = _ambiguous_keys(objects, keys, kept=kept.keys() | stale)
         return cls(index, kept, ambiguous)
@@ -243,7 +226,7 @@ def _model_file_keys(
     *objects* holding its SHA-256
     (:func:`~pitloom.id_registry._ambiguous.unique_file_keys`), a derived
     key; with none, it is left out: its id reserved, one
-    :data:`~pitloom.id_registry._ambiguous.MODEL_NOT_RECORDED_INFO`. Never
+    ``INFO:`` (``registry-path-key-unusable``). Never
     its name: a pathful model's name entry would outlive a retrain. Hashes
     are read with *hashes* (:func:`~pitloom.id_registry._ambiguous.harvest_sha256`)."""
     files = unique_file_keys(objects, keys, hashes)
@@ -261,7 +244,13 @@ def _model_file_keys(
             passed.append(obj)
         else:
             registry.reserve_id(str(obj.spdxId))
-            log.info(MODEL_NOT_RECORDED_INFO, loggable(str(obj.name)))
+            emit(
+                log,
+                REGISTRY_PATH_KEY_UNUSABLE,
+                logging.INFO,
+                line=MODEL_NOT_RECORDED_LINE,
+                entity=str(obj.name),
+            )
     if not derived:
         return passed, keys
     recorded = [spdx_id for spdx_id in keys or {} if spdx_id not in derived]
@@ -302,14 +291,14 @@ def _harvest_elements(
     skipped = pointer_twins(objects, keys, hashes) | stale
     state = _Pass.of(registry, objects, keys, {(i, k) for i, (k, _) in skipped.items()})
     if state.ambiguous:
-        log.debug("%s", ambiguous_keys_message("not harvested", state.ambiguous))
+        say_ambiguous_keys(log, "not harvested", state.ambiguous, debug=True)
     for obj in objects:
         spdx_id = str(getattr(obj, "spdxId", None))
         if spdx_id in skipped:
             registry.reserve_id(spdx_id)
             key, current = skipped[spdx_id]
             if spdx_id in stale:
-                log.info("%s", content_gate_message(key, spdx_id, current, older=True))
+                say_content_gate(key, spdx_id, current, older=True)
             else:
                 log.debug(
                     TWIN_DEBUG, key[0], key[1], loggable(spdx_id), loggable(current)
@@ -321,33 +310,33 @@ def _harvest_elements(
     return state.ambiguous
 
 
-def content_gate_message(
+def say_content_gate(
     key: tuple[str, str],
     spdx_id: str,
     held: str,
     *,
     imported: bool = False,
     older: bool = False,
-) -> str:
-    """The one line for an element *spdx_id* a content-gated *key* (held by
-    *held*) decides: unhashed, with another id than the hashed entry,
-    ``id import`` replaced the entry (*imported*) or a run's harvest left
-    it as is; with no recorded key and a SHA-256 other than the entry's
-    (*older*: a merged fragment's), a run's harvest left it as is."""
-    subject = f"{key[0]} {key[1]!r}"
+) -> None:
+    """The one ``INFO:`` (``registry-hash-conflict/gate``) for an element
+    *spdx_id* a content-gated *key* (held by *held*) decides: unhashed,
+    with another id than the hashed entry, ``id import`` replaced the entry
+    (*imported*) or a run's harvest left it as is; with no recorded key and
+    a SHA-256 other than the entry's (*older*: a merged fragment's), a
+    run's harvest left it as is."""
     if imported:
-        return (
-            f"ID registry: content gate dropped for {subject}: "
-            f"imported id {spdx_id} replaces {held}"
-        )
-    element = (
-        f"element id {spdx_id} with an older SHA-256"
-        if older
-        else f"harvested id {spdx_id}"
-    )
-    return (
-        f"ID registry: content gate kept for {subject}: "
-        f"{element} not recorded over {held}"
+        line = GATE_DROPPED_LINE
+    else:
+        line = GATE_KEPT_OLDER_LINE if older else GATE_KEPT_LINE
+    emit(
+        log,
+        REGISTRY_HASH_CONFLICT_GATE,
+        logging.INFO,
+        line=line,
+        element_type=key[0],
+        entity=key[1],
+        spdx_id=spdx_id,
+        claimant=held,
     )
 
 
@@ -426,7 +415,7 @@ def _import_sbom_element(
     hashed entry of those types: ``id import`` (*imported*) writes it with
     no SHA-256 and logs one ``INFO:``; a run's harvest never erases a
     recorded SHA-256, so it leaves the entry as is, also with one ``INFO:``
-    (:func:`content_gate_message`).
+    (:func:`say_content_gate`).
 
     *state* is the pass :func:`_harvest_elements` decided; a direct
     caller may omit it and gets one for *obj* alone, from *registry*'s
@@ -442,10 +431,8 @@ def _import_sbom_element(
     # Reserved even when the element is skipped: its id is never minted.
     registry.reserve_id(spdx_id)
     label = "key" if written.recorded else "name"
-    for what, text in ((label, key[1]), ("spdxId", spdx_id)):
-        if not is_utf8_text(text):
-            log.warning("%s; skipped", unencodable_message(what, text))
-            return
+    if unrecordable(label, key, spdx_id):
+        return
     if state is None:
         state = _Pass.of(registry, [obj], keys)
     if key in state.ambiguous:
@@ -456,7 +443,7 @@ def _import_sbom_element(
     sha256 = _own_sha256(obj, key[0], imported=imported, hashes=hashes)
     existing = registry.elements.get(key)
     if _stale_over(existing, sha256, written, imported=imported):
-        log.info("%s", content_gate_message(key, spdx_id, existing.spdx_id, older=True))
+        say_content_gate(key, spdx_id, existing.spdx_id, older=True)
         return
     if (
         key[0] in _HASH_KEPT_TYPES
@@ -467,10 +454,7 @@ def _import_sbom_element(
         if existing.spdx_id == spdx_id:
             sha256 = existing.sha256
         else:
-            log.info(
-                "%s",
-                content_gate_message(key, spdx_id, existing.spdx_id, imported=imported),
-            )
+            say_content_gate(key, spdx_id, existing.spdx_id, imported=imported)
             if not imported:
                 return
     _release_stale_keys_for_id(registry, spdx_id, state.index, key=key)

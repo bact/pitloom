@@ -19,6 +19,8 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom._sbom_format import read_given_sbom
 from pitloom.id_registry._harvest import _sorted_by_spdx_id
+from pitloom.messages import CodedValueError
+from pitloom.messages.targets import SBOM_INVALID, SBOM_UNREADABLE_LINE
 
 __all__ = ["document_id", "read_sbom_objects"]
 
@@ -34,13 +36,23 @@ def read_sbom_objects(sbom_path: Path) -> list[Any]:
             --sbom`` refuses it (:func:`~pitloom._sbom_format.read_given_sbom`:
             ``file-unreadable``, ``over-cap``, ``json-malformed``,
             ``sbom-wrong-format``, ``sbom-invalid`` for an ``@graph`` that
-            is not a list of objects); each names *sbom_path*. The deserialiser's
-            own errors are uncoded.
+            is not a list of objects); ``sbom-invalid`` too for one the
+            SPDX 3 deserialiser refuses. Each names *sbom_path*.
     """
     object_set = spdx3.SHACLObjectSet()
     given = read_given_sbom(sbom_path)
     raw = io.BytesIO(given.text.encode("utf-8"))
-    spdx3.JSONLDDeserializer().read(raw, object_set)
+    try:
+        spdx3.JSONLDDeserializer().read(raw, object_set)
+    except MemoryError:  # the machine's, not the SBOM's
+        raise
+    # The deserialiser raises TypeError, ValueError and others on content it
+    # cannot follow (an object with no type): all are the SBOM's.
+    # pylint: disable-next=broad-exception-caught
+    except Exception as exc:
+        raise CodedValueError(
+            SBOM_INVALID, line=SBOM_UNREADABLE_LINE, file=sbom_path, failure=exc
+        ) from exc
     return _sorted_by_spdx_id(object_set)
 
 

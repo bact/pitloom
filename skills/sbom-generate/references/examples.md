@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-05
-Last-Modified: 2026-11-14
+Last-Modified: 2026-11-18
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -94,9 +94,10 @@ loom project /path/to/project -o sbom.spdx3.json
 
 Run it before the first `loom` call of a session that reads licences. No
 network, skips when current, safe to repeat. Without it, no `LICENSE` text is
-matched to an id and one `WARNING: licenseid database cannot be used: ...` (or
-`INFO: licenseid database not found: ...`) line says so
-(`known-limitations.md`):
+matched to an id and one `licenseid database not found: ...` line
+(`[license-db-missing]`, `WARNING:`, or `INFO:` when a licence is declared)
+says so; `licenseid database cannot be used: ...` (`[license-db-unusable]`)
+is an empty, invalid or unreadable one (`known-limitations.md`):
 
 ```bash
 licenseid update --source packaged   # from an install of pitloom
@@ -120,7 +121,7 @@ loom project . --id-registry loom-id-registry.json -o sbom.spdx3.json
 ```
 
 stdout is `PITLOOM_ID_REGISTRY_PATH=<path>`; relay the `INFO:`/`WARNING:`
-lines (see `id-registry.md`).
+lines (see `id-registry-log-lines.md`).
 
 ## Embed an SBOM into a built wheel (PEP 770)
 

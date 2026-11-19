@@ -17,7 +17,6 @@ import pytest
 
 from pitloom.core.ai_metadata import AiModelFormat
 from pitloom.id_registry import AI_PACKAGE_TYPE, IdRegistry
-from pitloom.id_registry.import_keys import LAYOUT_ALIAS_CHANGED_INFO
 from tests.id_registry.shared import _files, _sha256
 from tests.registry_helpers import make_registry
 
@@ -133,7 +132,7 @@ def test_generate_two_model_files_sharing_a_stem_get_two_ids(
     ("retrained", "said"),
     [
         (False, "ID registry: 2 key(s) promoted from a layout alias"),
-        (True, LAYOUT_ALIAS_CHANGED_INFO % 2),
+        (True, "ID registry: 2 key(s) of changed content took their layout alias's id"),
     ],
     ids=["new-key", "retrained"],
 )

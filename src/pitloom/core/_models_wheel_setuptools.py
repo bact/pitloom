@@ -50,7 +50,12 @@ from pitloom.core._models_wheel_types import (
     warn_discovery_failed,
 )
 from pitloom.core.path_confine import is_inside
-from pitloom.core.quote_source import quote_source
+from pitloom.messages.file_discovery import (
+    IMPERATIVE_LINE,
+    PACKAGES_AMBIGUOUS_LINE,
+    WHEEL_PATH_LINE,
+    warn_discovery,
+)
 
 if TYPE_CHECKING:
     from setuptools.command.build_py import build_py as BuildPyCommand
@@ -265,15 +270,13 @@ def _dedupe_by_distribution_path(
         if existing is None:
             seen[included_file.distribution_path] = included_file
         elif existing.path != included_file.path:
-            log.warning(
-                "%s: both %s and %s resolve to the same wheel path %s -- "
-                "keeping %s, dropping %s",
-                quote_source(project_dir),
-                quote_source(existing.path),
-                quote_source(included_file.path),
-                quote_source(included_file.distribution_path),
-                quote_source(existing.path),
-                quote_source(included_file.path),
+            warn_discovery(
+                log,
+                WHEEL_PATH_LINE,
+                dir=project_dir,
+                entry=included_file.distribution_path,
+                kept=str(existing.path),
+                dropped=str(included_file.path),
             )
     return list(seen.values())
 
@@ -342,13 +345,7 @@ def _warn_if_setup_py_overrides_packaging(project_dir: Path) -> None:
         return
     imperative_kwargs = _setup_py_packaging_kwargs(setup_py_path)
     if imperative_kwargs:
-        log.warning(
-            "setup.py in %s passes %s imperatively -- the file list "
-            "resolved statically from pyproject.toml/setup.cfg alone "
-            "may be incomplete or inaccurate for this project",
-            quote_source(project_dir),
-            ", ".join(imperative_kwargs),
-        )
+        warn_discovery(log, IMPERATIVE_LINE, dir=project_dir, kwargs=imperative_kwargs)
 
 
 def discover(
@@ -403,12 +400,11 @@ def discover(
                 for f in files
             ]
     except PackageDiscoveryError as exc:
-        log.warning(
-            "%s: setuptools could not auto-discover packages unambiguously "
-            "(%s) -- specify `packages`/`py_modules` explicitly in "
-            "pyproject.toml or setup.cfg",
-            quote_source(project_dir),
-            discovery_failure_text(exc),
+        warn_discovery(
+            log,
+            PACKAGES_AMBIGUOUS_LINE,
+            dir=project_dir,
+            error=discovery_failure_text(exc),
         )
         mark_discovery_failed()
         return None

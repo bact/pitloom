@@ -68,6 +68,7 @@ from pitloom.cli.options import byte_budget, positive_byte_ceiling
 from pitloom.cli.parser import _build_parser
 from pitloom.core.config_cascade import ConfigOverrides
 from pitloom.core.creation import CreationMetadata
+from pitloom.core.credential_policy import CredentialPolicy
 from pitloom.core.inert_options import PARAM_TO_FLAG
 from pitloom.core.project import ProjectMetadata
 from pitloom.id_registry import IdRegistry
@@ -89,6 +90,7 @@ _CREATOR = "Reach Creator"
 _EMAIL = "reach@example.invalid"
 _TOOL = "reach-tool"
 _DATETIME = "2020-01-02T03:04:05Z"
+_FINGERPRINT = "sha256:0123456789abcdef"
 
 #: Options outside the invariant, with the reason. Every other option of
 #: every SBOM subcommand is a cell.
@@ -120,6 +122,7 @@ _VALUES: dict[str, tuple[str, ...]] = {
     "--creation-tool": (_TOOL,),
     "--creation-datetime": (_DATETIME,),
     "--creation-comment": (_MARKER,),
+    "--accept-url-credential": (_FINGERPRINT,),
 }
 #: A creator attribute sets the most recent --creator-name's field.
 _CREATOR_ATTRIBUTES = {"--creator-type": "agent", "--creator-email": _EMAIL}
@@ -134,6 +137,15 @@ def _creation(kwargs: dict[str, Any]) -> CreationMetadata | None:
 def _creators(kwargs: dict[str, Any]) -> list[tuple[str, str, str | None]]:
     cm = _creation(kwargs)
     return [] if cm is None else [(c.name, c.type, c.email) for c in cm.creators]
+
+
+def _policy(kwargs: dict[str, Any]) -> CredentialPolicy:
+    """The credential policy an entry point received: its ``credentials``
+    keyword, or the one inside the ``overrides`` of an embed."""
+    overrides = kwargs.get("overrides")
+    given = kwargs.get("credentials") or getattr(overrides, "credentials", None)
+    assert given is None or isinstance(given, CredentialPolicy)
+    return given or CredentialPolicy()
 
 
 #: Reach checks for options whose value is not passed under its own dest.
@@ -154,6 +166,8 @@ _REACH: dict[str, Callable[[dict[str, Any]], bool]] = {
     "--creation-comment": lambda kw: (
         getattr(_creation(kw), "creation_comment", None) == _MARKER
     ),
+    "--accept-url-credential": lambda kw: _policy(kw).accepted == {_FINGERPRINT},
+    "--refuse-url-credentials": lambda kw: _policy(kw).refuse is True,
 }
 
 
@@ -491,8 +505,10 @@ def test_matrix_accounts_for_every_option() -> None:
 
 # pylint: disable-next=too-few-public-methods
 class _FakeExporter:
-    def to_json(self, *, pretty: bool, describe_relationship: bool) -> str:
-        del pretty, describe_relationship
+    def to_json(
+        self, *, pretty: bool, describe_relationship: bool, credentials: object
+    ) -> str:
+        del pretty, describe_relationship, credentials
         return "{}"
 
 

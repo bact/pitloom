@@ -8,16 +8,14 @@
 from __future__ import annotations
 
 import dataclasses
-import logging
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, ClassVar, NamedTuple, TypedDict
 
 from pitloom.core.file_hash import FileDigests, HexDigests
+from pitloom.core.internal_error import InternalError
 from pitloom.core.lfs_pointer import LfsPointer
-
-log = logging.getLogger(__name__)
 
 # The archive extensions an sdist is distributed as.
 SDIST_EXTENSIONS = (".tar.gz", ".tgz", ".tar.bz2", ".tar.xz", ".zip")
@@ -79,7 +77,7 @@ class ProjectFile:
             file's header, in order. Empty when none are present.
         file_type: The raw ``SPDX-FileType:`` tag value, untranslated.
         spdx_license_identifier: The file's own ``SPDX-License-Identifier:``
-            expression, independent of the project's overall license.
+            expression, independent of the project's overall licence.
         content_type: A real IANA media type detected from the file's
             content/filename (``magika`` or a filename-extension
             fallback), or asserted directly by a
@@ -380,22 +378,21 @@ def merge_project_metadata(
     ``"license_name"``; :data:`_PROVENANCE_KEY_ALIASES`
     maps that known mismatch so the same presence check finds it.
 
-    ``field_conflicts`` is dict-merged like ``provenance``, *primary*'s
-    entries winning on key conflict, with one ``WARNING:`` naming a field
-    both sides hold; the merged result holds fresh containers, so neither
-    input is modified.
+    ``field_conflicts`` is dict-merged like ``provenance``; the merged result
+    holds fresh containers, so neither input is modified.
+
+    Raises:
+        pitloom.core.internal_error.InternalError: both sides hold a
+            ``field_conflicts`` entry for one field (only *primary* may
+            carry conflicts: the readers record them before the merge).
     """
     merged = primary.replace_with_fresh_containers()
     merged.provenance = {**secondary.provenance, **primary.provenance}
     colliding_fields = set(secondary.field_conflicts) & set(primary.field_conflicts)
     if colliding_fields:
-        # Primary wins below, as for every other field; secondary's
-        # ConflictCandidate list is dropped with this WARNING:, not silently.
-        log.warning(
-            "merge_project_metadata: both sides have a field_conflicts "
-            "entry for %s -- keeping only primary's, secondary's conflict "
-            "record is discarded",
-            sorted(colliding_fields),
+        raise InternalError(
+            "merge_project_metadata: both sides have a field_conflicts entry "
+            f"for {sorted(colliding_fields)}; only primary may carry one"
         )
     merged.field_conflicts = {**secondary.field_conflicts, **primary.field_conflicts}
     for f in dataclasses.fields(ProjectMetadata):

@@ -25,8 +25,11 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.core.extra_gate import Gate, MarkerShapeError, read_gate
 from pitloom.core.pep508 import parse_requirement
-from pitloom.core.requirements import NOT_PEP_508, warn_joined_extra_entry
-from pitloom.logging_config import excerpt
+from pitloom.core.requirements import warn_joined_extra_entry
+from pitloom.messages.dependencies import (
+    warn_extra_gate_unusable,
+    warn_required_not_pep508,
+)
 
 log = logging.getLogger(__name__)
 
@@ -63,12 +66,6 @@ def _names_project(req: Requirement | None, canonical_project: str) -> bool:
     return req is not None and canonicalize_name(req.name) == canonical_project
 
 
-def _warn_required(message: str, *args: str) -> None:
-    """``WARNING:`` that a dependency is recorded as required, *message*
-    saying why."""
-    log.warning(message + " -- recorded as a required dependency", *args)
-
-
 def _gate(dep: str, req: Requirement | None, *, self_reference: bool) -> Gate:
     """*dep*'s extra gate. A marker whose gate cannot be isolated, or a
     *dep* that is not PEP 508 (*req* ``None``), counts as required, with a
@@ -77,28 +74,16 @@ def _gate(dep: str, req: Requirement | None, *, self_reference: bool) -> Gate:
     optional for any of them, with a ``WARNING:``
     (:func:`~pitloom.core.requirements.warn_joined_extra_entry`)."""
     if req is None:
-        _warn_required(f"Dependency %s is {NOT_PEP_508}", excerpt(dep))
+        warn_required_not_pep508(log, dep)
         return None
     if req.marker is None:
         return None
     try:
         reading = read_gate(str(req.marker))
     except MarkerShapeError:
-        if self_reference:
-            log.warning(
-                "Self-reference %r declared as %r has an extra marker that"
-                " can't be isolated -- the requirements of the extras it"
-                " requests are recorded as required dependencies",
-                req.name,
-                dep,
-            )
-        else:
-            _warn_required(
-                "Dependency %r declared as %r has an extra marker that can't"
-                " be isolated",
-                req.name,
-                dep,
-            )
+        warn_extra_gate_unusable(
+            log, package=req.name, dependency=dep, self_reference=self_reference
+        )
         return None
     if reading.joined:
         warn_joined_extra_entry(dep, reading.joined)

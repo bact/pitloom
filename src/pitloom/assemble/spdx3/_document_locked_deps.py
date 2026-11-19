@@ -22,6 +22,7 @@ canonical-name-grouping and version-equality helpers this module builds on.
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from packaging.utils import canonicalize_name
@@ -34,8 +35,10 @@ from pitloom.core.project import ProjectMetadata
 from pitloom.extract.lock.common import (
     group_by_canonical_name,
     is_same_version,
-    warn_conflicting_versions,
 )
+from pitloom.messages.lock_files import LOCKED_VERSIONS_LINE, say_lock_entry
+
+log = logging.getLogger(__name__)
 
 
 def _canon_names_and_pins(
@@ -75,7 +78,7 @@ def _dedup_and_locked_versions(
     A canonical name whose *pinned* entries disagree on PEP 440 version is
     a genuine conflict (e.g. two lock formats layered by hand into the
     same ``ProjectMetadata``, or a future extractor that forgets to
-    dedupe before returning) -- warned via :func:`warn_conflicting_versions`
+    dedupe before returning) -- warned (``lock-entry-conflict``)
     and excluded entirely, the same "skip the ambiguous name, don't guess"
     policy every extractor already applies to its own duplicate entries.
     Neither of this function's callers (:func:`_extract_locked_version_map`,
@@ -108,8 +111,11 @@ def _dedup_and_locked_versions(
             v for _, _, v in group if not is_same_version(v, version)
         }
         if conflicting_versions:
-            warn_conflicting_versions(
-                "locked dependencies", name, {v for _, _, v in group}
+            say_lock_entry(
+                log,
+                LOCKED_VERSIONS_LINE,
+                package=name,
+                dropped=frozenset(v for _, _, v in group),
             )
             excluded.add(group_canon)
         else:
@@ -168,7 +174,7 @@ def _locked_transitive_only_dependencies(
     :func:`_deduplicated_locked_dependencies` again -- :func:`build` computes
     both it and the locked version map once via :func:`_dedup_and_locked_versions`
     so a genuine name/version conflict in ``locked_dependencies`` only logs
-    :func:`warn_conflicting_versions`'s warning once per document, not once
+    its ``lock-entry-conflict`` warning once per document, not once
     per caller.
     """
     direct_names = {

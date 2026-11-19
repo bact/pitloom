@@ -7,7 +7,15 @@
 catalogue writes each one, and the shape the written text always has, which
 is what a reader trusts a line by.
 
-See also: :mod:`pitloom.messages._field_tables` (the closed tables),
+See also: :mod:`pitloom.messages._fields_registry` (the ID registry's
+fields), :mod:`pitloom.messages._fields_credentials` (a URL credential's),
+:mod:`pitloom.messages._fields_lock` (a lock file's and a requirement's),
+:mod:`pitloom.messages._fields_config` (a configuration value's),
+:mod:`pitloom.messages._fields_licence` (a licence value's),
+:mod:`pitloom.messages._fields_metadata` (project metadata's and file
+discovery's),
+:mod:`pitloom.messages._field_type` (:class:`Field`),
+:mod:`pitloom.messages._field_tables` (the closed tables),
 :mod:`pitloom.messages._types` (the templates),
 :mod:`pitloom.messages._lines` (reading a line back), and
 :mod:`pitloom.messages._templates` (rendering a template from its fields).
@@ -16,8 +24,7 @@ See also: :mod:`pitloom.messages._field_tables` (the closed tables),
 from __future__ import annotations
 
 import re
-from collections.abc import Callable, Mapping
-from dataclasses import dataclass
+from collections.abc import Mapping
 from types import MappingProxyType
 from typing import Final
 
@@ -36,6 +43,7 @@ from pitloom.messages._field_tables import (
     REASONS,
     SETTING,
 )
+from pitloom.messages._field_type import QUOTED, Field
 from pitloom.messages._field_writers import (
     bytes_text,
     count_text,
@@ -47,28 +55,15 @@ from pitloom.messages._field_writers import (
     path_text,
     plain_text,
 )
+from pitloom.messages._fields_config import CONFIG_FIELDS
+from pitloom.messages._fields_credentials import CREDENTIAL_FIELDS
+from pitloom.messages._fields_licence import LICENCE_FIELDS
+from pitloom.messages._fields_lock import LOCK_FIELDS
+from pitloom.messages._fields_metadata import METADATA_FIELDS
+from pitloom.messages._fields_registry import REGISTRY_FIELDS
 
-
-@dataclass(frozen=True)
-class Field:
-    """One value a template names."""
-
-    #: The text the written value always matches (a regular expression).
-    pattern: str
-    #: Turns the caller's value into the text printed.
-    write: Callable[[object], str]
-    #: How the reference shows the value in a line.
-    shown: str
-    #: What the value is, for the reference.
-    meaning: str
-    #: Whether the value can be any text (a file name), so a template may not
-    #: start with it or put it beside another field: it would take in what
-    #: lies next to it.
-    free: bool = False
-
-
-#: Every name a template may use.
-FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
+#: The names of every family but the ID registry's.
+_GENERAL: Final[Mapping[str, Field]] = MappingProxyType(
     {
         "answered": Field(
             r".+",
@@ -132,8 +127,9 @@ FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
             r".+",
             free_text,
             "<entry>",
-            "an archive member or a metadata key, as the file names it; in "
-            "quotes, escaped, when it holds a control character",
+            "an archive member, a metadata key, a path in a wheel or an "
+            "installed-metadata directory (`demo-1.0.dist-info`), as the file "
+            "names it; in quotes, escaped, when it holds a control character",
             free=True,
         ),
         "error": Field(
@@ -159,8 +155,10 @@ FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
             "<field>",
             "the project setting that lists the file (`project.readme`, "
             "`tool.setuptools.dynamic.dependencies`, `setup.cfg "
-            "metadata.long_description`); in quotes, escaped, when it holds a "
-            "control character",
+            "metadata.long_description`), a licence value's field "
+            "(`License-Expression`), or a project metadata key or table "
+            "(`project.version`, `[tool.poetry] 'readme'`); in quotes, "
+            "escaped, when it holds a control character",
             free=True,
         ),
         "fields": Field(
@@ -236,8 +234,8 @@ FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
             free_text,
             "<name>",
             "the input as Pitloom names it (a path, a field, a dataset, the start "
-            "of a requirement); in quotes, escaped, when it holds a control "
-            "character",
+            "of a requirement), a `setup()` keyword or a name a file declares; "
+            "in quotes, escaped, when it holds a control character",
             free=True,
         ),
         "number": Field(
@@ -281,7 +279,7 @@ FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
             "(`training_config.optimizer`, `layers[0].config`)",
         ),
         "path": Field(
-            r"'[^']*'|\"[^\"]*\"|'(?:[^'\\]|\\.)*'",
+            QUOTED,
             path_text,
             "'<path>'",
             "a path in quotes",
@@ -324,6 +322,13 @@ FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
             "<requirement>",
             "Pitloom with the extra that installs the library (`pitloom[gguf]`); "
             "`pitloom[ai]` installs every model reader",
+        ),
+        "root": Field(
+            QUOTED,
+            path_text,
+            "'<root>'",
+            "the directory a path is checked against (--project-dir, a "
+            "project root), in quotes like the path beside it",
         ),
         "seconds": Field(
             r"0|[1-9][0-9]*",
@@ -385,7 +390,7 @@ FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
             "|".join(re.escape(use) for use in READ_USES),
             plain_text,
             "<use>",
-            "what the file was read for, or the directory listed for: "
+            "what the file was read or written for, or the directory listed for: "
             + ", ".join(f"`{use}`" for use in READ_USES),
         ),
         "value": Field(
@@ -401,8 +406,8 @@ FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
             r".+",
             free_text,
             "<version>",
-            "a release version as the URL or PyPI gives it; in quotes, escaped, when "
-            "it holds a control character",
+            "a release version as the URL, PyPI or a lock file gives it; in "
+            "quotes, escaped, when it holds a control character",
             free=True,
         ),
         "when": Field(
@@ -424,4 +429,31 @@ FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
             free=True,
         ),
     }
+)
+
+
+def _merged(*parts: Mapping[str, Field]) -> Mapping[str, Field]:
+    """*parts* as one read-only mapping.
+
+    Raises:
+        ValueError: Two parts name one field.
+    """
+    found: dict[str, Field] = {}
+    for part in parts:
+        twice = sorted(found.keys() & part.keys())
+        if twice:
+            raise ValueError(f"field {twice[0]!r} is defined twice")
+        found.update(part)
+    return MappingProxyType(found)
+
+
+#: Every name a template may use.
+FIELDS: Final[Mapping[str, Field]] = _merged(
+    _GENERAL,
+    REGISTRY_FIELDS,
+    CREDENTIAL_FIELDS,
+    LOCK_FIELDS,
+    CONFIG_FIELDS,
+    LICENCE_FIELDS,
+    METADATA_FIELDS,
 )

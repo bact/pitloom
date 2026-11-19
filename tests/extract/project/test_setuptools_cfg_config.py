@@ -22,6 +22,7 @@ from pitloom.core.config import FragmentConfig
 from pitloom.core.content_type_config import ContentTypeOverride
 from pitloom.core.creation import Creator
 from pitloom.extract.project.setuptools import read_setup_cfg
+from pitloom.messages import code_of
 
 
 def test_read_setup_cfg_pitloom_config() -> None:
@@ -151,8 +152,13 @@ no-creation-tool = {value}
 """
     with tempfile.TemporaryDirectory() as d:
         (Path(d) / "setup.cfg").write_text(content)
-        with pytest.raises(ValueError, match="'no-creation-tool' must be a boolean"):
+        with pytest.raises(
+            ValueError,
+            match=r"^FILE=.*setup\.cfg: \[tool:pitloom:creation\] no-creation-tool: "
+            r"must be true or false, got a string",
+        ) as exc_info:
             read_setup_cfg(Path(d))
+    assert code_of(exc_info.value) == "config-invalid"
 
 
 def test_read_setup_cfg_no_pitloom_section_returns_defaults() -> None:
@@ -186,5 +192,65 @@ ids-file = registry.json
         with pytest.raises(ValueError) as exc_info:
             read_setup_cfg(Path(d))
     message = str(exc_info.value)
-    assert "[tool:pitloom]" in message
-    assert "[tool.pitloom]" not in message
+    assert code_of(exc_info.value) == "config-moved"
+    # the key sits in the setup.cfg table (colon); the destination is named
+    # as TOML spells it
+    assert "[tool:pitloom] ids-file: moved to " in message
+    assert "[tool.pitloom] ids-file" not in message
+    assert message.endswith("moved to [tool.pitloom] id-registry")
+
+
+_PRINTED = "sha256:0123456789abcdef"
+_LONGER = "sha256:fedcba98765432100123"
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        f"{_PRINTED}",
+        f"\n    {_LONGER}\n    {_PRINTED}",
+        f"{_LONGER}, {_PRINTED},",
+        f"{_LONGER} {_PRINTED}",
+        "",
+    ],
+    ids=["one", "lines", "commas", "spaces", "empty"],
+)
+def test_read_setup_cfg_accept_url_credentials_is_a_list(value: str) -> None:
+    """``accept-url-credentials`` is a list in ``setup.cfg`` too: one
+    fingerprint per line, or separated by commas or white space."""
+    content = "[metadata]\nname = pkg\nversion = 1.0\n[tool:pitloom]\n"
+    content += f"accept-url-credentials = {value}\n"
+    expected = tuple(sorted(e for e in (_PRINTED, _LONGER) if e in value))
+    with tempfile.TemporaryDirectory() as d:
+        (Path(d) / "setup.cfg").write_bytes(content.encode())
+        _, config = read_setup_cfg(Path(d))
+    assert config.accept_url_credentials == expected
+
+
+def test_read_setup_cfg_accept_url_credentials_error_names_its_table() -> None:
+    content = (
+        "[metadata]\nname = pkg\nversion = 1.0\n[tool:pitloom]\n"
+        f"accept-url-credentials = {_PRINTED}\n    ghp_secretvalue\n"
+    )
+    with tempfile.TemporaryDirectory() as d:
+        (Path(d) / "setup.cfg").write_bytes(content.encode())
+        with pytest.raises(ValueError) as exc_info:
+            read_setup_cfg(Path(d))
+    message = str(exc_info.value)
+    assert message.startswith("FILE=")
+    assert "setup.cfg: [tool:pitloom] accept-url-credentials entry 1:" in message
+    assert code_of(exc_info.value) == "config-invalid"
+    assert "ghp_secretvalue" not in message
+
+
+@pytest.mark.parametrize(
+    ("value", "refuse"), [("refuse", True), ("warn", False)], ids=["refuse", "warn"]
+)
+def test_read_setup_cfg_url_credentials_mode(value: str, refuse: bool) -> None:
+    content = "[metadata]\nname = pkg\nversion = 1.0\n[tool:pitloom]\n"
+    content += f"url-credentials = {value}\n"
+    with tempfile.TemporaryDirectory() as d:
+        (Path(d) / "setup.cfg").write_bytes(content.encode())
+        _, config = read_setup_cfg(Path(d))
+    assert config.url_credentials == value
+    assert config.credential_policy.refuse is refuse

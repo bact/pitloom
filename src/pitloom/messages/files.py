@@ -14,7 +14,13 @@ See also: :mod:`pitloom.messages` (the mechanism) and
 from __future__ import annotations
 
 from pitloom.messages._card_malformed import CARD_MALFORMED
-from pitloom.messages._field_tables import INPUT_USE, SBOM_USE
+from pitloom.messages._field_tables import (
+    CONFIG_USE,
+    INPUT_USE,
+    METADATA_USE,
+    REGISTRY_USE,
+    SBOM_USE,
+)
 from pitloom.messages._file_unreadable import (
     DIR_UNLISTABLE,
     FILE_UNREADABLE,
@@ -23,9 +29,15 @@ from pitloom.messages._file_unreadable import (
     FILE_UNREADABLE_OUTSIDE_REPOSITORY,
 )
 from pitloom.messages._file_unreadable_warning import (
+    dir_unlistable_error,
     file_unreadable_error,
     warn_dir_unlistable,
     warn_file_unreadable,
+)
+from pitloom.messages._file_unwritable import (
+    FILE_UNWRITABLE,
+    WRITE_ERROR_LINE,
+    WRITE_LINE,
 )
 from pitloom.messages._json_malformed import (
     JSON_MALFORMED,
@@ -51,8 +63,17 @@ from pitloom.messages._remote_fetch import (
     SAVE_FAILED_WARNING_LINE,
     TEMP_DIR_UNUSABLE,
 )
-from pitloom.messages._text_malformed import TEXT_MALFORMED
-from pitloom.messages._text_malformed_warning import warn_lone_surrogates
+from pitloom.messages._text_malformed import (
+    TEXT_MALFORMED,
+    TEXT_MALFORMED_REGISTRY,
+)
+from pitloom.messages._text_malformed_warning import (
+    registry_name_error,
+    warn_license_surrogates,
+    warn_lone_surrogates,
+    warn_registry_file_name,
+    warn_registry_name_skipped,
+)
 
 __all__ = [
     "CARD_MALFORMED",
@@ -65,6 +86,7 @@ __all__ = [
     "FILE_UNREADABLE_NOT_UTF8",
     "FILE_UNREADABLE_OUTSIDE",
     "FILE_UNREADABLE_OUTSIDE_REPOSITORY",
+    "FILE_UNWRITABLE",
     "GIT_OUTPUT_LINE",
     "JSON_MALFORMED",
     "NOT_JSON_LINE",
@@ -72,16 +94,27 @@ __all__ = [
     "OVER_CAP",
     "SAVE_FAILED_LINE",
     "SAVE_FAILED_WARNING_LINE",
+    "CONFIG_USE",
     "INPUT_USE",
+    "METADATA_USE",
+    "REGISTRY_USE",
     "SBOM_USE",
     "SOURCE_LINE",
     "TEMP_DIR_UNUSABLE",
     "TEXT_MALFORMED",
+    "TEXT_MALFORMED_REGISTRY",
+    "WRITE_ERROR_LINE",
+    "WRITE_LINE",
+    "dir_unlistable_error",
     "file_unreadable_error",
     "over_cap_of",
+    "registry_name_error",
     "warn_archive_member_over_cap",
     "warn_dir_unlistable",
     "warn_file_unreadable",
+    "warn_license_surrogates",
     "warn_lone_surrogates",
     "warn_over_cap",
+    "warn_registry_file_name",
+    "warn_registry_name_skipped",
 ]

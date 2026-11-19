@@ -23,6 +23,10 @@ from pitloom.core.ai_metadata import AiModelFormat
 from pitloom.core.given_path import GivenPath, TypedPath
 from pitloom.core.lfs_pointer import size_text as lfs_size_text
 from pitloom.messages import FIELDS, FRAMES, RELAY_FRAME, Frame, Line, size_text
+from pitloom.messages._field_writers import entities_text, failure_text
+from pitloom.messages._fields import _merged
+from pitloom.messages._fields_licence import LICENCE_FIELDS
+from pitloom.messages._fields_lock import value_type_text
 from pitloom.messages._templates import render
 
 #: A path ending in a backslash: one on POSIX, a directory on Windows.
@@ -185,6 +189,49 @@ def test_render_takes_exactly_the_names_of_its_template(values: dict[str, Any]) 
         render("x %(file)s y", values)
 
 
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("bad <Thing object at 0x7f3a9c1d2e50> inside", "bad <Thing object> inside"),
+        ("two <A at 0x1F> and <B at 0xab>", "two <A> and <B>"),
+        ("an at 0xyz and 0x12 stay", "an at 0xyz and 0x12 stay"),
+        (
+            "could not open 'report at 0xbeef.json'",
+            "could not open 'report at 0xbeef.json'",
+        ),
+        ("header corrupt at 0x1a: bad magic", "header corrupt at 0x1a: bad magic"),
+        ("x at 0x1fooBar", "x at 0x1fooBar"),
+        (
+            "<Wrap object at 0x10112ebf0 wrapping <__main__.A object>>",
+            "<Wrap object wrapping <__main__.A object>>",
+        ),
+        (
+            '<code object f at 0x10107c2f0, file "a.py", line 26>',
+            '<code object f, file "a.py", line 26>',
+        ),
+        ("<cell at 0x10112e5f0: int object>", "<cell: int object>"),
+        ("<weakref at 0x101148cc0; to 'A'>", "<weakref; to 'A'>"),
+        ("bad <A> at 0x1a then <B at 0x2b>", "bad <A> at 0x1a then <B>"),
+    ],
+    ids=[
+        "address",
+        "two-addresses",
+        "not-an-address",
+        "file-name",
+        "offset",
+        "word",
+        "nested-repr",
+        "code-object",
+        "cell",
+        "weakref",
+        "address-after-a-closed-bracket",
+    ],
+)
+def test_failure_text_drops_a_memory_address(text: str, expected: str) -> None:
+    """A deserialiser's default repr must not make stderr differ per run."""
+    assert failure_text(TypeError(text)) == expected
+
+
 def test_size_text_has_one_writer() -> None:
     """The pointer's hash comment and its messages state a size alike."""
     assert lfs_size_text is size_text
@@ -219,3 +266,41 @@ def test_a_frame_breaking_a_rule_is_refused(change: dict[str, Any], match: str) 
 def test_the_relay_frame_writes_the_scan_prefix() -> None:
     values = {"format": AiModelFormat.GGUF, "file": "m/x.gguf"}
     assert RELAY_FRAME.render(values) == "FORMAT=gguf FILE=m/x.gguf: "
+
+
+def test_a_field_named_in_two_tables_is_refused() -> None:
+    """``FIELDS`` merges the general and the ID registry tables: a name in
+    both would let one silently replace the other."""
+    entity = {"entity": FIELDS["entity"]}
+    with pytest.raises(ValueError, match="'entity' is defined twice"):
+        _merged(entity, entity)
+
+
+@pytest.mark.parametrize("value", ["a, b", None], ids=["str", "none"])
+def test_entities_take_a_list_or_tuple_only(value: object) -> None:
+    with pytest.raises(ValueError, match="not a list"):
+        entities_text(value)
+
+
+@pytest.mark.parametrize("name", sorted(LICENCE_FIELDS))
+def test_a_licence_field_taking_any_text_is_free(name: str) -> None:
+    """A value as read takes any text: a template may not start with it or
+    put it beside another field."""
+    field = LICENCE_FIELDS[name]
+    assert (field.pattern, field.free) == (r".+", True)
+
+
+@pytest.mark.parametrize(
+    ("value", "text"),
+    [([], "list"), ({}, "dict"), ("x", "str")],
+    ids=["list", "dict", "str"],
+)
+def test_a_lock_value_is_named_by_its_type(value: object, text: str) -> None:
+    assert value_type_text(value) == text
+
+
+def test_a_value_of_a_type_no_lock_reader_loads_is_refused() -> None:
+    """The type name is a closed field value: a reader never hands one on
+    that TOML and JSON cannot load (a set, a path)."""
+    with pytest.raises(ValueError, match="not a type a lock file holds"):
+        value_type_text({1})

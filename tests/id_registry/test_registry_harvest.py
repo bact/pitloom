@@ -245,11 +245,10 @@ def test_release_stale_keys_visits_only_keys_sharing_the_id() -> None:
     keys = {collided: (FILE_TYPE, "colliding_c")}
 
     with patch.object(
-        ids_mod._SpdxIdIndex,  # pylint: disable=protected-access
+        ids_mod.SpdxIdIndex,
         "drop",
         autospec=True,
-        # pylint: disable-next=protected-access
-        side_effect=ids_mod._SpdxIdIndex.drop,
+        side_effect=ids_mod.SpdxIdIndex.drop,
     ) as spy:
         _import_sbom_element(registry, _file("x", collided, _SHA_A), keys=keys)
 

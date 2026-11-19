@@ -22,6 +22,7 @@ from pathlib import Path, PureWindowsPath
 import pytest
 
 from pitloom.core.url_masking import masked_given_path
+from pitloom.core.url_masking._hits import PURL_DECODE_ROUNDS
 from pitloom.core.url_masking._scan import masked_once
 
 
@@ -71,7 +72,7 @@ from pitloom.core.url_masking._scan import masked_once
         # An @ in a secret value ends a userinfo: the rest of the value is
         # masked too (RFC 3986 reads ``x@h/x`` as the token's).
         ("https://u:p?token=x@h/x", "https://***:***@***"),
-        ("https:/h?apiKey=@=SECRET&a=1", "https:/***:***@***&a=1"),
+        ("https:/u:p?apiKey=@=SECRET&a=1", "https:/***:***@***&a=1"),
         ("'https:\\u@h\\p?a=1&key=@=SECRET' x", "'https:\\***:***@***' x"),
         # Each URL of a path; a value holding what reads as a URL is one.
         ("/a/https:/u:A@h/x/ftp:/v:B@h/y", "/a/https:/***:***@h/x/ftp:/***:***@h/y"),
@@ -111,10 +112,10 @@ from pitloom.core.url_masking._scan import masked_once
         # A / in a secret value does not end a userinfo: masking the value
         # would uncover one.
         (
-            "'https:/#sig=/'@#sig=/'@#sig=/'@#sig=/'@&token=ZqS",
+            "'https:/u:p#sig=/'@#sig=/'@#sig=/'@#sig=/'@&token=ZqS",
             "'https:/***:***@&token=***",
         ),
-        ("https:\\h?token=a/b&u@h2", "https:\\***:***@h2"),
+        ("https:\\u:p?token=a/b&u@h2", "https:\\***:***@h2"),
     ],
     ids=[
         "userinfo",
@@ -251,8 +252,10 @@ def test_a_url_given_as_a_path_is_masked(given: str, shown: str) -> None:
             "URL=https://pypi.org: unreachable; contact admin@example.com",
         ),
         ("https://u:A@h/a, mail ops@x.com", "https://***:***@h/a, mail ops@x.com"),
-        ("https://h\tops@x.com", "https://h\tops@x.com"),
-        ("https://h\nops@x.com", "https://h\nops@x.com"),
+        ("https://h\tops@x.com", "https://***:***@x.com"),
+        # A tab or a line break is deleted by a URL parser, so the address
+        # after one is the URL's user information (``https://hops@x.com``).
+        ("https://h\nops@x.com", "https://***:***@x.com"),
         # A quote inside a secret value, quoted or not.
         ("x https://h/p?token=Zq'V y", "x https://h/p?token=*** y"),
         ("x 'https://h/p?token=Zq'V' y", "x 'https://h/p?token=***' y"),
@@ -261,7 +264,7 @@ def test_a_url_given_as_a_path_is_masked(given: str, shown: str) -> None:
         ("'https://h/p?token=S', 'x y'", "'https://h/p?token=***', 'x y'"),
         ("https://h&x=1&token=S ops@x.com", "https://h&x=1&token=*** ops@x.com"),
         # White space in a quoted secret value does not end a userinfo.
-        ("'https:/h?token=a b/c'@?token=a b/c'@&x", "'https:/***:***@&x"),
+        ("'https:/u:p?token=a b/c'@?token=a b/c'@&x", "'https:/***:***@&x"),
     ],
     ids=[
         "token-colon",
@@ -287,8 +290,8 @@ def test_a_url_given_as_a_path_is_masked(given: str, shown: str) -> None:
         "address-after-comma",
         "address-after-colon",
         "address-after-userinfo",
-        "address-after-tab",
-        "address-after-newline",
+        "tab-is-deleted",
+        "newline-is-deleted",
         "quote-in-value",
         "quote-in-quoted-value",
         "same-quote-in-value",
@@ -312,11 +315,11 @@ def test_a_url_in_a_line_keeps_the_line(given: str, shown: str) -> None:
 @pytest.mark.parametrize(
     ("given", "line", "shown"),
     [
-        ("'https:/#sig=/'@#sig=/'@&token=ZqS", False, "'https:/***:***@&token=***"),
-        ("'https:/#sig=/'@#sig=/'@&token=ZqS", True, "'https:/***:***@&token=***"),
-        ("https:\\h&token=a?b=c/d&u@h2", False, "https:\\***:***@h2"),
-        ("https:\\h?token=/b&u@h2", False, "https:\\***:***@h2"),
-        ("'https:/h?token=a b/c'@?token=a b/c'@&x", True, "'https:/***:***@&x"),
+        ("'https:/u:p#sig=/'@#sig=/'@&token=ZqS", False, "'https:/***:***@&token=***"),
+        ("'https:/u:p#sig=/'@#sig=/'@&token=ZqS", True, "'https:/***:***@&token=***"),
+        ("https:\\u:p&token=a?b=c/d&u@h2", False, "https:\\***:***@h2"),
+        ("https:\\u:p?token=/b&u@h2", False, "https:\\***:***@h2"),
+        ("'https:/u:p?token=a b/c'@?token=a b/c'@&x", True, "'https:/***:***@&x"),
         ("https://u:p?token=x@h/x", False, "https://***:***@***"),
     ],
     ids=["slash-chain", "slash-chain-line", "question-mark-head", "slash-first"]
@@ -400,14 +403,79 @@ def _best_time(text: str, line: bool) -> float:
     return min(times)
 
 
+#: The ratio of five times the text that a linear masker stays under (about 5,
+#: up to 15 on a loaded runner; a quadratic one gives about 25, one with a
+#: linear part as large at 100k characters 15.3). Counting the characters
+#: the masker's patterns scan would be deterministic (roadmap follow-up).
+_RATIO_BOUND = 15
+
+
+def _settled_ratio(measure: Callable[[], float], tries: int = 3) -> float:
+    """The least of up to *tries* measured ratios, stopping at the first under
+    :data:`_RATIO_BOUND`: a loaded runner slows one measurement, and a quadratic
+    masker is over the bound on every try."""
+    ratio = float("inf")
+    for _ in range(tries):
+        ratio = min(ratio, measure())
+        if ratio < _RATIO_BOUND:
+            break
+    return ratio
+
+
+@pytest.mark.parametrize(
+    ("ratios", "passes"),
+    [
+        ([16.0, 5.0], True),
+        ([16.0, 17.0, 5.0], True),
+        ([25.0, 24.0, 26.0], False),
+        ([16.0, 17.0, 18.0, 5.0], False),
+    ],
+    ids=["noisy-once", "noisy-twice", "quadratic", "past-the-tries"],
+)
+def test_a_noisy_ratio_is_measured_again_but_a_quadratic_one_fails(
+    ratios: list[float], passes: bool
+) -> None:
+    """One slow run on a shared runner (16 against a bound of 15) must not
+    fail the linear-time test, and three tries over the bound still do."""
+    queue = iter(ratios)
+    assert (_settled_ratio(lambda: next(queue)) < _RATIO_BOUND) is passes
+
+
 @pytest.mark.parametrize("line", [False, True], ids=["path", "line"])
 @pytest.mark.parametrize("shape", sorted(_ADVERSARIAL))
 def test_a_given_path_is_masked_in_linear_time(shape: str, line: bool) -> None:
     """Masking an adversarial text five times as long takes about five times
     as long (a quadratic masker: twenty-five). The ratio, not a wall-clock
     bound, so a slow or loaded runner, or coverage tracing, cancels out;
-    each time is the best of three, and a run under 5 ms counts as 5 ms."""
+    each time is the best of three, a run under 5 ms counts as 5 ms, and a
+    ratio over the bound is measured again (at most three tries)."""
     make = _ADVERSARIAL[shape]
-    short = max(_best_time(make(100_000), line), 0.005)
-    long = _best_time(make(500_000), line)
-    assert long / short < 12
+
+    def measure() -> float:
+        short = max(_best_time(make(100_000), line), 0.005)
+        return _best_time(make(500_000), line) / short
+
+    ratio = _settled_ratio(measure)
+    assert ratio < _RATIO_BOUND, f"ratio {ratio:.1f}"
+
+
+def test_each_decode_round_masks_one_more_depth() -> None:
+    """A credential at each of PURL_DECODE_ROUNDS encode depths: every round
+    finds one more, so all the rounds run, and none is shown."""
+
+    def encoded(text: str, depth: int) -> str:
+        for _ in range(depth):
+            text = text.replace("%", "%25")
+        return text
+
+    given = " ".join(
+        encoded(f"https:%2F%2Fu{depth}:SECRET{depth}@h{depth}/x", depth)
+        for depth in range(PURL_DECODE_ROUNDS)
+    )
+    assert given.count("%25") > PURL_DECODE_ROUNDS  # nested, not one depth
+    shown = masked_given_path(given)
+    assert "SECRET" not in shown and "%" not in shown
+    assert shown == " ".join(
+        f"https://***:***@h{depth}/x" for depth in range(PURL_DECODE_ROUNDS)
+    )
+    assert masked_given_path(shown) == shown

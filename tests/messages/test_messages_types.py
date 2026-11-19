@@ -52,10 +52,10 @@ def test_every_entry_is_keyed_by_its_own_code() -> None:
     )
 
 
-def test_the_vocabulary_is_closed_at_24_cause_words() -> None:
+def test_the_vocabulary_is_closed_at_25_cause_words() -> None:
     """Causes only: a response (``skipped``), a kind of message
     (``summary``), a domain (``licence``) or a merged synonym is not one."""
-    assert len(CONDITIONS) == 24
+    assert len(CONDITIONS) == 25
     assert {m.condition for m in MESSAGES.values()} <= CONDITIONS
     assert {
         "ambiguous",
@@ -65,6 +65,7 @@ def test_the_vocabulary_is_closed_at_24_cause_words() -> None:
         "not-recordable",
         "timeout",
         "unsafe",
+        "unwritable",
         "wrong-format",
     } <= CONDITIONS
     assert CONDITIONS.isdisjoint(

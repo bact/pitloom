@@ -18,12 +18,12 @@ from __future__ import annotations
 
 from typing import Final
 
-from pitloom.messages._types import Line, Message
+from pitloom.messages._types import ASK_FIRST, Line, Message
 
 #: The release that first prints ``input-not-found/fragment``, and the lines
 #: of ``input-not-found`` after its first four (a model file, a Git URL's
 #: file or folder), which print since 0.23.4.
-_SINCE: Final = "0.24.1"
+_SINCE: Final = "0.25.0"
 
 #: A model file named on its own (a path, or a file of a folder) that does
 #: not exist.
@@ -61,6 +61,13 @@ INPUT_NOT_DIR_LINE: Final = Line(
 NO_WHEEL_MATCH_LINE: Final = Line(
     level="ERROR", template="no wheel file matches %(path)s"
 )
+#: A wheel pattern nested too deeply for the standard library's ``glob`` to
+#: expand (its recursion limit).
+WHEEL_PATTERN_TOO_DEEP_LINE: Final = Line(
+    level="ERROR",
+    template="no wheel file matches %(path)s: the pattern nests too deeply "
+    "to expand; name each wheel file without a pattern",
+)
 #: A fragments directory that holds no JSON file.
 NO_FRAGMENT_FILE_LINE: Final = Line(
     level="ERROR", template="no JSON fragment file in %(path)s"
@@ -84,33 +91,40 @@ INPUT_NOT_FOUND: Final = Message(
         INPUT_NOT_FILE_LINE,
         INPUT_NOT_DIR_LINE,
         NO_WHEEL_MATCH_LINE,
+        WHEEL_PATTERN_TOO_DEEP_LINE,
         NO_FRAGMENT_FILE_LINE,
         NO_ID_PATHS_LINE,
+        # Said again when a run re-reads its ID registry file to save.
+        Line(level="WARNING", template=INPUT_LINE.template),
+        Line(level="WARNING", template=INPUT_NOT_FILE_LINE.template),
     ),
     summary="A path named for Pitloom to read does not exist: a model file, "
-    "wheel, sdist, project directory, configuration, ID registry or SBOM file "
-    "on disk "
+    "wheel, sdist, project directory, configuration, ID registry or SBOM file, "
+    "or a PATH given to 'loom id generate' to index, on disk "
     "(or something else is there: the line says it is not a file, or not a "
     "directory), the file or folder a Git URL names in the repository at its "
     "branch (a symbolic link there is not followed, so it counts as absent: "
     "its line says it is a link), or a pattern or directory that holds "
-    "nothing of what was asked for. The lines for a model file and for a Git "
+    "nothing of what was asked for (or a wheel pattern nested too deeply to "
+    "expand: its line says so). The lines for a model file and for a Git "
     f"URL's file or folder print since 0.23.4, the others since {_SINCE}.",
     did="Wrote nothing: no SBOM is written; for 'loom id', the ID registry "
     "is not written; for 'loom embed-wheel', no wheel is changed; a check "
     "('loom fragment validate', 'loom verify-wheel', 'loom validate-wheel') "
     "checks nothing. The command exits 1 (the Action step fails), the build "
     "hook fails the build, and the library raises FileNotFoundError carrying "
-    "the code, ValueError for a fragments directory that holds no JSON file, "
+    "the code (IdRegistry.generate for a path to index that is not there), "
+    "ValueError for a fragments directory that holds no JSON file, "
     "or RemoteSourceError (code git.path-not-found) for a Git URL's file or "
-    "folder.",
+    "folder. As a WARNING, an ID registry file was gone (or no longer a "
+    "file) when a run whose SBOM is already built read it again to save "
+    "the ids it added: nothing is saved and the SBOM stands.",
     effect="not-written",
     actor="user",
     advice="Tell the user which path was not found, as the line names it "
     "(for a Git URL, a path in the repository). They check the path, or the "
     "URL's branch and path, and run again. Do not guess another path or "
-    "branch and run for them; ask first, and with nobody to ask, report it "
-    "only.",
+    f"branch and run for them; {ASK_FIRST}",
     since="0.23.4",
 )
 
@@ -140,8 +154,7 @@ INPUT_NOT_FOUND_FRAGMENT: Final = Message(
     advice="Tell the user which fragment was not found, as the line names it. "
     "They create it (run the enrichment that writes it), fix its path in the "
     "configuration, or remove the entry, and run again. Do not edit the "
-    "configuration for them; ask first, and with nobody to ask, report it "
-    "only.",
+    f"configuration for them; {ASK_FIRST}",
     since=_SINCE,
 )
 

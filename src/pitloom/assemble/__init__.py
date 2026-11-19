@@ -55,6 +55,7 @@ from pitloom.core.config_cascade import (
     require_model_extract_override,
 )
 from pitloom.core.creation import CreationMetadata
+from pitloom.core.credential_policy import CredentialPolicy
 from pitloom.core.inert_options import (
     ENV,
     GIT,
@@ -263,6 +264,7 @@ def generate(
     project_dir: Path | str | None = None,
     check_url: Callable[[str], None] | None = None,
     max_download_bytes: int | None = None,
+    credentials: CredentialPolicy | None = None,
 ) -> str:
     """Smart unified entrypoint for generating SPDX 3 SBOMs across all target types.
 
@@ -309,6 +311,9 @@ def generate(
     A local directory with no project config is read for its one model
     file; one with no model file either is refused
     (``project-or-model-not-found``).
+
+    *credentials* (:class:`~pitloom.core.credential_policy.CredentialPolicy`)
+    adds to the URL credentials *pitloom_config* accepts, for every target.
     """
     # Before the no-effect warnings below, which precede any delegate's own
     # configure_logging() call.
@@ -348,6 +353,7 @@ def generate(
         "use_lockfile": use_lockfile,
         "project_dir": project_dir,
         "max_download_bytes": max_download_bytes,
+        "credentials": credentials,
     }
     # Each delegate gets what it accepts; an option it does not accept is
     # settled here, once, with the target kind's reason.

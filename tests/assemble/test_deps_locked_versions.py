@@ -33,6 +33,7 @@ from pitloom.core.document import DocumentModel
 from pitloom.core.models import _clear_doc_counters, compute_doc_uuid
 from pitloom.core.project import ProjectMetadata
 from pitloom.export.spdx3_json import Spdx3JsonExporter
+from tests.extract.lock.lock_lines_shared import said, said_once
 
 from .conftest import _make_ci
 
@@ -129,7 +130,7 @@ def test_extract_locked_version_map_warns_on_conflicting_duplicates(
     caplog.set_level("WARNING")
     locked_map = _extract_locked_version_map(["requests==2.31.0", "requests==2.28.0"])
     assert "requests" not in locked_map
-    assert "pinned to conflicting versions" in caplog.text
+    said(caplog, "lock-entry-conflict", "PACKAGE=requests", "'2.28.0'", "'2.31.0'")
 
 
 def test_locked_transitive_only_dependencies_excludes_conflicting_duplicates(
@@ -144,7 +145,7 @@ def test_locked_transitive_only_dependencies_excludes_conflicting_duplicates(
         locked_dependencies=["bar==1.0", "bar==2.0", "requests==2.31.0"],
     )
     assert _locked_transitive_only_dependencies(meta) == []
-    assert "pinned to conflicting versions" in caplog.text
+    said(caplog, "lock-entry-conflict", "PACKAGE=bar", "'1.0'", "'2.0'")
 
 
 def test_locked_transitive_only_dependencies_keeps_unpinned_entries() -> None:
@@ -188,8 +189,8 @@ def test_build_warns_conflicting_locked_duplicates_only_once(
     """build() shares one _dedup_and_locked_versions() result between
     _locked_transitive_only_dependencies() and its own locked-version-map
     unpacking instead of each recomputing it -- a genuine conflict must log
-    'pinned to conflicting versions' exactly once per document, not once
-    per caller."""
+    ``lock-entry-conflict`` exactly once per document, not once per
+    caller."""
     project = ProjectMetadata(
         name="main-project",
         version="1.0.0",
@@ -204,7 +205,7 @@ def test_build_warns_conflicting_locked_duplicates_only_once(
     caplog.set_level("WARNING")
     build(doc, offline=True)
 
-    assert caplog.text.count("pinned to conflicting versions") == 1
+    said_once(caplog, "lock-entry-conflict", "PACKAGE=bar")
 
 
 def test_locked_transitive_only_dependencies_handles_none_locked() -> None:

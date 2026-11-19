@@ -45,9 +45,10 @@ from pitloom.messages._input_not_found import (
 from pitloom.messages._types import Line
 
 #: The kinds of :data:`~pitloom.messages._field_tables.INPUT_KINDS` that name a
-#: directory; ``project path`` names either, so none is expected of it.
+#: directory; ``project path`` and ``PATH`` (a ``loom id generate`` PATH)
+#: name either, so none is expected of them.
 _DIRECTORY_KINDS: Final = frozenset({"fragments directory", "project directory"})
-_EITHER_KINDS: Final = frozenset({"project path"})
+_EITHER_KINDS: Final = frozenset({"PATH", "project path"})
 #: The line said when something of the wrong kind is at the path, by kind.
 _WRONG_KIND_LINES: Final[Mapping[str, Line]] = MappingProxyType(
     {

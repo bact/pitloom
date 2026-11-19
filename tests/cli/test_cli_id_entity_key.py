@@ -289,13 +289,15 @@ _NO_VERSION = "stored without a version: holds only a package that states none"
     ("spec", "key", "info"),
     [
         ("requests", "requests", _NO_VERSION),
+        ("Requests", "requests", _NO_VERSION),
         ("Requests@2.31.0", "requests@2.31", "stored as requests@2.31"),
         ("foo@2.0.0", "foo@2", "stored as foo@2"),
         ("foo@2", "foo@2", None),
         ("foo@1.0+CU-121", "foo@1+cu.121", "stored as foo@1+cu.121"),
         ("foo@NOASSERTION", "foo", _NO_VERSION),
     ],
-    ids=["bare", "versioned", "trailing-zeros", "canonical", "local"] + ["placeholder"],
+    ids=["bare", "bare-case", "versioned", "trailing-zeros", "canonical", "local"]
+    + ["placeholder"],
 )
 def test_entity_package_key(
     tmp_path: Path,
@@ -362,4 +364,5 @@ def test_entity_entry_keeps_an_unlisted_type_as_given(tmp_path: Path) -> None:
     assert entity_entry(registry, tmp_path, "software_Snippet", "m", 1024) == (
         "m",
         None,
+        False,
     )

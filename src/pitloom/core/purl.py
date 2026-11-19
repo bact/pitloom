@@ -10,7 +10,9 @@
 ``download_url`` qualifier. The PyPI form is
 :func:`pitloom.core.models.build_pypi_purl`.
 
-See also: https://github.com/package-url/purl-spec (type definitions).
+See also: https://github.com/package-url/purl-spec (type definitions) and
+:mod:`pitloom.export._spdx3_credentials` (the refusal of an SBOM whose PURL
+qualifier holds a credential).
 """
 
 from __future__ import annotations
@@ -18,9 +20,15 @@ from __future__ import annotations
 import re
 from urllib.parse import quote
 
-__all__ = ["build_generic_purl", "build_huggingface_purl", "commit_hash"]
+__all__ = [
+    "build_generic_purl",
+    "build_huggingface_purl",
+    "commit_hash",
+]
 
 _GIT_SHA = re.compile(r"[0-9a-fA-F]{40}")
+#: The ``safe`` characters of a qualifier value written as a URL.
+_URL_SAFE = "/:"
 
 
 def commit_hash(revision: object) -> str | None:
@@ -59,7 +67,11 @@ def build_generic_purl(
     """Return ``pkg:generic/<name>[@<version>][?checksum=..&download_url=..]``.
 
     *checksum* is ``<algorithm>:<hex>``. Qualifiers are in key order, as the
-    PURL specification canonicalises them.
+    PURL specification canonicalises them. *download_url* goes in as given,
+    encoded: a credential in it is warned of, or refused, when the SBOM
+    is written
+    (:func:`pitloom.export._spdx3_credentials.check_graph_credentials`
+    reads a qualifier at each decode depth), never rewritten here.
     """
     purl = f"pkg:generic/{_encode(name)}"
     if version:
@@ -68,7 +80,7 @@ def build_generic_purl(
         f"{key}={_encode(value, safe=safe)}"
         for key, value, safe in (
             ("checksum", checksum, ":"),
-            ("download_url", download_url, "/:"),
+            ("download_url", download_url, _URL_SAFE),
         )
         if value
     ]

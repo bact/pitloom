@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-21
-Last-Modified: 2026-11-13
+Last-Modified: 2026-11-15
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -35,6 +35,25 @@ URL is read by the host's conventions. Rules to state to the user:
   hooks) is not run either: one `WARNING: FILE=<file>: build-time code of the
   downloaded repository is not run; <settings> ignored
   [config-unsafe/build-code]`, and the file list may miss what that code adds.
+- Credentials in the URL (`https://user:token@host/...`) are taken out of
+  `git`'s command line and handed to it by a helper of Pitloom's, for that
+  host alone; for such a URL the user's own credential helpers (keychain, Git
+  Credential Manager, `gh`, `~/.git-credentials`) are neither asked nor told
+  (nothing is stored). A URL without credentials uses the user's own helpers
+  or `.netrc`, as `git clone` does: recommend that over a token in the URL,
+  which stays in their shell history. A plain `http://` URL with credentials
+  is fetched, with `WARNING: URL=<url>: credentials are sent in clear over
+  http; use https [credentials-unsafe/http-clear]`: tell them to use the
+  `https://` address and treat the credential as exposed. Credentials
+  holding a line break are not sent (`WARNING: URL=<url>: credentials
+  holding a line break are not sent to git
+  [credentials-unsafe/git-line-break]`; a private repository then fails). A
+  URL whose user information git would read differently (an empty host
+  after the `@`, for one) is refused before git runs: `ERROR: loom
+  project: URL='https://***:***@/o/r': user information cannot be taken out
+  of the git command line; not fetched [credentials-unsafe/git-userinfo]`; a
+  malformed host or port is refused as `Invalid URL: ...`
+  (`git.url-invalid`). Never put a credential into a URL for the user.
 - `--offline` is an error, not a fallback, for `loom project`, `loom model`
   and `loom generate` (`ERROR: loom <command>: URL=<url>: network
   access is forbidden (offline mode); nothing fetched [offline-unusable]`,

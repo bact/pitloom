@@ -17,7 +17,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from pitloom._toml_io import load_toml_file
+from pitloom.core._project_toml import load_project_toml
 from pitloom.core.config import (
     PYPROJECT_SOURCE,
     PitloomConfig,
@@ -40,7 +40,12 @@ from pitloom.extract.project.installed import (
 from pitloom.extract.project.pyproject import read_pyproject
 from pitloom.extract.project.sdist import read_sdist
 from pitloom.extract.project.setuptools import read_setuptools
-from pitloom.messages import CodedFileNotFoundError
+from pitloom.messages import CodedFileNotFoundError, emit
+from pitloom.messages.metadata import (
+    METADATA_INVALID,
+    METADATA_USE,
+    PROJECT_NO_NAME_LINE,
+)
 from pitloom.messages.targets import (
     PROJECT_NOT_FOUND,
     PROJECT_NOT_FOUND_LINE,
@@ -49,6 +54,28 @@ from pitloom.messages.targets import (
 )
 
 log = logging.getLogger(__name__)
+
+
+def _say_fallback(pyproject_path: Path, has_project: bool) -> None:
+    """Say why *pyproject_path* gave no metadata and setup.cfg/setup.py are
+    read instead. A ``[project]`` table (*has_project*) with no usable name
+    is a refusal of PEP 621, a ``WARNING:``; none at all (a legacy layout
+    declaring only ``[build-system]``) is the normal case for a setuptools
+    project: absent data, said at ``DEBUG`` only."""
+    if has_project:
+        emit(
+            log,
+            METADATA_INVALID,
+            logging.WARNING,
+            line=PROJECT_NO_NAME_LINE,
+            file=pyproject_path,
+        )
+    else:
+        log.debug(
+            "%s has no [project] table and no [tool.poetry] fallback; "
+            "reading setup.cfg/setup.py instead",
+            quote_source(pyproject_path),
+        )
 
 
 # pylint: disable-next=too-many-arguments,too-many-positional-arguments
@@ -72,13 +99,9 @@ def _fallback_to_setuptools(
     already treats as "no static pyproject.toml config" (see
     ``has_resolvable_pyproject_config()``).
     """
+    data = load_project_toml(pyproject_path, kind="pyproject.toml", use=METADATA_USE)
     if not quiet:
-        log.warning(
-            "%s has no usable [project] table and no [tool.poetry] "
-            "fallback -- falling back to setup.cfg/setup.py metadata "
-            "instead of an empty pyproject.toml-only result",
-            quote_source(pyproject_path),
-        )
+        _say_fallback(pyproject_path, "project" in data)
     # read_pyproject() may already have resolved locked_dependencies from
     # poetry.lock (the unparseable-[tool.poetry] path that leads here).
     # merge_project_metadata() carries that result over to the setuptools
@@ -87,9 +110,7 @@ def _fallback_to_setuptools(
     pre_setuptools_metadata = metadata
     # Decide first: setup.cfg's [tool:pitloom] is parsed only when it is the
     # one that applies, as for an sdist -- an unused one cannot fail the run.
-    pyproject_applies = read_config and pyproject_config_applies(
-        load_toml_file(pyproject_path)
-    )
+    pyproject_applies = read_config and pyproject_config_applies(data)
     metadata, setuptools_pitloom_config = read_setuptools(
         project_path, quiet=quiet, read_config=read_config and not pyproject_applies
     )
@@ -250,9 +271,7 @@ def _apply_installed_metadata(
         return metadata
     source_label = provenance_source(candidate.label, file=candidate.marker_path.name)
     installed = _parse_installed_metadata(candidate.message, source_label)
-    return reconcile_installed_metadata(
-        metadata, installed, candidate.label, project_path, quiet=quiet
-    )
+    return reconcile_installed_metadata(metadata, installed, project_path, quiet=quiet)
 
 
 def resolve_project_with_lockfile(

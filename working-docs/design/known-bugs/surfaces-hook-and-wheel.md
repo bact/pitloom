@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-02
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-16
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -65,8 +65,10 @@ entries come first; fixed entries stay in the last section for history.
 Seen in past sessions, not reproduced on current `main`:
 
 - On Windows, `os.replace()` fails while another process holds the
-  target open; the registry save should turn that into its existing
-  "failed to save" `WARNING:`.
+  target open; the registry save should turn that into one `WARNING:
+  FILE=<registry>: could not write for the ID registry; <reason>
+  [file-unwritable]` (an `ERROR:` for `loom id`), as any refused write is
+  since catalogue PR 7; not yet run on Windows.
 - Windows: `METADATA.` and `METADATA::$DATA` map onto `METADATA`; case
   variants of `.dist-info` names overwrite each other on macOS and
   Windows.

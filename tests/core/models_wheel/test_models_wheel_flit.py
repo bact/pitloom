@@ -124,7 +124,7 @@ def test_discover_external_data_never_executes_project_code(
     assert not marker.exists(), "discover() imported (executed) the project's module"
     assert result is not None
     assert {f.distribution_path for f in result} == {"evilpkg/__init__.py"}
-    assert "could not resolve a static version" in caplog.text
+    assert "no static version for [tool.flit.external-data]" in caplog.text
 
 
 def test_discover_returns_none_and_warns_on_non_flit_project(

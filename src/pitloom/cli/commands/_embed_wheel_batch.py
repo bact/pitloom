@@ -31,6 +31,7 @@ from pitloom.cli.options_config import (
 )
 from pitloom.core.config import PitloomConfig
 from pitloom.core.creation import CreationMetadata
+from pitloom.core.credential_policy import CredentialPolicy
 from pitloom.core.inert_options import (
     EMBED_PROJECT,
     EMBED_SBOM,
@@ -204,10 +205,16 @@ def resolve_batch_id_registry(
     never resolves a registry."""
     if args.sbom is not None:
         return None
+    # pitloom_config is the explicit --config or the project's own config,
+    # so its url-credentials sets the registry's mode with the flags.
+    policy = (pitloom_config or PitloomConfig()).credential_policy.union(
+        options["credentials"] or CredentialPolicy()
+    )
     return resolve_registry(
         options["id_registry"],
         pitloom_config.id_registry if pitloom_config is not None else None,
         registry_base_dir(project_dir) if project_dir is not None else Path.cwd(),
+        refuse_credentials=policy.refuse,
     )
 
 

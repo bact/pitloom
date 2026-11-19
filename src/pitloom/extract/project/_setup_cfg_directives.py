@@ -24,12 +24,13 @@ from pitloom.core.path_probe import is_missing_errno
 from pitloom.core.project import project_relative_or_fallback
 from pitloom.core.provenance import provenance_segment, provenance_source
 from pitloom.extract._license_detect import decode_text
-from pitloom.logging_config import loggable, warn_once
+from pitloom.messages import emit
 from pitloom.messages.files import (
     Cap,
     warn_file_unreadable,
     warn_over_cap,
 )
+from pitloom.messages.metadata import METADATA_MALFORMED, NESTED_LINE
 
 log = logging.getLogger(__name__)
 
@@ -291,15 +292,16 @@ def _assigned_string(line: str, attr_name: str, name: str, what: str) -> str | N
         tree = ast.parse(line)
     except (SyntaxError, ValueError):  # ValueError: a NUL, before 3.12
         return None
-    except (RecursionError, MemoryError) as exc:
-        warn_once(
+    except (RecursionError, MemoryError):
+        emit(
             log,
-            f"attr-line:{name}\x00{what}",
-            "FILE=%s: %s parsing the %s line; skipped for %s",
-            loggable(name),
-            type(exc).__name__,
-            loggable(attr_name),
-            what,
+            METADATA_MALFORMED,
+            logging.WARNING,
+            line=NESTED_LINE,
+            once=f"attr-line:{name}\x00{what}",
+            file=name,
+            name=attr_name,
+            field=what,
         )
         return None
     for node in ast.walk(tree):

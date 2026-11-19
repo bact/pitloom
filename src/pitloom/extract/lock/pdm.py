@@ -121,14 +121,12 @@ def extract_pdm_lock_dependencies(project_dir: Path) -> list[str] | None:
     if data is None:
         return None
     if not has_required_top_level_table(data, "metadata", "lock_version", str):
-        warn_not_genuine_lock_file(lock_path, "metadata", "lock_version", "pdm.lock")
+        warn_not_genuine_lock_file(lock_path, "metadata.lock_version")
         return None
 
     packages = data.get("package", [])
     if not isinstance(packages, list):
-        warn_top_level_key_wrong_type(
-            lock_path, "package", packages, "a list", "pdm.lock"
-        )
+        warn_top_level_key_wrong_type(lock_path, "package", packages, "list")
         return None
 
     default_group_packages = [

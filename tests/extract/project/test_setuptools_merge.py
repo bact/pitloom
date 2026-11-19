@@ -20,6 +20,7 @@ import pytest
 
 from pitloom.core.project import ProjectMetadata
 from pitloom.extract.project.setuptools import read_setuptools
+from tests._code_records import coded
 
 _PY = "Source: setup.py"
 _CFG = "Source: setup.cfg"
@@ -377,13 +378,19 @@ def test_a_setup_py_value_setuptools_would_take_or_reject(
 
 
 @pytest.mark.parametrize(
-    "content",
+    ("content", "message"),
     [
-        b"[metadata]\nname = c\n[metadata]\n",
-        b"name = c\n",
-        b"[metadata]\nname = c\ndescription = 100% pure\n",
-        b"[metadata]\nname = \xe9\n",
-        b"[metadata]\nname = c\n[tool:pitloom]\npretty = 100% x\n",
+        (b"[metadata]\nname = c\n[metadata]\n", "not valid INI; "),
+        (b"name = c\n", "not valid INI; "),
+        (
+            b"[metadata]\nname = c\ndescription = 100% pure\n",
+            "not valid INI interpolation; ",
+        ),
+        (b"[metadata]\nname = \xe9\n", "could not read for the project metadata; "),
+        (
+            b"[metadata]\nname = c\n[tool:pitloom]\npretty = 100% x\n",
+            "not valid INI interpolation; ",
+        ),
     ],
     ids=[
         "duplicate-section",
@@ -394,13 +401,14 @@ def test_a_setup_py_value_setuptools_would_take_or_reject(
     ],
 )
 def test_an_unreadable_setup_cfg_is_one_error_line(
-    content: bytes, tmp_path: Path
+    content: bytes, message: str, tmp_path: Path
 ) -> None:
     """Never skipped, never a multi-line ``ERROR:``; with a ``setup.py`` too."""
     write_project(tmp_path, None, "name='p'")
     (tmp_path / "setup.cfg").write_bytes(content)
-    with pytest.raises(ValueError, match="^Could not parse setup.cfg: ") as caught:
+    with pytest.raises(ValueError) as caught:
         read_setuptools(tmp_path)
+    assert str(caught.value).startswith(f"FILE={tmp_path / 'setup.cfg'}: {message}")
     assert "\n" not in str(caught.value)
 
 
@@ -410,21 +418,22 @@ def test_an_unreadable_setup_cfg_is_one_error_line(
     ids=["syntax", "null-byte", "not-utf8"],
 )
 @pytest.mark.parametrize("cfg_named", [True, False], ids=["cfg", "no-cfg"])
-def test_an_unparseable_setup_py_warns_only_beside_a_named_setup_cfg(
+def test_an_unparseable_setup_py_warns_beside_any_setup_cfg(
     source: bytes, cfg_named: bool, tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
+    """One WARNING says why ``setup.py`` is not read, whether or not
+    ``setup.cfg`` names the project; when it does not, the error that
+    follows says only that no name is found."""
     write_project(tmp_path, _NAMED if cfg_named else "[metadata]\n", None)
     (tmp_path / "setup.py").write_bytes(source)
     caplog.set_level(logging.WARNING)
-    if not cfg_named:  # the cause is named in the one error
-        with pytest.raises(FileNotFoundError, match="Could not parse setup.py"):
+    if not cfg_named:
+        with pytest.raises(FileNotFoundError, match="no project name in setup.cfg"):
             read_setuptools(tmp_path)
-        assert not caplog.records
-        return
-    assert read_setuptools(tmp_path)[0].name == "c"
+    else:
+        assert read_setuptools(tmp_path)[0].name == "c"
     (record,) = caplog.records
-    assert "Could not parse setup.py" in record.getMessage()
-    assert "reading setup.cfg alone" in record.getMessage()
+    assert record.getMessage().startswith(f"FILE={tmp_path / 'setup.py'}: not valid ")
 
 
 def test_quiet_silences_every_setuptools_warning(
@@ -484,10 +493,26 @@ def test_an_unused_pitloom_section_cannot_fail_the_read(
     metadata, config = read_setuptools(tmp_path, read_config=read_config)
     assert metadata.name in {"p", "c"}
     assert not config.creators
-    # an unnamed setup.cfg with an unparseable setup.py: one error, no WARNING
+    # an unnamed setup.cfg with an unparseable setup.py: the one WARNING that
+    # says why setup.py is not read, then the error that no name is found
     (tmp_path / "setup.py").write_bytes(b"setup(\n")
     caplog.set_level(logging.WARNING)
     if read_config:
         with pytest.raises(FileNotFoundError):
             read_setuptools(tmp_path)
-        assert not caplog.records
+        assert len(caplog.records) == 1
+
+
+@pytest.mark.parametrize("quiet", [False, True], ids=["warns", "quiet"])
+def test_an_invalid_requirement_under_a_marker_key_obeys_quiet(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture, quiet: bool
+) -> None:
+    (tmp_path / "setup.py").write_bytes(
+        b"from setuptools import setup\n"
+        b"setup(name='c', version='1.0', "
+        b"extras_require={'x:os_name == \"nt\"': ['not valid >=']})\n"
+    )
+    caplog.set_level(logging.WARNING)
+    read_setuptools(tmp_path, quiet=quiet)
+    found = [m for c, m in coded(caplog) if c == "requirement-invalid"]
+    assert len(found) == (0 if quiet else 1)

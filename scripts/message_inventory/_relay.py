@@ -18,7 +18,14 @@ shape of the code around the call, never by a variable's name.
   ``print_error``: argparse wrote it, as a reader's exception is the detail
   of the line a wrapper says.
 
-Either holds only where the call is in the binder's own body (not in a
+- ``prefixed``: a foreign tool's own words after Pitloom's sub-prefix (the
+  ``licenseid: `` relay). The template is a module constant bound to a
+  string once in the module, then ``"%s"``; its one argument is
+  ``one_line(<param>)`` of a parameter of the function saying it, with
+  ``one_line`` imported from ``pitloom.logging_config``; no keyword
+  argument. The text is the tool's, the prefix only says whose.
+
+Any of them holds only where the call is in the binder's own body (not in a
 nested function, lambda, class or comprehension) and nothing in that body
 binds the name again (an assignment, ``del``, a parameter, an inner
 ``except ... as``, a loop or ``with`` target, an import, a ``match``
@@ -36,10 +43,18 @@ from typing import TYPE_CHECKING
 from ._astutil import callee_name, unparse
 
 if TYPE_CHECKING:
+    from typing import TypeAlias
+
     from ._index import Module
+
+    #: A function a prefixed relay is said in.
+    _Function: TypeAlias = ast.FunctionDef | ast.AsyncFunctionDef
 
 EXCEPTION = "exception"
 ARGPARSE = "argparse"
+PREFIXED = "prefixed"
+#: Where the one-line writer of a prefixed relay's text comes from.
+_ONE_LINE = ("pitloom.logging_config", "one_line")
 #: The ``except`` classes that catch whatever a command raised.
 _CATCH_ALL = frozenset({"Exception", "BaseException"})
 _PARSER_BASES = frozenset({"argparse.ArgumentParser", "ArgumentParser"})
@@ -204,19 +219,70 @@ def _parser_error_param(mod: Module, func: ast.AST | None, cls: str | None) -> s
     return func.args.args[1].arg
 
 
+def _is_prefix_constant(mod: Module, node: ast.expr) -> bool:
+    """*node* is a name *mod* binds once, at module level, to a string."""
+    if not isinstance(node, ast.Name) or _module_bindings(mod, node.id) != 1:
+        return False
+    value = mod.assigns.get(node.id)
+    return isinstance(value, ast.Constant) and isinstance(value.value, str)
+
+
+def _one_line_param(mod: Module, func: _Function, node: ast.expr) -> str:
+    """The parameter of *func* that *node* writes as ``one_line(<param>)``,
+    with ``one_line`` imported from ``pitloom.logging_config`` and bound by
+    nothing else in *mod*; else ``""``."""
+    if not (
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and mod.imports.get(node.func.id) == _ONE_LINE
+        and _module_bindings(mod, node.func.id) == 1
+        and len(node.args) == 1
+        and not node.keywords
+        and isinstance(node.args[0], ast.Name)
+    ):
+        return ""
+    name = node.args[0].id
+    params = (*func.args.posonlyargs, *func.args.args, *func.args.kwonlyargs)
+    return name if name in {a.arg for a in params} else ""
+
+
+def _is_prefixed(
+    mod: Module, func: ast.AST | None, call: ast.Call, text: ast.expr
+) -> bool:
+    """*call*, said by *func*'s own body, says ``<PREFIX> + "%s"`` with
+    ``one_line(<param>)`` as its one argument, no keyword (``PREFIXED``)."""
+    if (
+        not isinstance(func, (ast.FunctionDef, ast.AsyncFunctionDef))
+        or call.keywords
+        or not any(arg is text for arg in call.args)
+    ):
+        return False
+    if not (
+        isinstance(text, ast.BinOp)
+        and isinstance(text.op, ast.Add)
+        and _is_prefix_constant(mod, text.left)
+        and isinstance(text.right, ast.Constant)
+        and text.right.value == "%s"
+    ):
+        return False
+    args = call.args[[id(arg) for arg in call.args].index(id(text)) + 1 :]
+    param = _one_line_param(mod, func, args[0]) if len(args) == 1 else ""
+    return bool(param) and _says_only(func.body, call, param)
+
+
 def relay_kind(
     mod: Module,
     site: tuple[str, ast.Call | None, ast.expr | None],
     func: ast.AST | None,
     cls: str | None,
 ) -> str | None:
-    """``EXCEPTION``, ``ARGPARSE`` or ``None`` for the site *site*
+    """``EXCEPTION``, ``ARGPARSE``, ``PREFIXED`` or ``None`` for the site *site*
     (emitter, call, text argument) in *func* of class *cls*."""
     emitter, call, text = site
-    if text is None:
+    if text is None or call is None:
         return None
-    if emitter != "print_error" or call is None:
-        return None
+    if emitter != "print_error":
+        return PREFIXED if _is_prefixed(mod, func, call, text) else None
     param = _parser_error_param(mod, func, cls)
     if (
         param

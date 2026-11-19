@@ -23,13 +23,13 @@ import pytest
 
 from pitloom import __main__
 from pitloom.assemble import generate_project_sbom
-from pitloom.core.quote_source import quote_source
 from pitloom.extract.project.setup_cfg_interpolation import read_uninterpolated
 from pitloom.extract.project.setuptools_cfg import (
     read_setup_cfg,
     read_setup_cfg_options,
     setup_cfg_pitloom_config,
 )
+from pitloom.messages import code_of
 
 _BASE = "[metadata]\nname = demo\nversion = 1\n"
 
@@ -127,7 +127,7 @@ def test_a_bad_percent_fails_as_setuptools_does_naming_section_and_key(
         read_setup_cfg(tmp_path)
     message = str(caught.value)
     assert message.startswith(
-        f"Could not parse setup.cfg: {quote_source(setup_cfg)} {where}: "
+        f"FILE={setup_cfg}: not valid INI interpolation; {where}: "
     )
     assert reason in message
     # '%%' mends a stray '%', not a missing key or a reference cycle
@@ -173,7 +173,7 @@ def test_a_duplicate_key_is_a_parse_error_not_a_percent_one(tmp_path: Path) -> N
     """``configparser`` is strict, as for setuptools: the read fails before
     any value is interpolated, so the ``%%`` hint would mislead."""
     setup_cfg = _write(tmp_path, "description = a\ndescription = 50% b")
-    with pytest.raises(ValueError, match="^Could not parse setup.cfg: ") as caught:
+    with pytest.raises(ValueError, match="^FILE=.*: not valid INI; ") as caught:
         read_setup_cfg(tmp_path)
     assert "'description'" in str(caught.value)
     assert "%%" not in str(caught.value)
@@ -192,8 +192,12 @@ def test_sdist_member_text_names_section_and_key() -> None:
     """The sdist route (``setup.cfg`` text) words it the same, unprefixed:
     the caller names the archive member."""
     text = _BASE + "[tool:pitloom]\npretty = 100% x\n"
-    with pytest.raises(ValueError, match=r"^\[tool:pitloom\] pretty: '%' must "):
+    with pytest.raises(
+        ValueError,
+        match=r"^not valid INI interpolation; \[tool:pitloom\] pretty: '%' must ",
+    ) as caught:
         setup_cfg_pitloom_config(text)
+    assert code_of(caught.value) == "config-malformed"
 
 
 @pytest.mark.parametrize("command", ["project", "generate"])
@@ -257,3 +261,19 @@ def test_read_uninterpolated_gives_the_file_or_none(
     if cfg is not None:
         assert cfg.get("a", "k") == "50%"
     assert read_uninterpolated(tmp_path / "missing.cfg") is not None  # reads empty
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "[metadata]\nname = a\nname = b\n",
+        "[metadata]\nname = demo\n[tool:pitloom]\nid-registry = 100%\n",
+    ],
+    ids=["duplicate-option", "bad-percent"],
+)
+def test_a_malformed_setup_cfg_text_is_one_coded_error(text: str) -> None:
+    with pytest.raises(ValueError) as caught:
+        setup_cfg_pitloom_config(text, "setup.cfg")
+    assert code_of(caught.value) == "config-malformed"
+    assert str(caught.value).startswith("FILE=setup.cfg: not valid INI")
+    assert caught.value.__suppress_context__ and caught.value.__cause__ is None

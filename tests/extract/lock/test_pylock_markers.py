@@ -21,6 +21,7 @@ from pathlib import Path
 import pytest
 
 from pitloom.extract.lock.pylock import extract_pylock_dependencies
+from tests.extract.lock.lock_lines_shared import said
 
 _LOCK_VERSION = 'lock-version = "1.0"\ncreated-by = "test"\n'
 
@@ -161,7 +162,7 @@ def test_default_groups_not_a_list_warns_and_treated_as_empty(
             result = extract_pylock_dependencies(tmp_path)
 
         assert result == []
-        assert "'default-groups'" in caplog.text
+        said(caplog, "lock-file-malformed", "FILE=pylock.toml", "default-groups is str")
 
 
 def test_or_combined_group_clauses_evaluated() -> None:
@@ -233,7 +234,13 @@ def test_malformed_marker_string_included_and_warns(
             result = extract_pylock_dependencies(tmp_path)
 
         assert result == ["broken==1.0.0"]
-        assert "'marker'" in caplog.text
+        said(
+            caplog,
+            "lock-entry-malformed",
+            "PACKAGE=broken",
+            "marker 'not a valid marker ((' does not parse",
+            "kept",
+        )
 
 
 def test_default_group_canonicalized_name_matching() -> None:
@@ -274,7 +281,7 @@ def test_malformed_non_string_marker_skipped_and_warns(
             result = extract_pylock_dependencies(tmp_path)
 
         assert result == []
-        assert "'marker' is int" in caplog.text
+        said(caplog, "lock-entry-malformed", "PACKAGE=broken", "marker is int")
 
 
 def test_marker_not_in_and_not_equal_operators() -> None:

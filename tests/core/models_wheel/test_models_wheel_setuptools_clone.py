@@ -329,8 +329,9 @@ def test_a_setuptools_without_a_private_piece_fails_the_discovery(
     with caplog.at_level(logging.WARNING, logger="pitloom"):
         with reading_remote_clone(str(clone)):
             assert discover(clone) is None
-    assert f"Setuptools file discovery failed for '{clone}': setuptools has no " in (
+    assert f"DIR={clone}: Setuptools file discovery failed; setuptools has no " in (
         caplog.text
     )
     assert f".{name}()" in caplog.text
-    assert not [r for r in caplog.records if getattr(r, CODE_ATTR, None)]
+    codes = {getattr(r, CODE_ATTR, None) for r in caplog.records}
+    assert codes - {None} == {"file-discovery-unusable"}

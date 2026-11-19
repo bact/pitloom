@@ -39,6 +39,7 @@ from pitloom.extract.lock.common import (
     warn_not_genuine_lock_file,
     warn_top_level_key_wrong_type,
 )
+from pitloom.messages.lock_files import KEY_TEXT_LINE, say_lock_entry
 
 log = logging.getLogger(__name__)
 
@@ -68,14 +69,12 @@ def extract_poetry_lock_dependencies(project_dir: Path) -> list[str] | None:
     if data is None:
         return None
     if not has_required_top_level_table(data, "metadata", "lock-version", str):
-        warn_not_genuine_lock_file(lock_path, "metadata", "lock-version", "poetry.lock")
+        warn_not_genuine_lock_file(lock_path, "metadata.lock-version")
         return None
 
     packages = data.get("package", [])
     if not isinstance(packages, list):
-        warn_top_level_key_wrong_type(
-            lock_path, "package", packages, "a list", "poetry.lock"
-        )
+        warn_top_level_key_wrong_type(lock_path, "package", packages, "list")
         return None
 
     main_group_packages = [
@@ -108,11 +107,13 @@ def _is_main_group(validated: dict[str, Any], name: str) -> bool:
     if "category" in validated:
         category = validated.get("category")
         if not isinstance(category, str):
-            log.warning(
-                "Skipping malformed poetry.lock entry %r: 'category' is %s, "
-                "expected a string",
-                name,
-                type(category).__name__,
+            say_lock_entry(
+                log,
+                KEY_TEXT_LINE,
+                file="poetry.lock",
+                package=name,
+                lock_key="category",
+                value_type=category,
             )
             return False
         return category == _DEFAULT_GROUP

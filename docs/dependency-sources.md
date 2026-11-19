@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-04
-Last-Modified: 2026-10-30
+Last-Modified: 2026-11-17
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -73,7 +73,7 @@ does.
 
 Each Poetry dependency is read as poetry-core writes it: its version
 constraint (`^1.0` is `>=1.0,<2.0`), `extras` (`name[a,b]`), a `git` or
-`url` source (`name @ git+https://…@rev`) and its `markers`, `python` and
+`url` source (`name @ git+https://...@rev`) and its `markers`, `python` and
 `platform` keys as one marker. Where two or more of those keys combine,
 poetry-core simplifies the joined marker and Pitloom keeps each term: the
 same environments match. A `path` dependency is skipped with a `WARNING:`
@@ -194,8 +194,10 @@ pinned to genuinely different versions for different Python versions in
 one file; Pitloom doesn't evaluate environment markers to pick one, so
 such a dependency is simply omitted from the additional (transitive)
 list rather than added with a possibly-wrong version. Check stderr for a
-`WARNING:` naming the skipped package if a dependency you expected is
-missing.
+`WARNING:` naming the skipped package (`lock-entry-conflict`, or
+`lock-entry-malformed` or `lock-entry-unusable` for an entry that cannot be
+read) if a dependency you expected is missing; see [What Pitloom says about
+a lock file or a requirement](#what-pitloom-says-about-a-lock-file-or-a-requirement).
 
 ## Version comparison: PEP 440, not SemVer
 
@@ -216,9 +218,9 @@ two places:
 - **A lock file's own duplicate entries.** If one lock file records the
   same package name more than once (e.g. a platform-specific variant),
   entries that normalise to the same PEP 440 release are silently
-  collapsed into one; entries that don't get a `WARNING:` naming both
-  versions, and that package is left out of the transitive list
-  entirely rather than guessed at.
+  collapsed into one; entries that don't get a `WARNING:`
+  (`lock-entry-conflict`) naming both versions, and that package is left out
+  of the transitive list entirely rather than guessed at.
 - **A declared range vs. the lock file's resolved version.** When a
   direct dependency is unpinned or declared as a range, the lock file's
   resolved version is used (see above); when it's already pinned
@@ -235,14 +237,66 @@ A version with a number over 640 digits (`1.` followed by 5,000 nines; any
 run of digits counts, in a version, a specifier or a marker) is
 not read as a version: Python cannot convert such a number on every
 release and setting. A lock entry holding one is skipped with the lock's own
-`WARNING:` for an invalid version. A requirement holding one counts as not
-valid PEP 508 (above), with a `WARNING:` for the cap and the usual one for
-an invalid requirement (a Poetry dependency: its one skip line, which gives
-the reason); a whole `requirements.txt` with such a pin is
-ignored, with both lines. The project's own `version` or `requires-python`
+`WARNING:` for an invalid version (`lock-entry-malformed`). A requirement
+holding one counts as not valid PEP 508 (above), with a `WARNING:` for the
+cap and the usual one for an invalid requirement (`requirement-invalid`; a
+Poetry dependency: its one skip line, which gives the reason); a whole
+`requirements.txt` with such a pin is ignored, with both lines. The project's own `version` or `requires-python`
 holding one fails the run with an `ERROR:`, as any invalid value does.
 
 [pep-440]: https://peps.python.org/pep-0440/
+
+## What Pitloom says about a lock file or a requirement
+
+A lock file entry or a requirement Pitloom cannot use is said on stderr, in
+a line that ends with its `[code]`; the SBOM is still written. The clause
+after the last `;` says what Pitloom did: `skipped` leaves the pin or
+requirement out; `pin kept` keeps the pin but does not follow what the line
+names; an `extra-gate-*` line records the requirement, as required or as
+optional. Each code, its causes and what to do about it are on
+[Lock files](message-codes-lock-files.md) and
+[Dependencies](message-codes-dependencies.md). One line of each, with a value
+in place of each `<name>`:
+
+| Code | A line of it |
+| :--- | :--- |
+| `lock-entry-conflict` | `WARNING: FILE=<file> PACKAGE=<package>: pinned to several versions; skipped, dropped <dropped> [lock-entry-conflict]` |
+| `lock-entry-malformed` | `WARNING: FILE=<file> PACKAGE=<package>: referenced but not in the lock's package table; skipped [lock-entry-malformed]` |
+| `lock-entry-unusable` | `WARNING: FILE=<file> PACKAGE=<package>: a <source-kind> source, not a registry version; skipped [lock-entry-unusable]` |
+| `lock-file-conflict` | `WARNING: two lock files hold resolved dependencies; kept <kept>, dropped <dropped> [lock-file-conflict]` |
+| `lock-file-malformed` | `WARNING: FILE=<file>: does not parse: <failure>; no pins read from it [lock-file-malformed]` |
+| `lock-file-unusable` | `WARNING: FILE=<file>: no entry for the project (no editable or virtual source); no pins read from it [lock-file-unusable]` |
+| `lock-file-wrong-format` | `WARNING: FILE=<file>: <lock-key> <lock-value> is a major version Pitloom does not read (it reads <number>); no pins read from it [lock-file-wrong-format]` |
+| `requirement-invalid` | `WARNING: dependency <dependency> (<declared-in>): optional and in no extra; skipped [requirement-invalid]` |
+| `requirement-unusable` | `WARNING: dependency <dependency> (<declared-in>): a local <source-kind> source, not portable; skipped [requirement-unusable]` |
+| `extra-gate-unusable` | `WARNING: PACKAGE=<package>: the extra marker of <dependency> cannot be isolated; recorded as required [extra-gate-unusable]` |
+| `extra-gate-ambiguous` | `WARNING: dependency <dependency>: needs extras <extra> together; recorded as optional for any of them [extra-gate-ambiguous]` |
+| `dependency-name-ambiguous` | `INFO: PACKAGE=<package>: a direct reference; not looked up on PyPI [dependency-name-ambiguous]` |
+
+## What Pitloom says about the project metadata it reads
+
+Project metadata that Pitloom cannot read, or reads two ways, is said on
+stderr in a line that ends with its `[code]`. A `WARNING:` line means the
+SBOM is still written, with what Pitloom could read; the clause after the
+last `;` says what it did (`ignored`, `skipped`, `kept` and `dropped`
+name the value it used). An `ERROR:` line means no SBOM. Each code, its
+causes and what to do about it are on
+[Project metadata](message-codes-metadata.md) and
+[Dependencies](message-codes-dependencies.md). One line of each, with a
+value in place of each `<name>`:
+
+| Code | A line of it |
+| :--- | :--- |
+| `metadata-invalid` | `WARNING: FILE=<file>: [project] has no name; read setup.cfg and setup.py instead [metadata-invalid]` |
+| `metadata-malformed` | `WARNING: FILE=<file>: not valid Python; <failure> [metadata-malformed]` |
+| `project-name-missing` | `ERROR: FILE=<file>: neither [tool.poetry] nor [project] has a project name [project-name-missing]` |
+| `metadata-conflict` | `WARNING: DIR=<dir>: <field>: setup.py and setup.cfg disagree; kept setup.py's <kept>, dropped setup.cfg's <dropped> [metadata-conflict]` |
+| `metadata-no-effect` | `WARNING: FILE=<file>: [tool.poetry] <entries> not read: build-backend <backend> does not read them; ignored [metadata-no-effect]` |
+| `dynamic-field-needs-build` | `WARNING: FILE=<file>: dynamic <metadata_fields> not resolved without PKG-INFO; skipped [dynamic-field-needs-build]` |
+| `dynamic-field-unusable` | `WARNING: FILE=<file>: PDM dynamic version not resolved; <failure> [dynamic-field-unusable]` |
+| `installed-metadata-unusable` | `WARNING: DIR=<dir>: <entry> declares name <name>, not the project's; ignored [installed-metadata-unusable]` |
+| `installed-metadata-ambiguous` | `WARNING: DIR=<dir>: several installed-metadata candidates (<files>); used <entry> [installed-metadata-ambiguous]` |
+| `dependency-pin-conflict` | `WARNING: PACKAGE=<package>: lock and declared exact pin disagree; kept the declared <kept>, dropped the locked <dropped> [dependency-pin-conflict]` |
 
 ## Which commands use lock files at all
 
@@ -292,6 +346,53 @@ source's own annotation appears. See [Metadata
 provenance](metadata-provenance.md) for how to read these annotations
 in the generated SBOM.
 
+## Credentials in a URL
+
+A URL a project declares (a direct dependency, a project URL, a dataset's
+download URL and the PURL built from it) may hold a user name or password, a
+query parameter named like a secret (`token`, `key`, `signature`, `session_id`)
+or an access token. An SBOM can be published, so Pitloom says so loudly; it
+never rewrites the URL. By default (the `warn` mode) the SBOM is written as it
+is, with one `WARNING:` line per value naming the value (masked), the element
+and field that hold it and a fingerprint, and the command exits 0:
+
+```text
+WARNING: URL=foo @ https://***:***@example.org/foo-1.0.whl: holds a credential (<element> /statement/fields/declared_constraint/note, sha256:64a27d8a8c117f80); the SBOM states it as written; remove it from the source, or refuse such values with --refuse-url-credentials [credentials-unsafe/written]
+```
+
+With `url-credentials = "refuse"` in `[tool.pitloom]` or
+`--refuse-url-credentials` (recommended in CI), each value is one `ERROR:`
+line instead; a count line follows, the SBOM is refused (none is written) and
+the command exits 1.
+
+```text
+ERROR: loom project: URL=foo @ https://***:***@example.org/foo-1.0.whl: holds a credential (<element> /statement/fields/declared_constraint/note, sha256:64a27d8a8c117f80); remove it from the source, or accept this value with --accept-url-credential sha256:64a27d8a8c117f80 [credentials-unsafe/refused]
+ERROR: loom project: 1 URL value(s) in the SBOM hold credentials; the SBOM is refused [credentials-unsafe/refused]
+```
+
+Remove the credential from the source, and treat one that was in a project
+file as exposed. A value you know is no secret (an example URL) is accepted
+alone with `--accept-url-credential` and its fingerprint, or
+`accept-url-credentials` in `[tool.pitloom]`; the SBOM then states it as
+written, with a quieter `WARNING:`, in either mode.
+
+A parameter named `code`, `session`, `ticket`, `sid` or `otp`, which holds a
+secret only sometimes, and a user name alone on an `ssh` or `git` URL
+(`ssh://git@github.com/o/r`) are only warned of, in either mode. The SBOM states them as written
+and says so once per value, masked: `holds a code, session, ticket, sid, otp or
+other _key parameter or an ssh user name; the SBOM states it as written`.
+
+Only URL-typed fields and Pitloom's own provenance statements and comment
+lines (such as the direct reference a dependency is declared with) are read; a README, a
+description or a comment is prose and never read. What is found, the
+fields read, the other surfaces (library, build hook, Action, `embed-wheel
+--sbom`), the ID registry and what is not detected are in [Credentials in
+URLs](url-credentials.md).
+
+Pitloom's own log lines also mask a credential they print (`https://***:***@host`,
+`ghp_***`), whether or not the SBOM is refused, and so do the `urllib3` and
+`requests` lines of a download (`GET /x?token=***`).
+
 ## Configuration and flags
 
 There is currently no setting to change the priority order above or
@@ -334,7 +435,10 @@ A direct reference (`name @ URL`: a Git repository, an archive, a local
 `file:` path) is never looked up on PyPI, online or offline: PyPI knows a
 package by name alone, and its project of that name may be a different
 package. Its package is listed with its declared constraint; its licence,
-supplier and hash come from its installed copy, if any, or stay unset.
+supplier and hash come from its installed copy, if any, or stay unset. Pitloom
+says so once per such package, as an `INFO:` line
+(`dependency-name-ambiguous`), when it assembles dependencies online; an
+offline run, which looks nothing up, says nothing.
 
 ## See also
 

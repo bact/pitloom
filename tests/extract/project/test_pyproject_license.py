@@ -28,11 +28,12 @@ from pitloom.extract.project._pyproject_license import (
     _resolve_license_hint,
     stated_pyproject_license,
 )
-from pitloom.extract.project.pyproject import (
+from pitloom.extract.project._pyproject_parse import (
     _drop_redundant_license_classifiers,
     _is_license_classifier_conflict,
-    read_pyproject,
 )
+from pitloom.extract.project.pyproject import read_pyproject
+from tests._code_records import coded
 
 # ---------------------------------------------------------------------------
 # read_pyproject -- PEP 639 SPDX-license/classifier transitional conflict
@@ -71,8 +72,8 @@ classifiers = [
 
     assert metadata.name == "transitional-license-pkg"
     assert metadata.license_name == "MIT"
-    assert "License ::" in caplog.text
-    assert "PEP 639 transitional state" in caplog.text
+    assert [code for code, _ in coded(caplog)] == ["license-conflict"]
+    assert "kept the expression, dropped the classifiers" in caplog.text
 
 
 def test_read_pyproject_retry_still_failing_raises_value_error() -> None:
@@ -93,10 +94,11 @@ classifiers = [
         tmp_path = Path(d)
         (tmp_path / "pyproject.toml").write_text(content)
         with patch(
-            "pitloom.extract.project.pyproject._drop_redundant_license_classifiers",
+            "pitloom.extract.project._pyproject_parse"
+            "._drop_redundant_license_classifiers",
             side_effect=lambda data: data,
         ):
-            with pytest.raises(ValueError, match="Failed to parse project metadata"):
+            with pytest.raises(ValueError, match=r"not valid \[project\] metadata"):
                 read_pyproject(tmp_path / "pyproject.toml")
 
 
@@ -126,7 +128,7 @@ dynamic = "version"
     with tempfile.TemporaryDirectory() as d:
         tmp_path = Path(d)
         (tmp_path / "pyproject.toml").write_text(content)
-        with pytest.raises(ValueError, match="Failed to parse project metadata"):
+        with pytest.raises(ValueError, match=r"not valid \[project\] metadata"):
             read_pyproject(tmp_path / "pyproject.toml")
 
 
@@ -167,7 +169,7 @@ license-files = ["LICENSE"]
     with tempfile.TemporaryDirectory() as d:
         tmp_path = Path(d)
         (tmp_path / "pyproject.toml").write_text(content)
-        with pytest.raises(ValueError, match="Failed to parse project metadata"):
+        with pytest.raises(ValueError, match=r"not valid \[project\] metadata"):
             read_pyproject(tmp_path / "pyproject.toml")
 
 
@@ -417,7 +419,7 @@ def test_a_missing_license_file_is_left_to_pyproject_metadata(tmp_path: Path) ->
         '[project]\nname = "pkg"\nversion = "1"\nlicense = {file = "gone"}\n',
         encoding="utf-8",
     )
-    with pytest.raises(ValueError, match="Failed to parse project metadata"):
+    with pytest.raises(ValueError, match=r"not valid \[project\] metadata"):
         read_pyproject(tmp_path / "pyproject.toml")
 
 
@@ -464,3 +466,21 @@ def test_resolve_license_hint_names_the_file_project_relative(
     license_obj = SimpleNamespace(text="", file=Path(file.format(tmp=tmp)))
     got = _resolve_license_hint(license_obj, Path(project_dir.format(tmp=tmp)))
     assert got == expected
+
+
+@pytest.mark.platform
+def test_the_conflict_line_names_the_path_given(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    pyproject = tmp_path / "pyproject.toml"
+    pyproject.write_text(
+        '[project]\nname = "demo"\nversion = "1.0.0"\nlicense = "MIT"\n'
+        'classifiers = ["License :: OSI Approved :: MIT License"]\n',
+        encoding="utf-8",
+    )
+    with caplog.at_level(logging.WARNING, logger="pitloom"):
+        read_pyproject(pyproject)
+    ((code, message),) = coded(caplog)
+    assert code == "license-conflict"
+    # the path as given, not its name alone
+    assert message.split(": ")[0].endswith(str(pyproject))

@@ -12,6 +12,7 @@ See also: :mod:`pitloom.id_registry._harvest` (its
 
 from __future__ import annotations
 
+import logging
 from collections import Counter
 from collections.abc import Iterable, Mapping
 from collections.abc import Set as AbstractSet
@@ -25,11 +26,11 @@ from pitloom.id_registry._types import (
     _element_key,
     package_key,
 )
+from pitloom.messages import emit
+from pitloom.messages.id_registry_ids import NAME_HELD_LINE, REGISTRY_KEY_AMBIGUOUS
 
 __all__ = [
     "GATED_TYPES",
-    "MODEL_NOT_RECORDED_INFO",
-    "NO_UNIQUE_FILE",
     "DerivedKeys",
     "KeptPairs",
     "RecordedHashes",
@@ -42,9 +43,9 @@ __all__ = [
     "_element_key_of",
     "_stale",
     "_written_key",
-    "ambiguous_keys_message",
     "harvest_sha256",
     "pointer_twins",
+    "say_ambiguous_keys",
     "unique_file_keys",
 ]
 
@@ -54,12 +55,6 @@ __all__ = [
 #: entry).
 GATED_TYPES = frozenset({AI_PACKAGE_TYPE, FILE_TYPE})
 
-#: Why a hashed model is not keyed by its file: no file, or several, hold
-#: its SHA-256. Shared by every model ``INFO:`` that says so.
-NO_UNIQUE_FILE = "no unique file with its SHA-256"
-#: ``log.info()`` format for a hashed model a run's auto-harvest leaves out
-#: (no recorded key, no :func:`unique_file_keys` file). Argument: its name.
-MODEL_NOT_RECORDED_INFO = f"ID registry: model %s not recorded: {NO_UNIQUE_FILE}"
 #: ``log.debug()`` format for a :func:`pointer_twins` element left out.
 #: Arguments: its key's type and name, its id, the pointer's id.
 TWIN_DEBUG = "ID registry: %s %r: element id %s not harvested: same oid as %s"
@@ -282,11 +277,28 @@ def _ambiguous_keys(
     return frozenset(key for key, count in counts.items() if count > 1)
 
 
-def ambiguous_keys_message(outcome: str, keys: Iterable[tuple[str, str]]) -> str:
-    """The one line naming the :func:`_ambiguous_keys` *keys* left out:
-    ``ID registry: <outcome> (name held by several elements): <type>
-    '<name>', ...``, sorted, each name ``repr()``'d so a control character
-    in it cannot forge the line. Shared by ``id import``'s ``INFO:`` and
-    run auto-harvest's DEBUG record."""
-    listed = ", ".join(f"{type_name} {name!r}" for type_name, name in sorted(keys))
-    return f"ID registry: {outcome} (name held by several elements): {listed}"
+def say_ambiguous_keys(
+    log: logging.Logger,
+    outcome: str,
+    keys: Iterable[tuple[str, str]],
+    *,
+    debug: bool = False,
+) -> None:
+    """The one line on *log* naming the :func:`_ambiguous_keys` *keys* left
+    out (``registry-key-ambiguous``): ``ID registry: <outcome> (name held by
+    several elements): <type> '<name>', ...``, sorted, each name
+    ``repr()``'d. ``id import``'s is an ``INFO:``; a run's auto-harvest
+    says it at DEBUG (*debug*), with no code."""
+    listed = tuple(f"{type_name} {name!r}" for type_name, name in sorted(keys))
+    if debug:
+        text = NAME_HELD_LINE.render({"outcome": outcome, "entities": listed})
+        log.debug("%s", text)
+    else:
+        emit(
+            log,
+            REGISTRY_KEY_AMBIGUOUS,
+            logging.INFO,
+            line=NAME_HELD_LINE,
+            outcome=outcome,
+            entities=listed,
+        )

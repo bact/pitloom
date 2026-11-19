@@ -25,8 +25,12 @@ from licenseid import LicenseDetector, LicenseIdWarning
 from pitloom import __main__
 from pitloom.assemble import generate_project_sbom
 from pitloom.extract import _license_text_match
-from pitloom.logging_config import configure_logging
+from pitloom.logging_config import CODE_ATTR, configure_logging
 from tests.extract.conftest import make_hook
+
+# The database's path, a home directory and the CLI and hook routes are the
+# operating system's.
+pytestmark = pytest.mark.platform
 
 _PYPROJECT = (
     '[project]\nname = "demo"\nversion = "1.0.0"\nlicense = "Apache-2.0"\n'
@@ -74,9 +78,11 @@ def test_a_declared_licence_and_no_database_is_info_on_every_surface(
     with caplog.at_level(logging.INFO):
         surface(project)
 
-    assert [r.levelno for r in caplog.records if _INFO in r.getMessage()] == [
-        logging.INFO
-    ]
+    assert [
+        (r.levelno, getattr(r, CODE_ATTR, None))
+        for r in caplog.records
+        if _INFO in r.getMessage()
+    ] == [(logging.INFO, "license-db-missing")]
     assert not [r for r in caplog.records if r.levelno >= logging.WARNING]
 
 
@@ -122,7 +128,6 @@ def test_a_respelt_licence_is_read_with_no_database_on_every_surface(
 
 
 _LONG = "Apache License\\n" * 20  # a TOML escape: one text of 300 characters
-_WARNING = "licenseid database cannot be used: "
 
 
 @pytest.mark.parametrize(
@@ -158,13 +163,14 @@ def test_a_declared_text_and_no_database_on_every_surface(
     database = [
         r.levelno for r in caplog.records if "licenseid database" in r.getMessage()
     ]
-    warned = [r.getMessage() for r in caplog.records if r.levelno >= logging.WARNING]
+    warned = [r for r in caplog.records if r.levelno >= logging.WARNING]
     if read:
         assert [r for r in caplog.records if f"read as {read} (" in r.getMessage()]
         assert (database, warned) == ([], [])
     else:
         assert database == [logging.WARNING]
-        assert [line.startswith(_WARNING) for line in warned] == [True]
+        assert [getattr(r, CODE_ATTR, None) for r in warned] == ["license-db-missing"]
+        assert warned[0].getMessage().startswith(_INFO)
 
 
 # pylint: disable-next=too-few-public-methods

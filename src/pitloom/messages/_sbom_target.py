@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from typing import Final
 
-from pitloom.messages._types import Line, Message
+from pitloom.messages._types import ASK_FIRST, Line, Message
 
 #: The release that first prints these codes.
 _SINCE: Final = "0.23.4"
@@ -80,8 +80,7 @@ NO_SBOM_TARGET: Final = Message(
     advice="Tell the user the folder has no project and no model file Pitloom "
     "reads. They name the project's folder, or the model file itself (its "
     "path, or for a Git URL the link to the file's page), and generate again. "
-    "Do not guess a file or folder and generate for them; ask first, and with "
-    "nobody to ask, report it only.",
+    f"Do not guess a file or folder and generate for them; {ASK_FIRST}",
     since=_SINCE,
 )
 
@@ -107,8 +106,7 @@ MODEL_AMBIGUOUS: Final = Message(
     advice="Tell the user which model files the folder holds, as the INFO "
     "lines name them. They name the one they want (its path, or for a Git URL "
     "the link to the file's page) and generate again, once per model. Do not "
-    "pick a file and generate for them; ask first, and with nobody to ask, "
-    "report it only.",
+    f"pick a file and generate for them; {ASK_FIRST}",
     subject_key="FILE",
     since=_SINCE,
 )
@@ -135,7 +133,7 @@ MODEL_AMBIGUOUS_OVER_CAP: Final = Message(
     "models for Pitloom to look at. They name the one model file they want "
     "(its path, or for a Git URL the link to the file's page), or a folder "
     "holding only it, and generate again. Do not pick a file and generate for "
-    "them; ask first, and with nobody to ask, report it only.",
+    f"them; {ASK_FIRST}",
     since=_SINCE,
 )
 
@@ -157,8 +155,7 @@ PROJECT_NOT_FOUND: Final = Message(
     advice="Tell the user the folder holds no Python project, as the line "
     "names it. They name the project's folder (for a monorepo, the "
     "sub-project's folder the error names, if any) and generate again. Do "
-    "not guess a folder and generate for them; ask first, and with nobody to "
-    "ask, report it only.",
+    f"not guess a folder and generate for them; {ASK_FIRST}",
     since=_SINCE,
 )
 
@@ -183,7 +180,7 @@ PROJECT_NOT_FOUND_MODEL_FILES: Final = Message(
     advice="Tell the user the folder has no project but may hold AI models, "
     "as the line names them. For a model SBOM they run loom model or loom "
     "generate on the same URL (generate_git_sbom in the library). Do not run "
-    "it for them; ask first, and with nobody to ask, report it only.",
+    f"it for them; {ASK_FIRST}",
     since=_SINCE,
 )
 

@@ -33,6 +33,7 @@ from pitloom.messages._model_limits import (
 )
 from pitloom.messages._model_stub import (
     EMPTY_LINE,
+    LIBRARY_API_LINE,
     LIBRARY_MISSING,
     LIBRARY_UNUSABLE,
     LIBRARY_UNUSABLE_CONTENT_LINE,
@@ -60,6 +61,7 @@ __all__ = [
     "LFS_PULL_ERROR_LINE",
     "LFS_PULL_LINE",
     "LIBRARY_MISSING",
+    "LIBRARY_API_LINE",
     "LIBRARY_UNUSABLE",
     "LIBRARY_UNUSABLE_CONTENT_LINE",
     "LIMIT_GGUF_ARRAY",

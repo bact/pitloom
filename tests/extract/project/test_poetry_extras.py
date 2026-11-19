@@ -23,6 +23,10 @@ from pitloom.extract.project._poetry_extras import defer_to_poetry_lists
 from pitloom.extract.project.hatchling import metadata_from_hatchling
 from pitloom.extract.project.poetry import extract_poetry_metadata
 from pitloom.extract.project.pyproject import read_pyproject
+from pitloom.logging_config import CODE_ATTR
+from tests._code_records import coded
+
+pytestmark = pytest.mark.platform  # FILE= paths in the lines
 
 _OPT = {"optional": True}
 _PROV = {"dependencies": "X"}
@@ -136,11 +140,11 @@ def test_optional_dependency_tagged_per_extra(
 @pytest.mark.parametrize(
     ("extras", "needle", "prefix"),
     [
-        pytest.param(None, "attrs", "Skipping dependency", id="no-extras-table"),
-        pytest.param({}, "attrs", "Skipping dependency", id="empty-extras-table"),
-        pytest.param({"x": []}, "attrs", "Skipping dependency", id="not-listed"),
+        pytest.param(None, "attrs", "dependency 'attrs'", id="no-extras-table"),
+        pytest.param({}, "attrs", "dependency 'attrs'", id="empty-extras-table"),
+        pytest.param({"x": []}, "attrs", "dependency 'attrs'", id="not-listed"),
         pytest.param(
-            {"x": ["ghost"]}, "ghost", "Skipping extra entry", id="undeclared"
+            {"x": ["ghost"]}, "ghost", "extra 'x' entry 'ghost'", id="undeclared"
         ),
     ],
 )
@@ -154,6 +158,7 @@ def test_unlisted_or_undeclared_warns_once(
     warned = [r for r in caplog.records if needle in r.getMessage()]
     assert len(warned) == 1
     assert warned[0].getMessage().startswith(prefix)
+    assert getattr(warned[0], CODE_ATTR) == "requirement-invalid"
 
 
 @pytest.mark.parametrize(
@@ -194,7 +199,7 @@ def test_poetry_extras_ignored_only_for_non_empty_project_list(
     with caplog.at_level(logging.WARNING):
         meta = extract_poetry_metadata(data, Path("."))
     assert meta.dependencies == expected
-    ignored = [m for m in caplog.messages if "Ignoring [tool.poetry.extras]" in m]
+    ignored = [m for m in caplog.messages if "[tool.poetry.extras] not read" in m]
     assert len(ignored) == (not expected)
 
 
@@ -238,7 +243,7 @@ def test_extras_wrong_type_ignored_with_warning(
     with caplog.at_level(logging.WARNING):
         got, prov = _extract({"a": "*"}, extras=["a"])
     assert got == ["a"]
-    assert "'extras' is list, expected a table" in caplog.text
+    assert "[tool.poetry] 'extras' is an array, expected a table" in caplog.text
     assert prov.endswith("tool.poetry.dependencies")
 
 
@@ -347,7 +352,7 @@ def test_project_and_poetry_tables(
     for meta in (cli, hook):
         assert meta.dependencies == expected
         assert meta.provenance["dependencies"].rpartition("Field: ")[2] == fields
-    ignored = [m for m in warned if m.startswith("Ignoring [tool.poetry.extras]")]
+    ignored = [m for m in warned if "[tool.poetry.extras] not read" in m]
     declares = '= ["' in project.replace(_DYNAMIC, "")  # a non-empty list
     assert len(ignored) == ("tool.poetry.extras" in poetry and declares)
     if ignored:
@@ -410,8 +415,9 @@ def test_poetry_dependencies_ignored_beside_project_extras(
     assert (
         ignored
         == [
-            "Ignoring [tool.poetry.dependencies]: [project] declares "
-            "optional-dependencies and no dependencies, which Poetry reads instead"
+            f"FILE={tmp_path / 'pyproject.toml'}: [tool.poetry.dependencies] "
+            "not read: Poetry reads [project] optional-dependencies instead; "
+            "ignored"
         ]
         * warned
     )
@@ -466,7 +472,46 @@ def test_gap_fill_only_for_poetry_backend(
         []
         if filled
         else [
-            "Ignoring [tool.poetry] authors, homepage, dependencies: "
-            f"build-backend {backend!r} does not read it"
+            f"FILE={tmp_path / 'pyproject.toml'}: [tool.poetry] authors, "
+            f"dependencies, homepage not read: build-backend {backend} does "
+            "not read them; ignored"
         ]
     )
+
+
+def test_gap_fill_for_another_backend_is_silent_when_quiet(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """The ``metadata-no-effect`` WARNING is said once; a second, quiet read
+    of the same file says nothing."""
+    (tmp_path / "pyproject.toml").write_text(
+        f'{_HATCHLING}[project]\nname = "p"\nversion = "1"\n'
+        '[tool.poetry]\nauthors = ["A <a@x.org>"]\n',
+        encoding="utf-8",
+    )
+    with caplog.at_level(logging.WARNING):
+        read_pyproject(tmp_path / "pyproject.toml", quiet=True)
+    assert not caplog.records
+    with caplog.at_level(logging.WARNING):
+        read_pyproject(tmp_path / "pyproject.toml")
+    assert len(caplog.records) == 1
+
+
+@pytest.mark.parametrize(
+    ("extras", "cause"),
+    [
+        ({"x": []}, "dependency 'attrs' (Poetry): optional and in no extra; skipped"),
+        (
+            {"x": ["ghost", "attrs"]},
+            "extra 'x' entry 'ghost' (Poetry): not a declared Poetry dependency; "
+            "skipped",
+        ),
+    ],
+    ids=["unlisted-optional", "undeclared-dependency"],
+)
+def test_a_poetry_skip_is_said_by_its_cause(
+    extras: Any, cause: str, caplog: pytest.LogCaptureFixture
+) -> None:
+    with caplog.at_level(logging.WARNING):
+        _extract({"attrs": {"version": "1", **_OPT}}, extras)
+    assert [m for c, m in coded(caplog) if c == "requirement-invalid"] == [cause]

@@ -5,7 +5,7 @@
 
 """Tests for :mod:`pitloom.core.url_masking`: credentials in a URL in free
 text (:func:`sanitize_url_credentials`), in a text that is one URL
-(:func:`sanitize_url`, :func:`url_without_credentials`), and the module's
+(:func:`sanitize_url`), and the module's
 import contract.
 
 See also: test_url_masking_query.py (credentials in a URL),
@@ -25,11 +25,7 @@ from pathlib import Path
 import pytest
 
 import pitloom.core.url_masking
-from pitloom.core.url_masking import (
-    sanitize_url,
-    sanitize_url_credentials,
-    url_without_credentials,
-)
+from pitloom.core.url_masking import sanitize_url, sanitize_url_credentials
 
 
 @pytest.mark.parametrize(
@@ -167,16 +163,19 @@ def test_sanitize_url_redacts_a_url_a_path_normalisation_collapsed(path: str) ->
     [
         ("https://h/p?a=1&token=Zq'V39&b=2", "https://h/p?a=1&token=***&b=2"),
         ('https://h/p?token=Zq"V34', "https://h/p?token=***"),
-        ("https://h/p?token=SEC RET;x=1", "https://h/p?token=***;x=1"),
+        ("https://h/p?token=SEC RET;x=1", "https://h/p?token=***"),
+        ("https://h/p;sid=SEC;x=1", "https://h/p;sid=***;x=1"),
         ("https://h/p?a=b'c#sig=S", "https://h/p?a=b'c#sig=***"),
     ],
-    ids=["single-quote", "double-quote", "space", "kept"],
+    ids=["single-quote", "double-quote", "space", "path-parameter", "kept"],
 )
 def test_sanitize_url_masks_a_secret_value_to_its_delimiter(
     url: str, shown: str
 ) -> None:
-    """In a text that is one URL a value ends at ``&``, ``;``, ``#`` or the
-    end only: a quote is a character of it (RFC 3986 allows one)."""
+    """In a text that is one URL a value ends at ``&``, ``#`` or the end
+    only (at ``;`` too when a ``;`` opened it: a path parameter): a quote
+    and a ``;`` are characters of it, as RFC 3986 and ``parse_qsl`` read
+    them."""
     assert sanitize_url(url) == shown
 
 
@@ -224,7 +223,7 @@ def test_every_public_function_is_exported() -> None:
         and callable(value)
         and getattr(value, "__module__", "") == module.__name__
     }
-    assert "url_without_credentials" in public
+    assert "sanitize_url" in public
     assert public <= set(module.__all__)
 
 
@@ -242,18 +241,3 @@ def test_the_masking_package_imports_the_standard_library_only() -> None:
     own = "pitloom.core.url_masking."
     outside = {name.partition(".")[0] for name in imported if not name.startswith(own)}
     assert imported and outside <= set(sys.stdlib_module_names)
-
-
-@pytest.mark.parametrize(
-    ("url", "kept"),
-    [
-        ("https://u:SECRET@h/o/r.git", "https://h/o/r.git"),
-        ("https://SECRET@h:8080/r", "https://h:8080/r"),
-        ("https://u:p@ss@SECRET@h/r", "https://h/r"),
-        ("https://h/r?private_token=SECRET", "https://h/r?private_token=***"),
-        ("https://h/r", "https://h/r"),
-    ],
-    ids=["user-password", "token-port", "at-in-password", "query", "none"],
-)
-def test_the_url_kept_on_disk_has_no_credentials(url: str, kept: str) -> None:
-    assert url_without_credentials(url) == kept

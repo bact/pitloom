@@ -11,10 +11,15 @@ For each site (the docs, and each skill's ``references/``) this script:
 * rewrites only the text between ``<!-- BEGIN GENERATED: pitloom.messages
   -->`` and ``<!-- END GENERATED -->`` in the index (``message-codes.md``,
   ``messages.md``): a table of the codes, each linked to its page, the
-  prefixes a line may start with, the values a line names and the pages;
+  prefixes a line may start with and the pages;
 * writes each topic page whole (``message-codes-<topic>.md``,
   ``messages-<topic>.md``): a table of its codes, then one section per code,
-  sorted by code.
+  sorted by code;
+* writes the values page whole (``message-codes-values.md``,
+  ``messages-values.md``): what each ``<name>`` a line shows stands for. It
+  is a page of its own because the table grows faster than the code table
+  and would take the index past :data:`MAX_BYTES`; no topic may be named
+  ``values``.
 
 In a skill's model-stub page it rewrites the block that opens ``<!-- BEGIN
 GENERATED: pitloom.messages model-stub -->``: what each code leaves of a model
@@ -50,6 +55,7 @@ from pitloom.messages import (
     FIELDS,
     FRAMES,
     MESSAGES,
+    SUMMARIES,
     TOPIC_TITLES,
     Line,
     Message,
@@ -57,6 +63,8 @@ from pitloom.messages import (
 )
 
 ROOT: Final = Path(__file__).resolve().parents[1]
+#: The values page's slug, in a page's file name; not a topic.
+VALUES_TOPIC: Final = "values"
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -79,6 +87,11 @@ class Site:
     def path(self, topic: str) -> Path:
         """The file of *topic*'s page."""
         return self.index.with_name(self.page.format(topic))
+
+    @property
+    def values_path(self) -> Path:
+        """The file of the values page (a topic may not be named ``values``)."""
+        return self.path(VALUES_TOPIC)
 
     def link(self, code: str) -> str:
         """A link target to *code*'s section: its page and its anchor."""
@@ -155,8 +168,8 @@ _NOTE: Final = (
 _INTRO: Final = (
     "A catalogued line reads `LEVEL: text [code]`. Trust the code only when "
     "the text is one of the code's lines on its page (the table links it), a "
-    "value in place of each `<name>`, after at most one prefix from the table "
-    "of prefixes."
+    "value in place of each `<name>` (the values page says what each is), "
+    "after at most one prefix from the table of prefixes."
 )
 
 
@@ -226,6 +239,9 @@ def page_list(site: Site) -> list[str]:
         count = len(_topic_codes(topic))
         noun = "code" if count == 1 else "codes"
         lines.append(f"- [{title}]({site.path(topic).name}): {count} {noun}")
+    lines.append(
+        f"- [Values]({site.values_path.name}): what each `<name>` in a line is"
+    )
     return lines
 
 
@@ -286,17 +302,20 @@ def render(site: Site) -> str:
         page_list(site),
         _index(site),
         [*wrap("A line may start with one prefix before its text:"), "", *_frames()],
-        _values(),
     ]
     return "\n\n".join("\n".join(part) for part in parts)
 
 
-#: A page's reminder of the rule the index states (the prefixes are there).
-_PAGE_RULE: Final = (
-    "Trust a code only when the line is one of the lines below, a value in "
-    "place of each `<name>`, after at most one prefix: the index lists the "
-    "prefixes and the values."
-)
+def _page_rule(site: Site) -> str:
+    """A page's reminder of the rule the index states (the prefixes are there;
+    the values are on the values page of *site*)."""
+    return (
+        "Trust a code only when the line is one of the lines below, a value in "
+        "place of each `<name>`, after at most one prefix: the index lists the "
+        f"prefixes and `{site.values_path.name}` the values."
+    )
+
+
 _FRONT: Final = (
     "---\n"
     "SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul\n"
@@ -304,6 +323,32 @@ _FRONT: Final = (
     "SPDX-License-Identifier: CC0-1.0\n"
     "---\n"
 )
+
+
+#: What a page says of its summaries.
+_SUMMARY_RULE: Final = (
+    "A summary is an `INFO:` line that reports what a run did under its own "
+    "rule (a count, the key it wrote), with no condition to name: it carries "
+    "no code, and there is nothing to do."
+)
+
+
+def _summaries(topic: str) -> list[list[str]]:
+    """*topic*'s summaries section, or nothing when it has none."""
+    found = sorted((s for s in SUMMARIES if s.topic == topic), key=lambda s: s.template)
+    if not found:
+        return []
+    items: list[str] = []
+    for summary in found:
+        items += [
+            *wrap(summary.meaning, "- ", "  "),
+            "",
+            "  ```text",
+            f"  INFO: {summary.shown}",
+            "  ```",
+            "",
+        ]
+    return [["## Summaries"], wrap(_SUMMARY_RULE), items[:-1]]
 
 
 def render_page(site: Site, topic: str) -> str:
@@ -316,10 +361,34 @@ def render_page(site: Site, topic: str) -> str:
         [f"# {site.title.format(TOPIC_TITLES[topic])}"],
         wrap(site.see_also, "See also: ", ""),
         [_NOTE],
-        wrap(_PAGE_RULE),
+        wrap(_page_rule(site)),
         ["## Codes"],
         _codes_table(codes),
         *(_section(MESSAGES[code]) for code in codes),
+        *_summaries(topic),
+    ]
+    return "\n\n".join("\n".join(part) for part in parts) + "\n"
+
+
+#: What the values page says of its table.
+_VALUES_RULE: Final = (
+    "A line shows each value as `<name>` in the catalogue; a line printed by "
+    "Pitloom holds the value there. The table lists every name a line or a "
+    "prefix uses."
+)
+
+
+def render_values_page(site: Site) -> str:
+    """The whole file of the values page for *site*: LF, ending in one
+    newline, with no date, like :func:`render_page`."""
+    parts = [
+        [_FRONT.rstrip("\n")],
+        [f"# {site.title.format('Values')}"],
+        wrap(site.see_also, "See also: ", ""),
+        [_NOTE],
+        wrap(_VALUES_RULE),
+        ["## Values"],
+        _values(),
     ]
     return "\n\n".join("\n".join(part) for part in parts) + "\n"
 
@@ -439,12 +508,16 @@ def _body_of(path: Path, body: str | Mapping[Path, str] | None) -> str:
 
 
 def expected_pages(site: Site) -> dict[Path, str]:
-    """Every page of *site* and what it should hold."""
-    return {site.path(topic): render_page(site, topic) for topic in TOPIC_TITLES}
+    """Every page of *site* (the topics' and the values page) and what it
+    should hold."""
+    pages = {site.path(topic): render_page(site, topic) for topic in TOPIC_TITLES}
+    pages[site.values_path] = render_values_page(site)
+    return pages
 
 
 def orphans(site: Site) -> list[Path]:
-    """The files that look like a page of *site* but no topic produces."""
+    """The files that look like a page of *site* but that neither a topic nor
+    the values page produces."""
     wanted = set(expected_pages(site))
     found = site.index.parent.glob(site.page.format("*"))
     return sorted(path for path in found if path not in wanted)

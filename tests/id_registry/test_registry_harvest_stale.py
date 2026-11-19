@@ -51,7 +51,7 @@ def _gate_infos(caplog: pytest.LogCaptureFixture) -> list[str]:
 
 def _stale(key: str, spdx_id: str, held: str, type_name: str = FILE_TYPE) -> str:
     return (
-        f"ID registry: content gate kept for {type_name} {key!r}: element id "
+        f"ID registry: content gate kept for {type_name!r} {key}: element id "
         f"{spdx_id} with an older SHA-256 not recorded over {held}"
     )
 

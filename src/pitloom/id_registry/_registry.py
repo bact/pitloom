@@ -25,8 +25,8 @@ from uuid import uuid4
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
-from pitloom.core.iri import doc_namespace, iri_segment, require_namespace_iri
-from pitloom.core.quote_source import quote_source
+from pitloom.core.given_path import keep_spelling
+from pitloom.core.iri import doc_namespace, iri_segment, namespace_problem
 from pitloom.core.walk_rules import same_path
 from pitloom.id_registry._ambiguous import RecordedHashes, RecordedKeys
 from pitloom.id_registry._counters import (
@@ -36,6 +36,10 @@ from pitloom.id_registry._counters import (
     id_number,
     merge_counters,
 )
+from pitloom.id_registry._credentials import (
+    check_key_credentials,
+    require_registry_namespace,
+)
 from pitloom.id_registry._format import (
     read_registry_file,
     registry_dir,
@@ -43,6 +47,7 @@ from pitloom.id_registry._format import (
 )
 from pitloom.id_registry._generate import index_files
 from pitloom.id_registry._harvest import _harvest_elements, _sorted_by_spdx_id
+from pitloom.id_registry._harvest._skip import check_entries_credentials
 from pitloom.id_registry._persist import (
     Rebase,
     added_ids,
@@ -56,20 +61,43 @@ from pitloom.id_registry._types import (
     _element_key,
     _require_names,
     is_utf8_text,
-    registry_file_error,
     type_id_prefix,
-    unencodable_message,
 )
-from pitloom.id_registry.import_keys import (
-    DATASET_PIN_GATED_INFO,
-    import_keys,
-    report_imported,
+from pitloom.id_registry.import_keys import import_keys, report_imported
+from pitloom.messages import CodedValueError, emit
+from pitloom.messages.files import registry_name_error
+from pitloom.messages.id_registry import MINT_LINE, REGISTRY_MALFORMED
+from pitloom.messages.id_registry_ids import (
+    HASH_CHANGED_LINE,
+    PIN_GATED_LINE,
+    REGISTRY_HASH_CONFLICT,
+    REGISTRY_HASH_MISSING,
 )
-from pitloom.logging_config import loggable
+from pitloom.messages.options import (
+    OPTION_CONFLICT,
+    PROJECT_ROOT_CONFLICT_LINE,
+    namespace_conflict_line,
+)
+from pitloom.messages.targets import SBOM_INVALID, SBOM_NAMESPACE_LINE
 
 log = logging.getLogger("pitloom.id_registry")
 
 __all__ = ["IdRegistry"]
+
+
+def _require_bool(refuse_credentials: object) -> bool:
+    """*refuse_credentials* if it is a ``bool``: ``1`` or ``"refuse"`` is
+    a wrong argument, never read as either mode.
+
+    Raises:
+        TypeError: it is not a ``bool``.
+    """
+    if not isinstance(refuse_credentials, bool):
+        raise TypeError(
+            "refuse_credentials must be a bool, "
+            f"not {type(refuse_credentials).__name__}"
+        )
+    return refuse_credentials
 
 
 class IdRegistry:
@@ -80,6 +108,17 @@ class IdRegistry:
     element has; a lookup decides whether the hash must match
     (:meth:`lookup`). :attr:`id_counters` keeps a retired id from being
     minted again (:meth:`reserve_id`).
+
+    *refuse_credentials* is the run's ``url-credentials`` mode for a key
+    or file entry that holds a credential (:meth:`load`, :meth:`rebase`,
+    :meth:`register`): ``True`` refuses it, ``False`` (the ``warn`` mode,
+    the default) keeps it with a ``WARNING:``.
+
+    Raises:
+        ValueError: *namespace* cannot be a document namespace
+            (:func:`~pitloom.id_registry._credentials.require_registry_namespace`:
+            ``credentials-unsafe/registry`` when it holds credentials, in
+            either mode), so no id is minted in it.
     """
 
     def __init__(
@@ -90,8 +129,11 @@ class IdRegistry:
         project_root: Path | None = None,
         *,
         id_counters: Counters | None = None,
+        refuse_credentials: bool = False,
     ) -> None:
-        self.namespace = namespace
+        self.namespace = require_registry_namespace(namespace)
+        #: The ``refuse`` mode for a key or file entry holding a credential.
+        self.refuse_credentials = _require_bool(refuse_credentials)
         #: Keyed by :func:`~pitloom.id_registry._types._element_key`.
         self.elements: dict[tuple[str, str], RegistryEntry] = (
             elements if elements is not None else {}
@@ -119,11 +161,14 @@ class IdRegistry:
         *,
         namespace: str | None = None,
         project_root: Path | None = None,
+        refuse_credentials: bool = False,
     ) -> IdRegistry:
-        """Create a fresh, empty registry.
+        """Create a fresh, empty registry (*refuse_credentials*: see
+        :class:`IdRegistry`).
 
-        The namespace is *namespace* (an absolute IRI without ``#``; a
-        ``ValueError`` otherwise), else one minted from *project_name* (the
+        The namespace is *namespace* (an absolute IRI without ``#`` or
+        credentials; a ``ValueError`` otherwise, see :class:`IdRegistry`),
+        else one minted from *project_name* (the
         CLI passes the project directory's name) and a random UUID4. It is
         fixed once the registry is created: the registry file is an input, so
         a committed one gives identical ids.
@@ -132,43 +177,74 @@ class IdRegistry:
         """
         if namespace is None:
             namespace = doc_namespace(project_name, str(uuid4()))
-        else:
-            require_namespace_iri(namespace)
-        return cls(namespace=namespace, path=path, project_root=project_root)
+        return cls(
+            namespace=namespace,
+            path=path,
+            project_root=project_root,
+            refuse_credentials=refuse_credentials,
+        )
 
     @classmethod
-    def load(cls, path: str | os.PathLike[str]) -> IdRegistry:
+    def load(
+        cls, path: str | os.PathLike[str], *, refuse_credentials: bool = False
+    ) -> IdRegistry:
         """Load a registry from *path*.
 
         A file that is not there (or not a file) raises
         :class:`~pitloom.messages.CodedFileNotFoundError`
-        (``input-not-found``); every other failure raises one ``ValueError``
-        via :func:`~pitloom.id_registry._types.registry_file_error`; it never
-        returns ``None``. Whether a registry
+        (``input-not-found``); every other failure raises a ``ValueError``
+        carrying its code (:func:`~pitloom.id_registry._format.read_registry_file`);
+        it never returns ``None``. A message names *path* as given (a
+        :class:`~pitloom.core.given_path.GivenPath` or
+        :class:`~pitloom.core.given_path.TypedPath` keeps its spelling, and
+        :attr:`path` keeps it too). Whether a registry
         exists at all is decided upstream, by
-        :func:`~pitloom.id_registry.resolve.resolve_registry`.
+        :func:`~pitloom.id_registry.resolve.resolve_registry`. A file with
+        an entry whose key or id holds credentials is refused with
+        *refuse_credentials* (the ``refuse`` mode), else loaded as it is
+        with a ``WARNING:`` per entry; one whose namespace does is refused
+        in either mode (``credentials-unsafe/registry``, the value shown
+        masked): nothing is dropped or rewritten, the user edits the file.
 
         Raises:
             TypeError: *path* is not a ``str`` or ``os.PathLike`` (bytes
-                included): a wrong argument, not a bad file.
+                included), or *refuse_credentials* is not a ``bool``: a
+                wrong argument, not a bad file.
         """
+        _require_bool(refuse_credentials)
         if not isinstance(path, (str, os.PathLike)):
             raise TypeError(
                 "ID registry file path must be a str or os.PathLike, "
                 f"not {type(path).__name__}"
             )
-        path = Path(path)
+        path = keep_spelling(Path(path), path)
         contents = read_registry_file(path)
+        check_entries_credentials(contents.elements, path, refuse=refuse_credentials)
         registry = cls(
             namespace=contents.namespace,
             elements=dict(contents.elements),
             path=path,
             project_root=contents.project_root,
             id_counters=contents.id_counters,
+            refuse_credentials=refuse_credentials,
         )
         registry._on_disk = contents.elements
         registry._on_disk_namespace = contents.namespace
         return registry
+
+    def refuse_mode(self) -> None:
+        """Turn this registry to the ``refuse`` mode (a run that refuses
+        was given it loaded), checking its entries as :meth:`load` would.
+
+        Raises:
+            pitloom.messages.CodedValueError: ``credentials-unsafe/registry``:
+                an entry's key or id holds a credential; the mode is left
+                unchanged.
+        """
+        check_entries_credentials(
+            self.elements, self.path or "(not saved)", refuse=True
+        )
+        self.refuse_credentials = True
 
     def rebase(self) -> Rebase:
         """Re-read :attr:`path` and apply this object's own changes again on
@@ -185,7 +261,9 @@ class IdRegistry:
 
         Raises:
             FileNotFoundError: the file is no longer there, or not a file.
-            ValueError: the file cannot be loaded.
+            ValueError: the file cannot be loaded, or an entry holds a
+                credential in the ``refuse`` mode (:meth:`load`); this
+                object is left unchanged.
         """
         base = self._on_disk or {}
         if self.path is None or (
@@ -195,6 +273,10 @@ class IdRegistry:
                 refused=0, pending=True, added=new_id_count(self.elements, base)
             )
         contents = read_registry_file(self.path)
+        # An entry another run saved meanwhile is held to load()'s rule.
+        check_entries_credentials(
+            contents.elements, self.path, refuse=self.refuse_credentials
+        )
         merged, refused = replay_changes(base, self.elements, contents.elements)
         self.elements.clear()
         self.elements.update(merged)
@@ -251,15 +333,22 @@ class IdRegistry:
                 return entry.spdx_id
         return None
 
+    def _named(self) -> Path | str:
+        """The registry file as a message names it: :attr:`path` (as
+        given), or ``(no file)`` for a registry that has none."""
+        return "(no file)" if self.path is None else self.path
+
     def require_namespace(self, namespace: str) -> None:
         """Raise ``ValueError`` unless this registry's namespace is
         *namespace* (``id generate --namespace`` on an existing registry:
         silently keeping the old one would ignore the flag)."""
         if namespace != self.namespace:
-            raise registry_file_error(
-                self.path or Path(""),
-                f"namespace {self.namespace} is not --namespace {namespace}; "
-                "delete it to change the namespace",
+            raise CodedValueError(
+                OPTION_CONFLICT,
+                line=namespace_conflict_line(self.namespace, namespace),
+                file=self._named(),
+                namespace=self.namespace,
+                given_namespace=namespace,
             )
 
     def require_project_root(self, project_root: Path) -> None:
@@ -268,11 +357,12 @@ class IdRegistry:
         spelling): keys from two roots in one registry would not match."""
         root = self.root_dir()
         if not same_path(root, project_root):
-            raise registry_file_error(
-                self.path or Path(""),
-                f"project root {quote_source(root)} is not "
-                f"{quote_source(project_root)}; "
-                "delete it to change the project root",
+            raise CodedValueError(
+                OPTION_CONFLICT,
+                line=PROJECT_ROOT_CONFLICT_LINE,
+                file=self._named(),
+                path=root,
+                root=project_root,
             )
 
     def has_name(self, name: str) -> bool:
@@ -349,8 +439,12 @@ class IdRegistry:
         while f"{self.namespace}#{prefix}-{number}" in held:
             number += 1  # a held id above RESERVE_CEILING
         if number > MAX_ID_NUMBER:
-            raise ValueError(
-                f"ID registry: no {prefix} id left to mint in {self.namespace}"
+            raise CodedValueError(
+                REGISTRY_MALFORMED,
+                line=MINT_LINE,
+                file=self._named(),
+                name=prefix,
+                namespace=self.namespace,
             )
         self.id_counters[prefix] = number
         return f"{self.namespace}#{prefix}-{number}"
@@ -368,11 +462,15 @@ class IdRegistry:
 
         Raises:
             ValueError: *type_name* or *name* cannot be encoded as UTF-8
-                (the file could never be saved).
+                (the file could never be saved), or *name* is a URL holding
+                credentials in the ``refuse`` mode
+                (``credentials-unsafe/registry``; the ``warn`` mode stores
+                it with a ``WARNING:``).
         """
         for label, text in (("type name", type_name), ("name", name)):
             if not is_utf8_text(text):
-                raise ValueError(unencodable_message(label, text))
+                raise registry_name_error(label, text)
+        check_key_credentials(type_name, name, refuse=self.refuse_credentials)
         key = _element_key(type_name=type_name, name=name)
         given = sha256.lower() if sha256 is not None else None
         existing = self.elements.get(key)
@@ -380,13 +478,22 @@ class IdRegistry:
             if given is None or existing.sha256 == given:
                 return existing.spdx_id
             if existing.sha256 is None and type_name == DATASET_PACKAGE_TYPE:
-                log.info(DATASET_PIN_GATED_INFO, loggable(name))
+                emit(
+                    log,
+                    REGISTRY_HASH_MISSING,
+                    logging.INFO,
+                    line=PIN_GATED_LINE,
+                    entity=name,
+                )
                 self.elements[key] = RegistryEntry(existing.spdx_id, given)
                 return existing.spdx_id
-            log.info(
-                "ID registry: content changed for %s; minting a new spdxId (old: %s).",
-                name,
-                existing.spdx_id,
+            emit(
+                log,
+                REGISTRY_HASH_CONFLICT,
+                logging.INFO,
+                line=HASH_CHANGED_LINE,
+                entity=name,
+                spdx_id=existing.spdx_id,
             )
         spdx_id = self._mint_id(type_id_prefix(type_name))
         self.elements[key] = RegistryEntry(spdx_id=spdx_id, sha256=given)
@@ -417,9 +524,13 @@ class IdRegistry:
         file's or names a file or directory below the root. Files whose
         keys are equal once NFC-normalised are all left out, one ``WARNING:``.
 
-        A path in *paths* that cannot be read or listed is a ``ValueError``
-        naming it; with *explicit* false (default roots the caller chose,
-        not the user) it is a ``WARNING:`` and the path is left out.
+        A path in *paths* that is not there raises ``FileNotFoundError``
+        (``input-not-found``), and one that cannot be read or listed a
+        ``ValueError`` (``file-unreadable``, ``dir-unlistable``), each naming
+        it as given; one outside *project_root* a ``ValueError``
+        (``option-invalid``). With *explicit* false (default roots the caller
+        chose, not the user), a missing path is left out silently, and one
+        that cannot be read or listed with a ``WARNING:``.
         """
         index_files(self, paths, project_root, exclude, explicit=explicit)
 
@@ -443,23 +554,28 @@ class IdRegistry:
         if not self.elements:
             namespace = document_id(sorted_objects)
             if namespace is not None:
-                self._adopt_namespace(namespace)
+                self._adopt_namespace(namespace, sbom_path)
         plan = import_keys(self, sorted_objects)
         skipped = _harvest_elements(self, sorted_objects, imported=True, keys=plan.keys)
         report_imported(self, plan)
         return skipped
 
-    def _adopt_namespace(self, namespace: str) -> None:
-        """Take *namespace* as this registry's, if it can be one."""
-        try:
-            self.namespace = require_namespace_iri(namespace)
-        except ValueError as exc:
-            log.warning(
-                "ID registry: not adopting the namespace %r: %s; keeping %s",
-                namespace,
-                exc,
-                self.namespace,
-            )
+    def _adopt_namespace(self, namespace: str, sbom_path: Path) -> None:
+        """Take *namespace*, the SBOM *sbom_path*'s, as this registry's, if
+        it can be one; else one ``sbom-invalid`` ``WARNING:``."""
+        problem = namespace_problem(namespace)
+        if problem is None:
+            self.namespace = namespace
+            return
+        emit(
+            log,
+            SBOM_INVALID,
+            logging.WARNING,
+            line=SBOM_NAMESPACE_LINE,
+            file=sbom_path,
+            namespace=namespace,
+            namespace_problem=problem,
+        )
 
     def harvest(
         self,

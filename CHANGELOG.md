@@ -1,5 +1,5 @@
 ---
-Last-Modified: 2026-11-14
+Last-Modified: 2026-11-19
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -24,38 +24,117 @@ and this project adheres to
 
 ### Added
 
-- Input, option, SBOM and target errors carry a message code; see
-  `docs/message-codes.md` ([#482])
+- Input, option, SBOM, target, ID registry file, id, key, save, file-set, lock
+  file, dependency, configuration, licence, project metadata and file discovery
+  messages carry a message code, and a configuration error names the file; see
+  `docs/message-codes.md` ([#482], [#485], [#486], [#492], [#496], [#497],
+  [#498], [#501])
+- A credential in an SBOM URL field is warned of; `url-credentials = "refuse"`
+  or `--refuse-url-credentials` refuse the SBOM ([#489], [#490])
+- `embed-wheel --sbom` (every string) and `merge` check an SBOM for such
+  credentials; the file is embedded unchanged unless refused ([#489], [#490])
+- `--accept-url-credential` and `accept-url-credentials` accept one value by its
+  fingerprint; `setup.cfg` takes both keys ([#490])
+- Each line names how the surface refuses or accepts the value (flag,
+  `[tool.pitloom]` key or `credentials=`) ([#490])
+- Reference fields (`createdBy`, `from`, `to`, ...), identifiers and Pitloom's
+  JSON statements and comment segments are checked too ([#490])
+- GitHub Action inputs `url-credentials` and `accept-url-credentials`;
+  `::add-mask::` for credential parts of URLs in source inputs ([#491])
+- A direct reference is said, as an `INFO:` line, not to be looked up on PyPI
+  ([#496])
 
 ### Changed
 
-- Error messages for missing inputs and invalid options are reworded, and
-  each CLI `ERROR:` line starts `loom <command>:`; see `docs/message-codes.md`
-  ([#481], [#482])
+- Missing-input, option and ID registry file errors are reworded; CLI `ERROR:`
+  lines start `loom <command>:`, `loom.Run` registry lines `ID registry:`
+  ([#481], [#482], [#485], [#486])
 - `IdRegistry.load()` and `resolve_registry()` raise `FileNotFoundError`, not
   `ValueError`, for an ID registry file that is missing or not a file ([#482])
 - `id import` and `embed-wheel --sbom` refuse the same SBOMs (UTF-16, a FIFO,
   over 50 MiB, an `@graph` that is not a list of objects) ([#482])
-- A `.whl` directory, a file given to `merge` and a malformed Hub URL (`project`
-  and `generate_project_sbom()` too) get a coded error; a padded Hub URL is
-  read; a missing input or ID registry is named as given ([#482])
+- A `.whl` directory, a file given to `merge` and a malformed Hub URL get a
+  coded error; a padded Hub URL is read; a missing input or ID registry is
+  named as given ([#482])
 - An input under a directory without search permission is `file-unreadable`,
   not "not found" ([#482])
-- Every CLI `ERROR:` line and `-v` detail masks the credentials and tokens of each URL ([#482])
-- A GGUF `general.license` placeholder (`other`, `proprietary`, `N/A`, ...)
-  with no `general.license.name` gives no licence; a Hub card's `N/A` falls
-  back to licence files ([#483])
+- Pitloom's log lines, tracebacks and `-v` details mask URL credentials and
+  access tokens; `urllib3` and `requests` lines too ([#482], [#486], [#487],
+  [#489], [#491])
+- A GGUF `general.license` placeholder (`other`, `N/A`, ...) with no
+  `general.license.name` gives no licence; a Hub card's `N/A` falls back to
+  licence files ([#483])
 - Safetensors `ss_base_model_version` (the base model) is no longer read as the
   model's name; it stays a property ([#483])
+- `loom id generate` with a `PATH` that does not exist is an error (exit 1),
+  not a warning; `IdRegistry.generate()` raises `FileNotFoundError` ([#485])
+- A credential in an ID registry namespace is refused; a key or file entry is
+  warned of, or refused in refuse mode; `id import` skips it ([#487], [#489],
+  [#490])
+- Git URL fetches reset system credential helpers only for a URL with user
+  information; the password is not in git's arguments ([#487])
+- A stale `accept-url-credentials` fingerprint names the SBOM; a bad one fails
+  when `PitloomConfig` is built ([#490])
+- `embed-wheel --sbom` and `id import` refuse an SBOM with a JSON object that
+  holds a key twice ([#490])
+- Credentials in encoded query and fragment values and in a `u:?pw@host`
+  password are found ([#491])
+- Git URLs: a NUL in user information and a host no host name spells are
+  refused before git runs; more `GIT_*` variables are dropped ([#491])
+- `verify-wheel`, `validate-wheel` and `embed-wheel`: a pattern nested too
+  deeply is `input-not-found`, not a crash; a `[` in a path is taken as typed
+  ([#491])
+- `id import` of an SBOM the SPDX 3 reader refuses is `sbom-invalid`; `-e ...
+  stored as` is said once the registry is saved ([#492], [#494])
+- A `--creation-datetime` that is not a date is refused at parse, exit 2; a
+  `--config` file error names the file once ([#497])
+- A `creation-datetime` in `[tool.pitloom]` that is not a date is refused even
+  when `--creation-datetime` overrides it ([#497])
 
 ### Fixed
 
 - PyTorch type of model is the top-level object's class (`Linear` for a full
   save, none for a `dict` checkpoint), not the first class found ([#483])
+- A failed ID registry save prints one coded line naming the file as given
+  (`file-unwritable` for a refused write); left-out and save lines are coded
+  ([#492])
+- A `uv.lock` warning about a package (missing from its table, a version per
+  marker, a malformed key) is said once per run, not per reference ([#496])
+- A `setup.cfg` `[tool:pitloom]` error names that table; a `--config` TOML nested
+  too deep is `config-malformed`; a wrong `pitloom_config` type is `option-invalid` ([#497])
+- A time outside years 1 to 9999 once read as UTC (`0001-01-01T00:00:00+05:00`) is
+  refused as a creation date-time, and left out of a model's release time ([#497])
+- File discovery lines drop the `Build: ` prefix and start `DIR=<dir>:`; a
+  `[build-system]`-only `pyproject.toml` no longer warns of a missing name ([#501])
+- A `[project]` that is not a table, a `name` that is not a string, and a
+  `setup.cfg`/`setup.py` that does not parse are coded errors, not tracebacks ([#501])
+- A project file that does not parse or read is `config-malformed` or
+  `file-unreadable`, whether Pitloom reads its metadata or its `[tool.pitloom]` ([#501])
+
+### Security
+
+- A URL field credential is written with a warning unless refused; prose is not
+  read, some shapes not detected: `docs/url-credentials.md` ([#487], [#489],
+  [#490])
+- Rotate any credential an SBOM, wheel, registry file or log held (warn mode
+  writes it); remove it from git credential stores (`git credential reject`)
+  ([#487])
 
 [#481]: https://github.com/bact/pitloom/pull/481
 [#482]: https://github.com/bact/pitloom/pull/482
 [#483]: https://github.com/bact/pitloom/pull/483
+[#485]: https://github.com/bact/pitloom/pull/485
+[#486]: https://github.com/bact/pitloom/pull/486
+[#487]: https://github.com/bact/pitloom/pull/487
+[#489]: https://github.com/bact/pitloom/pull/489
+[#490]: https://github.com/bact/pitloom/pull/490
+[#491]: https://github.com/bact/pitloom/pull/491
+[#492]: https://github.com/bact/pitloom/pull/492
+[#494]: https://github.com/bact/pitloom/pull/494
+[#496]: https://github.com/bact/pitloom/pull/496
+[#497]: https://github.com/bact/pitloom/pull/497
+[#498]: https://github.com/bact/pitloom/pull/498
+[#501]: https://github.com/bact/pitloom/pull/501
 
 ## [0.24.0] - 2026-11-11
 

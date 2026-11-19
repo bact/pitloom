@@ -58,8 +58,17 @@ from pitloom.extract.lock.common import (
     warn_not_genuine_lock_file,
     warn_top_level_key_wrong_type,
 )
+from pitloom.messages.lock_files import (
+    NOT_EXACT_LINE,
+    PACKAGE_NOT_TABLE_LINE,
+    SPECIFIER_LINE,
+    say_lock_entry,
+)
 
 log = logging.getLogger(__name__)
+
+#: How a line names this lock.
+_LOCK_NAME = "Pipfile.lock"
 
 __all__ = ["extract_pipfile_lock_dependencies"]
 
@@ -87,16 +96,12 @@ def extract_pipfile_lock_dependencies(project_dir: Path) -> list[str] | None:
     if data is None:
         return None
     if not has_required_top_level_table(data, "_meta", "pipfile-spec", int):
-        warn_not_genuine_lock_file(
-            lock_path, "_meta", "pipfile-spec", "Pipfile.lock", container_type="object"
-        )
+        warn_not_genuine_lock_file(lock_path, "_meta.pipfile-spec")
         return None
 
     default_section = data.get("default", {})
     if not isinstance(default_section, dict):
-        warn_top_level_key_wrong_type(
-            lock_path, "default", default_section, "a table", "Pipfile.lock"
-        )
+        warn_top_level_key_wrong_type(lock_path, "default", default_section, "table")
         return None
 
     pairs = [
@@ -108,7 +113,7 @@ def extract_pipfile_lock_dependencies(project_dir: Path) -> list[str] | None:
         if pair is not None
     ]
 
-    return resolve_pinned_dependencies(pairs, "Pipfile.lock")
+    return resolve_pinned_dependencies(pairs, _LOCK_NAME)
 
 
 def _pinned_pair_for_package(
@@ -129,19 +134,19 @@ def _pinned_pair_for_package(
     conflicting dependency lines for the same real package.
     """
     if not is_usable_name(name):
-        warn_missing_name("Skipping malformed Pipfile.lock entry", name)
+        warn_missing_name(_LOCK_NAME, "default", name)
         return None
     if not isinstance(entry, dict):
         # Not warn_malformed_entry_not_table(): unlike every sibling
         # format's [[package]]-style list (where the entry itself must be
         # a table before a name can even be read out of it), Pipfile.lock
-        # keys each entry by name up front -- naming which key was
-        # malformed is more useful here than the shared helper's generic
-        # positional entry_label (e.g. "[[package]]") would be.
-        log.warning(
-            "Skipping malformed Pipfile.lock entry %r: expected a table, got %s",
-            name,
-            type(entry).__name__,
+        # keys each entry by name up front -- the line names the package.
+        say_lock_entry(
+            log,
+            PACKAGE_NOT_TABLE_LINE,
+            file=_LOCK_NAME,
+            package=name,
+            value_type=entry,
         )
         return None
     non_registry_key = find_first_present_key(entry, _NON_REGISTRY_KEYS)
@@ -157,7 +162,7 @@ def _pinned_pair_for_package(
         # to be read as "not editable" rather than mistaken for a real
         # editable/VCS source the way a present-but-falsy key would be
         # for every other format's presence-only check.
-        warn_non_registry_source("Pipfile.lock", name, non_registry_key)
+        warn_non_registry_source(_LOCK_NAME, name, non_registry_key)
         return None
     pin = _exact_pinned_version(name, entry.get("version"))
     if pin is None:
@@ -182,23 +187,19 @@ def _exact_pinned_version(name: str, version: object) -> tuple[str, str] | None:
         # check doesn't apply here (a specifier isn't a bare version and
         # would always fail it); parse_specifier_set()/single_exact_pin() below
         # already validate it's a genuine, single, exact pin.
-        warn_missing_version("Pipfile.lock", name)
+        warn_missing_version(_LOCK_NAME, name)
         return None
     try:
         specifier_set = parse_specifier_set(version)
     except InvalidSpecifier:
-        log.warning(
-            "Skipping Pipfile.lock entry %r: %r isn't a valid PEP 440 specifier",
-            name,
-            version,
+        say_lock_entry(
+            log, SPECIFIER_LINE, file=_LOCK_NAME, package=name, lock_value=version
         )
         return None
     pin = single_exact_pin(specifier_set)
     if pin is None:
-        log.warning(
-            "Skipping Pipfile.lock entry %r: 'version' %r isn't a single exact pin",
-            name,
-            version,
+        say_lock_entry(
+            log, NOT_EXACT_LINE, file=_LOCK_NAME, package=name, lock_value=version
         )
         return None
     return pin

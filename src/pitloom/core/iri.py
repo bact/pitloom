@@ -7,7 +7,9 @@
 
 Every SPDX document namespace and every ``spdxId`` built from a name goes
 through :func:`iri_segment`, so a name with a space or ``#`` yields a valid
-IRI. The element's ``name`` keeps the original text.
+IRI. The element's ``name`` keeps the original text. The module also checks
+that a text can be a document namespace (:func:`namespace_problem`,
+:func:`require_namespace_iri`), a credential in it included.
 
 See also: :mod:`pitloom.core.untrusted_text` (the invisible and bidi
 controls percent-encoded here).
@@ -19,14 +21,41 @@ import re
 import string
 
 from pitloom.core.untrusted_text import DISPLAY_CONTROLS
+from pitloom.core.url_masking import holds_url_credentials, masked_given_path
 
 __all__ = [
+    "NAMESPACE_CHARACTER",
+    "NAMESPACE_CREDENTIALS",
+    "NAMESPACE_EMPTY",
+    "NAMESPACE_FRAGMENT",
+    "NAMESPACE_PROBLEMS",
+    "NAMESPACE_RELATIVE",
     "SPDX_DOCS_BASE",
     "doc_namespace",
     "iri_segment",
     "is_iri_segment",
+    "namespace_problem",
     "require_namespace_iri",
 ]
+
+#: Why a text cannot be a document namespace (:func:`namespace_problem`).
+NAMESPACE_EMPTY = "is empty"
+NAMESPACE_FRAGMENT = "must not contain '#'"
+NAMESPACE_RELATIVE = (
+    "is not an absolute IRI (a scheme is needed, as in https://example.org/ns)"
+)
+NAMESPACE_CHARACTER = "has a character an IRI cannot hold"
+NAMESPACE_CREDENTIALS = (
+    "holds user information, a secret query value or an access token, or a "
+    "query nested or encoded too deeply to read"
+)
+NAMESPACE_PROBLEMS = (
+    NAMESPACE_EMPTY,
+    NAMESPACE_FRAGMENT,
+    NAMESPACE_RELATIVE,
+    NAMESPACE_CHARACTER,
+    NAMESPACE_CREDENTIALS,
+)
 
 #: Base IRI of every Pitloom-minted SPDX document namespace.
 SPDX_DOCS_BASE = "https://spdx.org/spdxdocs/"
@@ -108,16 +137,29 @@ def require_namespace_iri(value: str) -> str:
     it, only characters an IRI allows (a ``%`` followed by two hex digits),
     and no ``#``, because every ``spdxId`` appends its own ``#<fragment>``.
     """
+    problem = namespace_problem(value)
+    if problem is None:
+        return value
+    # A URL's credentials never reach the text (a library caller logs it).
+    shown = masked_given_path(value)
+    raise ValueError(
+        f"namespace {shown!r} {problem}" if value else f"namespace {problem}"
+    )
+
+
+def namespace_problem(value: str) -> str | None:
+    """Why *value* cannot be a document namespace, one of
+    :data:`NAMESPACE_PROBLEMS` (it reads after ``namespace <value>``), or
+    ``None`` when it can be one (:func:`require_namespace_iri`)."""
     if not value:
-        raise ValueError("namespace is empty")
+        return NAMESPACE_EMPTY
     if "#" in value:
-        raise ValueError(f"namespace {value!r} must not contain '#'")
+        return NAMESPACE_FRAGMENT
     if not _SCHEME.match(value):
-        raise ValueError(
-            f"namespace {value!r} is not an absolute IRI (a scheme is needed, "
-            "as in https://example.org/ns)"
-        )
+        return NAMESPACE_RELATIVE
     rest = _PERCENT.sub("", value)
     if not all(_is_safe(char) or char in _EXTRA_ASCII for char in rest):
-        raise ValueError(f"namespace {value!r} has a character an IRI cannot hold")
-    return value
+        return NAMESPACE_CHARACTER
+    if holds_url_credentials(value, embedded=True):
+        return NAMESPACE_CREDENTIALS
+    return None

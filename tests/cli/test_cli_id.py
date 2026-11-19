@@ -221,7 +221,8 @@ def test_id_import_fails(
     )
     result = __main__.main()
     assert result == 1
-    assert "ERROR: loom id import: failed to import SBOM" in capsys.readouterr().err
+    # An uncoded error is relayed as it is, by the command's error handler.
+    assert capsys.readouterr().err == "ERROR: loom id import: Simulated failure\n"
 
 
 def test_id_cli_invalid_command() -> None:
@@ -417,7 +418,7 @@ def test_load_or_create_registry_fails(tmp_path: Path) -> None:
     registry_path = tmp_path / DEFAULT_ID_REGISTRY_FILENAME
     registry_path.write_text("invalid json")
 
-    with pytest.raises(ValueError, match="ID registry file"):
+    with pytest.raises(ValueError, match="not valid JSON for the ID registry"):
         _load_or_create_registry(registry_path, "proj")
 
 

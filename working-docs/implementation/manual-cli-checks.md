@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-17
-Last-Modified: 2026-11-10
+Last-Modified: 2026-11-14
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -306,7 +306,7 @@ CLI surface**: `--id-registry` pointing at a missing file, at
 one containing `"{"` (invalid JSON), and at a `"version": 3` file, on
 `project`, `wheel`, `env`, `model` and `embed-wheel` -- each of the 15
 runs must exit 1 with exactly one `ERROR:` line containing
-`ID registry file` (the v3 one also `version 3, expected 4`, its bytes left
+`ID registry` (the v3 one also `version 3, expected 4`, its bytes left
 as they were) and no output file written. Automated as check 14
 (`scripts/manual_cli_checks/_checks_core.py::check_registry_missing_invalid`).
 This check is flag-only, on those five CLI surfaces; it does not cover

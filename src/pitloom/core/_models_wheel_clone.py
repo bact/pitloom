@@ -11,7 +11,7 @@ is ignored. A local project keeps every file its backend lists, and runs
 what its backend runs.
 
 See also: :mod:`pitloom.core._models_wheel` (the one loop every discovered
-file passes through), :func:`pitloom.core.lfs_pointer.reading_remote_clone`
+file passes through), :func:`pitloom.core.clone_mark.reading_remote_clone`
 (the clone and its root), and the backends that leave settings out before
 discovery: :mod:`pitloom.core._models_wheel_hatchling`,
 :mod:`pitloom.core._models_wheel_setuptools_clone`,

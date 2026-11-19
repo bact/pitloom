@@ -205,15 +205,21 @@ def test_discovery_stats_each_file_once_for_the_registry(
     assert not looked_up
 
 
+@pytest.mark.parametrize("name", ["reg.json", "r\neg.json"], ids=["plain", "newline"])
 def test_warn_registry_left_out_wording(
-    tmp_path: Path, caplog: pytest.LogCaptureFixture
+    tmp_path: Path, caplog: pytest.LogCaptureFixture, name: str
 ) -> None:
-    registry = tmp_path / "reg.json"
+    """``FILE=`` the registry as given, escaped when it holds a control
+    character, coded ``registry-conflict/file-set``; no ``loom:``."""
+    registry = tmp_path / name
     with caplog.at_level(logging.WARNING):
         warn_registry_left_out(registry)
-    assert [r.levelname for r in caplog.records] == ["WARNING"]
-    assert caplog.records[0].getMessage() == (
-        f"ID registry: '{registry}' is inside the project's file set; left out of it"
+    (record,) = caplog.records
+    assert record.levelname == "WARNING"
+    assert getattr(record, "pitloom_code", None) == "registry-conflict/file-set"
+    shown = str(registry) if name == "reg.json" else ascii(str(registry))
+    assert record.getMessage() == (
+        f"ID registry: FILE={shown}: inside the project's file set; left out of it"
     )
 
 

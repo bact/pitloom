@@ -402,7 +402,9 @@ def test_too_small_byte_cap_is_refused(
     with pytest.raises(SystemExit) as exc:
         _loom([*argv, "--max-source-metadata-bytes", "5"], monkeypatch)
     assert exc.value.code == 2
-    assert "at least 8 bytes, got 5" in capsys.readouterr().err
+    err = capsys.readouterr().err
+    assert "of at least 8, got an integer 5" in err
+    assert err.rstrip().endswith("[option-invalid]")  # the flag stage's code
 
 
 #: Every command that scans a wheel's models (generate's -o is required).

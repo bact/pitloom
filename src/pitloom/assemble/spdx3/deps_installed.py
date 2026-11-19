@@ -22,6 +22,10 @@ from packaging.specifiers import InvalidSpecifier
 from packaging.utils import canonicalize_name
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
+from pitloom.assemble.spdx3._deps_pin_checks import (
+    is_exact_pin_conflict,
+    satisfies_constraint,
+)
 from pitloom.assemble.spdx3.deps_license import WeakLicense, _apply_license
 from pitloom.assemble.spdx3.deps_originator import (
     _apply_originator,
@@ -36,7 +40,7 @@ from pitloom.assemble.spdx3.provenance import (
     ProvenanceEncoder,
 )
 from pitloom.core.models import build_pypi_purl
-from pitloom.core.pep440 import parse_specifier_set, specifier_contains
+from pitloom.core.pep440 import parse_specifier_set
 from pitloom.core.pep508 import parse_requirement
 from pitloom.core.provenance import (
     ProvenanceConfig,
@@ -47,6 +51,14 @@ from pitloom.export.spdx3_json import Spdx3JsonExporter
 from pitloom.extract._core_metadata import core_metadata_license_with_source
 from pitloom.extract._extract_utils import pkg_meta_get
 from pitloom.extract.lock.common import is_same_version, single_exact_pin
+from pitloom.messages import emit
+from pitloom.messages.dependencies import (
+    DEPENDENCY_PIN_CONFLICT,
+    EXACT_PIN_KEPT_LINE,
+    LOCKED_KEPT_LINE,
+    LOCKED_UNCHECKED_LINE,
+    REQUIREMENT_INVALID,
+)
 
 _VERSION_OPERATORS = ("===", "~=", "!=", "==", ">=", "<=", ">", "<")
 _HOMEPAGE_LABELS = ("homepage", "home page", "home")
@@ -154,28 +166,6 @@ def _extract_exact_pin(dep: str) -> tuple[Requirement | None, str | None]:
     return req, None
 
 
-def _is_exact_pin_conflict(
-    req: Requirement | None, pinned: str, locked_version: str
-) -> bool:
-    """Return True if locked_version conflicts with declared exact pin."""
-    if req is not None and req.specifier:
-        contained = specifier_contains(req.specifier, locked_version)
-        if contained is not None:
-            return not contained
-    return not is_same_version(locked_version, pinned)
-
-
-def _satisfies_constraint(req: Requirement | None, locked_version: str) -> bool | None:
-    """Return whether locked_version satisfies req.specifier, or ``None``
-    when that can't be determined at all (dep was unparseable, so its
-    declared constraint -- if any -- is unknown, not merely absent)."""
-    if req is None:
-        return None
-    if not req.specifier:
-        return True
-    return specifier_contains(req.specifier, locked_version) is True
-
-
 def build_dependency_version_conflict(
     dep: str,
     locked_version: str,
@@ -190,7 +180,7 @@ def build_dependency_version_conflict(
     Deliberately re-derives the disagreement independently of
     :func:`_resolve_version`'s own winner-selection (re-parsing *dep* via
     :func:`_extract_exact_pin` and re-running
-    :func:`_is_exact_pin_conflict`/:func:`_satisfies_constraint`) rather than
+    :func:`is_exact_pin_conflict`/:func:`satisfies_constraint`) rather than
     being threaded through it -- widening `_resolve_version`'s
     ``tuple[str, str | None]`` return type would break every one of its
     ~24 existing 2-tuple-unpacking call sites in
@@ -217,21 +207,21 @@ def build_dependency_version_conflict(
     """
     req, pinned = _extract_exact_pin(dep)
     if pinned is not None:
-        if not _is_exact_pin_conflict(req, pinned, locked_version):
+        if not is_exact_pin_conflict(req, pinned, locked_version):
             return None
         return [
             {"value": pinned, "role": "declared", "source": dep_source},
             {"value": locked_version, "role": "declared", "source": locked_source},
         ]
 
-    satisfies = _satisfies_constraint(req, locked_version)
+    satisfies = satisfies_constraint(req, locked_version)
     if satisfies is None or satisfies:
         # None = declared constraint unparseable, can't confirm a genuine
         # disagreement -- distinct from "confirmed no conflict" (satisfies
         # is True). Neither case gets a ConflictCandidate list.
         return None
     if req is None or not req.specifier:  # pragma: no cover
-        # Unreachable: _satisfies_constraint only returns False when req is
+        # Unreachable: satisfies_constraint only returns False when req is
         # not None and req.specifier is non-empty. Kept for mypy narrowing
         # instead of an `assert` (production code, never test-only).
         return None
@@ -336,36 +326,40 @@ def _resolve_version(
         if (
             warn
             and locked_version is not None
-            and _is_exact_pin_conflict(req, pinned, locked_version)
+            and is_exact_pin_conflict(req, pinned, locked_version)
         ):
-            log.warning(
-                "Locked version %r for dependency %r conflicts with declared"
-                " exact pin %r -- using declared pin",
-                locked_version,
-                dep_name,
-                pinned,
+            emit(
+                log,
+                DEPENDENCY_PIN_CONFLICT,
+                logging.WARNING,
+                line=EXACT_PIN_KEPT_LINE,
+                package=dep_name,
+                kept=pinned,
+                dropped=locked_version,
             )
         return pinned, None
 
     if locked_version is not None:
         if warn:
-            satisfies = _satisfies_constraint(req, locked_version)
+            satisfies = satisfies_constraint(req, locked_version)
             if satisfies is None:
-                log.warning(
-                    "Dependency %r declared as %r couldn't be parsed -- its"
-                    " constraint (if any) can't be verified against locked"
-                    " version %r, using it anyway",
-                    dep_name,
-                    dep,
-                    locked_version,
+                emit(
+                    log,
+                    REQUIREMENT_INVALID,
+                    logging.WARNING,
+                    line=LOCKED_UNCHECKED_LINE,
+                    dependency=dep,
+                    version=locked_version,
                 )
             elif not satisfies:
-                log.warning(
-                    "Locked version %r for dependency %r does not satisfy declared"
-                    " constraint %r -- using locked version",
-                    locked_version,
-                    dep_name,
-                    dep,
+                emit(
+                    log,
+                    DEPENDENCY_PIN_CONFLICT,
+                    logging.WARNING,
+                    line=LOCKED_KEPT_LINE,
+                    package=dep_name,
+                    kept=locked_version,
+                    dropped=dep,
                 )
         return locked_version, "Version resolved: Project lock file"
 

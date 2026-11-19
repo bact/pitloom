@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-10
-Last-Modified: 2026-11-13
+Last-Modified: 2026-11-17
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -28,9 +28,8 @@ and removes the directory. The command, not the URL, decides which file:
 Rules to state to the user:
 
 - Run a PyPI URL only with `uvx --from "pitloom>=0.24.0"` (or after `loom
-  --version` shows 0.24.0 or later). The ephemeral recipe in `SKILL.md` pins
-  an older floor, where a `pypi.org` URL is cloned as Git. On an older
-  `loom`, do not run it; report that 0.24.0 is needed.
+  --version` shows 0.24.0 or later). An older `loom` clones a `pypi.org` URL
+  as Git: do not run it there; report that 0.24.0 is needed.
 - A refusal prints `ERROR: loom <command>: ` (`loom wheel`, `loom project`
   or `loom generate`), then the condition, ending in the code in brackets.
   Key on that trailing `[code]`, not on the start of the line; the quoted

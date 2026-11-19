@@ -43,6 +43,7 @@ from pitloom.core.config_cascade import (
     resolve_standalone_config,
 )
 from pitloom.core.creation import CreationMetadata
+from pitloom.core.credential_policy import CredentialPolicy
 from pitloom.core.document import DocumentModel
 from pitloom.core.inert_options import (
     EMBED_PROJECT,
@@ -56,6 +57,7 @@ from pitloom.core.models import merkle_root_of_files
 from pitloom.core.project import ProjectMetadata
 from pitloom.core.provenance import require_max_source_metadata_bytes
 from pitloom.core.walk_rules import without_registry_copies
+from pitloom.export._spdx3_credentials import check_graph_credentials
 from pitloom.extract.authors import (
     CORE_METADATA_HINT,
     AuthorSplit,
@@ -76,12 +78,32 @@ from pitloom.logging_config import loggable
 log = logging.getLogger(__name__)
 
 
-def _read_external_sbom(sbom_path: Path | str) -> str:
-    """The SBOM at *sbom_path* as written (:func:`~pitloom._sbom_format.
-    read_given_sbom`), so what is embedded, and what ``-o`` copies, is the
-    file. A dropped UTF-8 byte order mark is said with one ``WARNING:``: the
-    embedded bytes differ from the file's."""
+def _read_external_sbom(sbom_path: Path | str, credentials: CredentialPolicy) -> str:
+    """The SBOM at *sbom_path* as written
+    (:func:`~pitloom._sbom_format.read_given_sbom`), so what is embedded, and
+    what ``-o`` copies, is the file. A dropped UTF-8 byte order mark is said
+    with one ``WARNING:``: the embedded bytes differ from the file's. Refused,
+    never rewritten, when a URL field, or any other string of the document
+    read as a whole URL value (it was not written by Pitloom, so its keys
+    need not be the compact names), holds a credential *credentials* does not accept
+    (:func:`~pitloom.export._spdx3_credentials.check_graph_credentials`):
+    warned of, or refused in its ``refuse`` mode.
+
+    Raises:
+        pitloom.messages.CodedValueError: ``credentials-unsafe/refused``
+            (the ``refuse`` mode).
+        pitloom.messages.CodedFileNotFoundError, ValueError: as
+            :func:`~pitloom._sbom_format.read_given_sbom`.
+    """
     given = read_given_sbom(sbom_path)
+    document = given.document
+    graph = document.get("@graph", [document])
+    # Beside the elements, what else the document holds (its @context, a
+    # property next to @graph): embedded as written too.
+    rest = {key: value for key, value in document.items() if key != "@graph"}
+    if "@graph" in document and rest:
+        graph = [*graph, rest]
+    check_graph_credentials(graph, credentials, every_string=True)
     if given.dropped_bom:
         log.warning(
             "SBOM %s: byte order mark dropped (JSON text must not have one)",
@@ -94,6 +116,7 @@ def _resolve_embed_registry(
     project_dir: Path | str | None,
     pitloom_config: PitloomConfig | None,
     id_registry: str | Path | IdRegistry | None,
+    credentials: CredentialPolicy | None = None,
 ) -> IdRegistry | None:
     """Resolve (and thereby validate) the registry
     :func:`~pitloom.embed.embed_wheel_sbom` would use, without needing
@@ -104,7 +127,10 @@ def _resolve_embed_registry(
     :func:`~pitloom.id_registry.resolve_registry` does.
 
     An explicit *id_registry* always wins, so the project's own config is
-    never read for it (skips the peek entirely). Returns the resolved
+    never read for it (skips the peek entirely); it is loaded in the mode
+    *credentials* (the run's flags) and *pitloom_config* give, and turned to
+    the ``refuse`` mode later if the project's own config refuses
+    (:func:`~pitloom.id_registry.resolve_registry`). Returns the resolved
     :class:`IdRegistry` (or ``None``) so the caller can feed it back in,
     short-circuiting :func:`_generate_embed_sbom_json`'s own resolve
     instead of loading the file a second time.
@@ -114,8 +140,12 @@ def _resolve_embed_registry(
         if project_dir is None
         else registry_base_dir(Path(project_dir).resolve())
     )
+    flags = credentials or CredentialPolicy()
     if id_registry is not None:
-        return resolve_registry(id_registry, None, base_dir)
+        policy = (pitloom_config or PitloomConfig()).credential_policy.union(flags)
+        return resolve_registry(
+            id_registry, None, base_dir, refuse_credentials=policy.refuse
+        )
     if pitloom_config is not None:
         cfg = pitloom_config
     elif project_dir is None:
@@ -130,7 +160,12 @@ def _resolve_embed_registry(
             include_installed_metadata=False,
             quiet=True,
         )
-    return resolve_registry(None, cfg.id_registry, base_dir)
+    return resolve_registry(
+        None,
+        cfg.id_registry,
+        base_dir,
+        refuse_credentials=cfg.credential_policy.union(flags).refuse,
+    )
 
 
 def _settle_build_options(
@@ -288,7 +323,10 @@ def _generate_embed_sbom_json(
         _settle_embed_options(
             EMBED_SBOM, wheel_metadata.name, given, overrides, file_cache
         )
-        return _read_external_sbom(sbom_path), sbom_basename
+        # Only the run's own flags: ``pitloom_config`` and the project's
+        # config have no effect on a given SBOM.
+        credentials = overrides.credentials or CredentialPolicy()
+        return _read_external_sbom(sbom_path, credentials), sbom_basename
 
     if project_dir is None:
         _settle_build_options(
@@ -307,7 +345,12 @@ def _generate_embed_sbom_json(
             wheel_metadata,
             cfg,
             creation_metadata or cfg.creation_metadata,
-            resolve_registry(id_registry, cfg.id_registry, Path.cwd()),
+            resolve_registry(
+                id_registry,
+                cfg.id_registry,
+                Path.cwd(),
+                refuse_credentials=cfg.credential_policy.refuse,
+            ),
             (file_cache, overrides.trust_model_files is True),
         )
         return sbom_json, sbom_basename or cfg.sbom_basename
@@ -347,7 +390,12 @@ def _generate_embed_sbom_json(
         proj_root,
         wheel_metadata,
         cfg,
-        resolve_registry(id_registry, cfg.id_registry, registry_base_dir(proj_root)),
+        resolve_registry(
+            id_registry,
+            cfg.id_registry,
+            registry_base_dir(proj_root),
+            refuse_credentials=cfg.credential_policy.refuse,
+        ),
         creation_metadata or cfg.creation_metadata,
         wheel_path=wheel_path,
         build_options=settled_build_options,
@@ -417,4 +465,4 @@ def _build_sbom_standalone_wheel(
         ),
         **cfg.assemble_options,
     )
-    return exporter.to_json(pretty=False)
+    return exporter.to_json(pretty=False, credentials=cfg.credential_policy)

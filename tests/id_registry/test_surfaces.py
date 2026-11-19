@@ -116,6 +116,12 @@ def test_flag_wins_over_project_own_key(tmp_path: Path, load_spy: list[Path]) ->
 # --- Failure: a declared-but-bad registry is a hard failure everywhere ---
 
 
+#: What a missing registry file, or one that is not JSON, says.
+_BAD_REGISTRY = (
+    r"^(ID registry file not found: |FILE=.*: not valid JSON for the ID registry; )"
+)
+
+
 @pytest.mark.parametrize("content", [None, "{"], ids=["missing", "malformed-json"])
 def test_library_and_loom_declared_bad_registry_raises(
     content: str | None, tmp_path: Path
@@ -128,7 +134,7 @@ def test_library_and_loom_declared_bad_registry_raises(
 
     with pytest.raises(
         FileNotFoundError if content is None else ValueError,
-        match=r"^ID registry file ",
+        match=_BAD_REGISTRY,
     ):
         generate_project_sbom(
             project,
@@ -141,7 +147,7 @@ def test_library_and_loom_declared_bad_registry_raises(
     frag_path = tmp_path / "frag.spdx3.json"
     with pytest.raises(
         FileNotFoundError if content is None else ValueError,
-        match=r"^ID registry file ",
+        match=_BAD_REGISTRY,
     ):
         with loom.run(frag_path, id_registry=registry_path):
             pass
@@ -164,7 +170,7 @@ def test_hook_declared_bad_registry_raises_one_error_no_sbom_files(
     with caplog.at_level(logging.ERROR):
         with pytest.raises(
             FileNotFoundError if content is None else ValueError,
-            match=r"^ID registry file ",
+            match=_BAD_REGISTRY,
         ):
             hook.initialize("standard", build_data)
 

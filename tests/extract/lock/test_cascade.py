@@ -24,9 +24,13 @@ from pathlib import Path
 import pytest
 
 from pitloom.assemble import generate_project_sbom
+from pitloom.core.internal_error import InternalError
 from pitloom.core.project import ProjectMetadata
 from pitloom.extract.lock import apply_locked_dependencies, cascade
+from pitloom.extract.lock.common import POETRY_LOCK_SOURCE_NAME
 from pitloom.extract.project import read_project
+from pitloom.messages.lock_files import LOCK_ORDER
+from tests._code_records import coded, has_parts
 from tests.assemble.embed_surfaces_shared import run_cli
 
 
@@ -136,17 +140,16 @@ def test_apply_locked_dependencies_overrides_prior_source_with_note(
             "| Note: supersedes poetry.lock"
         )
         assert not metadata.locked_dependency_hashes
-        assert "poetry.lock and pylock.toml" in caplog.text
-        assert "pylock.toml takes priority" in caplog.text
+        [(code, text)] = coded(caplog)
+        assert code == "lock-file-conflict"
+        assert has_parts(text, "kept 'pylock.toml'", "dropped 'poetry.lock'")
 
 
-def test_apply_locked_dependencies_unrecognized_previous_source_warns(
-    caplog: pytest.LogCaptureFixture,
-) -> None:
+def test_apply_locked_dependencies_unrecognized_previous_source_is_internal() -> None:
     """A `provenance["locked_dependencies"]` source name that doesn't
-    match any entry in `_LOCK_SOURCES` (a bug, e.g. after a future rename
-    drifts the two apart) can't be ranked -- warn, rather than silently
-    letting every cascade-tried format skip the override check."""
+    match any entry in `_LOCK_SOURCES` (a table that drifted from the
+    provenance writers) can't be ranked: a programming error, never a
+    line a user reads."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         _write_pylock(tmp_path, "requests", "2.31.0")
@@ -160,11 +163,31 @@ def test_apply_locked_dependencies_unrecognized_previous_source_warns(
             },
         )
 
-        with caplog.at_level(logging.WARNING):
+        with pytest.raises(InternalError, match="mystery-tool"):
             apply_locked_dependencies(metadata, tmp_path)
 
-        assert "doesn't match any known lock source" in caplog.text
-        assert metadata.locked_dependencies == ["requests==2.31.0"]
+        assert metadata.locked_dependencies == ["mystery==1.0.0"]
+
+
+def test_every_lock_source_is_in_the_documented_order() -> None:
+    """The names `_LOCK_SOURCES` ranks by are the ones the provenance
+    writers record (`poetry.lock` by the pyproject reader) and the
+    `lock-file-conflict` advice lists, in that order."""
+    # pylint: disable-next=protected-access
+    table = cascade._LOCK_SOURCES  # the one drift check on the private table
+    names = [source.name for source in table]
+    assert POETRY_LOCK_SOURCE_NAME in names
+    assert all(name in LOCK_ORDER for name in names)
+    positions = [LOCK_ORDER.index(name) for name in names]
+    assert positions == sorted(positions)
+    assert names == [
+        "pylock.toml",
+        "uv.lock",
+        "poetry.lock",
+        "pdm.lock",
+        "Pipfile.lock",
+        "requirements.txt",
+    ]
 
 
 def test_apply_locked_dependencies_valid_empty_source_wins_over_lower_priority() -> (
@@ -233,7 +256,9 @@ def test_apply_locked_dependencies_truncated_pylock_falls_back_to_lower_priority
         assert metadata.provenance["locked_dependencies"] == (
             "Source: uv.lock | Method: resolved_lockfile"
         )
-        assert "missing top-level 'packages' key" in caplog.text
+        [(code, text)] = coded(caplog)
+        assert code == "lock-file-malformed"
+        assert has_parts(text, "FILE=pylock.toml", "packages missing")
 
 
 def test_read_project_applies_cascade_for_setup_py_only_project() -> None:
@@ -317,7 +342,9 @@ def test_dynamic_dependencies_file_is_not_a_lock(
         else:
             generate_project_sbom(project, output_path=out, offline=True)
 
-    ignoring = [m for m in caplog.messages if "ignoring requirements.txt" in m]
+    ignoring = [
+        m for _code, m in coded(caplog) if has_parts(m, "FILE=requirements.txt")
+    ]
     assert len(ignoring) == ignored
     assert "requests" in out.read_text(encoding="utf-8")
 
@@ -361,4 +388,5 @@ def test_without_file_identity_the_path_decides(
     with caplog.at_level(logging.WARNING):
         read_project(project)
 
-    assert ("ignoring requirements.txt" in caplog.text) == ignored
+    ignoring = [m for _code, m in coded(caplog) if "FILE=requirements.txt" in m]
+    assert bool(ignoring) == ignored

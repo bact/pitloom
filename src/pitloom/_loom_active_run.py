@@ -35,16 +35,18 @@ from pitloom.assemble.spdx3.creation_info import build_creation_info
 from pitloom.core.config import PitloomConfig
 from pitloom.core.config_cascade import load_config_file
 from pitloom.core.creation import CreationMetadata
+from pitloom.core.credential_policy import CredentialPolicy
 from pitloom.core.lfs_pointer import UnreadPointers
 from pitloom.core.model_extract_limit import (
     require_max_dataset_hash_bytes,
     require_positive_ceiling,
 )
 from pitloom.core.models import build_relationship
-from pitloom.core.quote_source import quote_source
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 from pitloom.id_registry import IdRegistry, IdRegistrySession, resolve_registry
-from pitloom.logging_config import configure_logging, one_line
+from pitloom.logging_config import configure_logging
+from pitloom.messages import CodedValueError, recoded
+from pitloom.messages.config import Parameter, invalid_value
 
 log = logging.getLogger("pitloom.loom")
 
@@ -64,20 +66,24 @@ def loom_config(pitloom_config: PitloomConfig | str | Path | None) -> PitloomCon
     else the defaults. Never an implicit ``[tool.pitloom]``.
 
     Raises:
-        ValueError: the named file is missing, unreadable or invalid; the
-            message names it.
+        ValueError: the named file is missing (``input-not-found``),
+            unreadable (``file-unreadable``) or invalid (``config-invalid``,
+            ``config-malformed``): a :class:`~pitloom.messages.CodedValueError`
+            naming it.
     """
     if pitloom_config is None:
         return PitloomConfig()
     if isinstance(pitloom_config, PitloomConfig):
         return pitloom_config
+    if not isinstance(pitloom_config, (str, os.PathLike)):
+        raise invalid_value(
+            Parameter("pitloom_config"), "config-source", pitloom_config
+        )
     path = Path(pitloom_config)
     try:
         return load_config_file(path, source="pitloom_config")
     except FileNotFoundError as exc:
-        raise ValueError(str(exc)) from exc
-    except OSError as exc:
-        raise ValueError(f"config file {quote_source(path)}: {one_line(exc)}") from exc
+        raise recoded(CodedValueError, exc) from None
 
 
 def _append_once(
@@ -102,23 +108,35 @@ class _ActiveRun:
         *,
         pitloom_config: PitloomConfig | str | Path | None = None,
         max_dataset_hash_bytes: int | None = None,
+        credentials: CredentialPolicy | None = None,
     ):
         # First: a declared-and-bad config or registry must fail before
         # _active_run is set (its caller assigns this constructor's result
         # directly to the module global -- an exception here means that
         # assignment never happens). Of the config, loom reads only the
-        # registry (the id_registry argument wins), its update switch and
-        # the dataset hash ceiling (the max_dataset_hash_bytes argument wins).
+        # registry (the id_registry argument wins), its update switch, the
+        # dataset hash ceiling (the max_dataset_hash_bytes argument wins), the
+        # credentials it accepts and its url-credentials mode (united with
+        # the credentials argument, which can turn refusal on, never off).
         configure_logging()
         config = loom_config(pitloom_config)
-        resolved = resolve_registry(id_registry, config.id_registry, Path.cwd())
+        self.credentials = config.credential_policy.union(
+            credentials or CredentialPolicy()
+        )
+        resolved = resolve_registry(
+            id_registry,
+            config.id_registry,
+            Path.cwd(),
+            refuse_credentials=self.credentials.refuse,
+        )
         max_hash_bytes = (
             require_max_dataset_hash_bytes(
-                config.max_dataset_hash_bytes, "pitloom_config"
+                config.max_dataset_hash_bytes,
+                Parameter("PitloomConfig.max_dataset_hash_bytes"),
             )
             if max_dataset_hash_bytes is None
             else require_positive_ceiling(
-                max_dataset_hash_bytes, "max_dataset_hash_bytes"
+                max_dataset_hash_bytes, Parameter("max_dataset_hash_bytes")
             )
         )
         self.update_id_registry: bool = config.update_id_registry
@@ -424,10 +442,14 @@ class _ActiveRun:
         self._emit_script_file_and_generates()
         self.elements.finish()
 
+        # Serialised first: a refused fragment creates no directory or file.
+        fragment_json = self.exporter.to_json(
+            pretty=self.pretty, credentials=self.credentials
+        )
         output_path = Path(self.output_file)
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
-        write_text_lf(output_path, self.exporter.to_json(pretty=self.pretty))
+        write_text_lf(output_path, fragment_json)
         self.lfs_pointers.warn()
         self.models.persist()
         self.session.info_layout_alias_hits()

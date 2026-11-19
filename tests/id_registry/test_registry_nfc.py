@@ -83,7 +83,7 @@ def test_a_file_with_two_spellings_of_one_key_is_rejected(
     path = tmp_path / "ids.json"
     _write(path, type_name, _NFC, _NFD)
 
-    with pytest.raises(ValueError, match="ID registry file") as excinfo:
+    with pytest.raises(ValueError, match="^ID registry: FILE=") as excinfo:
         IdRegistry.load(path)
 
     assert "two" in str(excinfo.value)

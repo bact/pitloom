@@ -257,7 +257,10 @@ def _injected(s: _Seq) -> None:
 def _readonly(s: _Seq) -> None:
     s.kinds[1] = "readonly"
     s.regs[1] = _reg(_CLEAN, sep=" ")
-    s.stderr[1] = "WARNING: ID registry: failed to save x: denied\n"
+    s.stderr[1] = (
+        "WARNING: FILE=x: could not write for the ID registry; denied "
+        "[file-unwritable]\n"
+    )
 
 
 def _gen_erased(s: _Seq) -> None:
@@ -267,8 +270,8 @@ def _gen_erased(s: _Seq) -> None:
 
 
 _GATE = (
-    "INFO: ID registry: content gate dropped for software_File 'pkg/a.py': "
-    f"imported id {NS}File-7 replaces {NS}File-1\n"
+    "INFO: ID registry: content gate dropped for 'software_File' pkg/a.py: "
+    f"imported id {NS}File-7 replaces {NS}File-1 [registry-hash-conflict/gate]\n"
 )
 
 
@@ -305,7 +308,10 @@ def _gen_readonly_old_text(s: _Seq) -> None:
 
 def _gen_readonly_unprefixed(s: _Seq) -> None:
     _gen_readonly_old_text(s)
-    s.stderr[1] = "ERROR: failed to save reg.json: denied\n"
+    s.stderr[1] = (
+        "ERROR: FILE=reg.json: could not write for the ID registry; denied "
+        "[file-unwritable]\n"
+    )
 
 
 def _readonly_extra_error(s: _Seq) -> None:
@@ -380,7 +386,8 @@ def test_an_id_import_dropping_a_gate_with_its_info_is_clean(
     readonly = _Seq(mcc, tmp_path / "proj")
     readonly.kinds[1], readonly.ops[1], readonly.rcs[1] = "readonly", "gen", 1
     readonly.stderr[1] = (
-        "ERROR: loom id generate: ID registry: failed to save reg.json: denied\n"
+        "ERROR: loom id generate: FILE=reg.json: could not write for the ID "
+        "registry; denied [file-unwritable]\n"
     )
     assert (imported.check(), readonly.check()) == (set(), set())
 

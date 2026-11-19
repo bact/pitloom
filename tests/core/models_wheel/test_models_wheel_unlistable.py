@@ -73,7 +73,8 @@ def _dir_warnings(caplog: pytest.LogCaptureFixture) -> list[str]:
     return [
         r.getMessage()
         for r in caplog.records
-        if r.levelno >= logging.WARNING and r.getMessage().startswith(_PREFIX)
+        if getattr(r, CODE_ATTR, None) == "dir-unlistable"
+        and r.getMessage().startswith(_PREFIX)
     ]
 
 

@@ -6,8 +6,9 @@
 """The one ``WARNING:`` for a file Pitloom could not read
 (:func:`warn_file_unreadable`) and for a directory it could not list
 (:func:`warn_dir_unlistable`), and the one error for a file whose read
-raises (:func:`file_unreadable_error`): the entry chosen by the exception,
-and never for one that is absent.
+raises (:func:`file_unreadable_error`) and a directory whose listing raises
+(:func:`dir_unlistable_error`): the entry chosen by the exception, and never
+for one that is absent.
 
 See also: :mod:`pitloom.messages._file_unreadable` (the entries).
 """
@@ -22,6 +23,7 @@ from pitloom.core.path_confine import OutsideRootError
 from pitloom.core.path_probe import is_missing_errno
 from pitloom.messages._emit import CodedValueError, emit
 from pitloom.messages._file_unreadable import (
+    DIR_ERROR_LINE,
     DIR_UNLISTABLE,
     FILE_ERROR_LINE,
     FILE_UNREADABLE,
@@ -174,4 +176,22 @@ def file_unreadable_error(
         )
     return CodedValueError(
         FILE_UNREADABLE, line=FILE_ERROR_LINE, file=file, use=use, failure=exc
+    )
+
+
+def dir_unlistable_error(
+    exc: BaseException, *, directory: str | os.PathLike[str], use: str
+) -> CodedValueError:
+    """The error to raise for the directory *directory* (as the line names
+    it) that *exc* stopped Pitloom listing for *use* (one of
+    :data:`~pitloom.messages._field_tables.READ_USES`), ``dir-unlistable``:
+    what *exc* reports, never its text. The caller raises it ``from exc``.
+
+    Raises:
+        pitloom.core.internal_error.InternalError: *exc* says the directory
+            is absent.
+    """
+    _refuse_absent(exc)
+    return CodedValueError(
+        DIR_UNLISTABLE, line=DIR_ERROR_LINE, dir=directory, use=use, failure=exc
     )

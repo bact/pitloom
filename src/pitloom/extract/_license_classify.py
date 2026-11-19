@@ -23,13 +23,15 @@ from typing import Literal
 
 from pitloom.core.provenance import provenance_segment
 from pitloom.extract._license_resolve import (
+    Refusal,
     is_licence_id,
-    refusal_reason,
+    refusal,
     resolution_notes,
     resolve_value,
     say_resolved,
 )
-from pitloom.logging_config import excerpt, warn_once
+from pitloom.messages.files import warn_license_surrogates
+from pitloom.messages.licences import warn_license_refused
 
 _logger = logging.getLogger(__name__)
 
@@ -58,18 +60,6 @@ class ClassifiedLicense:
 #: licence body is text, not an expression to resolve).
 _MAX_EXPRESSION_LENGTH = 200
 
-#: One line, one reason; ``%r`` keeps control characters out of the log.
-_NOT_AN_EXPRESSION_MESSAGE = (
-    "LICENSE=%r: not a valid SPDX license expression (%s); recorded as license text"
-)
-
-#: A field that holds an SPDX expression only, recorded as text. The value
-#: through :func:`~pitloom.logging_config.excerpt`: one line, cut.
-_UNREAD_SPDX_FIELD_MESSAGE = (
-    "FIELD=%s LICENSE=%s: not read as an SPDX license expression (%s); "
-    "recorded as license text"
-)
-
 _EXPRESSION_OPERATOR_RE = re.compile(r"(?<![\w-])(?:AND|OR|WITH|NOT)(?![\w-])")
 _EXPRESSION_TOKEN_RE = re.compile(r"[A-Za-z0-9.+:\-]+")
 #: Words standing for a named individual; ``UNKNOWN`` is a source saying it
@@ -81,17 +71,17 @@ _INDIVIDUAL_WORDS: dict[str, tuple[LicenseKind, str]] = {
 }
 #: A lone surrogate (not UTF-8 encodable) in a licence value.
 _SURROGATE_RE = re.compile("[\ud800-\udfff]")
-_SURROGATE_MESSAGE = (
-    "LICENSE=%a: has characters that cannot be encoded; each replaced with U+FFFD"
-)
+#: What :func:`_classify` gives as the refusal of a value that is no text.
+_NO_REFUSAL = Refusal("")
 
 
 def _replace_surrogates(raw: str, warn: bool) -> str:
     """*raw* with each lone surrogate replaced by U+FFFD: it cannot be
-    encoded, so it would fail the serialisation of the SBOM."""
+    encoded, so it would fail the serialisation of the SBOM. Said once per
+    value, ``text-malformed``, when *warn*."""
     cleaned = _SURROGATE_RE.sub("\ufffd", raw)
     if warn:
-        warn_once(_logger, raw, _SURROGATE_MESSAGE, raw)
+        warn_license_surrogates(_logger, value=raw, once=raw)
     return cleaned
 
 
@@ -143,20 +133,21 @@ def classify_license(raw: str | None, *, warn: bool = True) -> ClassifiedLicense
 
 def _classify(
     raw: str | None, warn: bool, field: str | None = None
-) -> tuple[ClassifiedLicense | None, str]:
+) -> tuple[ClassifiedLicense | None, Refusal]:
     """:func:`classify_license` and, for text, why it is not an expression
-    (one line); ``""`` for any other kind. A value LicenseID re-spells
-    is said once (:func:`~pitloom.extract._license_resolve.say_resolved`)
-    when it is recorded: *warn*, or the *field* it was read from is given."""
+    (:class:`~pitloom.extract._license_resolve.Refusal`);
+    :data:`_NO_REFUSAL` for any other kind. A value LicenseID re-spells is said once
+    (:func:`~pitloom.extract._license_resolve.say_resolved`) when it is
+    recorded: *warn*, or the *field* it was read from is given."""
     if raw and _SURROGATE_RE.search(raw):
         raw = _replace_surrogates(raw, warn)
     stripped = (raw or "").strip()
     word = stripped.upper()
     if not stripped:
-        return None, ""
+        return None, _NO_REFUSAL
     if word in _INDIVIDUAL_WORDS:
         kind, value = _INDIVIDUAL_WORDS[word]
-        return ClassifiedLicense(kind, value, raw or ""), ""
+        return ClassifiedLicense(kind, value, raw or ""), _NO_REFUSAL
     if "\n" in stripped or len(stripped) > _MAX_EXPRESSION_LENGTH:
         reason = (
             "more than one line"
@@ -164,13 +155,13 @@ def _classify(
             else f"longer than {_MAX_EXPRESSION_LENGTH} characters, not parsed"
         )
         text = ClassifiedLicense("text", empty_blank_lines(stripped), raw or "")
-        return text, reason
+        return text, Refusal(reason)
     return _expression_or_text(stripped, raw or "", warn, field)
 
 
 def _expression_or_text(
     stripped: str, raw: str, warn: bool, field: str | None
-) -> tuple[ClassifiedLicense, str]:
+) -> tuple[ClassifiedLicense, Refusal]:
     """The reading of the single-line *stripped* value: the expression
     LicenseID reads in it (said once when it differs from *stripped* and
     the value is recorded: *warn*, or a *field* is given), else text with
@@ -179,11 +170,26 @@ def _expression_or_text(
     if resolved is not None:
         if (warn or field is not None) and resolved.expression != stripped:
             say_resolved(stripped, resolved, field)
-        return ClassifiedLicense("expression", resolved.expression, raw), ""
-    reason = refusal_reason(stripped)
+        return ClassifiedLicense("expression", resolved.expression, raw), _NO_REFUSAL
+    refused = refusal(stripped)
     if warn and _looks_like_expression(stripped):
-        warn_once(_logger, stripped, _NOT_AN_EXPRESSION_MESSAGE, stripped, reason)
-    return ClassifiedLicense("text", stripped, raw), reason
+        _warn_refused(stripped, refused)
+    return ClassifiedLicense("text", stripped, raw), refused
+
+
+def _warn_refused(value: str, refused: Refusal, field: str | None = None) -> None:
+    """One ``WARNING:`` per *value* per process, by whichever caller comes
+    first, that it is recorded as licence text: malformed or invalid by
+    LicenseID's category (*refused*), naming the *field* it was read from."""
+    where = {"field": field} if field else {}
+    warn_license_refused(
+        _logger,
+        malformed=refused.malformed,
+        once=value,
+        license=value,
+        license_reason=refused.reason,
+        **where,
+    )
 
 
 def warn_unless_expression(value: str | None, field: str) -> None:
@@ -199,17 +205,10 @@ def warn_unless_expression(value: str | None, field: str) -> None:
 
     The key is the one :func:`classify_license`'s broken-expression warning
     uses, so a value is said once, by whichever comes first."""
-    classified, reason = _classify(value, False, field)
+    classified, refused = _classify(value, False, field)
     if classified is None or classified.kind != "text":
         return
-    warn_once(
-        _logger,
-        classified.value,
-        _UNREAD_SPDX_FIELD_MESSAGE,
-        field,
-        excerpt(classified.value),
-        reason,
-    )
+    _warn_refused(classified.value, refused, field)
 
 
 #: What a model card or file puts in a licence field for "a licence, not

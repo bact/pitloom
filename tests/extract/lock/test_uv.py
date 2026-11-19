@@ -23,7 +23,12 @@ from pathlib import Path
 
 import pytest
 
-from pitloom.extract.lock.uv import extract_uv_lock_dependencies
+from pitloom.extract.lock.uv import (
+    extract_uv_lock_dependencies,
+    extract_uv_lock_extra_pins,
+)
+from pitloom.messages.lock_files import Said
+from tests.extract.lock.lock_lines_shared import said, said_once
 
 _LOCK_HEADER = 'version = 1\nrevision = 1\nrequires-python = ">=3.10"\n'
 
@@ -57,7 +62,7 @@ def test_malformed_toml_returns_none_and_warns(
             result = extract_uv_lock_dependencies(tmp_path)
 
         assert result is None
-        assert "Failed to parse" in caplog.text
+        said(caplog, "lock-file-malformed", "FILE=uv.lock", "does not parse")
 
 
 def test_missing_top_level_version_key_returns_none_and_warns(
@@ -82,7 +87,7 @@ def test_missing_top_level_version_key_returns_none_and_warns(
             result = extract_uv_lock_dependencies(tmp_path)
 
         assert result is None
-        assert "doesn't look like a genuine uv.lock" in caplog.text
+        said(caplog, "lock-file-wrong-format", "FILE=uv.lock", "version")
 
 
 def test_package_key_not_a_list_returns_none_and_warns(
@@ -96,7 +101,7 @@ def test_package_key_not_a_list_returns_none_and_warns(
             result = extract_uv_lock_dependencies(tmp_path)
 
         assert result is None
-        assert "expected a list" in caplog.text
+        said(caplog, "lock-file-malformed", "FILE=uv.lock", "package is str")
 
 
 def test_no_root_package_returns_none_and_warns(
@@ -117,7 +122,7 @@ def test_no_root_package_returns_none_and_warns(
             result = extract_uv_lock_dependencies(tmp_path)
 
         assert result is None
-        assert "no project package found" in caplog.text
+        said(caplog, "lock-file-unusable", "FILE=uv.lock", "no entry for the project")
 
 
 def test_empty_string_expected_name_falls_back_to_pyproject_toml() -> None:
@@ -162,7 +167,7 @@ def test_root_dependencies_not_a_list_returns_none_and_warns(
             result = extract_uv_lock_dependencies(tmp_path)
 
         assert result is None
-        assert "expected a list" in caplog.text
+        said(caplog, "lock-file-malformed", "FILE=uv.lock", "dependencies is str")
 
 
 def test_root_with_no_dependencies_key_returns_empty_list_not_none() -> None:
@@ -249,7 +254,7 @@ def test_malformed_top_level_package_entry_warns(
             result = extract_uv_lock_dependencies(tmp_path)
 
         assert result == []
-        assert "malformed" in caplog.text.lower()
+        said(caplog, "lock-entry-malformed", "FILE=uv.lock", "name None")
 
 
 def test_non_table_top_level_package_entry_warns(
@@ -273,8 +278,8 @@ def test_non_table_top_level_package_entry_warns(
             result = extract_uv_lock_dependencies(tmp_path)
 
         assert result == []
-        assert "malformed" in caplog.text.lower()
-        assert "expected a table" in caplog.text.lower()
+        said(caplog, "lock-entry-malformed", "FILE=uv.lock", "package is str")
+        said(caplog, "lock-entry-malformed", "expected a table")
 
 
 def test_dependency_resolved_across_name_case_difference() -> None:
@@ -306,7 +311,7 @@ def test_malformed_dependency_reference_skipped_and_warns(
             result = extract_uv_lock_dependencies(tmp_path)
 
         assert not result
-        assert "malformed" in caplog.text.lower()
+        said(caplog, "lock-entry-malformed", "FILE=uv.lock", "dependencies is str")
 
 
 def test_dependency_reference_missing_name_skipped_and_warns(
@@ -320,7 +325,7 @@ def test_dependency_reference_missing_name_skipped_and_warns(
             result = extract_uv_lock_dependencies(tmp_path)
 
         assert not result
-        assert "malformed" in caplog.text.lower()
+        said(caplog, "lock-entry-malformed", "FILE=uv.lock", "name None")
 
 
 def test_marker_conditional_root_dependency_skipped_and_warns(
@@ -343,7 +348,7 @@ def test_marker_conditional_root_dependency_skipped_and_warns(
             result = extract_uv_lock_dependencies(tmp_path)
 
         assert not result
-        assert "marker-conditional" in caplog.text
+        said(caplog, "lock-entry-unusable", "PACKAGE=click", "version per marker")
 
 
 def test_dependency_not_found_in_package_table_skipped_and_warns(
@@ -359,7 +364,7 @@ def test_dependency_not_found_in_package_table_skipped_and_warns(
             result = extract_uv_lock_dependencies(tmp_path)
 
         assert not result
-        assert "not found" in caplog.text
+        said(caplog, "lock-entry-malformed", "PACKAGE=ghost-pkg", "not in the lock")
 
 
 def test_ambiguous_multi_version_dependency_skipped_and_warns(
@@ -383,7 +388,7 @@ def test_ambiguous_multi_version_dependency_skipped_and_warns(
             result = extract_uv_lock_dependencies(tmp_path)
 
         assert not result
-        assert "2 resolved versions" in caplog.text
+        said(caplog, "lock-entry-conflict", "PACKAGE=click", "'8.1.8'", "'8.3.1'")
 
 
 def test_same_name_agreeing_version_candidates_collapsed() -> None:
@@ -438,7 +443,7 @@ def test_non_registry_sourced_dependency_excluded(
             result = extract_uv_lock_dependencies(tmp_path)
 
         assert not result
-        assert "local-dep" in caplog.text
+        said(caplog, "lock-entry-unusable", "PACKAGE=local-dep", f"{source_key} source")
 
 
 def test_dependency_missing_version_skipped_and_warns(
@@ -457,7 +462,7 @@ def test_dependency_missing_version_skipped_and_warns(
             result = extract_uv_lock_dependencies(tmp_path)
 
         assert not result
-        assert "missing" in caplog.text.lower()
+        said(caplog, "lock-entry-malformed", "PACKAGE=no-version", "version")
 
 
 def test_dependency_with_malformed_scalar_extra_warns_and_skips(
@@ -478,4 +483,36 @@ def test_dependency_with_malformed_scalar_extra_warns_and_skips(
             result = extract_uv_lock_dependencies(tmp_path)
 
         assert result == ["coverage==7.5.0"]
-        assert "expected a string or list" in caplog.text
+        said(caplog, "lock-entry-malformed", "PACKAGE=coverage", "extra is int")
+
+
+@pytest.mark.parametrize(
+    ("entry", "code"),
+    [
+        ('source = { git = "https://example.org/baz" }\n', "lock-entry-unusable"),
+        ("", "lock-entry-malformed"),
+    ],
+    ids=["git-source", "no-version"],
+)
+def test_unusable_entry_said_once_across_runtime_and_extras_pass(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture, entry: str, code: str
+) -> None:
+    """A package the runtime walk and an extra both reach is said once
+    when the two passes share one memo."""
+    (tmp_path / "pyproject.toml").write_text(
+        '[project]\nname = "demo"\nversion = "1.0.0"\n', encoding="utf-8"
+    )
+    _write_lock(
+        tmp_path,
+        _ROOT_HEADER
+        + 'dependencies = [{ name = "baz" }]\n'
+        + 'optional-dependencies = { x = [{ name = "baz" }] }\n\n'
+        + f'[[package]]\nname = "baz"\n{entry}',
+    )
+    memo: Said = set()
+    with caplog.at_level(logging.WARNING):
+        assert not extract_uv_lock_dependencies(tmp_path, said=memo)
+        assert not extract_uv_lock_extra_pins(
+            tmp_path, "demo", frozenset({"baz"}), memo
+        )
+    said_once(caplog, code, "PACKAGE=baz")

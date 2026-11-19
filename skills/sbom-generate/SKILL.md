@@ -1,6 +1,6 @@
 ---
 # Created: 2026-07-05
-# Last-Modified: 2026-11-14
+# Last-Modified: 2026-11-18
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -17,13 +17,14 @@ description: >-
   provenance". Combined asks (hand off to
   sbom-enrich): "generate SBOM and enrich it", "complete/full SBOM", "SBOM
   meeting NTIA/FSCT/CISA 2026/G7/BSI minimum elements". PEP 770 wheel
-  embedding ("embed the SBOM in this wheel", "SBOM into dist/*.whl",
-  "signed wheel / RECORD.jws", "--allow-signed-wheel"),
+  embedding ("embed the SBOM in this wheel", "signed wheel / RECORD.jws",
+  "--allow-signed-wheel"),
   --allow-build/--build-timeout ("generate with a real build", "the build is
   taking too long"), stable ids ("pin ids", "keep ids stable", "create or update
-  an ID registry", "loom id generate/import") and the usage scan
-  ("which files use this model"). Checking: sbom-validate; enriching:
-  sbom-enrich.
+  an ID registry", "loom id generate/import"), usage scan
+  ("which files use this model"), "warns about a credential"/"holds a
+  credential" lines.
+  Checking: sbom-validate.
 license: Apache-2.0
 compatibility: >-
   Requires a shell, Python 3.10+ and pitloom >= 0.24.1 (pip, uvx
@@ -67,10 +68,8 @@ ID, `http(s)` Git URL or PyPI project URL (default: the current directory). For 
 
 ## Requirements
 
-- Python >= 3.10 and **pitloom >= 0.24.1** (it requires LicenseID 0.8.4,
-  which reads `Apache Software License 2.0` and similar names as
-  `Apache-2.0` and does not warn about a missing licence database for a
-  declared licence name; the readings, codes and preflight below are 0.24.1's):
+- Python >= 3.10 and **pitloom >= 0.24.1** (with LicenseID 0.8.4; the
+  licence readings, codes and preflight below are 0.24.1's):
   `pip install "pitloom>=0.24.1"`, or run ephemeral via `uvx`/`pipx`. Extras
   take the floor after the extra: `"pitloom[ai]>=0.24.1"`.
 - AI model targets, and any project or wheel that ships model files, need
@@ -87,8 +86,8 @@ ID, `http(s)` Git URL or PyPI project URL (default: the current directory). For 
   not generate first and fix after: without the database no `LICENSE` text is
   matched to an id (a declared value such as `Apache2` is read without it).
   If it fails, say so once, generate anyway and report the resulting
-  `WARNING:`/`INFO:` line; never run a network `licenseid update` or
-  regenerate unasked (ask; non-interactive: report only). If the preflight
+  `WARNING:`/`INFO:` line (`license-db-missing` or `-unusable`); never run
+  a network `licenseid update` or regenerate unasked (ask; non-interactive: report only). If the preflight
   fails or that line appears, read "Licence detection unavailable" in
   `references/known-limitations.md`.
 
@@ -110,10 +109,9 @@ pip install "pitloom>=0.24.1"
 loom generate <target> -o sbom.spdx3.json
 ```
 
-These fetch the newest matching release, not the user's installed `loom`.
-Where the version matters (a merge or re-run reproducing a base SBOM's ids),
-pin it: `"pitloom==X.Y.Z"` (`loom --version` prints `Pitloom
-X.Y.Z`).
+These fetch the newest matching release, not the installed `loom`. Where
+the version matters (a re-run reproducing a base SBOM's ids), pin it:
+`"pitloom==X.Y.Z"` (`loom --version` prints it).
 
 ## Smart entry point: `loom generate`
 
@@ -261,31 +259,33 @@ other target the hand-off ends with an unmerged fragment (`sbom-enrich`,
 
 ## Validate the result
 
-Run `sbom-validate` on the output: a schema/SHACL check catches a missing
-required property or a wrong relationship type. The `@graph` check in
+Run `sbom-validate` on the output (schema/SHACL: a missing required
+property, a wrong relationship type). The `@graph` check in
 `references/examples.md` is a fallback only when `pitloom[validate]` cannot be
 installed.
 
 ## Check stderr for INFO:/WARNING:/ERROR: lines
 
-Pitloom logs to stderr with a grep-able `INFO:`/`WARNING:`/`ERROR:`
-prefix -- exactly one of the three, always at the start of the line.
+Every stderr line starts with exactly one of `INFO:`, `WARNING:`, `ERROR:`.
 `WARNING:` marks a recovered problem or a deviation (a config value
 normalised, a detector not installed, an option with no effect for this
 target); `INFO:` marks normal status, above all **generation skipped or
-scoped down**. Neither always fails the command or reaches the output JSON,
-so scan the captured stderr for all three prefixes after every `loom` call
-and mention any hit to the user, even when the command exited 0 and produced
-a file. A `WARNING: Options: ...` line about a flag *you* added
+scoped down**. Neither always fails the command or reaches the JSON, so
+scan stderr for all three after every `loom` call and mention any hit, even
+on exit 0 with a file written. A `WARNING: Options: ...` line about a flag *you* added
 means it did not apply to that target: drop it next time.
 
 For `Build: ...` lines from an `--allow-build` run, read
-`references/build-timeout.md`; for `ID registry: ...` lines (which are
-expected), `references/id-registry.md`. When a line ends in a `[code]`
-(`[lfs-pointer]`, `[over-cap]`), read `references/messages.md` for what it
-means and what to tell the user; relay its advice, never run the fix. A
+`references/build-timeout.md`; for `ID registry:` lines,
+`references/id-registry-log-lines.md` (routine unless `ERROR:`). When a line
+ends in a `[code]` (`[lfs-pointer]`, `[over-cap]`), read
+`references/messages.md` for what it means and what to tell the user; relay its advice, never run the fix. A
 `[file-unreadable]` or `[dir-unlistable]` line means content Pitloom could not
 read is left out: never change permissions, ownership or files yourself.
+A `[credentials-unsafe/written]` `WARNING:` (the SBOM holds a credential, exit
+0) or `[credentials-unsafe/refused]` `ERROR:` (no SBOM, exit 1): read
+`references/url-credentials.md` first; offer the fingerprint only once the
+user confirms the value is no secret.
 
 ## Known limitations -- say so, don't paper over it
 

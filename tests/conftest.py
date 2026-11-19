@@ -36,6 +36,10 @@ from tests._spdx3_validate import use_offline_model
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
+#: The log record factory before any test, which every test starts and ends
+#: with (`_restore_pitloom_logger`).
+_RECORD_FACTORY = logging.getLogRecordFactory()
+
 #: Longest test node id allowed. pytest puts the id in the
 #: PYTEST_CURRENT_TEST environment variable, which Windows caps at 32,767
 #: characters: a long parametrize value needs a short explicit ``ids=``.
@@ -174,9 +178,15 @@ def _restore_pitloom_logger() -> Iterator[None]:
     session-scoped fixture that calls ``configure_logging()`` runs before
     this one, and a snapshot would keep its level and handler for every
     later test on the worker (see :mod:`tests._logger_state`).
+    The log record factory is reset alike: the first
+    ``configure_logging()`` on a worker installs a masking one, process wide.
     """
-    with pitloom_logger_unconfigured():
-        yield
+    logging.setLogRecordFactory(_RECORD_FACTORY)
+    try:
+        with pitloom_logger_unconfigured():
+            yield
+    finally:
+        logging.setLogRecordFactory(_RECORD_FACTORY)
 
 
 @pytest.fixture(autouse=True)

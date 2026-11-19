@@ -25,8 +25,11 @@ from pathlib import Path
 
 import pytest
 
-from pitloom.core.config import PitloomConfig, pyproject_config_applies
-from pitloom.core.quote_source import quote_source
+from pitloom.core.config import (
+    PitloomConfig,
+    pyproject_config_applies,
+    select_project_config,
+)
 from pitloom.extract.project import read_project, sdist_config_source
 from pitloom.extract.project._sdist_scan import CONFIG_MEMBER_MAX_BYTES
 from pitloom.extract.project.sdist import read_sdist
@@ -333,19 +336,29 @@ def test_oversize_first_member_still_wins_over_a_later_one(
     ("text", "code"),
     [
         ("[metadata]\nname = demo\n#" + "x" * CONFIG_MEMBER_MAX_BYTES, "over-cap"),
-        ("[metadata]\nname = demo\n[tool:pitloom]\nsbom-basename = 100% x\n", None),
-        ("no section header\n", None),  # not INI
+        (
+            "[metadata]\nname = demo\n[tool:pitloom]\nsbom-basename = 100% x\n",
+            "config-malformed",
+        ),
+        ("no section header\n", "config-malformed"),  # not INI
     ],
     ids=["oversize", "interpolation", "not-ini"],
 )
 def test_unreadable_setup_cfg_raises_naming_it(
     tmp_path: Path, fmt: str, text: str, code: str | None
 ) -> None:
-    """Only the over-cap read is catalogued (``code_of``)."""
+    """Each is catalogued (``code_of``) and names the member once, as
+    ``FILE=``: a coded error is forwarded, never re-prefixed (``config file
+    '...': FILE=...``)."""
     sdist = _sdist(tmp_path, {"setup.cfg": text}, fmt)
     with pytest.raises(ValueError, match=f"{sdist.name}:setup.cfg") as caught:
         read_sdist(sdist)
     assert code_of(caught.value) == code
+    message = str(caught.value)
+    assert message.count(f"{sdist.name}:setup.cfg") == 1
+    if code == "config-malformed":  # (the over-cap line has its own wording)
+        assert message.startswith("FILE=")
+        assert "config file" not in message
 
 
 def test_config_source_names_member_and_table(tmp_path: Path) -> None:
@@ -469,7 +482,12 @@ def test_error_names_the_archive_path_as_given(tmp_path: Path) -> None:
     sdist = _make_sdist(nested, "[tool.pitloom]\npretty = 'yes'\n")
     with pytest.raises(ValueError) as info:
         read_sdist(sdist)
-    assert f"config file {quote_source(f'{sdist}:pyproject.toml')}:" in str(info.value)
+    message = str(info.value)
+    assert message.startswith(f"FILE={sdist}:pyproject.toml: [tool.pitloom] pretty: ")
+    assert code_of(info.value) == "config-invalid"
+    # Trap T4: one ``FILE=``, never ``config file '...': FILE=...``.
+    assert message.count("FILE=") == 1
+    assert "config file" not in message
 
 
 @_FMT
@@ -492,3 +510,12 @@ def test_unused_invalid_setup_cfg_config_fails_neither_target(
     (tmp_path / "used").mkdir()
     with pytest.raises(ValueError, match="offline"):
         read_sdist(_sdist(tmp_path / "used", members, fmt))
+
+
+def test_a_pyproject_that_does_not_apply_is_still_the_source_alone() -> None:
+    pyproject = PitloomConfig(pretty=True)
+    assert select_project_config(pyproject, False, None) == (
+        pyproject,
+        "pyproject.toml",
+    )
+    assert select_project_config(None, False, None) == (PitloomConfig(), None)

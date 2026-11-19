@@ -33,7 +33,7 @@ def test_reconcile_genuine_version_conflict(tmp_path: Path) -> None:
     installed = ProjectMetadata(name="pkg", version="1.0.1")
     installed.provenance["version"] = "Source: pkg.egg-info"
 
-    merged = reconcile_installed_metadata(static, installed, "pkg.egg-info", tmp_path)
+    merged = reconcile_installed_metadata(static, installed, tmp_path)
 
     assert merged.version == "1.0.0"
     assert merged.field_conflicts["version"] == [
@@ -48,7 +48,7 @@ def test_reconcile_pep440_equivalent_not_a_conflict(tmp_path: Path) -> None:
     installed = ProjectMetadata(name="pkg", version="1.0.0")
     installed.provenance["version"] = "Source: pkg.egg-info"
 
-    merged = reconcile_installed_metadata(static, installed, "pkg.egg-info", tmp_path)
+    merged = reconcile_installed_metadata(static, installed, tmp_path)
 
     assert merged.version == "1.0"
     assert merged.field_conflicts == {}
@@ -59,7 +59,7 @@ def test_reconcile_dynamic_version_gap_fill(tmp_path: Path) -> None:
     installed = ProjectMetadata(name="pkg", version="2.5.0")
     installed.provenance["version"] = "Source: pkg.egg-info"
 
-    merged = reconcile_installed_metadata(static, installed, "pkg.egg-info", tmp_path)
+    merged = reconcile_installed_metadata(static, installed, tmp_path)
 
     assert merged.version == "2.5.0"
     assert merged.provenance["version"] == "Source: pkg.egg-info"
@@ -72,7 +72,7 @@ def test_reconcile_installed_not_declared_leaves_static_untouched(
     static = static_metadata()
     installed = ProjectMetadata(name="pkg", version=None)  # not declared
 
-    merged = reconcile_installed_metadata(static, installed, "pkg.egg-info", tmp_path)
+    merged = reconcile_installed_metadata(static, installed, tmp_path)
 
     assert merged.version == "1.0.0"
     assert merged.field_conflicts == {}
@@ -85,7 +85,7 @@ def test_reconcile_requires_python_conflict(tmp_path: Path) -> None:
     installed.provenance["version"] = "Source: pkg.egg-info"
     installed.provenance["requires_python"] = "Source: pkg.egg-info"
 
-    merged = reconcile_installed_metadata(static, installed, "pkg.egg-info", tmp_path)
+    merged = reconcile_installed_metadata(static, installed, tmp_path)
 
     assert merged.requires_python == ">=3.9"
     assert "requires_python" in merged.field_conflicts
@@ -98,7 +98,7 @@ def test_reconcile_requires_python_equivalent_reformatted(tmp_path: Path) -> Non
     installed.provenance["version"] = "Source: pkg.egg-info"
     installed.provenance["requires_python"] = "Source: pkg.egg-info"
 
-    merged = reconcile_installed_metadata(static, installed, "pkg.egg-info", tmp_path)
+    merged = reconcile_installed_metadata(static, installed, tmp_path)
 
     assert merged.requires_python == ">=3.9"
     assert "requires_python" not in merged.field_conflicts
@@ -118,7 +118,7 @@ def test_reconcile_requires_python_declared_empty_vs_installed_conflict(
     installed.provenance["version"] = "Source: pkg.egg-info"
     installed.provenance["requires_python"] = "Source: pkg.egg-info"
 
-    merged = reconcile_installed_metadata(static, installed, "pkg.egg-info", tmp_path)
+    merged = reconcile_installed_metadata(static, installed, tmp_path)
 
     assert merged.requires_python is None
     assert "requires_python" in merged.field_conflicts
@@ -137,7 +137,7 @@ def test_reconcile_requires_python_declared_empty_both_sides_not_a_conflict(
     installed.provenance["version"] = "Source: pkg.egg-info"
     installed.provenance["requires_python"] = "Source: pkg.egg-info"
 
-    merged = reconcile_installed_metadata(static, installed, "pkg.egg-info", tmp_path)
+    merged = reconcile_installed_metadata(static, installed, tmp_path)
 
     assert merged.requires_python is None
     assert "requires_python" not in merged.field_conflicts
@@ -157,7 +157,7 @@ def test_reconcile_requires_python_installed_declared_empty_vs_static_conflict(
     installed.provenance["version"] = "Source: pkg.egg-info"
     installed.provenance["requires_python"] = "Source: pkg.egg-info"
 
-    merged = reconcile_installed_metadata(static, installed, "pkg.egg-info", tmp_path)
+    merged = reconcile_installed_metadata(static, installed, tmp_path)
 
     assert merged.requires_python == ">=3.9"
     assert "requires_python" in merged.field_conflicts
@@ -175,7 +175,7 @@ def test_reconcile_requires_python_gap_fill_from_installed_declared_empty_is_non
     installed = ProjectMetadata(name="pkg", version="1.0.0", requires_python=None)
     installed.provenance["requires_python"] = "Source: pkg.egg-info"
 
-    merged = reconcile_installed_metadata(static, installed, "pkg.egg-info", tmp_path)
+    merged = reconcile_installed_metadata(static, installed, tmp_path)
 
     assert merged.requires_python is None
     assert merged.provenance["requires_python"] == "Source: pkg.egg-info"
@@ -192,7 +192,7 @@ def test_reconcile_version_gap_fill_from_installed_declared_empty_is_none(
     installed = ProjectMetadata(name="pkg", version=None)
     installed.provenance["version"] = "Source: pkg.egg-info"
 
-    merged = reconcile_installed_metadata(static, installed, "pkg.egg-info", tmp_path)
+    merged = reconcile_installed_metadata(static, installed, tmp_path)
 
     assert merged.version is None
     assert merged.provenance["version"] == "Source: pkg.egg-info"
@@ -207,9 +207,7 @@ def test_reconcile_quiet_suppresses_warning_but_still_records_conflict(
     installed.provenance["version"] = "Source: pkg.egg-info"
 
     with caplog.at_level(logging.WARNING):
-        merged = reconcile_installed_metadata(
-            static, installed, "pkg.egg-info", tmp_path, quiet=True
-        )
+        merged = reconcile_installed_metadata(static, installed, tmp_path, quiet=True)
 
     assert caplog.text == ""
     assert "version" in merged.field_conflicts
@@ -224,7 +222,7 @@ def test_reconcile_static_never_transiently_holds_installed_value(
     installed = ProjectMetadata(name="pkg", version="9.9.9")
     installed.provenance["version"] = "Source: pkg.egg-info"
 
-    merged = reconcile_installed_metadata(static, installed, "pkg.egg-info", tmp_path)
+    merged = reconcile_installed_metadata(static, installed, tmp_path)
 
     assert merged.version == static.version == "1.0.0"
 
@@ -240,7 +238,7 @@ def test_reconcile_gap_fill_field_disagreement_not_a_conflict(tmp_path: Path) ->
     installed.provenance["version"] = "Source: pkg.egg-info"
     installed.provenance["description"] = "Source: pkg.egg-info"
 
-    merged = reconcile_installed_metadata(static, installed, "pkg.egg-info", tmp_path)
+    merged = reconcile_installed_metadata(static, installed, tmp_path)
 
     assert merged.description == "Static summary."
     assert merged.field_conflicts == {}
@@ -254,7 +252,7 @@ def test_reconcile_gap_fill_field_fills_from_installed(tmp_path: Path) -> None:
     installed.provenance["version"] = "Source: pkg.egg-info"
     installed.provenance["description"] = "Source: pkg.egg-info"
 
-    merged = reconcile_installed_metadata(static, installed, "pkg.egg-info", tmp_path)
+    merged = reconcile_installed_metadata(static, installed, tmp_path)
 
     assert merged.description == "Installed summary."
 
@@ -266,7 +264,7 @@ def test_reconcile_keywords_declared_empty_both_sides(tmp_path: Path) -> None:
     installed.provenance["version"] = "Source: pkg.egg-info"
     installed.provenance["keywords"] = "Source: pkg.egg-info"
 
-    merged = reconcile_installed_metadata(static, installed, "pkg.egg-info", tmp_path)
+    merged = reconcile_installed_metadata(static, installed, tmp_path)
 
     assert merged.keywords == []
     assert merged.provenance["keywords"] == "Source: pyproject.toml"
@@ -279,7 +277,7 @@ def test_reconcile_keywords_header_absent_never_overwrites_static(
     static.provenance["keywords"] = "Source: pyproject.toml"
     installed = ProjectMetadata(name="pkg", version="1.0.0")  # no Keywords header
 
-    merged = reconcile_installed_metadata(static, installed, "pkg.egg-info", tmp_path)
+    merged = reconcile_installed_metadata(static, installed, tmp_path)
 
     assert merged.keywords == ["static-kw"]
 
@@ -302,7 +300,7 @@ def test_reconcile_unrelated_fields_never_touched(tmp_path: Path) -> None:
     )
     installed.provenance["version"] = "Source: pkg.egg-info"
 
-    merged = reconcile_installed_metadata(static, installed, "pkg.egg-info", tmp_path)
+    merged = reconcile_installed_metadata(static, installed, tmp_path)
 
     assert merged.name == "pkg"
     assert merged.authors == [{"name": "Static Author"}]
@@ -328,7 +326,7 @@ def test_reconcile_field_conflicts_order_is_deterministic(tmp_path: Path) -> Non
     installed.provenance["requires_python"] = "Source: pkg.egg-info"
     installed.provenance["license"] = "Source: pkg.egg-info"
 
-    merged = reconcile_installed_metadata(static, installed, "pkg.egg-info", tmp_path)
+    merged = reconcile_installed_metadata(static, installed, tmp_path)
 
     assert list(merged.field_conflicts) == [
         "version",
@@ -345,7 +343,7 @@ def test_reconcile_does_not_mutate_static_provenance(tmp_path: Path) -> None:
     installed = ProjectMetadata(name="pkg", requires_python=">=3.9")
     installed.provenance["requires_python"] = "Source: pkg.egg-info"
 
-    merged = reconcile_installed_metadata(static, installed, "pkg.egg-info", tmp_path)
+    merged = reconcile_installed_metadata(static, installed, tmp_path)
 
     assert merged.provenance is not static.provenance
     assert merged.requires_python == ">=3.9"
@@ -364,7 +362,7 @@ def test_reconcile_gap_fill_does_not_alias_installed_container(tmp_path: Path) -
     )
     installed.provenance["keywords"] = "Source: pkg.egg-info"
 
-    merged = reconcile_installed_metadata(static, installed, "pkg.egg-info", tmp_path)
+    merged = reconcile_installed_metadata(static, installed, tmp_path)
 
     assert merged.keywords == ["from-installed"]
     assert merged.keywords is not installed.keywords
@@ -382,7 +380,7 @@ def test_reconcile_gap_fill_urls_does_not_alias_installed_container(
     )
     installed.provenance["urls"] = "Source: pkg.egg-info"
 
-    merged = reconcile_installed_metadata(static, installed, "pkg.egg-info", tmp_path)
+    merged = reconcile_installed_metadata(static, installed, tmp_path)
 
     assert merged.urls == {"Homepage": "https://example.com"}
     assert merged.urls is not installed.urls
@@ -397,7 +395,7 @@ def test_reconcile_does_not_mutate_static_field_conflicts(tmp_path: Path) -> Non
     installed = ProjectMetadata(name="pkg", version="1.0.1")
     installed.provenance["version"] = "Source: pkg.egg-info"
 
-    merged = reconcile_installed_metadata(static, installed, "pkg.egg-info", tmp_path)
+    merged = reconcile_installed_metadata(static, installed, tmp_path)
 
     assert merged.field_conflicts is not static.field_conflicts
     assert merged.field_conflicts

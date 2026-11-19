@@ -23,11 +23,13 @@ from pitloom.core.creation import (
     VALID_CREATOR_TYPES,
     CreationMetadata,
     Tool,
+    iso_datetime_or_none,
     resolve_source_date_epoch,
 )
 from pitloom.core.models import build_pypi_purl, generate_spdx_id
 from pitloom.enrich.base import EnrichmentResult
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
+from pitloom.messages.config import Parameter, invalid_value
 
 #: Pitloom's own PURL, stable/known ahead of time (no PyPI lookup needed --
 #: name and running version are always known locally). SPDX 3.0.1's ``Tool``
@@ -51,19 +53,26 @@ def _pitloom_external_identifiers() -> list[spdx3.ExternalIdentifier]:
     ]
 
 
-def parse_iso_datetime(value: str) -> datetime:
-    """Parse a full ISO 8601 datetime string.
+#: The default stage of :func:`parse_iso_datetime`: a library caller's
+#: ``CreationMetadata.creation_datetime``.
+_CREATION_DATETIME = Parameter("creation_datetime")
+
+
+def parse_iso_datetime(value: str, where: Parameter = _CREATION_DATETIME) -> datetime:
+    """Parse a full ISO 8601 datetime string, as
+    :func:`~pitloom.core.creation.iso_datetime_or_none` does.
 
     Accepts offset forms (including trailing ``Z``) and optional fractional
-    seconds. Naive values are interpreted as UTC.
+    seconds. Naive values are interpreted as UTC. *where* names the library
+    value in the refusal.
+
+    Raises:
+        ValueError: *value* is no ISO 8601 datetime (``option-invalid``, a
+            :class:`~pitloom.messages.CodedValueError`).
     """
-    normalized = value[:-1] + "+00:00" if value.endswith("Z") else value
-    try:
-        parsed = datetime.fromisoformat(normalized)
-    except ValueError as exc:
-        raise ValueError(f"Invalid ISO 8601 datetime: {value}") from exc
-    if parsed.tzinfo is None:
-        return parsed.replace(tzinfo=timezone.utc)
+    parsed = iso_datetime_or_none(value)
+    if parsed is None:
+        raise invalid_value(where, "datetime", got=value)
     return parsed
 
 

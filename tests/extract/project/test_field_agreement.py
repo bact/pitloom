@@ -15,7 +15,21 @@ import pytest
 
 from pitloom.core.project import ConflictCandidate, ProjectMetadata
 from pitloom.extract._license_names import UNREAD_LISTED_NAMES
-from pitloom.extract.project._field_agreement import add_conflict, values_agree
+from pitloom.extract.project._field_agreement import (
+    add_conflict,
+    conflict_text,
+    values_agree,
+)
+
+
+@pytest.mark.parametrize(
+    ("value", "text"),
+    [("1.0", "1.0"), (None, ""), ("", ""), (5, "5"), (["a"], "['a']")],
+    ids=["string", "none", "empty", "int", "list"],
+)
+def test_conflict_text(value: object, text: str) -> None:
+    """A string as it is, ``None`` as the empty string it compares as."""
+    assert conflict_text(value) == text
 
 
 @pytest.mark.parametrize(

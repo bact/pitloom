@@ -16,7 +16,8 @@ If Pitloom was upgraded since the base SBOM was generated, regenerate the base
 before merging when the upgrade could have changed file discovery for this
 project's build backend (check the CHANGELOG).
 
-An `ERROR: loom <command>: ID registry file ...: version 3, expected 4` means the declared
+An `ERROR: loom <command>: ID registry: FILE=...: version 3, expected 4 ...
+[registry-wrong-format]` means the declared
 registry is an old format: never delete or rewrite it from this skill; hand the
 user to `sbom-generate` ("Pinning element ids"), or when non-interactive stop
 and report the `ERROR:`.

@@ -19,10 +19,12 @@ from pathlib import Path
 import pytest
 
 from pitloom.core.project import ProjectMetadata, merge_project_metadata
-from pitloom.extract.project.poetry import (
+from pitloom.extract.project._poetry_deps import (
     _convert_caret,
     _convert_tilde,
     _poetry_constraint_to_pep440,
+)
+from pitloom.extract.project.poetry import (
     extract_poetry_metadata,
     parse_poetry_authors,
 )
@@ -107,7 +109,7 @@ def test_extract_missing_section_raises() -> None:
 
 def test_extract_missing_name_raises() -> None:
     data = {"tool": {"poetry": {"version": "1.0"}}}
-    with pytest.raises(ValueError, match="name is required"):
+    with pytest.raises(ValueError, match="has a project name"):
         extract_poetry_metadata(data, Path("."))
 
 
@@ -181,7 +183,7 @@ def test_extract_wrong_typed_field_warns_and_is_treated_as_absent(
     poetry = {"name": "my-pkg", key: value}
     with tempfile.TemporaryDirectory() as d, caplog.at_level("WARNING"):
         if key == "name":
-            with pytest.raises(ValueError, match="name is required"):
+            with pytest.raises(ValueError, match="has a project name"):
                 extract_poetry_metadata({"tool": {"poetry": poetry}}, Path(d))
         else:
             metadata = extract_poetry_metadata({"tool": {"poetry": poetry}}, Path(d))
@@ -198,17 +200,16 @@ def test_extract_wrong_typed_field_warns_and_is_treated_as_absent(
 @pytest.mark.parametrize(
     ("key", "value", "expected"),
     [
-        ("keywords", 3, "'keywords' is int, expected a list of strings"),
-        ("keywords", [1], "is a list with a non-string item (int), expected"),
-        ("version", [1], "'version' is list, expected a string"),
-        ("dependencies", ["x", 2], "'dependencies' is list, expected a table"),
+        ("keywords", 3, "'keywords' is an integer 3, expected an array of strings"),
+        ("keywords", [1], "'keywords' is an array, expected an array of strings"),
+        ("version", [1], "'version' is an array, expected a string"),
+        ("dependencies", ["x", 2], "'dependencies' is an array, expected a table"),
     ],
 )
 def test_extract_wrong_typed_field_warning_names_the_type(
     key: str, value: object, expected: str, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """The non-string item is named only where a list of strings was
-    expected; elsewhere the list itself is the wrong type."""
+    """The warning names the value's TOML type and what the key must be."""
     data = {"tool": {"poetry": {"name": "p", key: value}}}
     with tempfile.TemporaryDirectory() as d, caplog.at_level("WARNING"):
         extract_poetry_metadata(data, Path(d))
@@ -229,7 +230,10 @@ def test_extract_wrong_typed_field_quiet_is_silent_but_still_ignored(
 def test_extract_non_table_section_warns_and_raises(
     poetry: object, caplog: pytest.LogCaptureFixture
 ) -> None:
-    with caplog.at_level("WARNING"), pytest.raises(ValueError, match="not a table"):
+    with (
+        caplog.at_level("WARNING"),
+        pytest.raises(ValueError, match="expected a table"),
+    ):
         extract_poetry_metadata({"tool": {"poetry": poetry}}, Path("."))
     assert len(caplog.records) == 1
     assert "[tool.poetry] is " in caplog.records[0].getMessage()
@@ -290,7 +294,7 @@ def test_extract_provenance_wildcard_python_records_requires_python() -> None:
 
 
 def test_extract_provenance_capitalized_python_key_records_requires_python() -> None:
-    """A capitalised `Python` key (unusual, but _parse_poetry_deps()
+    """A capitalised `Python` key (unusual, but parse_poetry_deps()
     matches it case-insensitively for the *value*) must get the same
     provenance treatment -- a case-sensitive presence check would
     silently miss it (the misattribution the presence-based check prevents)."""

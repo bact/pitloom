@@ -27,9 +27,14 @@ This module holds the mechanism only. The entries, their lines and the
 helpers that say them are in one public module per page of the generated
 reference (:data:`TOPIC_TITLES`, a hyphen spelt ``_``):
 :mod:`pitloom.messages.targets`, :mod:`~pitloom.messages.options`,
+:mod:`~pitloom.messages.config`, :mod:`~pitloom.messages.metadata`,
+:mod:`~pitloom.messages.file_discovery`,
 :mod:`~pitloom.messages.models`, :mod:`~pitloom.messages.model_fields`,
 :mod:`~pitloom.messages.files`, :mod:`~pitloom.messages.pypi`,
-:mod:`~pitloom.messages.network` and :mod:`~pitloom.messages.licences`.
+:mod:`~pitloom.messages.network`, :mod:`~pitloom.messages.id_registry`,
+:mod:`~pitloom.messages.id_registry_ids` and :mod:`~pitloom.messages.licences`.
+A :class:`Summary` (:func:`say_summary`) is an ``INFO:`` line with no
+condition, so no code.
 
 This package imports only :mod:`pitloom.logging_config`,
 :mod:`pitloom.core.quote_source`, :mod:`pitloom.core.internal_error`,
@@ -39,7 +44,7 @@ which imports it.
 
 from __future__ import annotations
 
-from pitloom.messages._catalogue import MESSAGES
+from pitloom.messages._catalogue import MESSAGES, SUMMARIES
 from pitloom.messages._emit import (
     CodedFileNotFoundError,
     CodedImportError,
@@ -47,6 +52,7 @@ from pitloom.messages._emit import (
     code_extra_of,
     code_of,
     emit,
+    recoded,
     relay_extra,
 )
 from pitloom.messages._field_tables import (
@@ -56,8 +62,9 @@ from pitloom.messages._field_tables import (
     LOOM_COMMANDS,
     READ_USES,
 )
+from pitloom.messages._field_type import Field
 from pitloom.messages._field_writers import size_text
-from pitloom.messages._fields import FIELDS, Field
+from pitloom.messages._fields import FIELDS
 from pitloom.messages._frames import (
     COMMAND_FRAME,
     FRAMES,
@@ -67,6 +74,7 @@ from pitloom.messages._frames import (
     Frame,
 )
 from pitloom.messages._lines import LINE_RE, LONGEST_LINE, says, trusted_message
+from pitloom.messages._summary import Summary, say_summary
 from pitloom.messages._topics import FAMILY_TOPICS, TOPIC_TITLES, topic_of
 from pitloom.messages._types import (
     ACTOR_HEADINGS,
@@ -106,6 +114,7 @@ __all__ = [
     "READ_USES",
     "RELAY_FRAME",
     "RESERVED_FAMILIES",
+    "SUMMARIES",
     "TOPIC_TITLES",
     "TOP_FRAME",
     "CodedFileNotFoundError",
@@ -115,10 +124,13 @@ __all__ = [
     "Frame",
     "Line",
     "Message",
+    "Summary",
     "code_extra_of",
     "code_of",
     "emit",
+    "recoded",
     "relay_extra",
+    "say_summary",
     "says",
     "size_text",
     "topic_of",

@@ -62,6 +62,7 @@ CONDITIONS: Final = frozenset(
         "unreadable",
         "unsafe",
         "unusable",
+        "unwritable",
         "wrong-format",
     }
 )
@@ -143,6 +144,10 @@ def template_problem(template: str) -> str | None:
     return None
 
 
+#: The end of every advice an agent relays without acting on it.
+ASK_FIRST: Final = "ask first, and with nobody to ask, report it only."
+
+
 @dataclass(frozen=True, kw_only=True)
 class Line:
     """One shape a message is printed in.
@@ -188,6 +193,13 @@ class Line:
                 have its field's shape.
         """
         return render(self.template, values)
+
+
+def warning_twins(lines: tuple[Line, ...]) -> tuple[Line, ...]:
+    """*lines*, then a ``WARNING`` line of each one's template: a caller that
+    catches the error and goes on says the same text as a warning
+    (:func:`~pitloom.messages._emit.relay_extra` trusts it only then)."""
+    return (*lines, *(Line(level="WARNING", template=ln.template) for ln in lines))
 
 
 @dataclass(frozen=True, kw_only=True)
