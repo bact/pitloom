@@ -26,8 +26,9 @@ import logging
 from pathlib import Path
 from typing import cast
 
-from pitloom.core.quote_source import quote_source
 from pitloom.extract.project._setup_cfg_directives import listed_file_readable
+from pitloom.messages import emit
+from pitloom.messages.metadata import DYNAMIC_FIELD_UNUSABLE, FLIT_FAILED_LINE
 
 log = logging.getLogger(__name__)
 
@@ -101,10 +102,13 @@ def resolve_flit_dynamic_metadata(
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
         if not quiet:
-            log.warning(
-                "Flit dynamic metadata resolution failed for %s: %s",
-                quote_source(pyproject_path),
-                exc,
+            emit(
+                log,
+                DYNAMIC_FIELD_UNUSABLE,
+                logging.WARNING,
+                line=FLIT_FAILED_LINE,
+                file=pyproject_path,
+                failure=exc,
             )
         return {}
 

@@ -24,19 +24,14 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from pyproject_metadata import ConfigurationError, StandardMetadata
-
-from pitloom._toml_io import load_toml_file
+from pitloom.core._project_toml import load_project_toml
 from pitloom.core.config import PitloomConfig, parse_pitloom_config
-from pitloom.core.pep440 import NUMBER_REASON, has_overlong_number
+from pitloom.core.internal_error import InternalError
 from pitloom.core.project import ProjectMetadata, merge_project_metadata
-from pitloom.core.quote_source import quote_source
 from pitloom.core.requirements import normalize_dependency_specifier
-from pitloom.extract._core_metadata import license_from_classifiers
 from pitloom.extract._extract_utils import field_declared
 from pitloom.extract._license import (
     apply_in_package_license_files,
-    classify_license,
 )
 from pitloom.extract._license_detect import read_license_members
 from pitloom.extract.lock.common import POETRY_LOCK_SOURCE_NAME
@@ -47,7 +42,7 @@ from pitloom.extract.project._poetry_extras import (
     poetry_backend_reads,
     warn_unread_poetry_fields,
 )
-from pitloom.extract.project._poetry_fields import read_poetry_section
+from pitloom.extract.project._poetry_fields import is_table, read_poetry_section
 from pitloom.extract.project._pyproject_deep import hold_deep_requirements
 from pitloom.extract.project._pyproject_fields import (
     build_provenance,
@@ -60,12 +55,19 @@ from pitloom.extract.project._pyproject_license import (
     confine_license_file,
     stated_pyproject_license,
 )
+from pitloom.extract.project._pyproject_parse import (
+    parse_standard_metadata_with_retry,
+)
 from pitloom.extract.project._setuptools_dynamic import read_setuptools_dynamic
 from pitloom.extract.project.poetry import extract_poetry_metadata
 from pitloom.extract.project.pyproject_dynamic import prepare_dynamic_version
-from pitloom.messages import emit
-from pitloom.messages.licences import LICENSE_CONFLICT
-from pitloom.messages.targets import input_not_found, is_input_file
+from pitloom.messages import CodedValueError
+from pitloom.messages.metadata import (
+    METADATA_INVALID,
+    METADATA_USE,
+    TYPE_ERROR_LINE,
+    relay_coded_warning,
+)
 
 log = logging.getLogger(__name__)
 
@@ -98,155 +100,34 @@ def _read_pyproject_fallback(
     return metadata, pitloom_config
 
 
-def _is_license_classifier_conflict(exc: ConfigurationError) -> bool:
-    """Whether *exc* is pyproject-metadata's "SPDX license expression is
-    not compatible with 'License ::' classifiers" validation error --
-    the one specific, narrow case :func:`read_pyproject` relaxes, not a
-    stand-in for treating arbitrary ``project.license`` errors as
-    recoverable.
-
-    pyproject-metadata raises ``ConfigurationError`` with
-    ``key == "project.license"`` for *two* distinct validation failures
-    (this classifier conflict, and a separate pre-2.4-metadata-version
-    SPDX-string error) -- ``.key`` alone can't tell them apart, so this
-    also matches the full distinguishing phrase from the classifier-
-    conflict message specifically. pyproject-metadata exposes no more
-    stable discriminator than message text for this, so a reworded message
-    stops matching."""
-    return (
-        exc.key == "project.license"
-        and "not compatible with 'License ::' classifiers" in str(exc)
-    )
-
-
-def _drop_placeholder_license(data: dict[str, Any]) -> dict[str, Any] | None:
-    """*data* without ``project.license`` when that is only an
-    ``UNKNOWN``/``NOASSERTION`` placeholder, else ``None``. The placeholder
-    is weak, so the ``License ::`` classifier it conflicts with wins anyway
-    (:func:`~pitloom.extract._core_metadata.license_or_classifier`): it is
-    the classifiers that carry the licence, never redundant."""
-    project_data: dict[str, Any] = data.get("project", {})
-    license_value = project_data.get("license")
-    classified = (
-        classify_license(license_value, warn=False)
-        if isinstance(license_value, str)
-        else None
-    )
-    if classified is None or classified.kind != "noassertion":
-        return None
-    kept = {k: v for k, v in project_data.items() if k != "license"}
-    return {**data, "project": kept}
-
-
-def _drop_redundant_license_classifiers(data: dict[str, Any]) -> dict[str, Any]:
-    """Strip ``License ::`` trove classifiers from a parsed
-    ``pyproject.toml`` mapping, leaving every other classifier and
-    ``[project]`` field untouched."""
-    project_data: dict[str, Any] = data.get("project", {})
-    classifiers = project_data.get("classifiers", [])
-    if not isinstance(classifiers, list):
-        return data
-    kept = [
-        c
-        for c in classifiers
-        if not (isinstance(c, str) and c.startswith("License ::"))
-    ]
-    return {**data, "project": {**project_data, "classifiers": kept}}
-
-
-def _refuse_overlong_numbers(project: dict[str, Any]) -> None:
-    """Fail, as on any invalid value, on a ``[project]`` ``version`` or
-    ``requires-python`` with an overlong number: ``packaging`` raises a
-    plain ``ValueError`` on it while parsing (``version``; 25) or later,
-    printing it (``requires-python``, 26). *project* is the ``[project]``
-    table (:func:`hold_deep_requirements` has read it as one)."""
-    for key in ("version", "requires-python"):
-        value = project.get(key)
-        if isinstance(value, str) and has_overlong_number(value):
-            raise ValueError(
-                f"Failed to parse project metadata: 'project.{key}' {NUMBER_REASON}"
-            )
-
-
-def _parse_standard_metadata_with_retry(
-    data: dict[str, Any],
-    pyproject_path: Path,
-    dynamic_fields: list[str],
-    *,
-    quiet: bool = False,
-) -> tuple[StandardMetadata, dict[str, Any]]:
-    """Parse *data* via ``StandardMetadata.from_pyproject()``, retrying once
-    if the failure is the PEP 639 transitional classifier conflict.
-
-    Returns ``(std, data)`` -- *data* is returned too since the retry path
-    rewrites it (:func:`_drop_redundant_license_classifiers`), and
-    :func:`read_pyproject` needs that rewritten mapping for its own later
-    ``data.get("project", {})``/``_try_read_poetry()`` calls, not the
-    original.
-
-    *quiet* suppresses the PEP 639 transitional-state ``WARNING:`` -- for a
-    caller that already emitted it once for this same file and is re-parsing
-    only to apply a different, unrelated setting (e.g.
-    :func:`pitloom.extract.project.resolve_project_with_lockfile`'s
-    peek-then-reread), not because anything about the license/classifier
-    data changed.
+def _project_name(project_data: object, pyproject_path: Path) -> str:
+    """The stripped ``name`` of the ``[project]`` table *project_data* of
+    *pyproject_path* (``""`` when it is absent or blank).
 
     Raises:
-        ValueError: The metadata is not valid, its ``version`` or
-            ``requires-python`` has an overlong number too
-            (:func:`pitloom.core.pep440.has_overlong_number`).
+        pitloom.messages.CodedValueError: *project_data* is no table, or
+            ``name`` is present and no string (``metadata-invalid``).
     """
-    _refuse_overlong_numbers(data["project"])
-    try:
-        return (
-            StandardMetadata.from_pyproject(
-                data,
-                project_dir=str(pyproject_path.parent),
-                dynamic_metadata=dynamic_fields or None,
-                allow_extra_keys=True,
-            ),
-            data,
+    if not isinstance(project_data, dict):
+        raise CodedValueError(
+            METADATA_INVALID,
+            line=TYPE_ERROR_LINE,
+            file=pyproject_path,
+            field="[project]",
+            got=project_data,
+            expected="table",
         )
-    except ConfigurationError as exc:
-        if not _is_license_classifier_conflict(exc):
-            raise ValueError(f"Failed to parse project metadata: {exc}") from exc
-        # Classifiers that state no licence (a category alone) lose to
-        # any `license`, a placeholder too, and are dropped silently.
-        classifiers = data.get("project", {}).get("classifiers")
-        states_licence = isinstance(classifiers, list) and bool(
-            license_from_classifiers(c for c in classifiers if isinstance(c, str))
+    name = project_data.get("name")
+    if name is not None and not isinstance(name, str):
+        raise CodedValueError(
+            METADATA_INVALID,
+            line=TYPE_ERROR_LINE,
+            file=pyproject_path,
+            field="project.name",
+            got=name,
+            expected="string",
         )
-        placeholder_dropped = (
-            _drop_placeholder_license(data) if states_licence else None
-        )
-        # PEP 639: an SPDX `license` expression together with `License ::`
-        # trove classifiers is a hard error in pyproject-metadata, yet
-        # projects mid-migration declare both. Retry once without the
-        # classifiers; the SPDX expression stays authoritative.
-        if placeholder_dropped is not None:
-            data = placeholder_dropped
-        else:
-            if states_licence and not quiet:
-                emit(log, LICENSE_CONFLICT, logging.WARNING, file=pyproject_path)
-            data = _drop_redundant_license_classifiers(data)
-        try:
-            return (
-                StandardMetadata.from_pyproject(
-                    data,
-                    project_dir=str(pyproject_path.parent),
-                    dynamic_metadata=dynamic_fields or None,
-                    allow_extra_keys=True,
-                ),
-                data,
-            )
-        # pylint: disable-next=broad-exception-caught
-        except Exception as retry_exc:
-            raise ValueError(
-                f"Failed to parse project metadata: {retry_exc}"
-            ) from retry_exc
-    # pylint: disable-next=broad-exception-caught
-    except Exception as exc:
-        raise ValueError(f"Failed to parse project metadata: {exc}") from exc
+    return (name or "").strip()
 
 
 # pylint: disable-next=too-many-locals
@@ -274,13 +155,13 @@ def read_pyproject(
 
     Raises:
         FileNotFoundError: *pyproject_path* does not exist.
-        ValueError: the file is not valid TOML, or its metadata or
-            ``[tool.pitloom]`` settings are invalid.
+        ValueError: the file is not valid TOML, or its metadata (``[project]``
+            is no table, ``name`` is no string) or ``[tool.pitloom]``
+            settings are invalid.
     """
-    if not is_input_file(pyproject_path):
-        raise input_not_found("pyproject.toml", pyproject_path)
-
-    data: dict[str, Any] = load_toml_file(pyproject_path)
+    data: dict[str, Any] = load_project_toml(
+        pyproject_path, kind="pyproject.toml", use=METADATA_USE
+    )
 
     project_data: dict[str, Any] = data.get("project", {})
     # Without read_config an explicit config replaces [tool.pitloom], so a
@@ -291,7 +172,7 @@ def read_pyproject(
         else PitloomConfig()
     )
 
-    name: str = (project_data.get("name") or "").strip()
+    name = _project_name(project_data, pyproject_path)
     if not project_data or not name:
         return _read_pyproject_fallback(
             data,
@@ -310,7 +191,7 @@ def read_pyproject(
     data = confine_license_file(data, pyproject_path.parent, quiet=quiet)
     data, held = hold_deep_requirements(data, quiet=quiet)
 
-    std, data = _parse_standard_metadata_with_retry(
+    std, data = parse_standard_metadata_with_retry(
         data, pyproject_path, dynamic_fields, quiet=quiet
     )
 
@@ -396,7 +277,9 @@ def fill_from_poetry(
     """
     read_fields = poetry_backend_reads(data)
     if not read_fields:
-        warn_unread_poetry_fields(metadata, data, quiet=quiet)
+        warn_unread_poetry_fields(
+            metadata, data, project_dir / "pyproject.toml", quiet=quiet
+        )
     poetry_meta = _try_read_poetry(
         data,
         project_dir,
@@ -456,19 +339,18 @@ def _try_read_poetry(
     else:
         try:
             metadata = extract_poetry_metadata(data, project_dir, quiet=quiet)
-        except (ValueError, KeyError) as exc:
+        except InternalError:
+            raise  # a bug, not a gap-fill failure (an InternalError is a ValueError)
+        except ValueError as exc:
             if locked_dependencies is None:
                 return None
             # Not quiet-gated: reachable only with include_locked_dependencies,
             # which resolve_project_with_lockfile()'s peek never passes, so
-            # this is the warning's one emission, never a repeat.
-            log.warning(
-                "%s: [tool.poetry] metadata could not be parsed (%s) -- "
-                "skipping Poetry gap-fill, but still applying poetry.lock's "
-                "resolved dependencies",
-                quote_source(project_dir),
-                exc,
-            )
+            # this is the warning's one emission, never a repeat. The
+            # skipped gap-fill and the applied poetry.lock are the entry's
+            # `did`. A non-table [tool.poetry] was said by extract itself.
+            if is_table(poetry):
+                relay_coded_warning(log, exc, quiet=False)
             metadata = ProjectMetadata(name="")
     if locked_dependencies is not None:
         metadata.locked_dependencies = locked_dependencies

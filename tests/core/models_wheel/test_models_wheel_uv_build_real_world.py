@@ -177,6 +177,6 @@ def test_default_discovery_fails_loudly_for_module_name_mismatch(
     finally:
         cleanup()
 
-    assert "not yet backend-aware" in caplog.text
+    assert "not backend-aware for build-backend uv_build" in caplog.text
     assert "Hatchling file discovery failed" in caplog.text
     assert "no directory that matches the name of your project" in caplog.text

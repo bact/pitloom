@@ -51,32 +51,28 @@ from pitloom.extract._core_metadata import (
     license_from_classifiers,
 )
 from pitloom.extract.authors import is_unset_placeholder, read_author_fields
-from pitloom.extract.project._field_agreement import add_conflict, values_agree
+from pitloom.extract.project._field_agreement import (
+    add_conflict,
+    conflict_text,
+    values_agree,
+)
 from pitloom.extract.project._requirements_files import (
     ListedFiles,
     RequirementsFiles,
     pep508_only,
     setup_cfg_requirement_lines,
 )
-from pitloom.logging_config import loggable, one_line
+from pitloom.messages import emit
+from pitloom.messages.metadata import (
+    METADATA_CONFLICT,
+    SETUP_CFG_KEPT_LINE,
+    SETUP_PY_KEPT_LINE,
+)
 
 log = logging.getLogger(__name__)
 
 SETUP_PY = "setup.py"
 SETUP_CFG = "setup.cfg"
-
-#: The longest value a ``WARNING:`` quotes.
-_SHOWN_CHARS = 200
-
-
-def shown_value(raw: Any) -> str:
-    """*raw*'s repr for a ``WARNING:``, on one line, cut to
-    :data:`_SHOWN_CHARS`."""
-    try:
-        text = repr(raw)
-    except ValueError:  # an int over sys.get_int_max_str_digits()
-        text = f"<{type(raw).__name__}>"
-    return one_line(text, limit=_SHOWN_CHARS)
 
 
 @dataclass(frozen=True)
@@ -391,14 +387,16 @@ def _record(
     key = provenance_key_for(field_name)
     add_conflict(metadata, key, candidates)
     if not report.quiet:
-        log.warning(
-            "%s: setup.py and setup.cfg disagree on %s"
-            " (setup.py %s, setup.cfg %s) -- keeping %s's",
-            loggable(report.subject),
-            key,
-            shown_value(py_side[0]),
-            shown_value(cfg_side[0]),
-            SETUP_PY if py_wins else SETUP_CFG,
+        kept, dropped = ordered
+        emit(
+            log,
+            METADATA_CONFLICT,
+            logging.WARNING,
+            line=SETUP_PY_KEPT_LINE if py_wins else SETUP_CFG_KEPT_LINE,
+            dir=report.subject,
+            field=key,
+            kept=conflict_text(kept[0]),
+            dropped=conflict_text(dropped[0]),
         )
 
 

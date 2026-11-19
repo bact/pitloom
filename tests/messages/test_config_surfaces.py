@@ -225,7 +225,10 @@ def _chain(exc: BaseException | None) -> list[str]:
 def test_every_expected_id_has_a_case() -> None:
     """A new id of the table fails here until a real reader says it."""
     library_only = {"config-source"}  # a parameter's type, no file says it
-    assert set(_CASES) == set(EXPECTED) - library_only == set(_FOUND)
+    # Said by the project metadata readers (metadata-invalid), not config.
+    metadata_only = {"array-of-strings", "string-or-array"}
+    not_config = library_only | metadata_only
+    assert set(_CASES) == set(EXPECTED) - not_config == set(_FOUND)
     assert set(_CFG_CASES) <= set(EXPECTED)
 
 

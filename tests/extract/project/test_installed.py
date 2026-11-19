@@ -160,7 +160,7 @@ def test_read_installed_metadata_missing_file_warns(
     with caplog.at_level(logging.WARNING):
         result = read_installed_metadata(marker, "Source: pkg.egg-info")
     assert result is None
-    assert "could not be re-read" in caplog.text
+    assert "has no PKG-INFO; ignored" in caplog.text
 
 
 def test_read_installed_metadata_quiet_suppresses_warning(
@@ -222,7 +222,7 @@ def test_find_installed_metadata_candidate_marker_missing_warns(
     with caplog.at_level(logging.WARNING):
         result = find_installed_metadata_candidate(tmp_path, "pkg")
     assert result is None
-    assert "exists but has no 'PKG-INFO'" in caplog.text
+    assert "has no PKG-INFO; ignored" in caplog.text
 
 
 def test_find_installed_metadata_candidate_unreadable_warns(
@@ -239,7 +239,7 @@ def test_find_installed_metadata_candidate_unreadable_warns(
     finally:
         marker.chmod(0o644)
     if result is None:
-        assert "could not be read" in caplog.text
+        assert "could not read for the project metadata; " in caplog.text
     else:
         pytest.skip("read permission not enforced for this user (e.g. root)")
 
@@ -255,7 +255,7 @@ def test_find_installed_metadata_candidate_name_mismatch_warns(
     with caplog.at_level(logging.WARNING):
         result = find_installed_metadata_candidate(tmp_path, "pkg")
     assert result is None
-    assert "does not match the resolved project name" in caplog.text
+    assert "not the project's; ignored" in caplog.text
 
 
 def test_find_installed_metadata_candidate_missing_name_header_rejected(
@@ -267,7 +267,7 @@ def test_find_installed_metadata_candidate_missing_name_header_rejected(
     with caplog.at_level(logging.WARNING):
         result = find_installed_metadata_candidate(tmp_path, "pkg")
     assert result is None
-    assert "does not match the resolved project name" in caplog.text
+    assert "declares no name; ignored" in caplog.text
 
 
 def test_find_installed_metadata_candidate_name_canonicalization() -> None:
@@ -335,8 +335,8 @@ def test_find_installed_metadata_candidate_dist_info_beats_egg_info(
     marker_path, label = result
     assert label.endswith(".dist-info")
     assert marker_path.name == "METADATA"
-    assert "multiple installed-metadata candidates found" in caplog.text
-    assert caplog.text.count("multiple installed-metadata candidates found") == 1
+    assert "several installed-metadata candidates" in caplog.text
+    assert caplog.text.count("several installed-metadata candidates") == 1
 
 
 def test_find_installed_metadata_candidate_mismatched_sibling_no_tiebreak_warning(
@@ -352,8 +352,8 @@ def test_find_installed_metadata_candidate_mismatched_sibling_no_tiebreak_warnin
         )
     assert result is not None
     assert result[1] == "sampleproject_installed_tbm.egg-info"
-    assert "does not match the resolved project name" in caplog.text
-    assert "multiple installed-metadata candidates found" not in caplog.text
+    assert "not the project's; ignored" in caplog.text
+    assert "several installed-metadata candidates" not in caplog.text
 
 
 def test_find_installed_metadata_candidate_malformed_binary_rejected(
@@ -367,7 +367,7 @@ def test_find_installed_metadata_candidate_malformed_binary_rejected(
             "sampleproject-installed-malformed",
         )
     assert result is None
-    assert "does not match the resolved project name" in caplog.text
+    assert "not the project's; ignored" in caplog.text
 
 
 def test_find_installed_metadata_candidate_missing_marker_dir(
@@ -380,7 +380,7 @@ def test_find_installed_metadata_candidate_missing_marker_dir(
             "sampleproject-installed-nomarker",
         )
     assert result is None
-    assert "exists but has no 'PKG-INFO'" in caplog.text
+    assert "has no PKG-INFO; ignored" in caplog.text
 
 
 def test_find_installed_metadata_candidate_bounded_glob_ignores_deep_decoy() -> None:

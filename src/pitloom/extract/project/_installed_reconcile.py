@@ -29,6 +29,8 @@ from pitloom.extract.project._field_agreement import (
     add_conflict,
     values_agree,
 )
+from pitloom.messages import emit
+from pitloom.messages.metadata import INSTALLED_LINE, METADATA_CONFLICT
 
 log = logging.getLogger(__name__)
 
@@ -49,16 +51,12 @@ def _reconcile_conflict_checked_field(
     static: ProjectMetadata,
     installed: ProjectMetadata,
     field_name: str,
-    warn_subject: str,
+    project_dir: Path,
     *,
     quiet: bool,
 ) -> None:
-    """Reconcile one of ``CONFLICT_CHECKED_FIELDS`` in place on *merged*.
-
-    *warn_subject* is the ``"<project_dir>: installed metadata (<label>)"``
-    prefix of the disagreement ``WARNING:``, built once by
-    :func:`reconcile_installed_metadata`.
-    """
+    """Reconcile one of ``CONFLICT_CHECKED_FIELDS`` in place on *merged*;
+    *project_dir* names the project in the disagreement ``WARNING:``."""
     provenance_key = provenance_key_for(field_name)
     installed_declared = field_declared(installed.provenance, provenance_key)
     if not installed_declared:
@@ -78,7 +76,7 @@ def _reconcile_conflict_checked_field(
     # matching Poetry's `python = "*"`; likewise an empty/undetected
     # `license`). The recorded candidates' ``value`` is typed ``str``, never
     # ``None``, so it takes the empty string None is equivalent to; the
-    # real (possibly-None) values are still what's logged.
+    # warning says it too.
     comparable_static_value = static_value if static_value is not None else ""
     comparable_installed_value = installed_value if installed_value is not None else ""
     if values_agree(field_name, comparable_static_value, comparable_installed_value):
@@ -104,12 +102,15 @@ def _reconcile_conflict_checked_field(
     # consumer would otherwise read as two different fields.
     add_conflict(merged, provenance_key, candidates)
     if not quiet:
-        log.warning(
-            "%s disagrees on %s (declared %r, installed %r) -- keeping declared",
-            warn_subject,
-            provenance_key,
-            static_value,
-            installed_value,
+        emit(
+            log,
+            METADATA_CONFLICT,
+            logging.WARNING,
+            line=INSTALLED_LINE,
+            dir=project_dir,
+            field=provenance_key,
+            kept=comparable_static_value,
+            dropped=comparable_installed_value,
         )
 
 
@@ -137,7 +138,6 @@ def _reconcile_gap_fill_field(
 def reconcile_installed_metadata(
     static: ProjectMetadata,
     installed: ProjectMetadata,
-    installed_label: str,
     project_dir: Path,
     *,
     quiet: bool = False,
@@ -170,11 +170,10 @@ def reconcile_installed_metadata(
     # leak back into the caller's own *static* object (see
     # working-docs/implementation/installed-dist-info-source.md).
     merged = static.replace_with_fresh_containers()
-    warn_subject = f"{project_dir}: installed metadata ({installed_label})"
     for f in dataclasses.fields(ProjectMetadata):
         if f.name in CONFLICT_CHECKED_FIELDS:
             _reconcile_conflict_checked_field(
-                merged, static, installed, f.name, warn_subject, quiet=quiet
+                merged, static, installed, f.name, project_dir, quiet=quiet
             )
         elif f.name in GAP_FILL_ONLY_FIELDS:
             _reconcile_gap_fill_field(merged, static, installed, f.name)

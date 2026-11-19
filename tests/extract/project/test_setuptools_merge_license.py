@@ -181,8 +181,8 @@ def test_a_conflict_warns_once(
     caplog.set_level(logging.WARNING)
     read_setuptools(tmp_path)
     (record,) = caplog.records
-    assert "setup.py and setup.cfg disagree on license" in record.getMessage()
-    assert "keeping setup.py's" in record.getMessage()
+    assert "license: setup.py and setup.cfg disagree" in record.getMessage()
+    assert "kept setup.py's" in record.getMessage()
 
 
 def test_an_installed_conflict_adds_to_the_setuptools_one(tmp_path: Path) -> None:

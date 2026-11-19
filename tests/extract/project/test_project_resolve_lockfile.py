@@ -142,9 +142,8 @@ def test_resolve_project_with_lockfile_does_not_duplicate_poetry_warning(
 def test_resolve_project_with_lockfile_poetry_parse_failure_warning_not_lost(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """A malformed [tool.poetry] section (missing name) logs its own "metadata
-    could not be parsed... still applying poetry.lock's resolved dependencies"
-    WARNING: from _try_read_poetry(), reachable only when
+    """A malformed [tool.poetry] section (missing name) relays its own "has a
+    project name" WARNING: from _try_read_poetry(), reachable only when
     locked_dependencies is not None. The peek always calls with
     include_locked_dependencies=False and never reaches it, so the warning is
     not gated by `quiet` (that would drop it on the default path, where the
@@ -164,7 +163,7 @@ def test_resolve_project_with_lockfile_poetry_parse_failure_warning_not_lost(
         )
 
     assert metadata.locked_dependencies == ["requests==2.31.0"]
-    assert caplog.text.count("metadata could not be parsed") == 1
+    assert caplog.text.count("neither [tool.poetry] nor [project] has a") == 1
 
 
 def test_resolve_project_with_lockfile_does_not_duplicate_setuptools_warning(
@@ -187,19 +186,19 @@ def test_resolve_project_with_lockfile_does_not_duplicate_setuptools_warning(
         )
 
     assert metadata.name == "pkg"
-    assert caplog.text.count("statically resolvable literal") == 1
+    assert caplog.text.count("is not a literal; treated as undeclared") == 1
 
 
 def test_resolve_project_with_lockfile_does_not_duplicate_fallback_warning(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """The "no usable [project] table -- falling back to setup.cfg/setup.py"
-    WARNING: (read_project()'s own, gated on its own `quiet` check) is
-    emitted once when the peek-then-reread goes through this fallback
-    branch."""
+    """The "[project] has no name" WARNING: (read_project()'s own, gated on
+    its own `quiet` check) is emitted once when the peek-then-reread goes
+    through this fallback branch. A ``[build-system]``-only file takes the
+    DEBUG-only branch (test_project.py)."""
     (tmp_path / "pyproject.toml").write_text(
         '[build-system]\nrequires = ["setuptools"]\n'
-        'build-backend = "custom_pep517_wrapper"\n',
+        'build-backend = "custom_pep517_wrapper"\n[project]\nversion = "1"\n',
         encoding="utf-8",
     )
     (tmp_path / "setup.cfg").write_text(
@@ -212,7 +211,7 @@ def test_resolve_project_with_lockfile_does_not_duplicate_fallback_warning(
         )
 
     assert metadata.name == "real-pkg"
-    assert caplog.text.count("no usable [project] table") == 1
+    assert caplog.text.count("[project] has no name") == 1
 
 
 def test_resolve_project_with_lockfile_does_not_duplicate_flit_dynamic_warning(
@@ -221,7 +220,7 @@ def test_resolve_project_with_lockfile_does_not_duplicate_flit_dynamic_warning(
     """prepare_dynamic_version() (called unconditionally by read_pyproject())
     forwards `quiet` to resolve_flit_dynamic_metadata(): a Flit-backend
     project with an unresolvable `dynamic = ["version"]` logs its "Flit
-    dynamic metadata resolution failed" WARNING: once on the
+    dynamic metadata not resolved" WARNING: once on the
     peek-then-reread."""
     (tmp_path / "pyproject.toml").write_text(
         '[build-system]\nrequires = ["flit_core>=3.9"]\n'
@@ -236,4 +235,4 @@ def test_resolve_project_with_lockfile_does_not_duplicate_flit_dynamic_warning(
         )
 
     assert metadata.version is None
-    assert caplog.text.count("Flit dynamic metadata resolution failed") == 1
+    assert caplog.text.count("Flit dynamic metadata not resolved") == 1

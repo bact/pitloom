@@ -31,14 +31,24 @@ from pathlib import Path
 
 from packaging.utils import canonicalize_name
 
+from pitloom.core.path_probe import is_missing_errno
 from pitloom.core.project import ProjectMetadata
-from pitloom.core.quote_source import quote_source
 from pitloom.extract._core_metadata import (
     core_metadata_license_with_source,
     parse_project_urls,
 )
 from pitloom.extract._extract_utils import field_declared, to_str_list
-from pitloom.logging_config import excerpt
+from pitloom.messages import emit
+from pitloom.messages.files import warn_file_unreadable
+from pitloom.messages.metadata import (
+    CANDIDATES_LINE,
+    INSTALLED_METADATA_AMBIGUOUS,
+    INSTALLED_METADATA_UNUSABLE,
+    INSTALLED_NO_NAME_LINE,
+    METADATA_USE,
+    NO_MARKER_LINE,
+    OTHER_NAME_LINE,
+)
 
 log = logging.getLogger(__name__)
 
@@ -67,16 +77,58 @@ def _marker_filename(candidate_dir: Path) -> str:
     return "PKG-INFO" if candidate_dir.name.endswith(".egg-info") else "METADATA"
 
 
-def _read_marker_text(marker_path: Path) -> str | None:
+def _read_marker_text(marker_path: Path) -> str | OSError:
     """Read *marker_path* leniently, decoding with ``errors="replace"``
     (as :mod:`pitloom.extract.wheel` decodes) so a
-    malformed/binary marker file never raises. Returns ``None`` on a
-    genuine access failure (``OSError``)."""
+    malformed/binary marker file never raises. Returns the ``OSError`` on a
+    genuine access failure."""
     try:
         raw = marker_path.read_bytes()
-    except OSError:
-        return None
+    except OSError as exc:
+        return exc
     return raw.decode("utf-8", errors="replace")
+
+
+def _warn_name(project_dir: Path, label: str, name: str | None) -> None:
+    """The ``WARNING:`` that the directory *label* of *project_dir* declares
+    *name*, not the project's, or none at all (``None`` or empty)."""
+    if name:
+        emit(
+            log,
+            INSTALLED_METADATA_UNUSABLE,
+            logging.WARNING,
+            line=OTHER_NAME_LINE,
+            dir=project_dir,
+            entry=label,
+            name=name,
+        )
+    else:
+        emit(
+            log,
+            INSTALLED_METADATA_UNUSABLE,
+            logging.WARNING,
+            line=INSTALLED_NO_NAME_LINE,
+            dir=project_dir,
+            entry=label,
+        )
+
+
+def _warn_unread(exc: OSError, marker_path: Path, project_dir: Path) -> None:
+    """The ``WARNING:`` for the marker file *marker_path* (in a directory
+    of *project_dir*) that *exc* stopped Pitloom reading: ``file-unreadable``,
+    or, for a file gone since the check, the same line as one never there."""
+    if is_missing_errno(exc):
+        emit(
+            log,
+            INSTALLED_METADATA_UNUSABLE,
+            logging.WARNING,
+            line=NO_MARKER_LINE,
+            dir=project_dir,
+            entry=marker_path.parent.name,
+            file=marker_path.name,
+        )
+    else:
+        warn_file_unreadable(log, exc, file=marker_path, use=METADATA_USE)
 
 
 @dataclasses.dataclass
@@ -112,22 +164,20 @@ def _evaluate_candidate_dir(
     marker_path = candidate_dir / marker_name
     if not marker_path.exists():
         if not quiet:
-            log.warning(
-                "%s: %s exists but has no %s -- ignoring it",
-                quote_source(project_dir),
-                label,
-                quote_source(marker_name),
+            emit(
+                log,
+                INSTALLED_METADATA_UNUSABLE,
+                logging.WARNING,
+                line=NO_MARKER_LINE,
+                dir=project_dir,
+                entry=label,
+                file=marker_name,
             )
         return None
     text = _read_marker_text(marker_path)
-    if text is None:
+    if isinstance(text, OSError):
         if not quiet:
-            log.warning(
-                "%s: %s exists but %s could not be read -- ignoring it",
-                quote_source(project_dir),
-                label,
-                quote_source(marker_name),
-            )
+            _warn_unread(text, marker_path, project_dir)
         return None
     msg = email.message_from_string(text)
     candidate_name = msg.get("Name") if field_declared(msg, "Name") else None
@@ -135,14 +185,7 @@ def _evaluate_candidate_dir(
         canonicalize_name(candidate_name) != canonicalize_name(resolved_name)
     ):
         if not quiet:
-            log.warning(
-                "%s: %s declares name %s, which does not match the "
-                "resolved project name %r -- ignoring it entirely",
-                quote_source(project_dir),
-                label,
-                excerpt(candidate_name),
-                resolved_name,
-            )
+            _warn_name(project_dir, label, candidate_name)
         return None
     return _Candidate(marker_path=marker_path, label=label, message=msg)
 
@@ -193,12 +236,14 @@ def _discover_candidate(
     survivors.sort(key=_sort_key)
     winner = survivors[0]
     if not quiet:
-        found_labels = ", ".join(c.label for c in survivors)
-        log.warning(
-            "%s: multiple installed-metadata candidates found (%s) -- using %s",
-            quote_source(project_dir),
-            found_labels,
-            winner.label,
+        emit(
+            log,
+            INSTALLED_METADATA_AMBIGUOUS,
+            logging.WARNING,
+            line=CANDIDATES_LINE,
+            dir=project_dir,
+            files=", ".join(c.label for c in survivors),
+            entry=winner.label,
         )
     return winner
 
@@ -314,13 +359,9 @@ def read_installed_metadata(
     raised (installed metadata is always optional enrichment).
     """
     text = _read_marker_text(marker_path)
-    if text is None:
+    if isinstance(text, OSError):
         if not quiet:
-            log.warning(
-                "%s: %s could not be re-read -- skipping installed metadata",
-                quote_source(marker_path.parent),
-                quote_source(marker_path.name),
-            )
+            _warn_unread(text, marker_path, marker_path.parent.parent)
         return None
     msg = email.message_from_string(text)
     return _parse_installed_metadata(msg, source_label)

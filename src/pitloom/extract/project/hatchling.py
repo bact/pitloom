@@ -19,7 +19,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from pitloom._toml_io import load_toml_file
+from pitloom.core._project_toml import load_project_toml
 from pitloom.core.project import ProjectMetadata
 from pitloom.core.provenance import provenance_segment
 from pitloom.core.requirements import normalize_dependency_specifier
@@ -35,6 +35,7 @@ from pitloom.extract.authors import collapse_whitespace
 from pitloom.extract.project._optional_dependencies import add_optional_dependencies
 from pitloom.extract.project._pyproject_license import PEP_639_LICENSE_FIELD
 from pitloom.extract.project.pyproject import fill_from_poetry
+from pitloom.messages.metadata import METADATA_USE
 
 _PROVENANCE_SOURCE = "Source: Hatchling build backend"
 
@@ -57,7 +58,9 @@ def _poetry_fallback_metadata(
     pyproject_path = project_dir / "pyproject.toml"
     if not pyproject_path.exists():
         return metadata, False
-    data: dict[str, Any] = load_toml_file(pyproject_path)
+    data: dict[str, Any] = load_project_toml(
+        pyproject_path, kind="pyproject.toml", use=METADATA_USE
+    )
     return fill_from_poetry(
         metadata, data, project_dir, include_locked_dependencies=False
     )

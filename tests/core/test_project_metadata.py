@@ -13,6 +13,7 @@ from pathlib import Path
 
 import pytest
 
+from pitloom.core.internal_error import InternalError
 from pitloom.core.project import (
     ConflictCandidate,
     ProjectMetadata,
@@ -227,14 +228,12 @@ def test_merge_project_metadata_does_not_alias_field_conflicts() -> None:
     assert secondary.field_conflicts == {}
 
 
-def test_merge_project_metadata_field_conflicts_merged_primary_wins(
-    caplog: pytest.LogCaptureFixture,
-) -> None:
-    """field_conflicts is dict-merged like provenance (primary's entries
-    winning on key conflict), and a genuine key collision is logged
-    rather than silently dropping secondary's whole ConflictCandidate
-    list with no signal -- the "no silent deviations" principle applied
-    to a data loss, not just a value substitution."""
+def test_merge_project_metadata_field_conflicts_collision_is_an_internal_error() -> (
+    None
+):
+    """Only the primary side may carry ``field_conflicts`` (the readers
+    record them before the merge), so a key held by both sides is a
+    programming error, not a user-facing warning."""
     primary_candidates: list[ConflictCandidate] = [
         {"value": "1.0.0", "role": "declared", "source": "Source: primary-static"},
         {"value": "1.0.1", "role": "declared", "source": "Source: primary-installed"},
@@ -250,12 +249,12 @@ def test_merge_project_metadata_field_conflicts_merged_primary_wins(
         name="pkg", field_conflicts={"version": secondary_candidates}
     )
 
-    with caplog.at_level("WARNING"):
-        merged = merge_project_metadata(primary, secondary)
+    with pytest.raises(InternalError, match="field_conflicts entry"):
+        merge_project_metadata(primary, secondary)
 
-    assert merged.field_conflicts == {"version": primary_candidates}
-    assert "both sides have a field_conflicts entry" in caplog.text
-    assert "['version']" in caplog.text
+    # the inputs are left as they were
+    assert primary.field_conflicts == {"version": primary_candidates}
+    assert secondary.field_conflicts == {"version": secondary_candidates}
 
 
 def test_merge_project_metadata_field_conflicts_no_collision_no_warning(

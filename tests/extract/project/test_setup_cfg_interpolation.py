@@ -23,7 +23,6 @@ import pytest
 
 from pitloom import __main__
 from pitloom.assemble import generate_project_sbom
-from pitloom.core.quote_source import quote_source
 from pitloom.extract.project.setup_cfg_interpolation import read_uninterpolated
 from pitloom.extract.project.setuptools_cfg import (
     read_setup_cfg,
@@ -128,7 +127,7 @@ def test_a_bad_percent_fails_as_setuptools_does_naming_section_and_key(
         read_setup_cfg(tmp_path)
     message = str(caught.value)
     assert message.startswith(
-        f"Could not parse setup.cfg: {quote_source(setup_cfg)} {where}: "
+        f"FILE={setup_cfg}: not valid INI interpolation; {where}: "
     )
     assert reason in message
     # '%%' mends a stray '%', not a missing key or a reference cycle
@@ -174,7 +173,7 @@ def test_a_duplicate_key_is_a_parse_error_not_a_percent_one(tmp_path: Path) -> N
     """``configparser`` is strict, as for setuptools: the read fails before
     any value is interpolated, so the ``%%`` hint would mislead."""
     setup_cfg = _write(tmp_path, "description = a\ndescription = 50% b")
-    with pytest.raises(ValueError, match="^Could not parse setup.cfg: ") as caught:
+    with pytest.raises(ValueError, match="^FILE=.*: not valid INI; ") as caught:
         read_setup_cfg(tmp_path)
     assert "'description'" in str(caught.value)
     assert "%%" not in str(caught.value)

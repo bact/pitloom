@@ -273,6 +273,31 @@ in place of each `<name>`:
 | `extra-gate-ambiguous` | `WARNING: dependency <dependency>: needs extras <extra> together; recorded as optional for any of them [extra-gate-ambiguous]` |
 | `dependency-name-ambiguous` | `INFO: PACKAGE=<package>: a direct reference; not looked up on PyPI [dependency-name-ambiguous]` |
 
+## What Pitloom says about the project metadata it reads
+
+Project metadata that Pitloom cannot read, or reads two ways, is said on
+stderr in a line that ends with its `[code]`. A `WARNING:` line means the
+SBOM is still written, with what Pitloom could read; the clause after the
+last `;` says what it did (`ignored`, `skipped`, `kept` and `dropped`
+name the value it used). An `ERROR:` line means no SBOM. Each code, its
+causes and what to do about it are on
+[Project metadata](message-codes-metadata.md) and
+[Dependencies](message-codes-dependencies.md). One line of each, with a
+value in place of each `<name>`:
+
+| Code | A line of it |
+| :--- | :--- |
+| `metadata-invalid` | `WARNING: FILE=<file>: [project] has no name; read setup.cfg and setup.py instead [metadata-invalid]` |
+| `metadata-malformed` | `WARNING: FILE=<file>: not valid Python; <failure> [metadata-malformed]` |
+| `project-name-missing` | `ERROR: FILE=<file>: neither [tool.poetry] nor [project] has a project name [project-name-missing]` |
+| `metadata-conflict` | `WARNING: DIR=<dir>: <field>: setup.py and setup.cfg disagree; kept setup.py's <kept>, dropped setup.cfg's <dropped> [metadata-conflict]` |
+| `metadata-no-effect` | `WARNING: FILE=<file>: [tool.poetry] <entries> not read: build-backend <backend> does not read them; ignored [metadata-no-effect]` |
+| `dynamic-field-needs-build` | `WARNING: FILE=<file>: dynamic <metadata_fields> not resolved without PKG-INFO; skipped [dynamic-field-needs-build]` |
+| `dynamic-field-unusable` | `WARNING: FILE=<file>: PDM dynamic version not resolved; <failure> [dynamic-field-unusable]` |
+| `installed-metadata-unusable` | `WARNING: DIR=<dir>: <entry> declares name <name>, not the project's; ignored [installed-metadata-unusable]` |
+| `installed-metadata-ambiguous` | `WARNING: DIR=<dir>: several installed-metadata candidates (<files>); used <entry> [installed-metadata-ambiguous]` |
+| `dependency-pin-conflict` | `WARNING: PACKAGE=<package>: lock and declared exact pin disagree; kept the declared <kept>, dropped the locked <dropped> [dependency-pin-conflict]` |
+
 ## Which commands use lock files at all
 
 Lock-file resolution only ever applies to a **Source SBOM**

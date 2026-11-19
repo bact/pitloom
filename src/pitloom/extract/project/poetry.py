@@ -81,26 +81,22 @@ from __future__ import annotations
 
 import logging
 import re
-from functools import partial
 from pathlib import Path
 from typing import Any
 
-from packaging.utils import canonicalize_name
-
+from pitloom.core.internal_error import InternalError
 from pitloom.core.project import ProjectMetadata
 from pitloom.core.provenance import provenance_segment, provenance_source
-from pitloom.core.requirements import flatten_optional_dependencies
 from pitloom.extract._extract_utils import field_declared
 from pitloom.extract._license import (
     apply_in_package_license_files,
 )
 from pitloom.extract._license_detect import read_license_members
 from pitloom.extract.authors import collapse_whitespace
+from pitloom.extract.project._poetry_deps import parse_poetry_deps
 from pitloom.extract.project._poetry_extras import (
     drop_ignored_dependencies,
     drop_ignored_extras,
-    extras_requirements,
-    requirements_per_table,
 )
 from pitloom.extract.project._poetry_fields import (
     drop_wrong_typed_fields,
@@ -108,7 +104,13 @@ from pitloom.extract.project._poetry_fields import (
     read_poetry_section,
     warn_wrong_type,
 )
-from pitloom.extract.project._poetry_requirements import poetry_requirement
+from pitloom.messages import CodedValueError
+from pitloom.messages.metadata import (
+    METADATA_INVALID,
+    POETRY_NAME_LINE,
+    PROJECT_NAME_MISSING,
+    TYPE_ERROR_LINE,
+)
 
 log = logging.getLogger(__name__)
 
@@ -149,29 +151,45 @@ def extract_poetry_metadata(
         A populated :class:`~pitloom.core.project.ProjectMetadata`.
 
     Raises:
-        ValueError: If ``[tool.poetry]`` is absent or not a table, or
-            neither it nor ``[project]`` has a string ``name``.
+        pitloom.messages.CodedValueError: ``[tool.poetry]`` is not a table
+            (``metadata-invalid``), or neither it nor ``[project]`` has a
+            string ``name`` (``project-name-missing``).
+        pitloom.core.internal_error.InternalError: ``[tool.poetry]`` is
+            absent or empty (the one caller returns before that).
     """
     pyproject_path = project_dir / "pyproject.toml"
     poetry = read_poetry_section(data, pyproject_path, quiet=quiet)
     if poetry is not None and not is_table(poetry):
-        got = type(poetry).__name__
-        warn_wrong_type(pyproject_path, "[tool.poetry]", got, "a table", quiet=quiet)
-        raise ValueError("[tool.poetry] in pyproject.toml is not a table")
+        # The one say of a non-table: the caller does not relay this error.
+        warn_wrong_type(pyproject_path, "[tool.poetry]", poetry, "table", quiet=quiet)
+        raise CodedValueError(
+            METADATA_INVALID,
+            line=TYPE_ERROR_LINE,
+            file=pyproject_path,
+            field="[tool.poetry]",
+            got=poetry,
+            expected="table",
+        )
     if not poetry:
-        raise ValueError("[tool.poetry] section not found in pyproject.toml")
+        # _try_read_poetry, the one caller, returns before it for an absent
+        # or empty table.
+        raise InternalError("extract_poetry_metadata: [tool.poetry] is absent")
     poetry = drop_wrong_typed_fields(poetry, pyproject_path, quiet=quiet)
     had_extras = "extras" in poetry
-    poetry = drop_ignored_extras(poetry, data, quiet=quiet)
+    poetry = drop_ignored_extras(poetry, data, pyproject_path, quiet=quiet)
     extras_ignored = had_extras and "extras" not in poetry
-    poetry, deps_ignored = drop_ignored_dependencies(poetry, data, quiet=quiet)
+    poetry, deps_ignored = drop_ignored_dependencies(
+        poetry, data, pyproject_path, quiet=quiet
+    )
 
     name = (poetry.get("name") or "").strip()
     name_field = "tool.poetry.name"
     if not name:  # Poetry 2: [project] names it, [tool.poetry] adds the rest
         name, name_field = _project_table_name(data), "project.name"
     if not name:
-        raise ValueError("Project name is required in [tool.poetry] section")
+        raise CodedValueError(
+            PROJECT_NAME_MISSING, line=POETRY_NAME_LINE, file=pyproject_path
+        )
 
     version = (poetry.get("version") or "").strip() or None
     description = (poetry.get("description") or "").strip() or None
@@ -185,7 +203,7 @@ def extract_poetry_metadata(
     authors = parse_poetry_authors(poetry.get("authors", []))
     urls = _parse_poetry_urls(poetry)
 
-    dependencies, requires_python, python_declared = _parse_poetry_deps(
+    dependencies, requires_python, python_declared = parse_poetry_deps(
         poetry.get("dependencies", {}),
         extras=poetry.get("extras"),
         project_name=name,
@@ -355,137 +373,3 @@ def parse_poetry_authors(authors: list[Any]) -> list[dict[str, str]]:
         if entry:
             result.append(entry)
     return result
-
-
-def _parse_poetry_deps(
-    deps: Any,
-    *,
-    extras: Any = None,
-    project_name: str | None = None,
-    quiet: bool = False,
-    warn_unlisted: bool = True,
-) -> tuple[list[str], str | None, bool]:
-    """Convert ``[tool.poetry.dependencies]`` to a PEP 508 list plus requires-python.
-
-    The ``python`` key is extracted as ``requires_python`` (matched
-    case-insensitively); every other entry becomes the requirement
-    poetry-core writes for it
-    (:func:`~pitloom.extract.project._poetry_requirements.poetry_requirement`),
-    one per table of the list form, each with its own marker. An entry
-    with every table ``optional = true`` is listed once per extra of
-    *extras* (``[tool.poetry.extras]``, extra name to dependency names,
-    matched by canonical name) that names it, tagged ``extra == "x"``;
-    named by no extra, it is dropped with a ``WARNING:``
-    unless *warn_unlisted* is false (the extras were already reported as
-    ignored). A list with required tables gives those as base
-    requirements, its optional tables only to an extra that names it. A
-    requirement on *project_name* in an extra is expanded
-    (:func:`~pitloom.core.requirements.flatten_optional_dependencies`).
-
-    Returns:
-        ``(dependencies, requires_python, python_declared)`` --
-        ``requires_python`` may be ``None`` when the ``python`` key is
-        absent OR when it's present but resolves to no constraint (e.g.
-        ``python = "*"``); ``python_declared`` distinguishes those two
-        cases so a caller can gate provenance on presence, not on
-        ``requires_python``'s truthiness -- an explicit "no constraint"
-        is a genuine, authoritative answer that
-        :func:`pitloom.core.project.merge_project_metadata` must not
-        silently override from a lower-priority source, the same
-        None-vs-absent distinction already applied to container fields.
-    """
-    if not isinstance(deps, dict):
-        return [], None, False
-
-    requires_python: str | None = None
-    python_declared = False
-    base: list[tuple[str, str]] = []  # (canonical name, PEP 508 string)
-    # canonical name -> (declared name, PEP 508 strings), every dependency
-    entries: dict[str, tuple[str, list[str]]] = {}
-    optional: set[str] = set()
-
-    for pkg, constraint in deps.items():
-        if pkg.lower() == "python":
-            requires_python = _poetry_constraint_to_pep440(constraint)
-            python_declared = True
-            continue
-        every, required = requirements_per_table(
-            constraint, partial(poetry_requirement, pkg, quiet=quiet)
-        )
-        if not every:
-            continue
-        key = canonicalize_name(pkg)
-        entries[key] = (pkg, every)
-        base += [(key, dep) for dep in required]
-        if not required:
-            optional.add(key)
-
-    by_extra, listed = extras_requirements(
-        extras, entries, optional, deps, quiet=quiet, warn_unlisted=warn_unlisted
-    )
-    return (
-        flatten_optional_dependencies(
-            [dep for key, dep in base if key not in listed],
-            by_extra,
-            project_name,
-            source="Poetry",
-            quiet=quiet,
-        ),
-        requires_python,
-        python_declared,
-    )
-
-
-def _convert_caret(ver: str) -> str:
-    """Convert a Poetry caret constraint (without the ``^``) to PEP 440."""
-    parts = ver.split(".")
-    try:
-        major = int(parts[0])
-        if major > 0:
-            return f">={ver},<{major + 1}.0.0"
-        if len(parts) > 1:
-            minor = int(parts[1])
-            return f">={ver},<0.{minor + 1}.0"
-        return f">={ver}"
-    except (ValueError, IndexError):
-        return f">={ver}"
-
-
-def _convert_tilde(ver: str) -> str:
-    """Convert a Poetry tilde constraint (without the ``~``) to PEP 440."""
-    parts = ver.split(".")
-    try:
-        if len(parts) >= 2:
-            major = int(parts[0])
-            minor = int(parts[1])
-            return f">={ver},<{major}.{minor + 1}.0"
-        return f">={ver}"
-    except (ValueError, IndexError):
-        return f">={ver}"
-
-
-def _poetry_constraint_to_pep440(constraint: Any) -> str | None:
-    """Convert a Poetry version constraint to a PEP 440 specifier string.
-
-    Handles ``^X.Y.Z``, ``~X.Y.Z``, ``*``, and plain PEP 440 specifiers.
-    Returns ``None`` for ``*`` or unrecognised input.
-    """
-    if isinstance(constraint, dict):
-        constraint = constraint.get("version", "*")
-    if not isinstance(constraint, str):
-        return None
-    constraint = constraint.strip()
-    if not constraint or constraint == "*":
-        return None
-
-    # Bare version (no operator): Poetry treats "X.Y.Z" as exact (==X.Y.Z).
-    if constraint[0].isdigit():
-        return f"=={constraint}"
-
-    if constraint.startswith("^"):
-        return _convert_caret(constraint[1:])
-
-    if constraint.startswith("~"):
-        return _convert_tilde(constraint[1:])
-
-    return str(constraint)

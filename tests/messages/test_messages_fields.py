@@ -26,6 +26,7 @@ from pitloom.messages import FIELDS, FRAMES, RELAY_FRAME, Frame, Line, size_text
 from pitloom.messages._field_writers import entities_text, failure_text
 from pitloom.messages._fields import _merged
 from pitloom.messages._fields_licence import LICENCE_FIELDS
+from pitloom.messages._fields_lock import value_type_text
 from pitloom.messages._templates import render
 
 #: A path ending in a backslash: one on POSIX, a directory on Windows.
@@ -287,3 +288,19 @@ def test_a_licence_field_taking_any_text_is_free(name: str) -> None:
     put it beside another field."""
     field = LICENCE_FIELDS[name]
     assert (field.pattern, field.free) == (r".+", True)
+
+
+@pytest.mark.parametrize(
+    ("value", "text"),
+    [([], "list"), ({}, "dict"), ("x", "str")],
+    ids=["list", "dict", "str"],
+)
+def test_a_lock_value_is_named_by_its_type(value: object, text: str) -> None:
+    assert value_type_text(value) == text
+
+
+def test_a_value_of_a_type_no_lock_reader_loads_is_refused() -> None:
+    """The type name is a closed field value: a reader never hands one on
+    that TOML and JSON cannot load (a set, a path)."""
+    with pytest.raises(ValueError, match="not a type a lock file holds"):
+        value_type_text({1})

@@ -27,16 +27,19 @@ import pytest
 from pyproject_metadata import StandardMetadata
 
 from pitloom.core._config_types import PitloomConfig
+from pitloom.extract.project._poetry_fields import _FIELD_SHAPES
 from pitloom.extract.project._pyproject_fields import (
     build_provenance,
     extract_authors,
     extract_readme,
 )
+from pitloom.extract.project.poetry import extract_poetry_metadata
 from pitloom.extract.project.pyproject import (
     _read_pyproject_fallback,
     _try_read_poetry,
     read_pyproject,
 )
+from pitloom.messages import code_of
 
 # ---------------------------------------------------------------------------
 # read_pyproject -- no [project] section, no [tool.poetry] fallback
@@ -177,6 +180,47 @@ dynamic = ["version"]
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.parametrize(
+    ("toml", "message"),
+    [
+        ('project = "x"\n', "[project] is a string 'x', expected a table"),
+        ("project = []\n", "[project] is an array, expected a table"),
+        ("[project]\nname = 5\n", "project.name is an integer 5, expected a string"),
+        ("[project]\nname = 0\n", "project.name is an integer 0, expected a string"),
+        ("[project]\nname = []\n", "project.name is an array, expected a string"),
+    ],
+    ids=["table-is-str", "table-is-array", "name-int", "name-falsy-int", "name-array"],
+)
+def test_read_pyproject_project_of_the_wrong_type_is_a_coded_error(
+    tmp_path: Path, toml: str, message: str
+) -> None:
+    """A ``[project]`` that is no table, or a ``name`` that is no string (a
+    falsy one too: present is not absent), is refused as ``metadata-invalid``,
+    not an ``AttributeError``."""
+    path = tmp_path / "pyproject.toml"
+    path.write_text(toml, encoding="utf-8")
+    with pytest.raises(ValueError) as caught:
+        read_pyproject(path)
+    assert str(caught.value) == f"FILE={path}: {message}"
+    assert code_of(caught.value) == "metadata-invalid"
+
+
+@pytest.mark.parametrize("key", ["version", "requires-python"])
+def test_read_pyproject_overlong_number_is_a_coded_error(
+    tmp_path: Path, key: str
+) -> None:
+    """A number packaging cannot parse is refused like any invalid value."""
+    value = "1." + "9" * 700 if key == "version" else ">=3." + "9" * 700
+    path = tmp_path / "pyproject.toml"
+    path.write_text(f'[project]\nname = "p"\n{key} = "{value}"\n', encoding="utf-8")
+    with pytest.raises(ValueError) as caught:
+        read_pyproject(path)
+    assert str(caught.value) == (
+        f"FILE={path}: project.{key} has a number over 640 digits"
+    )
+    assert code_of(caught.value) == "metadata-invalid"
+
+
 def test_read_pyproject_invalid_metadata_raises_value_error() -> None:
     """A ``[project]`` section that ``pyproject-metadata`` cannot parse (here:
     an invalid PEP 440 version string) surfaces as ``ValueError``, not the
@@ -189,7 +233,7 @@ version = "not-a-valid-version!!"
     with tempfile.TemporaryDirectory() as d:
         tmp_path = Path(d)
         (tmp_path / "pyproject.toml").write_text(content)
-        with pytest.raises(ValueError, match="Failed to parse project metadata"):
+        with pytest.raises(ValueError, match=r"not valid \[project\] metadata"):
             read_pyproject(tmp_path / "pyproject.toml")
 
 
@@ -274,16 +318,23 @@ def test_try_read_poetry_value_error_returns_none() -> None:
     assert result is None
 
 
-def test_try_read_poetry_key_error_returns_none() -> None:
-    """Same as above, for ``KeyError``."""
-    data = {"tool": {"poetry": {"name": "pkg"}}}
+_WRONG_TYPES: list[object] = [0, "", [], [1], {}, {"k": 1}, "x", True, {"a": 1}]
+
+
+def test_poetry_extraction_raises_only_coded_value_errors() -> None:
+    """``_try_read_poetry`` catches ``ValueError`` only, and says it through
+    ``relay_coded_warning``, which refuses an uncoded one: every
+    ``[tool.poetry]`` key given a value of every wrong type either reads or
+    raises a coded error -- no ``KeyError``, no bare ``ValueError``."""
+    keys = [*_FIELD_SHAPES, "group", "packages", "include", "scripts"]
     with tempfile.TemporaryDirectory() as d:
-        with patch(
-            "pitloom.extract.project.pyproject.extract_poetry_metadata",
-            side_effect=KeyError("missing"),
-        ):
-            result = _try_read_poetry(data, Path(d))
-    assert result is None
+        for key in keys:
+            for value in _WRONG_TYPES:
+                poetry = {"name": "p", "dependencies": {"a": "*"}, key: value}
+                try:
+                    extract_poetry_metadata({"tool": {"poetry": poetry}}, Path(d))
+                except ValueError as exc:
+                    assert code_of(exc) is not None, (key, value)
 
 
 def test_read_pyproject_records_readme_provenance() -> None:
@@ -389,7 +440,7 @@ def test_a_readme_pyproject_metadata_rejects_still_fails_the_parse(
     )
     with (
         caplog.at_level("WARNING"),
-        pytest.raises(ValueError, match="Failed to parse project metadata"),
+        pytest.raises(ValueError, match=r"not valid \[project\] metadata"),
     ):
         read_pyproject(project / "pyproject.toml")
     assert not caplog.messages

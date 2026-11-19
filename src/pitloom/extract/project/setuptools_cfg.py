@@ -26,16 +26,14 @@ from pitloom.core.config import (
 )
 from pitloom.core.credential_policy import ACCEPT_KEY
 from pitloom.core.project import ProjectMetadata
-from pitloom.core.provenance import provenance_segment, provenance_source
-from pitloom.core.quote_source import quote_source
-from pitloom.extract.project._requirements_files import (
-    ListedFiles,
-    setup_cfg_file_names,
-    setup_cfg_requirement_lines,
-)
 from pitloom.extract.project._setup_cfg_directives import (
     _resolve_cfg_file_directive,
     _resolve_cfg_version,
+)
+from pitloom.extract.project._setup_cfg_requirements import (
+    cfg_requirements,
+    cfg_source,
+    extras_option,
 )
 from pitloom.extract.project._setup_cfg_values import (
     coerce_cfg_value,
@@ -51,7 +49,6 @@ from pitloom.extract.project.setup_cfg_interpolation import (
     interpolation_problem,
     section_declares_key,
 )
-from pitloom.logging_config import one_line
 from pitloom.messages import CodedValueError
 from pitloom.messages.config import (
     CONFIG_MALFORMED,
@@ -60,11 +57,18 @@ from pitloom.messages.config import (
     INTERPOLATION_FILE_LINE,
     INTERPOLATION_LINE,
 )
+from pitloom.messages.files import file_unreadable_error
+from pitloom.messages.metadata import (
+    METADATA_USE,
+    PROJECT_NAME_MISSING,
+    SETUP_CFG_NAME_LINE,
+)
 from pitloom.messages.targets import input_not_found, is_input_file
 
 
-class _NoProjectNameError(ValueError):
-    """``setup.cfg`` has no project name, read alone."""
+class _NoProjectNameError(CodedValueError):
+    """``setup.cfg`` has no project name, read alone
+    (``project-name-missing``)."""
 
 
 def _section_dict(cfg: configparser.ConfigParser, section: str) -> dict[str, str]:
@@ -138,21 +142,6 @@ def _cfg_list(value: str) -> list[str]:
     return [item.strip() for item in items if item.strip()]
 
 
-def _cfg_requirements(value: str, project_dir: Path) -> list[str] | ListedFiles:
-    """A requirements value (``install_requires``, an extra) as setuptools
-    reads it (:func:`~pitloom.extract.project._requirements_files.\
-setup_cfg_requirement_lines`), or the files its ``file:`` directive lists
-    in *project_dir*, read when the options are merged."""
-    names = setup_cfg_file_names(value)
-    if names is None:
-        return setup_cfg_requirement_lines(value)
-    return ListedFiles(project_dir, names)
-
-
-def _cfg_source(field: str) -> str:
-    return provenance_segment(provenance_source("setup.cfg"), "Field", field)
-
-
 def _str_or_none(value: str) -> str | None:
     return value.strip() or None
 
@@ -170,40 +159,6 @@ _PLAIN_OPTIONS: tuple[tuple[str, str, str, Callable[[str], Any]], ...] = (
 )
 
 
-_EXTRAS_SECTION = "options.extras_require"
-
-
-def _extras_option(
-    cfg: configparser.ConfigParser, text: str, project_dir: Path
-) -> SetupOption | None:
-    """``[options.extras_require]`` of the ``setup.cfg`` *text*, read as *cfg*
-    read it: extra (or ``extra:marker``) -> requirements. The keys are
-    spelt as written, since ``configparser`` lowercases them and a marker's
-    value is case-sensitive; the values are *cfg*'s, so a ``%(key)s`` finds
-    its key whatever its case, as it does for setuptools. ``None`` without
-    the section."""
-    cased = configparser.ConfigParser(interpolation=None)  # spelling only
-    cased.optionxform = str  # type: ignore[assignment,method-assign]
-    cased.read_string(text, source="setup.cfg")
-    if not cased.has_section(_EXTRAS_SECTION):
-        return None
-    extras = {
-        key: _cfg_requirements(_extra_value(cfg, key), project_dir)
-        for key in cased.options(_EXTRAS_SECTION)  # a [DEFAULT] key is one too
-    }
-    return SetupOption(extras, _cfg_source(_EXTRAS_SECTION))
-
-
-def _extra_value(cfg: configparser.ConfigParser, key: str) -> str:
-    """The interpolated value of the extra *key* (as written). A bad ``%`` in
-    it is reported under that spelling, not under *cfg*'s lowercased key."""
-    try:
-        return cfg.get(_EXTRAS_SECTION, key)
-    except configparser.InterpolationError as exc:
-        exc.option = key
-        raise
-
-
 def _resolved_options(metadata: dict[str, str], project_dir: Path) -> SetupOptions:
     """The options whose value needs a directive resolved or two spellings."""
     options: SetupOptions = {}
@@ -213,7 +168,7 @@ def _resolved_options(metadata: dict[str, str], project_dir: Path) -> SetupOptio
     description = metadata.get("description") or metadata.get("summary")
     if description is not None:
         options["description"] = SetupOption(
-            _str_or_none(description), _cfg_source("metadata.description")
+            _str_or_none(description), cfg_source("metadata.description")
         )
     if "long_description" in metadata:
         readme = _resolve_cfg_file_directive(
@@ -222,7 +177,7 @@ def _resolved_options(metadata: dict[str, str], project_dir: Path) -> SetupOptio
             "metadata.long_description",
         )
         options["long_description"] = SetupOption(
-            readme, _cfg_source("metadata.long_description")
+            readme, cfg_source("metadata.long_description")
         )
     if "classifiers" in metadata:
         classifiers = _resolve_cfg_file_directive(
@@ -249,10 +204,11 @@ def read_setup_cfg_options(
     Raises:
         FileNotFoundError: no ``setup.cfg`` file (a directory is none, as
             for setuptools).
-        ValueError: ``setup.cfg`` cannot be read or parsed (a value's
-            bad ``%``, as setuptools fails on it, names the file, section,
-            key and the ``%%`` escape), or its ``[tool:pitloom]`` settings
-            are invalid; one line.
+        ValueError: ``setup.cfg`` cannot be read (``file-unreadable``) or
+            parsed (``config-malformed``; a value's bad ``%``, as setuptools
+            fails on it, names the section, key and the ``%%`` escape), or its
+            ``[tool:pitloom]`` settings are invalid: a
+            :class:`~pitloom.messages.CodedValueError`.
     """
     setup_cfg_path = project_dir / "setup.cfg"
     if not is_input_file(setup_cfg_path):
@@ -262,25 +218,34 @@ def read_setup_cfg_options(
         # opened here, not read(): read() skips a file it cannot open.
         with setup_cfg_path.open(encoding="utf-8") as stream:
             text = stream.read()
-        cfg.read_string(text, source=str(setup_cfg_path))
+        # Not the path as the source: a failure's text would name it twice.
+        cfg.read_string(text, source="setup.cfg")
         sections = {s: _section_dict(cfg, s) for s in ("metadata", "options")}
-        extras = _extras_option(cfg, text, project_dir)
+        extras = extras_option(cfg, text, project_dir)
     except configparser.InterpolationError as exc:
         raise _interpolation_error(cfg, setup_cfg_path, exc) from exc
-    except (OSError, UnicodeDecodeError, configparser.Error) as exc:
-        raise ValueError(f"Could not parse setup.cfg: {one_line(exc)}") from exc
+    except FileNotFoundError:  # gone since the check
+        raise input_not_found("setup.cfg", setup_cfg_path) from None
+    except (OSError, UnicodeDecodeError) as exc:
+        raise file_unreadable_error(
+            exc, file=setup_cfg_path, use=METADATA_USE
+        ) from None
+    except configparser.Error as exc:
+        raise CodedValueError(
+            CONFIG_MALFORMED, line=INI_FILE_LINE, file=setup_cfg_path, failure=exc
+        ) from exc
     options = _resolved_options(sections["metadata"], project_dir)
     for section, key, field, parse in _PLAIN_OPTIONS:
         if key in sections[section]:
             options[key] = SetupOption(
                 parse(sections[section][key]),
-                _cfg_source(field),
+                cfg_source(field),
                 declared=section_declares_key(cfg, section, key),
             )
     if "install_requires" in sections["options"]:
         options["install_requires"] = SetupOption(
-            _cfg_requirements(sections["options"]["install_requires"], project_dir),
-            _cfg_source("options.install_requires"),
+            cfg_requirements(sections["options"]["install_requires"], project_dir),
+            cfg_source("options.install_requires"),
             declared=section_declares_key(cfg, "options", "install_requires"),
         )
     if extras is not None:
@@ -295,11 +260,15 @@ def read_setup_cfg_options(
 
 def _interpolation_error(
     cfg: configparser.ConfigParser, path: Path, exc: configparser.InterpolationError
-) -> ValueError:
-    """The one-line error for a bad ``%`` in a value of *cfg*, read from
-    *path*."""
-    problem = interpolation_problem(cfg, exc)
-    return ValueError(f"Could not parse setup.cfg: {quote_source(path)} {problem}")
+) -> CodedValueError:
+    """The ``config-malformed`` error for a bad ``%`` in a value of *cfg*,
+    read from *path*."""
+    return CodedValueError(
+        CONFIG_MALFORMED,
+        line=INTERPOLATION_FILE_LINE,
+        file=path,
+        error=interpolation_problem(cfg, exc),
+    )
 
 
 def read_setup_cfg(
@@ -315,13 +284,16 @@ def read_setup_cfg(
     Raises:
         FileNotFoundError: no ``setup.cfg``.
         ValueError: as :func:`read_setup_cfg_options`.
-        _NoProjectNameError: ``[metadata]`` has no ``name``.
+        _NoProjectNameError: ``[metadata]`` has no ``name``
+            (``project-name-missing``).
     """
     options, config = read_setup_cfg_options(project_dir, read_config=read_config)
     metadata = build_setuptools_metadata(options, {})
     if not metadata.name:
         raise _NoProjectNameError(
-            "Project name is required in setup.cfg [metadata] section"
+            PROJECT_NAME_MISSING,
+            line=SETUP_CFG_NAME_LINE,
+            file=project_dir / "setup.cfg",
         )
     return metadata, config
 

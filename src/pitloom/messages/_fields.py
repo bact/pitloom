@@ -12,6 +12,8 @@ fields), :mod:`pitloom.messages._fields_credentials` (a URL credential's),
 :mod:`pitloom.messages._fields_lock` (a lock file's and a requirement's),
 :mod:`pitloom.messages._fields_config` (a configuration value's),
 :mod:`pitloom.messages._fields_licence` (a licence value's),
+:mod:`pitloom.messages._fields_metadata` (project metadata's and file
+discovery's),
 :mod:`pitloom.messages._field_type` (:class:`Field`),
 :mod:`pitloom.messages._field_tables` (the closed tables),
 :mod:`pitloom.messages._types` (the templates),
@@ -57,6 +59,7 @@ from pitloom.messages._fields_config import CONFIG_FIELDS
 from pitloom.messages._fields_credentials import CREDENTIAL_FIELDS
 from pitloom.messages._fields_licence import LICENCE_FIELDS
 from pitloom.messages._fields_lock import LOCK_FIELDS
+from pitloom.messages._fields_metadata import METADATA_FIELDS
 from pitloom.messages._fields_registry import REGISTRY_FIELDS
 
 #: The names of every family but the ID registry's.
@@ -124,8 +127,9 @@ _GENERAL: Final[Mapping[str, Field]] = MappingProxyType(
             r".+",
             free_text,
             "<entry>",
-            "an archive member or a metadata key, as the file names it; in "
-            "quotes, escaped, when it holds a control character",
+            "an archive member, a metadata key, a path in a wheel or an "
+            "installed-metadata directory (`demo-1.0.dist-info`), as the file "
+            "names it; in quotes, escaped, when it holds a control character",
             free=True,
         ),
         "error": Field(
@@ -151,9 +155,10 @@ _GENERAL: Final[Mapping[str, Field]] = MappingProxyType(
             "<field>",
             "the project setting that lists the file (`project.readme`, "
             "`tool.setuptools.dynamic.dependencies`, `setup.cfg "
-            "metadata.long_description`), or a licence value's field "
-            "(`License-Expression`); in quotes, escaped, when it holds a "
-            "control character",
+            "metadata.long_description`), a licence value's field "
+            "(`License-Expression`), or a project metadata key or table "
+            "(`project.version`, `[tool.poetry] 'readme'`); in quotes, "
+            "escaped, when it holds a control character",
             free=True,
         ),
         "fields": Field(
@@ -229,8 +234,8 @@ _GENERAL: Final[Mapping[str, Field]] = MappingProxyType(
             free_text,
             "<name>",
             "the input as Pitloom names it (a path, a field, a dataset, the start "
-            "of a requirement); in quotes, escaped, when it holds a control "
-            "character",
+            "of a requirement), a `setup()` keyword or a name a file declares; "
+            "in quotes, escaped, when it holds a control character",
             free=True,
         ),
         "number": Field(
@@ -401,8 +406,8 @@ _GENERAL: Final[Mapping[str, Field]] = MappingProxyType(
             r".+",
             free_text,
             "<version>",
-            "a release version as the URL or PyPI gives it; in quotes, escaped, when "
-            "it holds a control character",
+            "a release version as the URL, PyPI or a lock file gives it; in "
+            "quotes, escaped, when it holds a control character",
             free=True,
         ),
         "when": Field(
@@ -450,4 +455,5 @@ FIELDS: Final[Mapping[str, Field]] = _merged(
     LOCK_FIELDS,
     CONFIG_FIELDS,
     LICENCE_FIELDS,
+    METADATA_FIELDS,
 )

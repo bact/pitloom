@@ -16,6 +16,7 @@ in-tree installed metadata) and
 from __future__ import annotations
 
 from collections.abc import Callable, Sequence
+from typing import Any
 
 from packaging.utils import canonicalize_name
 
@@ -23,6 +24,30 @@ from pitloom.core.pep440 import parse_specifier_set
 from pitloom.core.project import ConflictCandidate, ProjectMetadata
 from pitloom.extract._license import classify_license, is_weak_licence, same_licence
 from pitloom.extract.lock.common import is_same_version
+from pitloom.logging_config import one_line
+
+#: The longest value a ``WARNING:`` quotes.
+_SHOWN_CHARS = 200
+
+
+def shown_value(raw: Any) -> str:
+    """*raw*'s repr for a ``WARNING:``, on one line, cut to
+    :data:`_SHOWN_CHARS`."""
+    try:
+        text = repr(raw)
+    except ValueError:  # an int over sys.get_int_max_str_digits()
+        text = f"<{type(raw).__name__}>"
+    return one_line(text, limit=_SHOWN_CHARS)
+
+
+def conflict_text(value: object) -> str:
+    """One side of a conflict, for the line that says it: a string as it
+    is, ``None`` as the empty string it compares as (:func:`values_agree`),
+    anything else as :func:`shown_value` writes it."""
+    if value is None:
+        return ""
+    return value if isinstance(value, str) else shown_value(value)
+
 
 #: Fields checked for a genuine disagreement between two sources: a real
 #: conflict is recorded (never silently substituted).

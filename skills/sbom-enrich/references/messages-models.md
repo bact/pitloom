@@ -23,7 +23,7 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
 | [`lfs-pointer-malformed`](#lfs-pointer-malformed) | ERROR, WARNING | A file starts with the Git LFS pointer line but is not a valid pointer: damaged, cut short, or 1 KiB or larger. | 0.22.0 |
 | [`lfs-pointer/shipped`](#lfs-pointershipped) | WARNING | A built wheel or sdist holds Git LFS pointer files where the content belongs: it was built from a checkout without the LFS content. | 0.22.0 |
 | [`library-missing`](#library-missing) | ERROR, WARNING | A library Pitloom needs for a step is not installed: an optional extra for a model reader, the Hugging Face Hub, SPDX 3 validation, --allow-build or magika content types. | 0.22.0 |
-| [`library-unusable`](#library-unusable) | ERROR, WARNING | A library Pitloom needs for a step is installed but fails to import: a broken or partial install, a library it needs in turn missing, or a build for another Python or platform. | 0.23.0 |
+| [`library-unusable`](#library-unusable) | ERROR, WARNING | A library Pitloom needs for a step is installed but fails to import: a broken or partial install, a library it needs in turn missing, or a build for another Python or platform. The API line (since 0.25.0) is poetry-core, which Pitloom depends on, installed at a release that moved a function Pitloom calls. | 0.23.0 |
 | [`model-unreadable`](#model-unreadable) | WARNING | A file whose header is a model format's could not be read: its reader failed (a truncated or corrupt file, a format version the reader does not know), or the file declares more than it can hold. | 0.22.0 |
 | [`model-wrong-format`](#model-wrong-format) | ERROR, WARNING | A file named as an AI model is not one: its header is not the format its suffix names, it is empty, or (a file named on its own) it is no model of a supported format. | 0.22.0 |
 | [`reader-unsafe`](#reader-unsafe) | INFO | A wheel holds AI models in formats whose reader Pitloom does not run on a wheel's files (fastText, GGUF, HDF5, ONNX, PyTorch .pt and .pth): a hostile file could crash or hang it, or exhaust its memory. | 0.22.0 |
@@ -129,14 +129,17 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
   writes nothing for it (exit 1).
 - **Means**: A library Pitloom needs for a step is installed but fails to
   import: a broken or partial install, a library it needs in turn missing, or a
-  build for another Python or platform.
+  build for another Python or platform. The API line (since 0.25.0) is
+  poetry-core, which Pitloom depends on, installed at a release that moved a
+  function Pitloom calls.
 - **SBOM effect**: thinner: the SBOM says less than reading the input would.
 - **Pitloom did**: For a model file, listed the model by its file, format and
   hashes only (a format-only entry, named after its file), without its metadata.
   For any other step, did not run it: no SBOM of a Hugging Face model, no
   validation, no SBOM with magika content types (method magika); with method
   auto, every file's content type from its extension, said once per process.
-  Installed nothing.
+  Without poetry-core's API, read no [tool.poetry] dependency table, said once
+  per process. Installed nothing.
 - **Tell the user**: which models or which step went without the library, what
   the import reported and which extra reinstalls it, as the line names it. They
   reinstall it where Pitloom runs (with uvx or pipx, in the --from or --spec
@@ -149,6 +152,7 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
   WARNING: FORMAT=<format> FILE=<file>: required library failed to import: <error>; reinstall <requirement> [library-unusable]
   ERROR: required library failed to import: <module>: <error>; reinstall <requirement> [library-unusable]
   WARNING: required library failed to import: <module>: <error>; content types from file extensions; reinstall <requirement> [library-unusable]
+  WARNING: required library API not found: poetry-core: <error>; Poetry dependency tables not read; reinstall Pitloom [library-unusable]
   ```
 
 ### `model-unreadable`

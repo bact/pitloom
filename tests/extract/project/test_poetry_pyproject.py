@@ -72,23 +72,23 @@ def test_read_pyproject_poetry_wrong_typed_version_does_not_crash(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     """`version = 3` reaches extract_poetry_metadata() through
-    _try_read_poetry(), which catches only ValueError/KeyError."""
+    _try_read_poetry(), which catches only ValueError."""
     content = '[tool.poetry]\nname = "poetry-only"\nversion = 3\n'
     with tempfile.TemporaryDirectory() as d, caplog.at_level("WARNING"):
         (Path(d) / "pyproject.toml").write_text(content, encoding="utf-8")
         metadata, _ = read_pyproject(Path(d) / "pyproject.toml")
     assert metadata.name == "poetry-only"
     assert metadata.version is None
-    assert "[tool.poetry] 'version' is int" in caplog.text
+    assert "[tool.poetry] 'version' is an integer 3, expected a string" in caplog.text
 
 
 @pytest.mark.parametrize(
     ("data", "warning"),
     [
-        ({"tool": {"poetry": []}}, "[tool.poetry] is list"),
-        ({"tool": {"poetry": ""}}, "[tool.poetry] is str"),
-        ({"tool": {"poetry": "x"}}, "[tool.poetry] is str"),
-        ({"tool": 3}, "[tool] is int"),
+        ({"tool": {"poetry": []}}, "[tool.poetry] is an array"),
+        ({"tool": {"poetry": ""}}, "[tool.poetry] is a string ''"),
+        ({"tool": {"poetry": "x"}}, "[tool.poetry] is a string 'x'"),
+        ({"tool": 3}, "[tool] is an integer 3"),
         ({"tool": {"poetry": {}}}, None),
     ],
 )
@@ -101,8 +101,27 @@ def test_try_read_poetry_non_table_warns_even_when_falsy(
         result = _try_read_poetry(data, Path(d))
     assert result is None
     assert [r.getMessage().split(": ", 1)[1] for r in caplog.records] == (
-        [f"{warning}, expected a table -- ignoring it"] if warning else []
+        [f"{warning}, expected a table; ignored"] if warning else []
     )
+
+
+@pytest.mark.parametrize("poetry", ["x", ""], ids=["string", "empty-string"])
+def test_a_non_table_poetry_section_with_a_lock_is_said_once(
+    poetry: str, tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A ``poetry.lock`` makes the caller relay a failed gap-fill; the
+    wrong type is said by its own warning, so the relay stays silent (once,
+    not twice)."""
+    (tmp_path / "poetry.lock").write_text(
+        '[[package]]\nname = "requests"\nversion = "2.31.0"\n\n'
+        '[metadata]\nlock-version = "2.0"\n',
+        encoding="utf-8",
+    )
+    with caplog.at_level("WARNING"):
+        result = _try_read_poetry({"tool": {"poetry": poetry}}, tmp_path)
+    assert result is not None and result.locked_dependencies  # the lock applied
+    assert len(caplog.records) == 1
+    assert "expected a table; ignored" in caplog.records[0].getMessage()
 
 
 # ---------------------------------------------------------------------------

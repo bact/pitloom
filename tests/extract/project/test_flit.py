@@ -63,7 +63,7 @@ def test_resolve_flit_dynamic_metadata_warns_on_missing_module(
         result = resolve_flit_dynamic_metadata(pyproject, ["version"])
 
     assert not result
-    assert "Flit dynamic metadata resolution failed" in caplog.text
+    assert "Flit dynamic metadata not resolved" in caplog.text
 
 
 def test_resolve_flit_dynamic_metadata_quiet_suppresses_warning(
@@ -83,7 +83,7 @@ def test_resolve_flit_dynamic_metadata_quiet_suppresses_warning(
         result = resolve_flit_dynamic_metadata(pyproject, ["version"], quiet=True)
 
     assert not result
-    assert "Flit dynamic metadata resolution failed" not in caplog.text
+    assert "Flit dynamic metadata not resolved" not in caplog.text
 
 
 def test_resolve_flit_dynamic_metadata_never_executes_project_code(

@@ -83,6 +83,25 @@ loom project . --allow-build --no-build-isolation -o sbom.json
 loom project . --allow-build --build-timeout 15m -o sbom.json
 ```
 
+## When static file discovery falls short
+
+Without `--allow-build`, a project's file list is read from its static
+configuration. When that cannot give an exact list, Pitloom says so on stderr
+in a line that ends with its `[code]`, and the SBOM is written with a
+Hatchling-style heuristic list or, where the project has no `[project]`
+table, without one. Each code, its causes and what to do about it are on
+[File discovery](message-codes-file-discovery.md). One line of each, with a
+value in place of each `<name>`:
+
+| Code | A line of it |
+| :--- | :--- |
+| `file-discovery-unusable` | `WARNING: DIR=<dir>: file discovery failed; Hatchling heuristic used, file list may be inaccurate [file-discovery-unusable]` |
+| `file-discovery-needs-build` | `WARNING: DIR=<dir>: file discovery not backend-aware for build-backend <backend>; Hatchling heuristic used, file list may be inaccurate [file-discovery-needs-build]` |
+| `file-discovery-conflict` | `WARNING: DIR=<dir>: two files map to wheel path <entry>; kept <kept>, dropped <dropped> [file-discovery-conflict]` |
+
+A `needs-build` line is the one `--allow-build` answers: a real build lists
+the files exactly.
+
 ## Timing out a build
 
 `--build-timeout DURATION` bounds how long the real PEP 517 build (see

@@ -327,18 +327,18 @@ def test_sdist_pyproject_fallback_drops_invalid_extra(
     ("lines", "expected", "needle"),
     [
         pytest.param(
-            'optional-dependencies = ["x"]\n', [], "is list", id="table-is-list"
+            'optional-dependencies = ["x"]\n', [], "is an array", id="table-is-list"
         ),
         pytest.param(
             "[project.optional-dependencies]\ndev = [1]\n",
             [],
-            "optional-dependencies.dev' is list",
+            "optional-dependencies.dev is an array",
             id="item-is-int",
         ),
         pytest.param(
             '[project.optional-dependencies]\ndev = "pytest"\n',
             [],
-            "optional-dependencies.dev' is str",
+            "optional-dependencies.dev is a string",
             id="value-is-str",
         ),
         pytest.param(
@@ -377,4 +377,4 @@ def test_sdist_pyproject_fallback_non_table_extras_not_credited(
     assert meta.dependencies == ["a"]
     assert _fields(meta.provenance["dependencies"]) == _ONLY
     assert len(caplog.records) == 1
-    assert "'project.optional-dependencies' is" in caplog.messages[0]
+    assert "project.optional-dependencies is " in caplog.messages[0]

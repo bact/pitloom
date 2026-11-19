@@ -27,7 +27,7 @@ from __future__ import annotations
 
 from typing import Final
 
-from pitloom.messages._types import ASK_FIRST, Line, Message
+from pitloom.messages._types import ASK_FIRST, Line, Message, warning_twins
 
 _SINCE: Final = "0.25.0"
 #: Every run that reads a project's configuration.
@@ -191,22 +191,25 @@ CONFIG_MALFORMED: Final = Message(
     code="config-malformed",
     condition="malformed",
     lines=(
-        TOML_LINE,
-        INI_FILE_LINE,
+        *warning_twins((TOML_LINE, INI_FILE_LINE, INTERPOLATION_FILE_LINE)),
         INI_LINE,
-        INTERPOLATION_FILE_LINE,
         INTERPOLATION_LINE,
     ),
-    summary="A configuration file is not valid TOML (a --config file) or INI "
-    "(a setup.cfg): the parser's failure, with its line and column where it "
-    "gives them. The interpolation line is a [tool:pitloom] value holding a "
-    "% that is not a %% or a valid %(name)s reference. A project's or an "
-    "sdist's pyproject.toml that is not valid TOML is not yet coded.",
-    did="Said by the command line (a --config file, or a setup.cfg of a "
-    "project or an sdist), the library (load_config_file, loom.run's "
-    "pitloom_config) and the GitHub Action. Read no setting and wrote "
-    "nothing: the command exits 1, the library raises ValueError carrying "
-    "the code.",
+    summary="A configuration or project metadata file is not valid TOML (a "
+    "--config file, a project's or an sdist's pyproject.toml) or INI (a "
+    "setup.cfg): the parser's failure, with its line and column where it "
+    "gives them. The interpolation line is a setup.cfg value holding a % "
+    "that is not a %% or a valid %(name)s reference.",
+    did="Said by the command line, the build hook, the library "
+    "(load_config_file, loom.run's pitloom_config, read_project, read_sdist) "
+    "and the GitHub Action. As an ERROR, read no setting and no project "
+    "metadata and wrote nothing: the command exits 1, the build hook fails "
+    "the build, the library raises ValueError carrying the code. As a "
+    "WARNING, read the project without that file: a setup.cfg read for "
+    "pyproject.toml's dynamic fields fills none of them; an sdist's "
+    "pyproject.toml gives none of its fields: PKG-INFO's are read when there "
+    "is one, else the package is named unknown, with no version, description "
+    "or dependencies.",
     effect="not-written",
     actor="user",
     advice="Tell the user which file does not parse and where, as the line "

@@ -195,6 +195,13 @@ class Line:
         return render(self.template, values)
 
 
+def warning_twins(lines: tuple[Line, ...]) -> tuple[Line, ...]:
+    """*lines*, then a ``WARNING`` line of each one's template: a caller that
+    catches the error and goes on says the same text as a warning
+    (:func:`~pitloom.messages._emit.relay_extra` trusts it only then)."""
+    return (*lines, *(Line(level="WARNING", template=ln.template) for ln in lines))
+
+
 @dataclass(frozen=True, kw_only=True)
 class Message:
     """A catalogued message: what Pitloom prints, what it means, what it did

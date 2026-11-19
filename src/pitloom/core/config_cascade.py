@@ -45,28 +45,24 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from pitloom._toml_io import TOMLDecodeError, load_toml_file
 from pitloom.core._config_types import _require_valid_content_type_method
+from pitloom.core._project_toml import load_project_toml
 from pitloom.core.build_options import BuildOptions
 from pitloom.core.config import PitloomConfig, parse_pitloom_config
 from pitloom.core.credential_policy import MODE_REFUSE, MODE_WARN, CredentialPolicy
 from pitloom.core.fetch_policy import RemoteFetchPolicy
 from pitloom.core.given_path import GivenPath
+from pitloom.core.internal_error import InternalError
 from pitloom.core.model_extract_limit import (
     require_max_download_bytes,
     require_positive_ceiling,
 )
 from pitloom.core.provenance import ProvenanceConfig, require_max_source_metadata_bytes
 from pitloom.core.quote_source import quote_source
-from pitloom.messages import CodedValueError, code_of, emit
-from pitloom.messages.config import (
-    CONFIG_MALFORMED,
-    TOML_LINE,
-    Parameter,
-)
-from pitloom.messages.files import CONFIG_USE, file_unreadable_error
+from pitloom.messages import code_of, emit
+from pitloom.messages.config import Parameter
+from pitloom.messages.files import CONFIG_USE
 from pitloom.messages.options import CONFIG_NO_TABLE_LINE, OPTION_NO_EFFECT
-from pitloom.messages.targets import input_not_found, is_input_file
 
 log = logging.getLogger(__name__)
 
@@ -209,32 +205,21 @@ def load_config_file(path: Path, *, source: str = "--config") -> PitloomConfig:
             (``config-invalid``): a
             :class:`~pitloom.messages.CodedValueError` naming *path*.
     """
-    if not is_input_file(path):
-        raise input_not_found("config file", path)
-    # Order matters: a TOMLDecodeError and a UnicodeDecodeError are both
-    # ValueErrors; a file gone since the check is not "unreadable".
-    try:
-        data = load_toml_file(Path(path))
-    except FileNotFoundError:
-        raise input_not_found("config file", path) from None
-    except TOMLDecodeError as exc:
-        raise CodedValueError(
-            CONFIG_MALFORMED, line=TOML_LINE, file=path, failure=exc
-        ) from None
-    except (UnicodeDecodeError, OSError) as exc:
-        raise file_unreadable_error(exc, file=path, use=CONFIG_USE) from None
-    except (ValueError, RecursionError) as exc:
-        # Not a TOMLDecodeError: an integer over Python's digit limit, or
-        # arrays nested past the parser's depth limit.
-        raise CodedValueError(
-            CONFIG_MALFORMED, line=TOML_LINE, file=path, failure=exc
-        ) from None
+    data = load_project_toml(path, kind="config file", use=CONFIG_USE)
     try:
         cfg = parse_pitloom_config(data, source=str(path))
+    except InternalError:
+        raise  # already named: not re-wrapped (an InternalError is a ValueError)
     except ValueError as exc:
-        if code_of(exc) is not None:
-            raise  # names the file already
-        raise ValueError(f"config file {quote_source(path)}: {exc}") from exc
+        if code_of(exc) is None:
+            # Every [tool.pitloom] key times a wrong type, NUL, huge integer
+            # and empty value raises a coded error; only the type is named,
+            # a value may hold a credential.
+            raise InternalError(
+                f"config file {quote_source(path)}: parse_pitloom_config "
+                f"raised an uncoded {type(exc).__name__}"
+            ) from None
+        raise  # names the file already
     tool = data.get("tool")
     if not isinstance(tool, dict) or not isinstance(tool.get("pitloom"), dict):
         emit(

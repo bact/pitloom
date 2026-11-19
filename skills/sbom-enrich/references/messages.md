@@ -35,9 +35,11 @@ the table of prefixes.
 - [Targets](messages-targets.md): 14 codes
 - [Options](messages-options.md): 4 codes
 - [Configuration](messages-config.md): 6 codes
+- [Project metadata](messages-metadata.md): 9 codes
+- [File discovery](messages-file-discovery.md): 3 codes
 - [Files and text](messages-files.md): 12 codes
 - [Lock files](messages-lock-files.md): 7 codes
-- [Dependencies](messages-dependencies.md): 5 codes
+- [Dependencies](messages-dependencies.md): 6 codes
 - [PyPI](messages-pypi.md): 13 codes
 - [Network](messages-network.md): 9 codes
 - [URL credentials](messages-url-credentials.md): 8 codes
@@ -50,7 +52,7 @@ the table of prefixes.
 | --- | --- | --- |
 | [`card-malformed`](messages-files.md#card-malformed) | WARNING | 0.23.0 |
 | [`config-invalid`](messages-config.md#config-invalid) | ERROR | 0.25.0 |
-| [`config-malformed`](messages-config.md#config-malformed) | ERROR | 0.25.0 |
+| [`config-malformed`](messages-config.md#config-malformed) | ERROR, WARNING | 0.25.0 |
 | [`config-moved`](messages-config.md#config-moved) | ERROR | 0.25.0 |
 | [`config-unknown-key`](messages-config.md#config-unknown-key) | ERROR, WARNING | 0.25.0 |
 | [`config-unsafe`](messages-targets.md#config-unsafe) | INFO | 0.23.4 |
@@ -65,14 +67,20 @@ the table of prefixes.
 | [`credentials-unsafe/written`](messages-url-credentials.md#credentials-unsafewritten) | WARNING | 0.25.0 |
 | [`datetime-unpinned`](messages-config.md#datetime-unpinned) | INFO | 0.25.0 |
 | [`dependency-name-ambiguous`](messages-dependencies.md#dependency-name-ambiguous) | INFO | 0.25.0 |
+| [`dependency-pin-conflict`](messages-dependencies.md#dependency-pin-conflict) | WARNING | 0.25.0 |
 | [`digest-invalid`](messages-pypi.md#digest-invalid) | ERROR | 0.24.0 |
 | [`dir-unlistable`](messages-files.md#dir-unlistable) | ERROR, WARNING | 0.22.0 |
 | [`download-network-failed`](messages-network.md#download-network-failed) | ERROR, WARNING | 0.24.0 |
 | [`download-timeout`](messages-network.md#download-timeout) | ERROR, WARNING | 0.24.0 |
+| [`dynamic-field-needs-build`](messages-metadata.md#dynamic-field-needs-build) | WARNING | 0.25.0 |
+| [`dynamic-field-unusable`](messages-metadata.md#dynamic-field-unusable) | WARNING | 0.25.0 |
 | [`extra-gate-ambiguous`](messages-dependencies.md#extra-gate-ambiguous) | WARNING | 0.25.0 |
 | [`extra-gate-unusable`](messages-dependencies.md#extra-gate-unusable) | WARNING | 0.25.0 |
 | [`field-not-recordable`](messages-model-fields.md#field-not-recordable) | INFO | 0.23.0 |
 | [`file-ambiguous`](messages-pypi.md#file-ambiguous) | INFO | 0.24.0 |
+| [`file-discovery-conflict`](messages-file-discovery.md#file-discovery-conflict) | WARNING | 0.25.0 |
+| [`file-discovery-needs-build`](messages-file-discovery.md#file-discovery-needs-build) | WARNING | 0.25.0 |
+| [`file-discovery-unusable`](messages-file-discovery.md#file-discovery-unusable) | WARNING | 0.25.0 |
 | [`file-unreadable`](messages-files.md#file-unreadable) | ERROR, WARNING | 0.22.0 |
 | [`file-unreadable/not-utf8`](messages-files.md#file-unreadablenot-utf8) | ERROR, WARNING | 0.22.0 |
 | [`file-unreadable/outside-project`](messages-files.md#file-unreadableoutside-project) | WARNING | 0.22.0 |
@@ -83,6 +91,8 @@ the table of prefixes.
 | [`index-path-no-effect`](messages-id-registry-ids.md#index-path-no-effect) | WARNING | 0.25.0 |
 | [`input-not-found`](messages-targets.md#input-not-found) | ERROR, WARNING | 0.23.4 |
 | [`input-not-found/fragment`](messages-targets.md#input-not-foundfragment) | WARNING | 0.25.0 |
+| [`installed-metadata-ambiguous`](messages-metadata.md#installed-metadata-ambiguous) | WARNING | 0.25.0 |
+| [`installed-metadata-unusable`](messages-metadata.md#installed-metadata-unusable) | WARNING | 0.25.0 |
 | [`json-malformed`](messages-files.md#json-malformed) | ERROR, WARNING | 0.23.0 |
 | [`lfs-pointer`](messages-models.md#lfs-pointer) | ERROR, WARNING | 0.22.0 |
 | [`lfs-pointer-malformed`](messages-models.md#lfs-pointer-malformed) | ERROR, WARNING | 0.22.0 |
@@ -104,6 +114,10 @@ the table of prefixes.
 | [`lock-file-malformed`](messages-lock-files.md#lock-file-malformed) | WARNING | 0.25.0 |
 | [`lock-file-unusable`](messages-lock-files.md#lock-file-unusable) | WARNING | 0.25.0 |
 | [`lock-file-wrong-format`](messages-lock-files.md#lock-file-wrong-format) | WARNING | 0.25.0 |
+| [`metadata-conflict`](messages-metadata.md#metadata-conflict) | WARNING | 0.25.0 |
+| [`metadata-invalid`](messages-metadata.md#metadata-invalid) | ERROR, WARNING | 0.25.0 |
+| [`metadata-malformed`](messages-metadata.md#metadata-malformed) | ERROR, WARNING | 0.25.0 |
+| [`metadata-no-effect`](messages-metadata.md#metadata-no-effect) | WARNING | 0.25.0 |
 | [`model-ambiguous`](messages-targets.md#model-ambiguous) | ERROR, INFO | 0.23.4 |
 | [`model-ambiguous/over-cap`](messages-targets.md#model-ambiguousover-cap) | ERROR | 0.23.4 |
 | [`model-field-conflict`](messages-model-fields.md#model-field-conflict) | WARNING | 0.23.0 |
@@ -117,6 +131,7 @@ the table of prefixes.
 | [`option-no-effect`](messages-options.md#option-no-effect) | WARNING, INFO | 0.25.0 |
 | [`over-cap`](messages-files.md#over-cap) | ERROR, WARNING | 0.22.0 |
 | [`parameter-count-invalid`](messages-model-fields.md#parameter-count-invalid) | WARNING | 0.22.0 |
+| [`project-name-missing`](messages-metadata.md#project-name-missing) | ERROR, WARNING | 0.25.0 |
 | [`project-not-found`](messages-targets.md#project-not-found) | ERROR | 0.23.4 |
 | [`project-not-found/model-files`](messages-targets.md#project-not-foundmodel-files) | ERROR | 0.23.4 |
 | [`project-or-model-not-found`](messages-targets.md#project-or-model-not-found) | ERROR | 0.23.4 |

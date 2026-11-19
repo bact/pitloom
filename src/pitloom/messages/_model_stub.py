@@ -80,6 +80,12 @@ LIBRARY_UNUSABLE_CONTENT_LINE: Final = Line(
     template="required library failed to import: %(module)s: %(error)s; "
     "content types from file extensions; reinstall %(requirement)s",
 )
+#: poetry-core, a dependency of Pitloom, without the functions Pitloom calls.
+LIBRARY_API_LINE: Final = Line(
+    level="WARNING",
+    template="required library API not found: poetry-core: %(error)s; Poetry "
+    "dependency tables not read; reinstall Pitloom",
+)
 LIBRARY_UNUSABLE: Final = Message(
     code="library-unusable",
     condition="unusable",
@@ -87,16 +93,20 @@ LIBRARY_UNUSABLE: Final = Message(
         LIBRARY_UNUSABLE_LINE,
         LIBRARY_UNUSABLE_ERROR_LINE,
         LIBRARY_UNUSABLE_CONTENT_LINE,
+        LIBRARY_API_LINE,
     ),
     summary="A library Pitloom needs for a step is installed but fails to "
     "import: a broken or partial install, a library it needs in turn missing, "
-    "or a build for another Python or platform.",
+    "or a build for another Python or platform. The API line (since 0.25.0) "
+    "is poetry-core, which Pitloom depends on, installed at a release that "
+    "moved a function Pitloom calls.",
     did="For a model file, listed the model by its file, format and hashes only "
     "(a format-only entry, named after its file), without its metadata. For "
     "any other step, did not run it: no SBOM of a Hugging Face model, no "
     "validation, no SBOM with magika content types (method magika); with "
     "method auto, every file's content type from its extension, said once per "
-    "process. Installed nothing.",
+    "process. Without poetry-core's API, read no [tool.poetry] dependency "
+    "table, said once per process. Installed nothing.",
     effect="thinner",
     actor="user",
     advice="Tell the user which models or which step went without the library, "

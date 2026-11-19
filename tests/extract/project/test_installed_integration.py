@@ -58,7 +58,7 @@ def test_read_project_name_mismatch_rejected_entirely(
     assert metadata.field_conflicts == {}
     assert metadata.version == static_only.version
     assert metadata.description == static_only.description
-    assert "does not match the resolved project name" in with_egg_info_warnings
+    assert "not the project's; ignored" in with_egg_info_warnings
 
 
 def test_read_project_version_conflict_recorded(
@@ -77,8 +77,11 @@ def test_read_project_version_conflict_recorded(
     assert [c["value"] for c in version_conflict] == ["1.0.0", "1.0.1"]
     assert {c["role"] for c in version_conflict} == {"declared"}
     assert "requires_python" in metadata.field_conflicts
-    assert caplog.text.count("disagrees on version") == 1
-    assert caplog.text.count("disagrees on requires_python") == 1
+    assert caplog.text.count("version: declared and installed metadata disagree") == 1
+    assert (
+        caplog.text.count("requires_python: declared and installed metadata disagree")
+        == 1
+    )
 
 
 def test_read_project_pep440_equivalent_no_warning(
@@ -94,7 +97,7 @@ def test_read_project_pep440_equivalent_no_warning(
         metadata, _cfg, _path = read_project(fixture)
 
     assert metadata.field_conflicts == {}
-    assert "disagrees on" not in caplog.text
+    assert "declared and installed metadata disagree" not in caplog.text
     assert metadata.description == "Static description, always wins over Summary."
     assert metadata.keywords == ["static-keyword"]
 
@@ -145,7 +148,7 @@ def test_read_project_missing_marker_warns_and_is_skipped(
 
     assert metadata.version == "1.0.0"
     assert metadata.field_conflicts == {}
-    assert "exists but has no 'PKG-INFO'" in caplog.text
+    assert "has no PKG-INFO; ignored" in caplog.text
 
 
 def test_read_project_include_installed_metadata_false_prevents_leakage(
@@ -163,7 +166,7 @@ def test_read_project_include_installed_metadata_false_prevents_leakage(
 
     assert metadata.version == "1.0.0"
     assert metadata.field_conflicts == {}
-    assert "disagrees on" not in caplog.text
+    assert "declared and installed metadata disagree" not in caplog.text
     assert "egg-info" not in caplog.text
 
 
@@ -205,7 +208,7 @@ def test_resolve_project_with_lockfile_peek_reread_single_warning(
 
     assert metadata.version == "1.0.0"
     assert "version" in metadata.field_conflicts
-    assert caplog.text.count("disagrees on version") == 1
+    assert caplog.text.count("version: declared and installed metadata disagree") == 1
 
 
 def test_generate_project_sbom_field_conflict_byte_identical_across_runs() -> None:

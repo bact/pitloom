@@ -28,11 +28,11 @@ from pitloom.extract.project._pyproject_license import (
     _resolve_license_hint,
     stated_pyproject_license,
 )
-from pitloom.extract.project.pyproject import (
+from pitloom.extract.project._pyproject_parse import (
     _drop_redundant_license_classifiers,
     _is_license_classifier_conflict,
-    read_pyproject,
 )
+from pitloom.extract.project.pyproject import read_pyproject
 from tests._code_records import coded
 
 # ---------------------------------------------------------------------------
@@ -94,10 +94,11 @@ classifiers = [
         tmp_path = Path(d)
         (tmp_path / "pyproject.toml").write_text(content)
         with patch(
-            "pitloom.extract.project.pyproject._drop_redundant_license_classifiers",
+            "pitloom.extract.project._pyproject_parse"
+            "._drop_redundant_license_classifiers",
             side_effect=lambda data: data,
         ):
-            with pytest.raises(ValueError, match="Failed to parse project metadata"):
+            with pytest.raises(ValueError, match=r"not valid \[project\] metadata"):
                 read_pyproject(tmp_path / "pyproject.toml")
 
 
@@ -127,7 +128,7 @@ dynamic = "version"
     with tempfile.TemporaryDirectory() as d:
         tmp_path = Path(d)
         (tmp_path / "pyproject.toml").write_text(content)
-        with pytest.raises(ValueError, match="Failed to parse project metadata"):
+        with pytest.raises(ValueError, match=r"not valid \[project\] metadata"):
             read_pyproject(tmp_path / "pyproject.toml")
 
 
@@ -168,7 +169,7 @@ license-files = ["LICENSE"]
     with tempfile.TemporaryDirectory() as d:
         tmp_path = Path(d)
         (tmp_path / "pyproject.toml").write_text(content)
-        with pytest.raises(ValueError, match="Failed to parse project metadata"):
+        with pytest.raises(ValueError, match=r"not valid \[project\] metadata"):
             read_pyproject(tmp_path / "pyproject.toml")
 
 
@@ -418,7 +419,7 @@ def test_a_missing_license_file_is_left_to_pyproject_metadata(tmp_path: Path) ->
         '[project]\nname = "pkg"\nversion = "1"\nlicense = {file = "gone"}\n',
         encoding="utf-8",
     )
-    with pytest.raises(ValueError, match="Failed to parse project metadata"):
+    with pytest.raises(ValueError, match=r"not valid \[project\] metadata"):
         read_pyproject(tmp_path / "pyproject.toml")
 
 

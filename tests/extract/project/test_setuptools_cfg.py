@@ -33,7 +33,10 @@ from pitloom.extract.project.setuptools import (
     read_setup_cfg,
     read_setuptools,
 )
-from pitloom.extract.project.setuptools_cfg import _parse_cfg_project_urls
+from pitloom.extract.project.setuptools_cfg import (
+    _parse_cfg_project_urls,
+    read_setup_cfg_options,
+)
 from tests.extract.project.test_setuptools_merge import write_project
 
 from ..conftest import assert_declared_empty_authors_no_copyright_text
@@ -122,8 +125,39 @@ def test_read_setup_cfg_missing_name() -> None:
     content = "[metadata]\nversion = 1.0\n"
     with tempfile.TemporaryDirectory() as d:
         (Path(d) / "setup.cfg").write_text(content)
-        with pytest.raises(ValueError, match="name is required"):
+        with pytest.raises(ValueError, match="has no project name"):
             read_setup_cfg(Path(d))
+
+
+@pytest.mark.parametrize(
+    ("error", "message", "raised"),
+    [
+        (
+            PermissionError("denied"),
+            "could not read for the project metadata",
+            ValueError,
+        ),
+        (FileNotFoundError(), "setup.cfg", FileNotFoundError),  # gone since the check
+    ],
+    ids=["unreadable", "vanished"],
+)
+def test_read_setup_cfg_options_opening_fails(
+    error: OSError, message: str, raised: type[Exception], tmp_path: Path
+) -> None:
+    """An ``OSError`` opening the file is ``file-unreadable``; a file gone
+    since the check is not found, never "unreadable"."""
+    (tmp_path / "setup.cfg").write_text("[metadata]\nname = c\n", encoding="utf-8")
+
+    def fail(*_args: object, **_kwargs: object) -> None:
+        raise error
+
+    # Patched on this class, not for every thread.
+    # pylint: disable-next=too-few-public-methods
+    class _Path(type(tmp_path)):  # type: ignore[misc]
+        open = fail  # pyrefly: ignore[bad-override]
+
+    with pytest.raises(raised, match=message):
+        read_setup_cfg_options(_Path(tmp_path))
 
 
 def test_read_setup_cfg_author_only_name() -> None:

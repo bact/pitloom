@@ -51,11 +51,19 @@ from pitloom.core.path_confine import open_inside
 from pitloom.core.path_probe import is_missing_errno
 from pitloom.core.pep508 import parse_requirement
 from pitloom.core.requirements import warn_skipped_dependency
-from pitloom.logging_config import loggable, one_line
+from pitloom.logging_config import loggable
+from pitloom.messages import emit
 from pitloom.messages.files import (
     Cap,
     warn_file_unreadable,
     warn_over_cap,
+)
+from pitloom.messages.metadata import (
+    LISTED_NO_FILE_LINE,
+    LISTED_NOT_FOUND_LINE,
+    METADATA_INVALID,
+    METADATA_NO_EFFECT,
+    PIP_OPTIONS_LINE,
 )
 
 log = logging.getLogger(__name__)
@@ -78,12 +86,6 @@ _FileKey = FileId | Path
 
 #: Splits a requirements text into requirement lines.
 LineSplitter = Callable[[str], list[str]]
-
-#: ``log.warning()`` format for a listed file that is absent, or whose name
-#: holds a NUL (it names no file): no ``file-unreadable``, which an absent
-#: file never is; not catalogued yet. Arguments: the file as listed, the
-#: directive, ``not found`` or what refused the name.
-_NOT_FOUND_WARNING = "FILE=%s: could not read for %s; %s"
 
 
 def requirement_lines(text: str) -> list[str]:
@@ -250,12 +252,14 @@ class RequirementsFiles:
                 texts.append(text)
         requirements, options = requirements_and_options("\n".join(texts), lines)
         if options and not self.quiet:
-            log.warning(
-                "%s: skipping pip option line(s) %s in %s: "
-                "setuptools does not accept them",
-                self._config,
-                ", ".join(loggable(o) for o in dict.fromkeys(options)),
-                loggable(self.field(key)),
+            emit(
+                log,
+                METADATA_NO_EFFECT,
+                logging.WARNING,
+                line=PIP_OPTIONS_LINE,
+                file=self._config,
+                field=self.field(key),
+                entries=list(dict.fromkeys(options)),
             )
         if in_remote_clone():
             return [text if _is_pep508(text) else NOT_SHOWN for text in requirements]
@@ -342,18 +346,25 @@ class RequirementsFiles:
     def _warn_unreadable(self, name: str, key: str, read: _Unreadable) -> None:
         """The ``WARNING:`` for the file *name* that *key* lists, not
         *read*: ``file-unreadable`` (``/outside-project``, ``/not-utf8``)
-        for one present, the uncoded line for one absent or no file name."""
+        for one present, ``metadata-invalid`` for one absent or no file name."""
         if self.quiet:
             return
         cause = read.cause
         if isinstance(cause, OSError) and is_missing_errno(cause):
-            why = "not found"
+            line = LISTED_NOT_FOUND_LINE
         elif isinstance(cause, (OSError, UnicodeDecodeError)):
             warn_file_unreadable(log, cause, file=name, field=self.field(key))
             return
         else:  # a NUL: the name names no file
-            why = one_line(cause)
-        log.warning(_NOT_FOUND_WARNING, loggable(name), loggable(self.field(key)), why)
+            line = LISTED_NO_FILE_LINE
+        emit(
+            log,
+            METADATA_INVALID,
+            logging.WARNING,
+            line=line,
+            file=name,
+            field=self.field(key),
+        )
 
 
 def _read_text(handle: BinaryIO) -> tuple[str, int] | _TooLarge | _Unreadable:

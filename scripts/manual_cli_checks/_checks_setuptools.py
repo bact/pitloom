@@ -18,7 +18,7 @@ from typing import Any
 from _fixtures import build_setuptools
 from _harness import Context, check, expect, load_graph, package, run_ok
 
-_DISAGREE = "setup.py and setup.cfg disagree on license"
+_DISAGREE = "license: setup.py and setup.cfg disagree; kept"
 _NAME = "demo"
 
 
@@ -78,8 +78,8 @@ def _setuptools_conflicts(graph: list[dict[str, Any]]) -> int:
 )
 def check_setuptools_licence_surfaces(ctx: Context) -> None:
     """``loom project`` on a directory whose ``setup.py`` says MIT and
-    ``setup.cfg`` Apache-2.0 keeps MIT, warns once (``setup.py and
-    setup.cfg disagree on license``) and records a conflict Annotation;
+    ``setup.cfg`` Apache-2.0 keeps MIT, warns once (``license: setup.py
+    and setup.cfg disagree; kept ...``) and records a conflict Annotation;
     ``loom generate`` on its sdist and ``loom wheel`` on its wheel declare
     the same MIT, with no such warning or Annotation."""
     project = _write_project(ctx.work / "proj")

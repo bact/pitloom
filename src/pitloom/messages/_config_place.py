@@ -244,6 +244,8 @@ EXPECTED: Final[Mapping[str, str]] = MappingProxyType(
         "table": "a table",
         "array": "an array",
         "array-of-tables": "an array of tables",
+        "array-of-strings": "an array of strings",
+        "string-or-array": "a string or an array of strings",
         "one-of-format": "one of annotation, both, comment",
         "one-of-detail": "one of full, minimal",
         "one-of-preserve": "one of always, auto, never",

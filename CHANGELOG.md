@@ -1,5 +1,5 @@
 ---
-Last-Modified: 2026-11-18
+Last-Modified: 2026-11-19
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -25,9 +25,10 @@ and this project adheres to
 ### Added
 
 - Input, option, SBOM, target, ID registry file, id, key, save, file-set, lock
-  file, dependency, configuration and licence messages carry a message code,
-  and a configuration error names the file; see `docs/message-codes.md`
-  ([#482], [#485], [#486], [#492], [#496], [#497], [#498])
+  file, dependency, configuration, licence, project metadata and file discovery
+  messages carry a message code, and a configuration error names the file; see
+  `docs/message-codes.md` ([#482], [#485], [#486], [#492], [#496], [#497],
+  [#498], [#501])
 - A credential in an SBOM URL field is warned of; `url-credentials = "refuse"`
   or `--refuse-url-credentials` refuse the SBOM ([#489], [#490])
 - `embed-wheel --sbom` (every string) and `merge` check an SBOM for such
@@ -103,6 +104,12 @@ and this project adheres to
   too deep is `config-malformed`; a wrong `pitloom_config` type is `option-invalid` ([#497])
 - A time outside years 1 to 9999 once read as UTC (`0001-01-01T00:00:00+05:00`) is
   refused as a creation date-time, and left out of a model's release time ([#497])
+- File discovery lines drop the `Build: ` prefix and start `DIR=<dir>:`; a
+  `[build-system]`-only `pyproject.toml` no longer warns of a missing name ([#501])
+- A `[project]` that is not a table, a `name` that is not a string, and a
+  `setup.cfg`/`setup.py` that does not parse are coded errors, not tracebacks ([#501])
+- A project file that does not parse or read is `config-malformed` or
+  `file-unreadable`, whether Pitloom reads its metadata or its `[tool.pitloom]` ([#501])
 
 ### Security
 
@@ -127,6 +134,7 @@ and this project adheres to
 [#496]: https://github.com/bact/pitloom/pull/496
 [#497]: https://github.com/bact/pitloom/pull/497
 [#498]: https://github.com/bact/pitloom/pull/498
+[#501]: https://github.com/bact/pitloom/pull/501
 
 ## [0.24.0] - 2026-11-11
 

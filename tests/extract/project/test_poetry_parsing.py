@@ -12,11 +12,11 @@ test_poetry_pyproject.py for read_pyproject() poetry-fallback, fixture
 integration, and license-conflict tests.
 """
 
-from pitloom.extract.project.poetry import (
-    _parse_poetry_deps,
+from pitloom.extract.project._poetry_deps import (
     _poetry_constraint_to_pep440,
-    parse_poetry_authors,
+    parse_poetry_deps,
 )
+from pitloom.extract.project.poetry import parse_poetry_authors
 
 # ---------------------------------------------------------------------------
 # parse_poetry_authors
@@ -122,13 +122,13 @@ def test_parse_authors_unmatched_email_bracket_skipped() -> None:
 
 
 # ---------------------------------------------------------------------------
-# _parse_poetry_deps
+# parse_poetry_deps
 # ---------------------------------------------------------------------------
 
 
 def test_parse_deps_python_extracted() -> None:
     deps = {"python": "^3.10", "requests": "^2.28"}
-    packages, requires_python, python_declared = _parse_poetry_deps(deps)
+    packages, requires_python, python_declared = parse_poetry_deps(deps)
     assert requires_python == ">=3.10,<4.0.0"
     assert python_declared is True
     assert any("requests" in d for d in packages)
@@ -137,21 +137,21 @@ def test_parse_deps_python_extracted() -> None:
 
 def test_parse_deps_no_python_key() -> None:
     deps = {"click": ">=8.0"}
-    packages, requires_python, python_declared = _parse_poetry_deps(deps)
+    packages, requires_python, python_declared = parse_poetry_deps(deps)
     assert requires_python is None
     assert python_declared is False
     assert any("click" in d for d in packages)
 
 
 def test_parse_deps_empty() -> None:
-    packages, requires_python, python_declared = _parse_poetry_deps({})
+    packages, requires_python, python_declared = parse_poetry_deps({})
     assert not packages
     assert requires_python is None
     assert python_declared is False
 
 
 def test_parse_deps_not_a_dict() -> None:
-    packages, requires_python, python_declared = _parse_poetry_deps("invalid")
+    packages, requires_python, python_declared = parse_poetry_deps("invalid")
     assert not packages
     assert requires_python is None
     assert python_declared is False
@@ -162,7 +162,7 @@ def test_parse_deps_wildcard_python_declared_but_no_constraint() -> None:
     must still be True -- the caller needs to distinguish "declared, no
     constraint" from "not declared at all" to gate provenance correctly."""
     deps = {"python": "*"}
-    packages, requires_python, python_declared = _parse_poetry_deps(deps)
+    packages, requires_python, python_declared = parse_poetry_deps(deps)
     assert requires_python is None
     assert python_declared is True
     assert not packages
@@ -171,7 +171,7 @@ def test_parse_deps_wildcard_python_declared_but_no_constraint() -> None:
 def test_parse_deps_git_dependency_is_direct_reference() -> None:
     """A git-sourced dependency is listed as poetry-core writes it."""
     deps = {"dev-pkg": {"git": "https://github.com/x/y"}, "requests": "^2.28"}
-    packages, requires_python, python_declared = _parse_poetry_deps(deps)
+    packages, requires_python, python_declared = parse_poetry_deps(deps)
     assert requires_python is None
     assert python_declared is False
     assert packages == ["dev-pkg @ git+https://github.com/x/y", "requests<3.0,>=2.28"]

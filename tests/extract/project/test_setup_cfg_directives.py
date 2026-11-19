@@ -448,5 +448,5 @@ def test_attr_line_the_parser_cannot_hold_is_skipped(
         found = resolve_attr_directive("m.__version__", tmp_path, "t")
     assert found == (None, None)
     assert caplog.messages == [
-        f"FILE=m.py: {error.__name__} parsing the __version__ line; skipped for t"
+        "FILE=m.py: __version__ line too deeply nested to parse; skipped for t"
     ]

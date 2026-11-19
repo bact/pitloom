@@ -213,7 +213,7 @@ def test_an_overlong_own_version_fails_as_an_invalid_one(
     monkeypatch.chdir(tmp_path)
     assert main() != 0
     err = capsys.readouterr().err
-    assert f"'project.{key}' has a number over 640 digits" in err
+    assert f"project.{key} has a number over 640 digits" in err
     assert "Traceback" not in err
 
 

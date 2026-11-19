@@ -243,8 +243,8 @@ def test_bad_config_fails_before_the_run(
         def _denied(path: Path) -> dict[str, Any]:
             raise PermissionError(errno.EACCES, "Permission denied", str(path))
 
-        # the real route: load_config_file reads through load_toml_file
-        monkeypatch.setattr("pitloom.core.config_cascade.load_toml_file", _denied)
+        # the real route: load_config_file reads through the project loader
+        monkeypatch.setattr("pitloom.core._project_toml.load_toml_file", _denied)
     output = project / "out.json"
 
     with pytest.raises(ValueError, match=needle) as exc:

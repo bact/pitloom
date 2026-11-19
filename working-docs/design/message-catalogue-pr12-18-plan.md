@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-18
-Last-Modified: 2026-11-18
+Last-Modified: 2026-11-19
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -21,7 +21,11 @@ the dynamic-level rule, "Cross-PR interfaces"),
 [licence-resolution-provenance.md](licence-resolution-provenance.md) (T14
 task 4, unblocked by PR 18).
 
-Status: PR 18 BUILT and merged (#498, 2026-11-18). PR 12 plan refreshed
+Status: PR 18 BUILT and merged (#498, 2026-11-18); PR 12a merged (#499,
+2026-11-19); PR 12 BUILT and reviewed on `catalogue-metadata` (#501, ratchet
+211 to 154, row 57 left for PR 17; review findings in
+[message-catalogue-review-rounds.md](../implementation/message-catalogue-review-rounds.md),
+round 3). PR 12 plan refreshed
 2026-11-18 on c4674613 (the tree of `main` 9b1454da, the #498 merge).
 Sites from `message_inventory --jsonl`, `_scope.in_scope` and not `coded`,
 each read in the source. "Verified" means read or run; CLI probes run with
@@ -348,7 +352,25 @@ expression codes by LicenseID's category: built, `Refusal.malformed`).
 **13** (`license-db-missing` own code: built). **14** (licence surrogates on
 `text-malformed`: built, `LICENSE_LINE`).
 
-Open:
+**Ruled 2026-11-19: every bracketed answer of 2 to 11 below is accepted**
+(including 9: a `[build-system]`-only `pyproject.toml` is DEBUG). PR 12a is
+merged (#499); PR 12 is on branch `catalogue-metadata`. A build-ready re-check
+of this plan against the tree (two line drifts from the flit cast of #500;
+ratchet target 154) added five rulings, also accepted 2026-11-19; no
+backward compatibility is kept:
+
+- **D1**: a `[project]` that is not a table, or a `name` that is not a
+  string, is coded `metadata-invalid` ERROR in `read_pyproject`, beside row 44.
+- **D2**: row 28 relays the `setup.py` error as its WARNING twin whenever
+  not `quiet`, then raises `project-name-missing` plainly.
+- **D3**: row 52 is `metadata-invalid` `FILE=<f>: listed by <field>, not
+  found; skipped` (and a `not a file name` line), not `file-unreadable`.
+- **D4**: row 17's catch narrows to `ValueError`, pinned by a fuzz test.
+- **D5**: rows 18 and 21 both stay (the type, then the consequence).
+
+The "Open" labels below are the questions as asked.
+
+Open (asked 2026-11-18, ruled above):
 
 2. **Reuse `config-malformed` for project `pyproject.toml`/`setup.cfg`
    syntax, split from `file-unreadable` (I/O, UTF-8)?** [Yes.] Evidence:

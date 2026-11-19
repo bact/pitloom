@@ -42,6 +42,8 @@ from pitloom.core.requirements import (
     warn_skipped_dependency,
 )
 from pitloom.logging_config import one_line
+from pitloom.messages import emit
+from pitloom.messages.models import LIBRARY_API_LINE, LIBRARY_UNUSABLE
 
 log = logging.getLogger(__name__)
 
@@ -86,9 +88,12 @@ def _poetry_core() -> _PoetryCore | None:
             raise AttributeError("Dependency.base_pep_508_name")
         create = Factory.create_dependency
     except (ImportError, AttributeError) as exc:
-        log.warning(
-            "poetry-core: API not found (%s); Poetry dependency tables not read",
-            one_line(exc, _SHOWN_CHARS),
+        emit(
+            log,
+            LIBRARY_UNUSABLE,
+            logging.WARNING,
+            line=LIBRARY_API_LINE,
+            error=one_line(exc, _SHOWN_CHARS),
         )
         return None
     return _PoetryCore(
