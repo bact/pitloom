@@ -44,18 +44,17 @@ import tempfile
 import zipfile
 from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 
 from pitloom.core._models_wheel_build_subprocess import (
     BuildTimeoutError,
     run_build_subprocess,
 )
-from pitloom.core._models_wheel_types import (
-    BUILD_LOG_PREFIX,
-    IncludedFile,
-    is_dist_info_path,
-)
+from pitloom.core._models_wheel_types import IncludedFile, is_dist_info_path
 from pitloom.core.archive_member_names import zip_file_members
 from pitloom.core.build_signals import BUILD_ACTIVITY, TerminationGuard
+from pitloom.core.internal_error import InternalError
+from pitloom.core.optional_libraries import BUILD
 from pitloom.core.quote_source import quote_source
 from pitloom.core.temp_dirs import (
     one_shot,
@@ -63,9 +62,22 @@ from pitloom.core.temp_dirs import (
     rmtree_quietly,
     warn_if_left_behind,
 )
-from pitloom.logging_config import one_line
+from pitloom.messages import BUILD_FRAME, code_of, emit
+from pitloom.messages.build import (
+    BUILD_EMPTY_WHEEL_LINE,
+    BUILD_FAILED,
+    BUILD_TIMEOUT,
+    BUILD_UNUSABLE_LINE,
+    BuildFailedError,
+    timeout_line,
+)
+from pitloom.messages.models import LIBRARY_MISSING, LIBRARY_MISSING_WARNING_LINE
 
 log = logging.getLogger(__name__)
+
+# The frame's text, as the lines not yet catalogued and the DEBUG lines
+# start.
+_PREFIX = BUILD_FRAME.render({})
 
 
 def _extract_wheel_to_included_files(
@@ -101,7 +113,7 @@ def _extract_wheel_to_included_files(
     files: list[IncludedFile] = []
     with zipfile.ZipFile(wheel_path) as zf:
         for distribution_path, info in zip_file_members(
-            zf, wheel_path.name, log, BUILD_LOG_PREFIX
+            zf, wheel_path.name, log, BUILD_FRAME
         ):
             if is_dist_info_path(distribution_path):
                 continue
@@ -110,7 +122,7 @@ def _extract_wheel_to_included_files(
                 log.warning(
                     "%sARCHIVE=%s ENTRY=%s: resolves outside "
                     "the extraction directory -- skipped, not written to disk",
-                    BUILD_LOG_PREFIX,
+                    _PREFIX,
                     quote_source(wheel_path.name),
                     quote_source(info.orig_filename),
                 )
@@ -162,7 +174,7 @@ def _build_and_read_wheel(
     try:
         with termination.hold(BUILD_ACTIVITY):
             extract_dir, remove_extract_dir = registered_temp_dir(
-                termination, "pitloom-build-and-read-", log_prefix=BUILD_LOG_PREFIX
+                termination, "pitloom-build-and-read-", frame=BUILD_FRAME
             )
             work_dir, remove_work_dir = _registered_work_dir(termination)
             wheel_path = run_build_subprocess(
@@ -175,34 +187,23 @@ def _build_and_read_wheel(
         # Not held: a signal during a long extraction must not wait for it.
         files = _extract_wheel_to_included_files(wheel_path, extract_dir)
         if not files:
-            log.warning(
-                "%sthe real build of %s produced a wheel with "
-                "no non-.dist-info files -- treating as a discovery "
-                "failure, not an authoritative empty result",
-                BUILD_LOG_PREFIX,
-                quote_source(project_dir),
+            # A discovery failure, not an authoritative empty result.
+            emit(
+                log,
+                BUILD_FAILED,
+                logging.WARNING,
+                line=BUILD_EMPTY_WHEEL_LINE,
+                frame=BUILD_FRAME,
+                dir=project_dir,
             )
             return None
         handed_over = True
         return files, remove_extract_dir
-    except BuildTimeoutError as exc:
-        log.warning(
-            "%sbuild-and-read for %s timed out after %ds (--build-timeout) -- %s",
-            BUILD_LOG_PREFIX,
-            quote_source(project_dir),
-            exc.timeout,
-            "build process tree terminated"
-            if exc.tree_terminated
-            else "could not confirm the build process tree terminated",
-        )
-        return None
+    except InternalError:
+        raise
+    # TerminationSignal and KeyboardInterrupt are no Exception: they go on.
     except Exception as exc:  # pylint: disable=broad-exception-caught
-        log.warning(
-            "%sbuild-and-read discovery failed for %s: %s",
-            BUILD_LOG_PREFIX,
-            quote_source(project_dir),
-            one_line(exc),
-        )
+        _say_failure(project_dir, exc)
         return None
     finally:
         try:
@@ -210,6 +211,47 @@ def _build_and_read_wheel(
         finally:
             if not handed_over:
                 remove_extract_dir()
+
+
+def _say_failure(project_dir: Path, exc: Exception) -> None:
+    """Say why the build of *project_dir* gave no wheel to read: *exc*'s own
+    line (``build-timeout``, ``build-failed``), ``library-missing`` (PyPA
+    build not installed) with its code, or the residue line naming *exc*."""
+    if isinstance(exc, BuildTimeoutError):
+        emit(
+            log,
+            BUILD_TIMEOUT,
+            logging.WARNING,
+            line=timeout_line(tree_terminated=exc.tree_terminated),
+            frame=BUILD_FRAME,
+            dir=project_dir,
+            seconds=exc.timeout,
+        )
+    elif isinstance(exc, BuildFailedError):
+        line, said = exc.said
+        # Each value is a field's, written by it: emit takes them as keywords.
+        values: dict[str, Any] = said
+        emit(log, BUILD_FAILED, logging.WARNING, line=line, frame=BUILD_FRAME, **values)
+    elif code_of(exc) == LIBRARY_MISSING.code:
+        emit(
+            log,
+            LIBRARY_MISSING,
+            logging.WARNING,
+            line=LIBRARY_MISSING_WARNING_LINE,
+            frame=BUILD_FRAME,
+            module=BUILD.module,
+            requirement=BUILD.spec,
+        )
+    else:
+        emit(
+            log,
+            BUILD_FAILED,
+            logging.WARNING,
+            line=BUILD_UNUSABLE_LINE,
+            frame=BUILD_FRAME,
+            dir=project_dir,
+            failure=exc,
+        )
 
 
 def _registered_work_dir(
@@ -242,6 +284,6 @@ def _remove_work_dir(work: tempfile.TemporaryDirectory[str]) -> None:
         # Python 3.10's cleanup() ends in RecursionError when an rmdir
         # fails (e.g. a directory still in use on Windows); a cleanup
         # callback must not raise.
-        log.debug("%swork directory cleanup failed: %r", BUILD_LOG_PREFIX, exc)
-        rmtree_quietly(Path(work.name), BUILD_LOG_PREFIX)
-    warn_if_left_behind(Path(work.name), BUILD_LOG_PREFIX)
+        log.debug("%swork directory cleanup failed: %r", _PREFIX, exc)
+        rmtree_quietly(Path(work.name), frame=BUILD_FRAME)
+    warn_if_left_behind(Path(work.name), frame=BUILD_FRAME)

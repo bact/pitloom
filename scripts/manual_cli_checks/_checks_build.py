@@ -145,8 +145,11 @@ def check_timeout(ctx: Context) -> None:
     )
     expect(result.returncode == 0, result.describe())
     expect_tagged(result)
-    expect(result.stderr.count("timed out after 5s") == 1, result.describe())
-    expect(result.elapsed < 60, f"took {result.elapsed:.0f}s for a 5s timeout")
+    timed_out = [ln for ln in result.stderr.splitlines() if "[build-timeout]" in ln]
+    expect(len(timed_out) == 1, result.describe())
+    expect("timed out after 5 seconds" in timed_out[0], result.describe())
+    # The build ran into its 5 s deadline, and was stopped soon after it.
+    expect(5 <= result.elapsed < 60, f"took {result.elapsed:.1f}s for a 5s timeout")
     _expect_clean(project, tmp, "backend.pid")
     ctx.note(f"returned in {result.elapsed:.1f}s")
 
@@ -184,6 +187,7 @@ def check_sigterm(ctx: Context) -> None:
     code, err = _signal_mid_build(ctx, signal.SIGTERM)
     expect(code in (-signal.SIGTERM, 128 + signal.SIGTERM), f"exit {code}\n{err}")
     expect("received SIGTERM during the build" in err, err)
+    expect("[interrupted]" in err, err)
 
 
 @check("B3", "SIGINT (Ctrl-C) mid-build: exit 130, build tree killed, cleans up")
@@ -232,7 +236,8 @@ def check_stdin(ctx: Context) -> None:
     expect(result.returncode == 0, result.describe())
     expect_tagged(result)
     expect(result.elapsed < 120, f"took {result.elapsed:.0f}s")
-    expect("timed out" not in result.stderr, result.describe())
+    expect("[build-failed]" in result.stderr, result.describe())
+    expect("[build-timeout]" not in result.stderr, result.describe())
 
 
 @check("B5", "processes a build leaves running: killed, INFO: once, deterministic")
@@ -246,8 +251,12 @@ def check_leftover(ctx: Context) -> None:
         result = run_loom(*_build_args(project, out), env=_tmp_env(tmp), timeout=300)
         expect(result.returncode == 0, result.describe())
         expect_tagged(result)
-        info = "INFO: Build: killed processes the build left running"
-        expect(result.stderr.count(info) == 1, result.describe())
+        left = [
+            ln
+            for ln in result.stderr.splitlines()
+            if ln.startswith("INFO: Build: ") and "[build-processes-unsafe]" in ln
+        ]
+        expect(len(left) == 1, result.describe())
         _expect_clean(project, tmp, "leftover.pid")
         outputs.append(out.read_bytes())
     expect(outputs[0] == outputs[1], "the two SBOMs differ")

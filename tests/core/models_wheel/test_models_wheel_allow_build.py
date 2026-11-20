@@ -104,7 +104,7 @@ def test_allow_build_failure_falls_back_to_hatchling_with_warning(
         get_wheel_files(tmp_path, build_options=BuildOptions(allow=True))
 
     assert hatchling_called
-    assert "--allow-build is invoking a real PEP 517 build" in caplog.text
+    assert "--allow-build runs a PEP 517 build" in caplog.text
     assert "build-and-read failed" in caplog.text
 
 

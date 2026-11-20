@@ -1,5 +1,5 @@
 ---
-Last-Modified: 2026-11-19
+Last-Modified: 2026-11-20
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -25,11 +25,11 @@ and this project adheres to
 ### Added
 
 - Input, option, SBOM, target, ID registry file, id, key, save, file-set, lock
-  file, dependency, configuration, licence, project metadata, file discovery and
-  Git URL messages carry a message code, and a configuration error names the
-  file; see
+  file, dependency, configuration, licence, project metadata, file discovery,
+  Git URL, build, temporary directory and signal messages carry a message code,
+  and a configuration error names the file; see
   `docs/message-codes.md` ([#482], [#485], [#486], [#492], [#496], [#497],
-  [#498], [#501], [#503])
+  [#498], [#501], [#503], [#506])
 - A credential in an SBOM URL field is warned of; `url-credentials = "refuse"`
   or `--refuse-url-credentials` refuse the SBOM ([#489], [#490])
 - `embed-wheel --sbom` (every string) and `merge` check an SBOM for such
@@ -96,6 +96,9 @@ and this project adheres to
 - Git URL messages say `URL=` and a code after `Git source: `; a Git or PyPI
   refusal is no longer printed twice, and every `git.*` error has a
   `pitloom_code` ([#503])
+- Build, temporary directory and signal lines carry a code; a failed build
+  masks a credential in its last output line; the hook's line says
+  `Pitloom build hook: ` ([#506])
 
 ### Fixed
 
@@ -144,6 +147,7 @@ and this project adheres to
 [#501]: https://github.com/bact/pitloom/pull/501
 [#502]: https://github.com/bact/pitloom/pull/502
 [#503]: https://github.com/bact/pitloom/pull/503
+[#506]: https://github.com/bact/pitloom/pull/506
 
 ## [0.24.0] - 2026-11-11
 

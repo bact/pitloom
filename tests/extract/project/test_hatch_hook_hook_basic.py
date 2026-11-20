@@ -28,11 +28,14 @@ from unittest import mock
 import pytest
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
+from pitloom.core.internal_error import InternalError
 from pitloom.core.models import generate_spdx_id
 from pitloom.core.temp_dirs import remove_temp_dir
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 from pitloom.messages import (
+    HOOK_STEP_FRAME,
     CodedValueError,
+    Frame,
     trusted_message,
 )
 from pitloom.messages.models import (
@@ -199,9 +202,9 @@ def test_hook_initialize_cleans_up_staging_dir_on_late_failure(
 
         cleanup_calls: list[Path] = []
 
-        def _tracking_remove(path: Path, log_prefix: str) -> None:
+        def _tracking_remove(path: Path, *, frame: Frame) -> None:
             cleanup_calls.append(path)
-            remove_temp_dir(path, log_prefix)
+            remove_temp_dir(path, frame=frame)
 
         monkeypatch.setattr(hatch, "remove_temp_dir", _tracking_remove)
 
@@ -449,3 +452,22 @@ def test_hook_failure_line_ends_in_a_catalogued_code(
     err = capsys.readouterr().err.splitlines()
     assert err == [f"ERROR: Pitloom build hook: {tail}"]
     assert trusted_message(err[0]) is (LFS_POINTER if tail != "'m.bin': x" else None)
+
+
+def test_staging_refuses_a_frame_that_does_not_allow_its_line_on_entry(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The directory is removed later by ``weakref.finalize``, where an
+    ``InternalError`` is lost: the frame is checked before it is made."""
+    narrowed = Frame(
+        levels=frozenset({"WARNING"}),
+        template=HOOK_STEP_FRAME.template,
+        surface="a test",
+        codes=frozenset({"build-failed"}),
+    )
+    monkeypatch.setattr(hatch, "HOOK_STEP_FRAME", narrowed)
+    with mock.patch.object(tempfile, "mkdtemp") as made:
+        with pytest.raises(InternalError):
+            # pylint: disable-next=protected-access
+            hatch._stage_sbom_file("{}", "x.spdx3.json")
+    made.assert_not_called()

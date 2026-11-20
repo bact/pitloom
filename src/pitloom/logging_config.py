@@ -409,7 +409,7 @@ def field_loss_suffix(status: str, *fields: str) -> str:
     return f" | Field(s) affected ({status}): {', '.join(fields)}"
 
 
-def one_line(value: object, limit: int | None = None) -> str:
+def one_line(value: object, limit: int | None = None, *, ellipsis: bool = False) -> str:
     """*value*'s text with every whitespace run, newlines included,
     collapsed to one space, then escaped as :func:`loggable` does, so a
     multi-line exception message interpolated into a log message cannot
@@ -420,11 +420,16 @@ def one_line(value: object, limit: int | None = None) -> str:
     string. With *limit*, the collapsed text is masked, then cut to its
     first *limit* characters, then escaped: a cut never takes away the end
     of a URL's user information and shows its start, nor splits an escaped
-    literal and loses its closing quote."""
+    literal and loses its closing quote. With *ellipsis*, ``...`` follows a
+    cut."""
     text = " ".join(str(value).split())
     if not text and isinstance(value, BaseException):
         return type(value).__name__
-    return loggable(masked_text(text)[:limit])
+    masked = masked_text(text)
+    shown = loggable(masked[:limit])
+    if ellipsis and limit is not None and len(masked) > limit:
+        return f"{shown}..."
+    return shown
 
 
 def failure_reason(failure: BaseException) -> str:

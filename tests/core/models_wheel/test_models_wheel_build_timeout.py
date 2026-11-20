@@ -32,6 +32,7 @@ from pitloom.core._models_wheel_build_and_read import build_and_read_wheel
 from pitloom.core._models_wheel_types import IncludedFile
 from pitloom.core.build_options import BuildOptions
 from pitloom.core.models import get_wheel_files
+from pitloom.logging_config import CODE_ATTR
 from tests.build_and_read_shared import BUILD_AND_READ, make_backend_project
 
 
@@ -81,7 +82,7 @@ def test_allow_build_settings_reach_build_and_read_registered_backend(
 def test_allow_build_security_warning_shows_timeout(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """The security-relevant "invoking a real PEP 517 build" ``WARNING:``
+    """The security-relevant "runs a PEP 517 build" ``WARNING:``
     must show the resolved timeout in seconds."""
     make_backend_project(tmp_path, "uv_build")
 
@@ -94,8 +95,9 @@ def test_allow_build_security_warning_shows_timeout(
     with caplog.at_level(logging.WARNING):
         get_wheel_files(tmp_path, build_options=BuildOptions(allow=True, timeout=333))
 
-    assert "--allow-build is invoking a real PEP 517 build" in caplog.text
-    assert "timeout 333s" in caplog.text
+    assert "--allow-build runs a PEP 517 build for up to 333 seconds" in caplog.text
+    (record,) = [r for r in caplog.records if "PEP 517 build" in r.getMessage()]
+    assert getattr(record, CODE_ATTR) == "build-code-unsafe"
 
 
 def test_allow_build_timeout_fallback_warning_still_fires(

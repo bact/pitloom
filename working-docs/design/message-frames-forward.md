@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-14
-Last-Modified: 2026-11-17
+Last-Modified: 2026-11-20
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -238,6 +238,12 @@ pre-build design.
   `ContextVar` around `fetch_git_checkout`: it would leak past its `yield`.
 
 ### PR 14: Hub, build, temp directories, signals
+
+Status 2026-11-20: 14a (build, temp directories, signals, frames) is built as
+#506 with frames matching exact codes and `option-no-effect` keeping both
+templates (no `OPTIONS_FRAME`); 14b (Hub, PyPI relay) and 14c (hook status
+lines) are next. The bullets below are the original plan; the PR 14 plan
+docs hold the rulings.
 
 - Frames: `BUILD_FRAME` (`Build: `), `HF_FRAME` (`Hugging Face source: `),
   `PYPI_FRAME` (`PyPI source: `), `SCAN_FRAME` (`AI model scan: `, from

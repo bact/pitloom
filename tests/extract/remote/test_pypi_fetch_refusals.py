@@ -30,7 +30,7 @@ from pitloom.core.fetch_policy import RemoteFetchPolicy
 from pitloom.extract.remote import fetch_pypi_file, pypi, pypi_select
 from pitloom.extract.remote.errors import RemoteSourceError
 from pitloom.extract.remote.pypi import SDIST, WHEEL
-from pitloom.messages import code_of
+from pitloom.messages import Frame, code_of
 from pitloom.messages.files import (
     OVER_CAP,
     TEMP_DIR_UNUSABLE,
@@ -397,8 +397,8 @@ def test_a_file_that_cannot_be_saved_is_no_network_failure(
     publish(fake, "x", {"1.0": [Dist(_ANY)]})
 
     @contextmanager
-    def full_disk(_prefix: str, *, log_prefix: str) -> Iterator[_FullDisk]:
-        del log_prefix
+    def full_disk(_prefix: str, *, frame: Frame) -> Iterator[_FullDisk]:
+        del frame
         yield _FullDisk()
 
     monkeypatch.setattr(pypi, "temp_dir", full_disk)

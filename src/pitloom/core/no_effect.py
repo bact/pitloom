@@ -34,7 +34,7 @@ log = logging.getLogger(__name__)
 
 INERT_LOG_PREFIX = OPTIONS_PREFIX
 """Sub-prefix for an option the target or command cannot act on -- sibling
-of :data:`pitloom.core._models_wheel_types.BUILD_LOG_PREFIX`. It is the
+of :data:`pitloom.messages.BUILD_PREFIX`. It is the
 catalogue's :data:`pitloom.messages.options.OPTIONS_PREFIX`, which the
 ``option-no-effect`` lines are built from; this name is for the other
 ``Options:`` lines and for readers matching them."""

@@ -22,12 +22,12 @@ import sys
 import pytest
 
 from pitloom import __main__
-from pitloom.core._models_wheel_types import BUILD_LOG_PREFIX
 from pitloom.core.build_options import BuildOptions
 from pitloom.core.internal_error import InternalError
 from pitloom.core.no_effect import INERT_LOG_PREFIX, warn_no_effect
 from pitloom.logging_config import CODE_ATTR
 from pitloom.messages import (
+    BUILD_FRAME,
     Message,
     code_of,
     trusted_message,
@@ -157,7 +157,7 @@ def test_argparse_conflict_wording_is_option_conflict() -> None:
 
 
 def test_the_prefix_constants_are_the_templates_leading_text() -> None:
-    assert INERT_LOG_PREFIX is OPTIONS_PREFIX and BUILD_LOG_PREFIX is BUILD_PREFIX
+    assert INERT_LOG_PREFIX is OPTIONS_PREFIX and BUILD_FRAME.template is BUILD_PREFIX
     leads = {
         ln.template[: ln.template.index(": ") + 2] for ln in OPTION_NO_EFFECT.lines
     }

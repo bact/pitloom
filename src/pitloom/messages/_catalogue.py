@@ -15,6 +15,7 @@ from types import MappingProxyType
 from typing import Final
 
 from pitloom.messages import (
+    _build,
     _card_malformed,
     _config,
     _config_unsafe,
@@ -120,6 +121,7 @@ MESSAGES: Final = _by_code(
         *_metadata_read.ENTRIES,
         *_metadata_dynamic.ENTRIES,
         *_file_discovery.ENTRIES,
+        *_build.ENTRIES,
     )
 )
 

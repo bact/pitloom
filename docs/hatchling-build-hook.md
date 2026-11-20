@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-11-18
+Last-Modified: 2026-11-20
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -100,8 +100,9 @@ The hook writes its SBOM into a temporary staging directory, removed when
 the build finishes, and also when Hatchling never calls the hook's
 `finalize()` (`--hooks-only`, a failed build). A staging directory that
 cannot be fully removed (a file
-still held open on Windows, for example) is one `WARNING:` naming it, and the
-build still succeeds.
+still held open on Windows, for example) is one `WARNING: Pitloom build hook:
+DIR=<dir>: could not be fully removed; left in the system temp directory
+[temp-dir-unwritable]` naming it, and the build still succeeds.
 
 The hook skips, with one `INFO:`, a build that is not a wheel (an sdist) and
 the `editable` variant of a wheel: an editable wheel holds a `.pth` file, not

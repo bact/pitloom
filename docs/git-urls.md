@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-21
-Last-Modified: 2026-11-19
+Last-Modified: 2026-11-20
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -22,8 +22,8 @@ repository shallowly into a temporary directory, reads the Python project in it
 (or, for `loom model` and for `loom generate` on a folder with models and no
 project, an AI model file; see [Model files](#model-files)) and writes the
 SBOM. The directory is removed afterwards (one that cannot be fully removed,
-such as a file still held open on Windows, is one `WARNING:`, not an error:
-the SBOM is already written), and a message that would name it says
+such as a file still held open on Windows, is one `WARNING:` ending
+`[temp-dir-unwritable]`, not an error: the SBOM is already written), and a message that would name it says
 `<checkout>` instead, so two runs print the same text. It needs the `git`
 program (without it: `git is not installed or not on PATH; nothing fetched
 [git-missing]`).
@@ -465,7 +465,7 @@ Every URL that is changed, refused or not followed is said, never silently:
 
 The `Git source: ` in front of an `INFO:` or `WARNING:` line is a frame: it
 names the fetch that said the line and is no part of it (the line is what
-follows, with its `URL=` and its code), and only the families the Git route
+follows, with its `URL=` and its code), and only the codes the Git route
 says admit it. An `ERROR:` line never carries it: the command prints its own frame
 (`ERROR: loom <command>: ...`) as for every error, and no `WARNING:` repeats it.
 

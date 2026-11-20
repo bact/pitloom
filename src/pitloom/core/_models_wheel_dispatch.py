@@ -28,7 +28,6 @@ from typing import Final, NamedTuple
 from pitloom.core import _models_wheel_hatchling
 from pitloom.core._models_wheel_lock import _DISCOVERY_LOCK
 from pitloom.core._models_wheel_types import (
-    BUILD_LOG_PREFIX,
     BackendDiscoverer,
     BuildSettings,
     IncludedFile,
@@ -36,7 +35,8 @@ from pitloom.core._models_wheel_types import (
     has_uv_build_backend_overrides,
     take_discovery_failure,
 )
-from pitloom.core.quote_source import quote_source
+from pitloom.messages import BUILD_FRAME, emit
+from pitloom.messages.build import BUILD_CODE_UNSAFE, unsafe_line
 from pitloom.messages.file_discovery import (
     BUILD_FAILED_LINE,
     BUILD_FAILED_NO_PROJECT_LINE,
@@ -167,11 +167,13 @@ def _try_build_and_read(
     project_dir: Path,
     *,
     build: BuildSettings,
-    reason: str,
+    static_failed: bool,
 ) -> tuple[list[IncludedFile], Callable[[], None]] | None:
     """Shared entry point for both ``--allow-build`` call sites in
     :func:`_discover_included_files`: logs the one security-relevant
-    ``WARNING:`` (wording varies by *reason*), then delegates to the
+    ``WARNING:`` (``build-code-unsafe``; its line says whether the
+    backend's own discoverer failed, *static_failed*, or it has none, and
+    whether the build is isolated), then delegates to the
     generic, backend-agnostic
     :func:`~pitloom.core._models_wheel_build_and_read.build_and_read_wheel`.
 
@@ -184,18 +186,15 @@ def _try_build_and_read(
     # pylint: disable-next=import-outside-toplevel
     from pitloom.core._models_wheel_build_and_read import build_and_read_wheel
 
-    log.warning(
-        "%s--allow-build is invoking a real PEP 517 build "
-        "for %s (backend=%r, %s) to discover its file list -- this "
-        "executes third-party build-time code%s, timeout %ds",
-        BUILD_LOG_PREFIX,
-        quote_source(project_dir),
-        backend,
-        reason,
-        ", without build isolation (--no-build-isolation)"
-        if not build.isolated
-        else " in an isolated build environment",
-        build.timeout,
+    emit(
+        log,
+        BUILD_CODE_UNSAFE,
+        logging.WARNING,
+        line=unsafe_line(static_failed=static_failed, isolated=build.isolated),
+        frame=BUILD_FRAME,
+        dir=project_dir,
+        backend=backend,
+        seconds=build.timeout,
     )
     return build_and_read_wheel(
         project_dir, isolated=build.isolated, timeout=build.timeout
@@ -222,7 +221,7 @@ def _discover_with_no_static_module(
             backend,
             project_dir,
             build=build,
-            reason="no static discovery module registered",
+            static_failed=False,
         )
         if build_result is not None:
             return build_result
@@ -292,7 +291,7 @@ def _discover_with_registered_backend(
             backend,
             project_dir,
             build=build,
-            reason="its own static discovery failed",
+            static_failed=True,
         )
         if build_result is not None:
             return build_result

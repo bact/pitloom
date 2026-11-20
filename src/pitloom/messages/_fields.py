@@ -14,6 +14,7 @@ fields), :mod:`pitloom.messages._fields_credentials` (a URL credential's),
 :mod:`pitloom.messages._fields_licence` (a licence value's),
 :mod:`pitloom.messages._fields_metadata` (project metadata's and file
 discovery's), :mod:`pitloom.messages._fields_git` (the Git URL lines'),
+:mod:`pitloom.messages._fields_build` (the build lines'),
 :mod:`pitloom.messages._field_type` (:class:`Field`),
 :mod:`pitloom.messages._field_tables` (the closed tables),
 :mod:`pitloom.messages._types` (the templates),
@@ -55,6 +56,7 @@ from pitloom.messages._field_writers import (
     path_text,
     plain_text,
 )
+from pitloom.messages._fields_build import BUILD_FIELDS
 from pitloom.messages._fields_config import CONFIG_FIELDS
 from pitloom.messages._fields_credentials import CREDENTIAL_FIELDS
 from pitloom.messages._fields_git import GIT_FIELDS
@@ -107,8 +109,9 @@ _GENERAL: Final[Mapping[str, Field]] = MappingProxyType(
             r".+",
             file_text,
             "<dir>",
-            "a directory as Pitloom names it; in quotes, escaped, when it holds "
-            "a control character",
+            "a directory as Pitloom names it (a temporary directory by its "
+            "name only, `<checkout>` or `<download>` for a remote source's); "
+            "in quotes, escaped, when it holds a control character",
             free=True,
         ),
         "elements": Field(
@@ -142,7 +145,8 @@ _GENERAL: Final[Mapping[str, Field]] = MappingProxyType(
             failure_text,
             "<failure>",
             "what the operating system reported (`Permission denied`), never "
-            "the path it names, or what the decoder or reader reported; on one "
+            "the path it names, or what the decoder, reader or build step "
+            "reported; on one "
             "line, in quotes, escaped, when it holds a control character",
             free=True,
         ),
@@ -458,4 +462,5 @@ FIELDS: Final[Mapping[str, Field]] = _merged(
     LICENCE_FIELDS,
     METADATA_FIELDS,
     GIT_FIELDS,
+    BUILD_FIELDS,
 )

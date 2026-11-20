@@ -136,14 +136,16 @@ def test_a_download_dir_left_behind_is_a_warning_not_a_failure(
     """A directory that cannot be removed (a file held open on Windows)
     leaves the SBOM written, as the library returns it."""
     del fake
-    monkeypatch.setattr(temp_dirs, "rmtree_quietly", lambda _path, _prefix: None)
+    monkeypatch.setattr(temp_dirs, "rmtree_quietly", lambda _path, *, frame: None)
     assert run(monkeypatch, tmp_path, "project", URL) == 0
     captured = capsys.readouterr()
     assert (tmp_path / f"{NAME}-{VERSION}.spdx3.json").is_file()
     warnings = [e for e in captured.err.splitlines() if e.startswith("WARNING: ")]
     assert len(warnings) == 1
-    assert warnings[0].startswith(
-        "WARNING: PyPI source: could not fully remove temporary directory "
+    assert warnings[0].startswith("WARNING: PyPI source: DIR=")
+    assert warnings[0].endswith(
+        ": could not be fully removed; left in the system temp directory "
+        "[temp-dir-unwritable]"
     )
 
 

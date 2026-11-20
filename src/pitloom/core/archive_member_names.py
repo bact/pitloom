@@ -20,10 +20,13 @@ import logging
 import re
 import zipfile
 from collections.abc import Callable, Iterable
-from typing import Literal, NamedTuple, TypeVar
+from typing import TYPE_CHECKING, Literal, NamedTuple, TypeVar
 
 from pitloom.core._models_wheel_types import to_posix_distribution_path
 from pitloom.core.quote_source import quote_source
+
+if TYPE_CHECKING:
+    from pitloom.messages import Frame
 
 MemberNameStatus = Literal["ok", "normalized", "unsafe"]
 
@@ -104,7 +107,7 @@ def archive_members(
     entries: Iterable[tuple[str, T]],
     archive_name: str,
     logger: logging.Logger | None,
-    log_prefix: str = "",
+    frame: Frame | None = None,
     *,
     dot_prefix_ok: bool = False,
     on_duplicate: Callable[[str], Exception] | None = None,
@@ -132,6 +135,7 @@ def archive_members(
     later one repeats, it returns the exception to raise, before anything
     is logged.
     """
+    prefix = frame.render({}) if frame else ""
     classified = [
         (raw, _classify(raw, dot_prefix_ok), payload) for raw, payload in entries
     ]
@@ -159,7 +163,7 @@ def archive_members(
                 continue
             args = (_NORMALIZED, quote_source(raw), quote_source(member.name))
         if logger is not None:
-            logger.warning(args[0], log_prefix, quote_source(archive_name), *args[1:])
+            logger.warning(args[0], prefix, quote_source(archive_name), *args[1:])
     return members
 
 
@@ -178,7 +182,7 @@ def file_members(
     entries: Iterable[tuple[str, int, T]],
     archive_name: str,
     logger: logging.Logger | None,
-    log_prefix: str = "",
+    frame: Frame | None = None,
     *,
     dot_prefix_ok: bool = False,
     on_duplicate: Callable[[str], Exception] | None = None,
@@ -187,6 +191,7 @@ def file_members(
     (raw name, size, payload), after dropping the ones whose name is a
     directory (:func:`is_directory_name`); one that carries data gets a
     ``WARNING:`` too, since its bytes are dropped."""
+    prefix = frame.render({}) if frame else ""
     files: list[tuple[str, T]] = []
     for raw, size, payload in entries:
         if not is_directory_name(raw):
@@ -194,7 +199,7 @@ def file_members(
         elif size and logger is not None:
             logger.warning(
                 _DIRECTORY_DATA,
-                log_prefix,
+                prefix,
                 quote_source(archive_name),
                 quote_source(raw),
             )
@@ -202,7 +207,7 @@ def file_members(
         files,
         archive_name,
         logger,
-        log_prefix,
+        frame,
         dot_prefix_ok=dot_prefix_ok,
         on_duplicate=on_duplicate,
     )
@@ -212,13 +217,11 @@ def zip_file_members(
     zf: zipfile.ZipFile,
     archive_name: str,
     logger: logging.Logger | None,
-    log_prefix: str = "",
+    frame: Frame | None = None,
     *,
     on_duplicate: Callable[[str], Exception] | None = None,
 ) -> list[tuple[str, zipfile.ZipInfo]]:
     """:func:`file_members` for a ZIP (wheel or ``.zip`` sdist). Names come
     from ``orig_filename``, so the result does not depend on the OS."""
     entries = ((info.orig_filename, info.file_size, info) for info in zf.infolist())
-    return file_members(
-        entries, archive_name, logger, log_prefix, on_duplicate=on_duplicate
-    )
+    return file_members(entries, archive_name, logger, frame, on_duplicate=on_duplicate)

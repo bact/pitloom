@@ -34,6 +34,7 @@ from pitloom.core._models_wheel_build_and_read import build_and_read_wheel
 from pitloom.core._models_wheel_build_subprocess import BuildTimeoutError
 from pitloom.core.build_signals import TerminationGuard
 from pitloom.core.temp_dirs import warn_if_left_behind
+from pitloom.messages import Frame
 from tests.build_and_read_shared import (
     EXTRACT_PREFIX,
     RUN_BUILD,
@@ -46,6 +47,9 @@ from tests.build_and_read_shared import (
     spied_raise_signal,
     use_sys_tmp,
 )
+
+#: The ``temp-dir-unwritable`` line after its frame, for a directory name.
+_LEFT = "DIR={}: could not be fully removed; left in the system temp directory"
 
 
 @pytest.fixture(name="fake_build")
@@ -89,8 +93,8 @@ def test_build_and_read_wheel_never_leaks_temp_dirs_on_failure(
 @pytest.mark.parametrize(
     ("tree_terminated", "outcome"),
     [
-        (True, "-- build process tree terminated"),
-        (False, "-- could not confirm the build process tree terminated"),
+        (True, "; its process tree was stopped"),
+        (False, "; could not confirm its process tree stopped"),
     ],
     ids=["confirmed", "unconfirmed"],
 )
@@ -103,7 +107,7 @@ def test_build_and_read_wheel_timeout_returns_none_and_cleans_up(
     outcome: str,
 ) -> None:
     """A :class:`BuildTimeoutError` gets its own ``WARNING:`` (not the
-    generic "discovery failed" one), worded by whether the kill was
+    generic ``build-failed`` one), worded by whether the kill was
     confirmed, and leaks no temp dir."""
     seen: set[str] = set()
     exc = BuildTimeoutError(42, tree_terminated=tree_terminated)
@@ -113,12 +117,11 @@ def test_build_and_read_wheel_timeout_returns_none_and_cleans_up(
         result = build_and_read_wheel(tmp_path, timeout=42)
 
     assert result is None
-    # BuildTimeoutError's own str() also says "timed out after 42s", so
-    # check this branch's wording and the generic one's absence.
-    assert "build-and-read for" in caplog.text
-    assert "timed out after 42s (--build-timeout)" in caplog.text
+    # BuildTimeoutError has no text of its own: check this branch's
+    # wording and the generic one's absence.
+    assert "the build timed out after 42 seconds (--build-timeout)" in caplog.text
     assert caplog.text.rstrip().endswith(outcome)
-    assert "discovery failed" not in caplog.text
+    assert "its wheel could not be read" not in caplog.text
     assert seen == TEMP_PREFIXES
     assert not list(sys_tmp.iterdir())
 
@@ -163,9 +166,7 @@ def test_build_and_read_wheel_warns_on_leftover_work_dir(
     result[1]()
     (leftover,) = sys_tmp.iterdir()
     assert leftover.name.startswith("plb-")
-    assert f"Build: could not fully remove temporary directory '{leftover.name}' " in (
-        caplog.text
-    )
+    assert f"Build: {_LEFT.format(leftover.name)}" in caplog.text
 
 
 def test_build_and_read_wheel_termination_signal_reraised_after_cleanup(
@@ -243,12 +244,12 @@ def test_build_and_read_wheel_survives_raising_work_dir_cleanup(
 
     if outcome == "timeout":
         assert result is None
-        assert "timed out after 42s (--build-timeout)" in caplog.text
+        assert "timed out after 42 seconds (--build-timeout)" in caplog.text
     else:
         assert result is not None
         assert result[0]
         result[1]()
-    assert "could not fully remove" not in caplog.text
+    assert "could not be fully removed" not in caplog.text
     assert not list(sys_tmp.iterdir())
 
 
@@ -286,7 +287,7 @@ def test_build_and_read_wheel_survives_raising_rmtree(
     leftovers = sorted(p.name for p in sys_tmp.iterdir())
     assert {name.split("-")[0] for name in leftovers} == {"pitloom", "plb"}
     for name in leftovers:
-        assert f"could not fully remove temporary directory '{name}' " in (caplog.text)
+        assert _LEFT.format(name) in caplog.text
 
 
 @pytest.mark.usefixtures("fake_build")
@@ -348,7 +349,7 @@ def test_build_and_read_wheel_signal_during_work_dir_removal(
     assert excinfo.value.code == 128 + signal.SIGTERM
     raise_spy.assert_called_once_with(signal.SIGTERM)
     assert not list(sys_tmp.iterdir())
-    assert "could not fully remove" not in caplog.text
+    assert "could not be fully removed" not in caplog.text
     assert "Build: received SIGTERM after the build" in caplog.text
 
 
@@ -395,7 +396,7 @@ def test_build_and_read_wheel_signal_during_extraction_acts_at_once(
         assert sorted(p.name.split("-")[0] for p in leftover) == ["pitloom", "plb"]
         for path in leftover:
             assert any(
-                "could not fully remove" in r.getMessage()
+                "could not be fully removed" in r.getMessage()
                 and path.name in r.getMessage()
                 for r in caplog.records
             ), path
@@ -425,9 +426,9 @@ def test_build_and_read_wheel_signal_after_success_removes_extract_dir(
     never gets to run the cleanup callback, so the guard must."""
     fired: list[bool] = []
 
-    def warn_then_signal(path: Path, log_prefix: str) -> None:
+    def warn_then_signal(path: Path, *, frame: Frame) -> None:
         # The work dir's leftover check, the last step before returning.
-        warn_if_left_behind(path, log_prefix)
+        warn_if_left_behind(path, frame=frame)
         if not fired:
             fired.append(True)
             deliver_sigterm()
@@ -493,6 +494,4 @@ def test_build_and_read_wheel_warns_on_leftover_extract_dir_on_failure(
 
     (leftover,) = sys_tmp.iterdir()
     assert leftover.name.startswith(EXTRACT_PREFIX)
-    assert f"Build: could not fully remove temporary directory '{leftover.name}' " in (
-        caplog.text
-    )
+    assert f"Build: {_LEFT.format(leftover.name)}" in caplog.text

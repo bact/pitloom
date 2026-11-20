@@ -25,10 +25,11 @@ import pytest
 from pitloom.core import temp_dirs
 from pitloom.core.build_signals import BUILD_ACTIVITY, TerminationGuard
 from pitloom.core.temp_dirs import one_shot, registered_temp_dir, temp_dir
+from pitloom.messages import BUILD_FRAME, GIT_FRAME, SCAN_FRAME
 from tests._symlink import CAN_SYMLINK
 from tests.build_and_read_shared import use_sys_tmp
 
-_PREFIX = "Fetch: "
+_FRAME = GIT_FRAME
 
 
 @pytest.fixture(name="sys_tmp")
@@ -41,7 +42,7 @@ def test_registered_temp_dir_removed_when_owner_block_fails(sys_tmp: Path) -> No
     created: list[Path] = []
     with pytest.raises(RuntimeError), TerminationGuard() as termination:
         with termination.hold(BUILD_ACTIVITY):
-            path, _ = registered_temp_dir(termination, "t-", log_prefix="Scan: ")
+            path, _ = registered_temp_dir(termination, "t-", frame=SCAN_FRAME)
         created.append(path)
         assert path.is_dir() and path.parent == sys_tmp
         assert path.name.startswith("t-")
@@ -69,27 +70,28 @@ def test_one_shot_reruns_after_interrupted_run() -> None:
     assert remove.call_count == 2
 
 
-def test_leftover_warning_uses_given_log_prefix(
+def test_leftover_warning_uses_the_given_frame(
     sys_tmp: Path,
     monkeypatch: pytest.MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    monkeypatch.setattr(temp_dirs, "rmtree_quietly", lambda path, log_prefix: None)
+    monkeypatch.setattr(temp_dirs, "rmtree_quietly", lambda path, *, frame: None)
     with TerminationGuard() as termination, termination.hold(BUILD_ACTIVITY):
-        path, remove = registered_temp_dir(termination, "t-", log_prefix="Scan: ")
+        path, remove = registered_temp_dir(termination, "t-", frame=SCAN_FRAME)
     with caplog.at_level(logging.WARNING):
         remove()
 
     assert path.parent == sys_tmp
-    assert f"Scan: could not fully remove temporary directory '{path.name}' " in (
-        caplog.text
-    )
+    assert (
+        f"AI model scan: DIR={path.name}: could not be fully removed; "
+        "left in the system temp directory"
+    ) in caplog.text
     assert str(sys_tmp) not in caplog.text
     assert "Build:" not in caplog.text
 
 
 def test_temp_dir_is_removed_on_exit(sys_tmp: Path) -> None:
-    with temp_dir("t-", log_prefix=_PREFIX) as path:
+    with temp_dir("t-", frame=_FRAME) as path:
         assert path.is_dir() and path.parent == sys_tmp
         assert path.name.startswith("t-")
         (path / "f").write_bytes(b"x")
@@ -99,7 +101,7 @@ def test_temp_dir_is_removed_on_exit(sys_tmp: Path) -> None:
 def test_temp_dir_is_removed_when_the_block_fails(sys_tmp: Path) -> None:
     made: list[Path] = []
     with pytest.raises(RuntimeError, match="owner failed"):
-        with temp_dir("t-", log_prefix=_PREFIX) as path:
+        with temp_dir("t-", frame=_FRAME) as path:
             made.append(path)
             raise RuntimeError("owner failed")
     assert made[0].parent == sys_tmp and not os.path.lexists(made[0])
@@ -123,13 +125,13 @@ def test_temp_dir_left_behind_warns_once_and_never_raises(
     if raises:
         monkeypatch.setattr(temp_dirs, "rmtree", _deep_rmtree)
     else:
-        monkeypatch.setattr(temp_dirs, "rmtree_quietly", lambda _path, _prefix: None)
-    with caplog.at_level(logging.WARNING), temp_dir("t-", log_prefix=_PREFIX) as path:
+        monkeypatch.setattr(temp_dirs, "rmtree_quietly", lambda _path, *, frame: None)
+    with caplog.at_level(logging.WARNING), temp_dir("t-", frame=_FRAME) as path:
         pass
     assert path.is_dir()
     assert [r.getMessage() for r in caplog.records] == [
-        f"{_PREFIX}could not fully remove temporary directory '{path.name}' "
-        "(in the system temp directory)"
+        f"{_FRAME.render({})}DIR={path.name}: could not be fully removed; "
+        "left in the system temp directory"
     ]
     assert str(sys_tmp) not in caplog.text
 
@@ -156,7 +158,7 @@ def test_a_read_only_file_is_made_writable_and_removed(
     removal makes what is left writable and tries again, quietly. A
     read-only folder, the directory itself included, too."""
     monkeypatch.setattr(temp_dirs, "rmtree", _windows_rmtree)
-    with caplog.at_level(logging.WARNING), temp_dir("t-", log_prefix=_PREFIX) as path:
+    with caplog.at_level(logging.WARNING), temp_dir("t-", frame=_FRAME) as path:
         pack = path / ".git" / "objects" / "pack"
         pack.mkdir(parents=True)
         (pack / "pack-1.pack").write_bytes(b"x")
@@ -253,5 +255,5 @@ def test_a_real_junction_is_left_alone(tmp_path: Path) -> None:  # pragma: no co
     )
     temp_dirs._make_writable(inside)  # pylint: disable=protected-access
     assert not os.stat(outside / "f").st_mode & stat.S_IWUSR
-    temp_dirs.rmtree_quietly(inside, "")
+    temp_dirs.rmtree_quietly(inside, frame=BUILD_FRAME)
     assert (outside / "f").is_file()

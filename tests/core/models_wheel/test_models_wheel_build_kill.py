@@ -249,7 +249,10 @@ def test_kill_leftover_descendants_unsignalable_member_warns(
     monkeypatch.setattr(bk, "_GROUP_GONE_ERRORS", _GONE_OTHER)
     bk.kill_leftover_descendants(_fake_proc())
     assert [r.levelname for r in caplog.records] == ["WARNING"]
-    assert "could not confirm the processes the build left" in caplog.text
+    assert (
+        "the build left processes running (process group 4321); "
+        "could not confirm they stopped"
+    ) in caplog.text
 
 
 @posix_only
@@ -268,7 +271,9 @@ def test_kill_leftover_descendants_waits_for_group(
         mock.call(4321, 0),
     ]
     assert [r.levelname for r in caplog.records] == ["INFO"]
-    assert "killed processes the build left running" in caplog.text
+    assert (
+        "the build left processes running (process group 4321); killed"
+    ) in caplog.text
 
 
 @posix_only

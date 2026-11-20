@@ -54,7 +54,8 @@ _LOG_HELPERS = frozenset({"warn_once", "print_error", "report_error_line"})
 #: CodedFileNotFoundError) write each value through its field (a ``path`` in
 #: quotes, a ``file`` through loggable), as do ``Line.render`` and the
 #: catalogue helpers (``input_not_found``, ``file_unreadable_error``);
-#: ``refusal_error`` says the refusal through CodedValueError, else quoted.
+#: ``refusal_error`` says the refusal through CodedValueError, else quoted;
+#: ``build_error`` writes its ``dir`` through the ``dir`` field.
 _QUOTING_CALLS = frozenset(
     {
         "CodedFileNotFoundError",
@@ -67,6 +68,7 @@ _QUOTING_CALLS = frozenset(
         "project_hint_error",
         "_malformed",
         "NotAWheelError",
+        "build_error",
         "_fragment_read_failure_message",
         "_same_document_message",
         "refusal_error",

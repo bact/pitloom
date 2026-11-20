@@ -108,8 +108,8 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
 - **Pitloom did**: For a model file, listed the model by its file, format and
   hashes only (a format-only entry, named after its file), without its metadata.
   For any other step, did not run it: no SBOM of a Hugging Face model, no
-  validation; --allow-build found the files without a build, as its Build: lines
-  say. Installed nothing.
+  validation; --allow-build (its warning line, after Build: ) found the files
+  without a build, as the file discovery line after it says. Installed nothing.
 - **Tell the user**: which models or which step went without the library and
   which extra installs it, as the line names it (pitloom[ai] installs every
   model reader and the Hugging Face Hub client). They install it where Pitloom
@@ -117,11 +117,14 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
   model reader then runs on each such file, so only for files they trust. Do not
   install anything or run again for them; ask first, and with nobody to ask,
   report it only.
+- **Printed after**: `Build: <text>` (--allow-build: the build and its temporary
+  directories), on its WARNING lines; the prefix is not part of the line.
 - **Lines**:
 
   ```text
   WARNING: FORMAT=<format> FILE=<file>: required library not installed; install <requirement> [library-missing]
   ERROR: required library not installed: <module>; install <requirement> [library-missing]
+  WARNING: required library not installed: <module>; install <requirement> [library-missing]
   ```
 
 ### `library-unusable`

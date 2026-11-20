@@ -24,6 +24,7 @@ from typing import Any
 import pytest
 
 from pitloom.core import temp_dirs
+from pitloom.messages import Frame
 from pitloom.plugins import hatch
 from tests._held_open import hold_open
 from tests.build_and_read_shared import use_sys_tmp
@@ -65,8 +66,8 @@ def test_finalize_warns_when_the_staging_dir_stays(
         hook.finalize("standard", build_data, "dist/testpkg-0.1.0-py3-none-any.whl")
     assert set(refused) == {staged.parent.name} and staged.is_file()
     assert [r.getMessage() for r in caplog.records] == [
-        f"Pitloom: could not fully remove temporary directory "
-        f"'{staged.parent.name}' (in the system temp directory)"
+        f"Pitloom build hook: DIR={staged.parent.name}: could not be fully "
+        "removed; left in the system temp directory"
     ]
     assert hook._staging_dir is None
 
@@ -91,9 +92,9 @@ def _removals(monkeypatch: pytest.MonkeyPatch) -> list[str]:
     removed: list[str] = []
     real = temp_dirs.remove_temp_dir
 
-    def spy(path: Path | str, log_prefix: str) -> None:
+    def spy(path: Path | str, *, frame: Frame) -> None:
         removed.append(Path(path).name)
-        real(path, log_prefix)
+        real(path, frame=frame)
 
     monkeypatch.setattr(hatch, "remove_temp_dir", spy)
     return removed

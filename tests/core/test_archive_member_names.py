@@ -28,9 +28,17 @@ from pitloom.core.archive_member_names import (
     normalize_member_name,
     zip_file_members,
 )
+from pitloom.messages import Frame
 from tests._raw_archive import write_raw_member
 
 _LOG = logging.getLogger("test.archive_member_names")
+#: A frame whose text is ``P: ``: what the members' warnings start with.
+_FRAME = Frame(
+    levels=frozenset({"WARNING"}),
+    template="P: ",
+    surface="a test",
+    codes=frozenset({"test"}),
+)
 _P = "P: ARCHIVE='a.zip' ENTRY="
 
 
@@ -140,7 +148,7 @@ def test_archive_members_warns_once_per_member(
     archive (the one an installer leaves behind) is kept."""
     with caplog.at_level(logging.WARNING):
         members = archive_members(
-            [(raw, index) for index, raw in enumerate(raws)], "a.zip", _LOG, "P: "
+            [(raw, index) for index, raw in enumerate(raws)], "a.zip", _LOG, _FRAME
         )
     assert [name for name, _ in members] == names
     for name, index in members:
@@ -244,7 +252,7 @@ def test_zip_file_members_directory_entries(
     bytes are dropped -- unless no logger is given."""
     path = _zip(tmp_path, [("pkg\\", data), ("pkg/a", b"")])
     with zipfile.ZipFile(path) as zf, caplog.at_level(logging.WARNING):
-        members = zip_file_members(zf, "a.zip", logger, "P: ")
+        members = zip_file_members(zf, "a.zip", logger, _FRAME)
     assert [name for name, _ in members] == ["pkg/a"]
     expected = [_P + "'pkg\\': directory entry carries data -- skipped"]
     assert [r.getMessage() for r in caplog.records] == (expected if warned else [])

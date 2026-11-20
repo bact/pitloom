@@ -35,6 +35,7 @@ import pytest
 from pitloom.core import build_signals
 from pitloom.core.build_signals import (
     BUILD_ACTIVITY,
+    MODEL_SCAN_ACTIVITY,
     GuardedActivity,
     TerminationGuard,
     TerminationSignal,
@@ -149,17 +150,18 @@ def test_signal_outside_a_hold_terminates_in_the_handler(
     assert "Build: received SIGTERM after the build" in caplog.text
 
 
-_SCAN = GuardedActivity("Scan: ", "the scan")
+_SCAN = MODEL_SCAN_ACTIVITY
+_SCAN_LINE = "AI model scan: received SIGTERM {} the AI model file copy"
 
 
 @pytest.mark.usefixtures("raise_spy")
 @pytest.mark.parametrize(
     ("activities", "in_hold", "expected"),
     [
-        ((_SCAN,), True, "Scan: received SIGTERM during the scan"),
-        ((_SCAN,), False, "Scan: received SIGTERM after the scan"),
+        ((_SCAN,), True, _SCAN_LINE.format("during")),
+        ((_SCAN,), False, _SCAN_LINE.format("after")),
         # The owner's latest hold names it, not the first one.
-        ((BUILD_ACTIVITY, _SCAN), False, "Scan: received SIGTERM after the scan"),
+        ((BUILD_ACTIVITY, _SCAN), False, _SCAN_LINE.format("after")),
         ((_SCAN, BUILD_ACTIVITY), True, "Build: received SIGTERM during the build"),
     ],
 )
@@ -342,7 +344,7 @@ def test_failing_warning_does_not_stop_termination(
     signal interrupted (``RuntimeError: reentrant call``); the process
     must still end by the signal."""
     warning = mock.Mock(side_effect=RuntimeError("reentrant call"))
-    monkeypatch.setattr(build_signals.log, "warning", warning)
+    monkeypatch.setattr(build_signals.log, "log", warning)
     with TerminationGuard() as guard:
         with guard.hold(BUILD_ACTIVITY):
             handler = _current_handler()

@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-29
-Last-Modified: 2026-11-19
+Last-Modified: 2026-11-20
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -41,13 +41,22 @@ LEVEL: [FRAME: ][SUBJECT=value: ]CONDITION[; ACTION] [code]
   also start with the model it read (`FORMAT=<format> FILE=<file>: `), and a
   Git URL fetch's `WARNING:` and `INFO:` lines with `Git source: `: the
   prefixes are listed with the catalogue, in [Message codes](message-codes.md).
+  The other frames of a `WARNING:` or `INFO:` line: `Build: ` (--allow-build,
+  its build, its temporary directories and a signal while it runs), `Hugging
+  Face source: ` and `PyPI source: ` (the temporary directory of a download),
+  `AI model scan: ` (the copy of a model file out of a wheel, a signal while it
+  runs) and the hook's own warnings, `Pitloom build hook: `.
 - A frame on a `WARNING:` or `INFO:` line is a literal prefix and no part of
   the line: the line is what follows it, and its `SUBJECT=value` and code are
-  the line's own. A frame admits only the families named for it, so a line
-  of another family after it is not a catalogued line, whatever its code. An
-  `ERROR:` line of a Git URL fetch carries no `Git source: ` frame (only the
-  command's frame, `ERROR: loom <command>: ...`), and an exception's text
-  carries no frame.
+  the line's own. A frame admits only the codes named for it (`Build: `
+  admits `build-code-unsafe`, `build-failed`, `build-processes-unsafe`,
+  `build-timeout`, `interrupted`, `library-missing` and `temp-dir-unwritable`;
+  each of the other frames above admits its own few, listed with the
+  catalogue), so a line of another code after it is not a catalogued line,
+  whatever its code. An `ERROR:` line of a Git URL fetch carries no `Git
+  source: ` frame, and one of a build (`--allow-build`) none of `Build: ` (only the command's
+  frame, `ERROR: loom <command>: ...`), and an exception's text carries no
+  frame.
 
 A line after `licenseid: ` (`WARNING: licenseid: database: build v3
 outdated: current v4; run 'licenseid update'`) is a warning of LicenseID,

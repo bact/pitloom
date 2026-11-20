@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-17
-Last-Modified: 2026-11-19
+Last-Modified: 2026-11-20
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -234,3 +234,38 @@ unmasked `folders_text` (both fixed).
 - `tests/messages/test_git.py` is 515 lines (soft limit 400 to 500).
 - A trailing slash on a Git URL now prints a resolution line (HEAD did not):
   intended (plan row 14, shape 1); one CHANGELOG word.
+
+## Round 5 (2026-11-20, PR 14a: build, temp directories, signals, #506)
+
+Two fresh-context Opus rounds, mutation testing on a scratch copy.
+
+Fixed in the PR:
+
+- A broad `except Exception` in `get_wheel_files` swallowed the
+  `InternalError` of a refused frame (the entry-point catch was older than the
+  new `except InternalError: raise` in the build); now re-raised, with a
+  library-level test. Lesson: a re-raise at one level is undone by the next
+  broad catch up; probe through the public entry point, not the module.
+- The cut of a build's last output line no longer showed it was cut: `...` is
+  appended after the cut (masked first, then cut, then escaped).
+- The `interrupted` entry's `did` and advice were scoped to builds though its
+  ERROR line covers Ctrl-C of any command; the hook's staging directory now
+  checks its frame on entry; a flake8 E501 from a pylint comment; dead
+  `_LOG_PREFIX`; docs said a frame admits "families" (it admits codes).
+
+Round 2 re-checked these and found the generated page saying `interrupted`
+exits 1 (Ctrl-C exits 130): the generator now has a per-code ERROR rule. The
+hook's entry check has a test; `output_text` shares `one_line(ellipsis=)`.
+
+Open (found in round 5, not fixed):
+
+- `docs/git-urls.md` is over the 30 KB hard limit (36 KB, pre-existing).
+- `test_models_wheel_build_subprocess.py` (512 lines) and
+  `test_models_wheel_build_kill.py` (500) past the soft limit.
+- Over-trust not tied to a frame: `AI model scan: received SIGTERM during the
+  build` is trusted (frame and `activity` are not tied); `Build: Build: /p:
+  ...` is trusted as `option-no-effect` through the free `name` field.
+- `Bearer <jwt>` in a build's output is not masked (masker scope,
+  pre-existing).
+- The `DIR=<checkout>` placeholder on a leftover directory gives the user
+  nothing to delete (pre-existing).

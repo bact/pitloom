@@ -70,7 +70,7 @@ from pitloom.extract.remote._http_fetch import (
     url_refusal,
 )
 from pitloom.extract.remote.errors import RemoteSourceError
-from pitloom.messages import emit
+from pitloom.messages import HF_FRAME, emit
 from pitloom.messages.files import Cap
 from pitloom.messages.network import (
     ENDPOINT_MOVED,
@@ -130,9 +130,6 @@ HUB_JSON_CAP: Final = Cap(HUB_JSON_MAX_BYTES, "byte", "Hub-JSON")
 
 #: Seconds for one metadata file, redirects included: a JSON API request's.
 METADATA_DEADLINE_SECONDS: float = JSON_DEADLINE_SECONDS
-
-#: What starts a message about the temporary directory.
-_LOG_PREFIX: Final = "Hugging Face source: "
 
 
 def file_url(
@@ -434,5 +431,5 @@ def hub_files(policy: RemoteFetchPolicy) -> Iterator[HubFiles]:
     ``WARNING:``. The token is sent to the Hub's origin only."""
     base = hub_base()
     credential = None if base is None else hub_credential(base)
-    with temp_dir(HUB_DIR_PREFIX, log_prefix=_LOG_PREFIX) as work:
+    with temp_dir(HUB_DIR_PREFIX, frame=HF_FRAME) as work:
         yield HubFiles(policy, work, credential, base)

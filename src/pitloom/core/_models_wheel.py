@@ -46,6 +46,7 @@ from pitloom.core.build_options import BuildOptions
 from pitloom.core.build_signals import TerminationGuard
 from pitloom.core.content_type_config import ContentTypeOverride
 from pitloom.core.file_hash import DigestHasher, sha256_digest
+from pitloom.core.internal_error import InternalError
 from pitloom.core.lfs_pointer import parse_lfs_pointer
 from pitloom.core.path_probe import is_missing_errno, stat_if_present
 from pitloom.core.project import (
@@ -392,6 +393,8 @@ def get_wheel_files(
                     assume_backend=assume_backend,
                     build=build_options.settings(),
                 )
+        except InternalError:
+            raise
         # pylint: disable-next=broad-exception-caught
         except Exception:
             return _discovery_failure_result()

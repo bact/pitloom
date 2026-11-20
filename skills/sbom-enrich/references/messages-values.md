@@ -18,6 +18,7 @@ holds the value there. The table lists every name a line or a prefix uses.
 
 | Value | What it is |
 | --- | --- |
+| `<activity>` | what was running when the signal came: `the build`, `the AI model file copy`, `a guarded activity` |
 | `<answered>` | the project name PyPI answered for, as its answer gives it; in quotes, escaped, when it holds a control character |
 | `<arity>` | how many values argparse expected after the option (`one argument`, `2 arguments`, `at least one argument`) |
 | `<backend>` | the build backend a pyproject.toml declares in [build-system] build-backend, as written; escaped when it holds a control character |
@@ -31,7 +32,7 @@ holds the value there. The table lists every name a line or a prefix uses.
 | `<declared-in>` | where the dependency is declared: `Poetry`, `optional-dependencies`, `extras_require`, or the setting that lists a requirements file; escaped when it holds a control character |
 | `<dependency>` | a dependency as declared (a requirement, a Poetry table), on one line, a URL's credentials masked, cut to 120 characters (`...` after it when cut), in quotes, escaped when it holds a control character |
 | `<destination>` | where a moved key goes now, as pyproject.toml spells it: `[[tool.pitloom.creation-tool]] name`, `[[tool.pitloom.creator]] email`, `[[tool.pitloom.creator]] name`, `[[tool.pitloom.creator]] type`, `[tool.pitloom.fragment] files`, `[tool.pitloom] extract-file-header and [tool.pitloom.content-type]`, `[tool.pitloom] id-registry`, `[tool.pitloom] sbom-basename`, `[tool.pitloom] update-id-registry` |
-| `<dir>` | a directory as Pitloom names it; in quotes, escaped, when it holds a control character |
+| `<dir>` | a directory as Pitloom names it (a temporary directory by its name only, `<checkout>` or `<download>` for a remote source's); in quotes, escaped, when it holds a control character |
 | `<discoverer>` | the file discoverer of the project's build backend: `Flit`, `Hatchling`, `PDM`, `Poetry`, `Setuptools` |
 | `<dropped>` | what a conflict left out (versions, a lock file, a value), sorted, comma-separated, each on one line, a URL's credentials masked, cut to 120 characters (`...` after it when cut), in quotes, escaped when it holds a control character |
 | `<element>` | the SBOM element that holds the value (for a fingerprint that matches nothing, the SBOM's SpdxDocument), by its spdxId, a URL's credentials masked; in quotes, escaped, when it holds a control character |
@@ -43,10 +44,11 @@ holds the value there. The table lists every name a line or a prefix uses.
 | `<entries>` | the unknown keys, sorted, comma-separated, each as the file names it; in quotes, escaped, when it holds a control character |
 | `<entry>` | an archive member, a metadata key, a path in a wheel or an installed-metadata directory (`demo-1.0.dist-info`), as the file names it; in quotes, escaped, when it holds a control character |
 | `<error>` | what the reader or the file system reported, or git's own `fatal:`, `error:` and `remote:` lines joined by semicolons (server text), on one line; in quotes, escaped, when it holds a control character |
+| `<exit-code>` | the exit code of the build process: negative for a POSIX signal (`-9`), a large number for a Windows status (`3221225786`) |
 | `<expected>` | what the value must be: `true or false`; `an integer`; `an integer of at least 1`; `0 (no cap) or an integer of at least 8`; `a string`; `a non-empty string`; `a string or an inline table`; `a table`; `an array`; `an array of tables`; `an array of strings`; `a string or an array of strings`; `one of annotation, both, comment`; `one of full, minimal`; `one of always, auto, never`; `one of auto, extension, magika`; `one of agent, organization, person, software-agent`; `a media type type/subtype (image/png)`; `a file name, not a path`; `a plain file name (not a path, not only .spdx3.json)`; `an ISO 8601 date and time`; `a path to a configuration file, or a PitloomConfig`; `a fingerprint (sha256: and 16 to 64 lowercase hex digits)`; `an array of fingerprints`; `"warn" or "refuse"` |
 | `<expression>` | the SPDX license expression recorded (`Apache-2.0 AND MIT`); escaped when it holds a control character |
 | `<extra>` | an extra, or several sorted and comma-separated, each on one line, a URL's credentials masked, cut to 120 characters (`...` after it when cut), in quotes, escaped when it holds a control character |
-| `<failure>` | what the operating system reported (`Permission denied`), never the path it names, or what the decoder or reader reported; on one line, in quotes, escaped, when it holds a control character |
+| `<failure>` | what the operating system reported (`Permission denied`), never the path it names, or what the decoder, reader or build step reported; on one line, in quotes, escaped, when it holds a control character |
 | `<field>` | the project setting that lists the file (`project.readme`, `tool.setuptools.dynamic.dependencies`, `setup.cfg metadata.long_description`), a licence value's field (`License-Expression`), or a project metadata key or table (`project.version`, `[tool.poetry] 'readme'`); in quotes, escaped, when it holds a control character |
 | `<fields>` | the model fields not recorded, or recorded weaker, comma-separated, each with a note in brackets when it has one (`type_of_model`, `properties.tags (kept as raw string)`) |
 | `<file>` | a file as Pitloom names it (its path, or a remote document's URL or Hub dataset id); in quotes, escaped, when it holds a control character |
@@ -80,10 +82,12 @@ holds the value there. The table lists every name a line or a prefix uses.
 | `<option>` | a command-line option as the command names it (`--allow-build`, `-o/--output`, `--pretty/--no-pretty`), a positional argument as argparse names it (`command`), or a library parameter (`project_metadata`) |
 | `<other>` | the option given before, which the one named first cannot be given with, as argparse names it (`--pretty`) |
 | `<outcome>` | what Pitloom kept, and what it did not read or record |
+| `<output>` | the last line the build printed that is not blank, each control character a space, a URL credential or a known token masked, cut to 200 characters (then `...`); escaped when it holds a character a terminal would act on; `(no output)` when it printed none |
 | `<package>` | a package as the lock file or the declaration names it (a valid distribution name); escaped when it holds a control character |
 | `<part>` | the part of a Keras or HDF5 model that was not read: a root attribute (`model_config`) or a key path in a config (`training_config.optimizer`, `layers[0].config`) |
 | `'<path>'` | a path in quotes |
 | `<pointer>` | the field of the element that holds the value, as an RFC 6901 JSON pointer into it (`/software_downloadLocation`, `/externalRef/0/locator/0`); for a statement Pitloom writes, on into it (`/statement/metadata/<key>`, `/statement/fields/<field>/note`), or into the comment's provenance line (`/comment/<field>/note`), a part no JSON pointer resolves on the element; in quotes, escaped, when it holds a control character |
+| `<process-group>` | the process group of the build (POSIX), which its leftover processes share |
 | `<cap>` | the cap's name; a setting's name when a setting sets it (`max-model-extract-bytes`) |
 | `<x.y>` | the Python version Pitloom runs on, as `3.10`: the grammar a file was read as |
 | `<reason>` | what the bound check found: a count the file cannot hold, a malformed ZIP central directory, or a GGUF version or ZIP archive it cannot check |
@@ -96,6 +100,7 @@ holds the value there. The table lists every name a line or a prefix uses.
 | `<seconds>` | the time allowed, in whole seconds |
 | `<setting>` | a configuration setting as the file names it (`accept-url-credentials`, `url-credentials`, the known key an unknown one is closest to) |
 | `<settings>` | the build settings left out, comma-separated, as the file names them (`tool.hatch.metadata.hooks`, `tool.setuptools.cmdclass`, `metadata.version`) |
+| `<signal>` | the signal that ended Pitloom: `SIGTERM`, `SIGHUP`, `SIGBREAK` |
 | `<size>` | a size in bytes (`1 byte`, `N bytes`) |
 | `<source>` | what declared a digest (`the PyPI JSON API`) |
 | `<source-kind>` | the kind of source that gives no registry version: `archive`, `bzr`, `directory`, `editable`, `file`, `git`, `hg`, `path`, `svn`, `url`, `vcs`, `virtual` |

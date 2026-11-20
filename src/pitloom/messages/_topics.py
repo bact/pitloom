@@ -37,6 +37,7 @@ TOPIC_TITLES: Final[Mapping[str, str]] = MappingProxyType(
         "config": "Configuration",
         "metadata": "Project metadata",
         "file-discovery": "File discovery",
+        "build": "Builds and temporary directories",
         "files": "Files and text",
         "lock-files": "Lock files",
         "dependencies": "Dependencies",
@@ -106,6 +107,14 @@ _TOPIC_FAMILIES: Final[Mapping[str, tuple[str, ...]]] = MappingProxyType(
             "metadata-malformed",
             "metadata-no-effect",
             "project-name-missing",
+        ),
+        "build": (
+            "build-code-unsafe",
+            "build-failed",
+            "build-processes-unsafe",
+            "build-timeout",
+            "interrupted",
+            "temp-dir-unwritable",
         ),
         "file-discovery": (
             "file-discovery-conflict",
