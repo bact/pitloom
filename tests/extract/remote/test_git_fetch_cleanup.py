@@ -46,8 +46,8 @@ _DEMO = '[project]\nname = "demo"\nversion = "1.0"\n'
 _WHEN = "2026-01-01T00:00:00Z"
 #: The one ``WARNING:`` a checkout left behind gives.
 _LEFT = (
-    f"Git source: could not fully remove temporary directory "
-    f"'{CHECKOUT_PLACEHOLDER}' (in the system temp directory)"
+    f"Git source: DIR={CHECKOUT_PLACEHOLDER}: could not be fully removed; "
+    "left in the system temp directory"
 )
 
 
@@ -118,7 +118,7 @@ def test_loom_project_exits_0_when_the_checkout_stays(
     assert held_open and len(_checkouts(sys_tmp)) == 1
     assert '"demo"' in out.read_text(encoding="utf-8")
     assert [e for e in err.splitlines() if e.startswith("WARNING: ")] == [
-        f"WARNING: {_LEFT}"
+        f"WARNING: {_LEFT} [temp-dir-unwritable]"
     ]
     assert str(sys_tmp) not in err and CHECKOUT_DIR_PREFIX not in err
 

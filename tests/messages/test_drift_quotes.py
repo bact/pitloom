@@ -30,6 +30,16 @@ from tests._message_drift import quote_matches, relative
 #: The texts that mark a quote as saying a family's message: one, or one per
 #: line for a family whose lines share no core.
 _MARKERS: dict[str, tuple[str, ...]] = {
+    "build-code-unsafe": ("--allow-build runs a PEP 517 build",),
+    "build-failed": (
+        "the build exited with code",
+        "no Python interpreter to run PyPA build with",
+        "the build wrote ",
+        "the built wheel holds no file outside",
+        "the build could not run or its wheel",
+    ),
+    "build-processes-unsafe": ("the build left processes running",),
+    "build-timeout": ("the build timed out after",),
     "card-malformed": ("frontmatter is not valid YAML",),
     "config-invalid": (": must be ",),
     "config-malformed": ("not valid TOML; ", "not valid INI"),
@@ -135,6 +145,7 @@ _MARKERS: dict[str, tuple[str, ...]] = {
         "not the project's; ignored",
         "declares no name",
     ),
+    "interrupted": ("received SIGTERM", ": interrupted"),
     "json-malformed": ("not valid JSON for ",),
     "lfs-pointer": ("Git LFS pointer",),
     "lfs-pointer-malformed": ("Git LFS pointer",),
@@ -354,6 +365,7 @@ _MARKERS: dict[str, tuple[str, ...]] = {
         "not a .whl file",
     ),
     "temp-dir-unusable": ("could not be saved in the temporary directory",),
+    "temp-dir-unwritable": ("could not be fully removed",),
     "text-malformed": (
         "lone surrogates written",
         "cannot be encoded as UTF-8",

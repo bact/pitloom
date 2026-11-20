@@ -224,8 +224,8 @@ def test_sigterm_during_the_copy_waits_for_it_and_says_during(
     assert not _scan_dirs(sys_tmp)
     (message,) = [m for m in logged_warnings(caplog) if "SIGTERM" in m]
     assert message == (
-        "AI model scan: received SIGTERM during the AI model file copy "
-        "-- exiting after cleanup"
+        "AI model scan: received SIGTERM during the AI model file copy"
+        "; exiting after cleanup"
     )
 
 

@@ -115,7 +115,6 @@ _ALLOWED = {
     "core/_config_types.py:DEFAULT_MAX_DATASET_HASH_BYTES": "a setting's default",
     "core/_config_types.py:DEFAULT_MAX_MODEL_EXTRACT_BYTES": "a setting's default",
     "core/_models_wheel_build_kill.py:_GROUP_POLL_MAX_SECONDS": _NOT_INPUT,
-    "core/_models_wheel_build_subprocess.py:_MESSAGE_MAX_CHARS": _DISPLAY,
     "core/_models_wheel_types.py:MAX_BUILD_TIMEOUT_SECONDS": "over it: ERROR",
     "core/_models_wheel_types.py:_ECHO_LIMIT": _DISPLAY,
     "core/_models_wheel_types.py:_MAX_SIGNIFICANT_DIGITS": "over it: ERROR",

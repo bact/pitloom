@@ -24,32 +24,33 @@ from pitloom.messages._types import ASK_FIRST, Line, Message
 _SINCE: Final = "0.25.0"
 
 _RUNS: Final = (
-    "DIR=%(dir)s: --allow-build runs a PEP 517 build, which executes the "
-    "project's build code (build-backend %(backend)s, "
+    "DIR=%(dir)s: --allow-build runs a PEP 517 build for up to %(seconds)s "
+    "seconds (--build-timeout), which executes the project's build code "
+    "(build-backend %(backend)s, "
 )
-_NO_MODULE: Final = "no discovery module for it), "
-_STATIC_FAILED: Final = "its static discovery failed), "
+_NO_MODULE: Final = "no discovery module for it) "
+_STATIC_FAILED: Final = "its static discovery failed) "
 _ISOLATED: Final = "in an isolated build environment"
-_SHARED: Final = "without build isolation (--no-build-isolation)"
-_FOR: Final = " for up to %(seconds)s seconds (--build-timeout)"
+_SHARED: Final = "in Pitloom's own environment (no build isolation)"
 
 #: A build for a backend no discoverer reads, in a build environment of its
 #: own.
 UNSAFE_NO_MODULE_LINE: Final = Line(
-    level="WARNING", template=f"{_RUNS}{_NO_MODULE}{_ISOLATED}{_FOR}"
+    level="WARNING", template=f"{_RUNS}{_NO_MODULE}{_ISOLATED}"
 )
 #: A build after the backend's own discoverer failed, isolated.
 UNSAFE_STATIC_FAILED_LINE: Final = Line(
-    level="WARNING", template=f"{_RUNS}{_STATIC_FAILED}{_ISOLATED}{_FOR}"
+    level="WARNING", template=f"{_RUNS}{_STATIC_FAILED}{_ISOLATED}"
 )
-#: A build for a backend no discoverer reads, in Pitloom's environment.
+#: A build for a backend no discoverer reads, in Pitloom's environment
+#: (``--no-build-isolation``).
 UNSAFE_NO_MODULE_SHARED_LINE: Final = Line(
-    level="WARNING", template=f"{_RUNS}{_NO_MODULE}{_SHARED}{_FOR}"
+    level="WARNING", template=f"{_RUNS}{_NO_MODULE}{_SHARED}"
 )
 #: A build after the backend's own discoverer failed, in Pitloom's
 #: environment.
 UNSAFE_STATIC_FAILED_SHARED_LINE: Final = Line(
-    level="WARNING", template=f"{_RUNS}{_STATIC_FAILED}{_SHARED}{_FOR}"
+    level="WARNING", template=f"{_RUNS}{_STATIC_FAILED}{_SHARED}"
 )
 
 #: A real build about to run.
@@ -255,13 +256,12 @@ INTERRUPTED: Final = Message(
     "while its temporary directories were in use; the process then ends by "
     "that signal (exit status 143 for SIGTERM). The ERROR: line: Ctrl-C "
     "(exit status 130).",
-    did="Stopped the build or the copy, removed its temporary directories "
-    "and wrote no SBOM.",
+    did="Stopped the run (a build or a model file copy, when one was running), "
+    "removed its temporary directories and wrote no SBOM.",
     effect="not-written",
     actor="user",
     advice="Tell the user the run was stopped before it wrote an SBOM. They "
-    "run it again when ready; a build stopped this way often may need a "
-    f"larger --build-timeout. Do not run it again for them; {ASK_FIRST}",
+    f"run it again when ready. Do not run it again for them; {ASK_FIRST}",
     since=_SINCE,
 )
 

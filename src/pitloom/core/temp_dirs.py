@@ -9,9 +9,9 @@ remote source is fetched into (:func:`temp_dir`), and the removal both use,
 which never raises (:func:`remove_temp_dir`). Each takes the frame of the
 surface that made the directory (:data:`pitloom.messages.BUILD_FRAME`,
 ``GIT_FRAME``, ...), which comes before its ``temp-dir-unwritable`` line,
-and refuses one that does not allow that line on entry, never at cleanup
-time: a cleanup runs where an error is lost (a signal handler, a
-``weakref.finalize`` at exit).
+and refuses one that does not allow that line on entry (a caller that
+removes later calls :func:`check_frame` first): a cleanup runs where an
+error is lost (a signal handler, a ``weakref.finalize`` at exit).
 
 See also: :mod:`pitloom.core.build_signals` (the guard, signal
 behaviour), :mod:`pitloom.core._models_wheel_build_and_read` (the
@@ -34,6 +34,7 @@ from pathlib import Path
 
 from pitloom.core.build_signals import TerminationGuard
 from pitloom.core.quote_source import quote_source
+from pitloom.core.url_masking import mask_checkout
 from pitloom.messages import Frame, emit
 from pitloom.messages.build import TEMP_DIR_UNWRITABLE, require_codes
 
@@ -194,7 +195,10 @@ def warn_if_left_behind(path: Path, *, frame: Frame) -> None:
 
     Names the directory, not its path: it is in the system temp directory
     (``mkdtemp``'s default), and a full path is a machine-specific string
-    in a log.
+    in a log. A Git checkout or a PyPI or Hugging Face download directory
+    is named by its placeholder (``<checkout>``, ``<download>``,
+    :func:`~pitloom.core.url_masking.mask_checkout`) in the record itself,
+    so a library caller's log holds no random name either.
 
     Raises:
         pitloom.core.internal_error.InternalError: *frame* does not allow
@@ -203,4 +207,6 @@ def warn_if_left_behind(path: Path, *, frame: Frame) -> None:
     check_frame(frame)
     # os.path.lexists, not Path.exists(): never raises (e.g. EACCES).
     if os.path.lexists(path):
-        emit(log, TEMP_DIR_UNWRITABLE, logging.WARNING, frame=frame, dir=path.name)
+        # Masked before the field escapes it (as quote_source masked it).
+        name = mask_checkout(path.name)
+        emit(log, TEMP_DIR_UNWRITABLE, logging.WARNING, frame=frame, dir=name)

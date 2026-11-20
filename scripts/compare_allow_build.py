@@ -180,7 +180,7 @@ def compare_one(
     )
     rc_with, stderr_with = _run_loom_project(project_dir, with_path, allow_build=True)
 
-    invoked_build = "invoking a real PEP 517 build" in stderr_with
+    invoked_build = "[build-code-unsafe]" in stderr_with
     print(f"  without --allow-build: rc={rc_without}")
     print(f"  with    --allow-build: rc={rc_with}, real build invoked={invoked_build}")
 

@@ -124,7 +124,7 @@ def test_build_and_read_wheel_returns_none_on_build_failure(
         result = build_and_read_wheel(tmp_path, timeout=60)
 
     assert result is None
-    assert "build-and-read discovery failed" in caplog.text
+    assert "the build could not run or its wheel could not be read" in caplog.text
     assert "simulated build backend failure" in caplog.text
 
 
@@ -141,7 +141,7 @@ def test_build_and_read_wheel_returns_none_on_zero_non_dist_info_files(
         result = build_and_read_wheel(tmp_path, timeout=60)
 
     assert result is None
-    assert "no non-.dist-info files" in caplog.text
+    assert "the built wheel holds no file outside .dist-info" in caplog.text
 
 
 def test_build_and_read_wheel_isolated_true_by_default(
@@ -390,4 +390,4 @@ def test_a_build_and_read_extraction_keeps_its_own_fallback_contract(
 
     assert len(reads) == 1  # the extraction opened the member and failed there
     (warning,) = [r for r in caplog.records if r.levelname == "WARNING"]
-    assert "discovery failed" in warning.getMessage()
+    assert "its wheel could not be read" in warning.getMessage()

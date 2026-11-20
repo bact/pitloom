@@ -25,19 +25,10 @@ from pitloom.core.internal_error import InternalError
 from pitloom.logging_config import one_line
 from pitloom.messages import CodedValueError
 from pitloom.messages.file_discovery import FAILED_LINE, warn_discovery
-from pitloom.messages.options import BUILD_PREFIX, OPTION_INVALID
+from pitloom.messages.options import OPTION_INVALID
 
 if TYPE_CHECKING:
     from pitloom.extract._file_headers import FileHeaderMetadata
-
-BUILD_LOG_PREFIX = BUILD_PREFIX
-"""Shared ``WARNING:`` sub-prefix for every ``--allow-build``/build-and-read-
-related log message: the catalogue's
-:data:`pitloom.messages.options.BUILD_PREFIX`, which ``option-no-effect``'s
-build line is built from, so no second spelling exists. A shared, literal
-sub-prefix keeps a subsystem's messages easy to grep as a group (AGENTS.md's
-"CLI output" convention, as ``"ID registry: "``)."""
-
 
 #: Whether :func:`warn_discovery_failed` ran on this thread since the last
 #: :func:`take_discovery_failure`: a discoverer runs on its caller's thread,

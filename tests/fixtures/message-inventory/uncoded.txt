@@ -2,7 +2,6 @@
 # tests/test_message_ratchet.py. A count may fall, never rise.
 # Format: <module> <count>. A module with no uncoded site is absent.
 # Regenerate from the repository root: python -m scripts.message_inventory --write-baseline
-pitloom.__main__ 1
 pitloom._embed_generate 1
 pitloom._embed_overlay 1
 pitloom._embed_stale 1
@@ -34,16 +33,12 @@ pitloom.cli.commands.merge 1
 pitloom.cli.commands.utils 4
 pitloom.cli.commands.validate_wheel 3
 pitloom.cli.commands.verify_wheel 6
-pitloom.core._models_wheel_build_and_read 4
-pitloom.core._models_wheel_build_kill 2
-pitloom.core._models_wheel_build_subprocess 4
-pitloom.core._models_wheel_dispatch 1
+pitloom.core._models_wheel_build_and_read 1
 pitloom.core.archive_member_names 2
 pitloom.core.dataset_merge 1
 pitloom.core.dataset_names 1
 pitloom.core.file_names 1
 pitloom.core.iri 1
-pitloom.core.temp_dirs 1
 pitloom.core.wheel_dist_info 4
 pitloom.embed 3
 pitloom.enrich 1

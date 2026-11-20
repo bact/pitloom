@@ -63,7 +63,9 @@ def unsafe_line(*, static_failed: bool, isolated: bool) -> Line:
     discoverer failed (*static_failed*), else for a backend with none, in a
     build environment of its own (*isolated*) or in Pitloom's."""
     if static_failed:
-        return UNSAFE_STATIC_FAILED_LINE if isolated else UNSAFE_STATIC_FAILED_SHARED_LINE
+        return (
+            UNSAFE_STATIC_FAILED_LINE if isolated else UNSAFE_STATIC_FAILED_SHARED_LINE
+        )
     return UNSAFE_NO_MODULE_LINE if isolated else UNSAFE_NO_MODULE_SHARED_LINE
 
 

@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-10
-Last-Modified: 2026-11-19
+Last-Modified: 2026-11-20
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -321,7 +321,8 @@ before the code.
 | `ERROR:` | `FILE=<file>: <reason>; not downloaded` | the file is over `max-download-bytes` ([`over-cap`](message-codes-files.md#over-cap)) |
 
 A temporary directory that cannot be fully removed on return is a `WARNING:`
-(`PyPI source: could not fully remove temporary directory ...`), not an error:
+(`PyPI source: DIR=<dir>: could not be fully removed; left in the system
+temp directory [temp-dir-unwritable]`), not an error:
 the SBOM is already written.
 
 Fragments for the refusals of other hosts (after the command prefix, before the

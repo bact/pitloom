@@ -173,7 +173,6 @@ def test_real_build_times_out_and_kills_backend(
         # exits on its own during the kill, so the flag can be a false
         # negative there; the backend being gone (below) is the real check.
         assert excinfo.value.tree_terminated is True
-    assert "timed out after 20s" in str(excinfo.value)
     assert "Build: build output: slow backend started" in caplog.text
     pid = int((project / "backend.pid").read_text(encoding="ascii"))
     assert wait_pid_gone(pid), f"backend process {pid} survived the timeout"

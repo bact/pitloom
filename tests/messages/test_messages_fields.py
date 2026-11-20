@@ -14,6 +14,7 @@ tests/messages/test_messages_trust.py (reading lines back).
 from __future__ import annotations
 
 import re
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
@@ -237,9 +238,47 @@ def test_size_text_has_one_writer() -> None:
     assert lfs_size_text is size_text
 
 
+def _shared_templates(frames: Sequence[Frame]) -> list[str]:
+    """The templates two frames share at a level both allow (a reader could
+    not tell which one a printed line came from); the same text at disjoint
+    levels, as the hook's ``ERROR`` and ``WARNING`` frames, is not one."""
+    return sorted(
+        {
+            first.template
+            for index, first in enumerate(frames)
+            for second in frames[index + 1 :]
+            if first.template == second.template and first.levels & second.levels
+        }
+    )
+
+
 def test_every_frame_ends_in_a_colon_and_a_space() -> None:
     assert FRAMES and all(frame.template.endswith(": ") for frame in FRAMES)
-    assert len({frame.template for frame in FRAMES}) == len(FRAMES)
+    assert not _shared_templates(FRAMES)
+    # The hook's two frames do share a template, at disjoint levels.
+    assert len({frame.template for frame in FRAMES}) < len(FRAMES)
+
+
+@pytest.mark.parametrize(
+    ("second_levels", "shared"),
+    [
+        (frozenset({"WARNING"}), ["x failed: "]),
+        (frozenset({"WARNING", "INFO"}), ["x failed: "]),
+        (frozenset({"INFO"}), []),
+    ],
+    ids=["same-level", "overlapping", "disjoint"],
+)
+def test_two_frames_share_a_template_only_at_disjoint_levels(
+    second_levels: frozenset[str], shared: list[str]
+) -> None:
+    codes = frozenset({"x"})
+    first = Frame(
+        levels=frozenset({"WARNING"}), template="x failed: ", surface="a", codes=codes
+    )
+    second = Frame(
+        levels=second_levels, template="x failed: ", surface="b", codes=codes
+    )
+    assert _shared_templates([first, second]) == shared
 
 
 @pytest.mark.parametrize(

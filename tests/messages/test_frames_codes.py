@@ -76,9 +76,15 @@ _GIT_FRAMED = frozenset(
         "git-redirect-unusable",
         "query-no-effect",
         "target-ambiguous/git-page",
+        "temp-dir-unwritable",
         "url-moved",
         "url-unsafe",
     }
+)
+#: The ``frame=`` arguments of an ``emit`` that hands on a frame its caller
+#: passed, checked where it is passed (tests/messages/test_frames_build.py).
+PASS_THROUGH = frozenset(
+    {("core/temp_dirs.py", "frame"), ("core/build_signals.py", "activity.frame")}
 )
 #: Siblings of those codes that Git never says framed.
 _NOT_GIT_FRAMED = (
@@ -337,10 +343,10 @@ def test_the_relay_frame_names_every_code_a_reader_says() -> None:
 def test_every_framed_emit_says_a_code_its_frame_allows() -> None:
     """Each ``emit(..., frame=X)`` outside the catalogue: X allows the
     message's code at the call's level (``emit`` would raise at run time,
-    on a path a test may not reach); and every code the Git frame allows
-    is said after it somewhere."""
+    on a path a test may not reach), or X is a frame the caller passed
+    (:data:`PASS_THROUGH`). Every code a frame allows is said after it
+    somewhere: tests/messages/test_frames_build.py."""
     sites = 0
-    said: set[str] = set()
     for rel, tree in source_modules():
         framed = [
             node
@@ -357,14 +363,14 @@ def test_every_framed_emit_says_a_code_its_frame_allows() -> None:
         for node in framed:
             message, level = _emitted(node, module)
             frame = next(kw.value for kw in node.keywords if kw.arg == "frame")
+            if (rel, ast.unparse(frame)) in PASS_THROUGH:
+                continue
             found = _resolve(frame, module)
             name = logging.getLevelName(level)
             assert isinstance(found, Frame), f"{rel}:{node.lineno}"
             assert found.allows(message.code, name), f"{rel}:{node.lineno}"
             sites += 1
-            said |= {message.code} if found is GIT_FRAME else set()
     assert sites >= 2  # the scan finds the config-unsafe lines
-    assert said == _GIT_FRAMED
 
 
 def test_a_scanner_relay_keeps_a_relayed_code_only(

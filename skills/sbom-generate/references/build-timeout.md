@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-19
-Last-Modified: 2026-11-13
+Last-Modified: 2026-11-20
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -128,10 +128,10 @@ harness limit fits ~9 min after margin, using `--build-timeout 8m`".
 Report the `WARNING:` line verbatim:
 
 ```text
-WARNING: Build: build-and-read for <dir> timed out after <N>s (--build-timeout) -- build process tree terminated
+WARNING: Build: DIR=<dir>: the build timed out after <seconds> seconds (--build-timeout); its process tree was stopped [build-timeout]
 ```
 
-(or `-- could not confirm the build process tree terminated`, when the
+(or `...; could not confirm its process tree stopped [build-timeout]`, when the
 kill wasn't confirmed -- also warn the user a build process may still
 be running). The SBOM was still written -- the command exits 0 -- but
 its file list came from static discovery, as without `--allow-build`
@@ -153,23 +153,35 @@ or SIGHUP (CI job cancellation, `timeout(1)`, a closed terminal; also
 Ctrl-Break on Windows) prints:
 
 ```text
-WARNING: Build: received SIGTERM during the build -- exiting after cleanup
+WARNING: Build: received SIGTERM during the build; exiting after cleanup [interrupted]
 ```
 
 (`after the build` once the build has finished; the signal name
 varies) and ends killed by that signal (exit status 143 for SIGTERM,
-129 for SIGHUP). Ctrl-C (SIGINT) prints `ERROR: loom <command>: interrupted` instead,
-exit status 130. Either way, tell the user the run was interrupted, not a
-Pitloom failure, and offer to re-run.
+129 for SIGHUP). Ctrl-C (SIGINT) prints `ERROR: loom <command>: interrupted
+[interrupted]` instead, exit status 130. Either way, tell the user the run
+was interrupted, not a Pitloom failure, and offer to re-run.
 
-After a successful `--allow-build` build, `INFO: Build: killed processes
-the build left running (process group <N>)` just reports cleanup;
+After a successful `--allow-build` build, `INFO: Build: the build left
+processes running (process group <process-group>); killed
+[build-processes-unsafe]` just reports cleanup;
 
 ```text
-WARNING: Build: could not confirm the processes the build left running (process group <N>) terminated
+WARNING: Build: the build left processes running (process group <process-group>); could not confirm they stopped [build-processes-unsafe]
 ```
 
 means one may still run -- tell the user.
+
+A build that fails without timing out prints one `[build-failed]` `WARNING:`
+first, the cause (`the build exited with code <exit-code>; last output: <output>`,
+or no interpreter, no wheel, several wheels, an empty wheel, a build that could
+not run), then the file discovery line of the fallback. Quote both: the first
+is the reason, the second says which fallback listed the files. A
+`[library-missing]` line (`required library not installed: build; install
+pitloom[build]`) means PyPA `build` is not installed: offer the extra, never
+install it. `[temp-dir-unwritable]` (`could not be fully removed; left in the
+system temp directory`) names a temporary directory left behind: tell the
+user, never delete it.
 
 ## See also
 

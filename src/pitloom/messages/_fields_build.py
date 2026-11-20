@@ -49,14 +49,15 @@ def exit_code_text(value: object) -> str:
 def output_text(value: object) -> str:
     """A line a build printed, third-party text: its whitespace runs one
     space, the credentials in it masked, then cut to
-    :data:`OUTPUT_CHARACTERS`, then escaped (:func:`one_line`): masked
-    before the cut, so a cut never shows the start of a credential, and
-    before the escape, which would hide the word boundary a token needs.
+    :data:`OUTPUT_CHARACTERS` (``...`` after a cut), then escaped
+    (:func:`~pitloom.logging_config.one_line`): masked before the cut, so a
+    cut never shows the start of a credential, and before the escape, which
+    would hide the word boundary a token needs.
 
     Raises:
         ValueError: *value* is not a ``str``.
     """
-    return one_line(plain_text(value), limit=OUTPUT_CHARACTERS)
+    return one_line(plain_text(value), limit=OUTPUT_CHARACTERS, ellipsis=True)
 
 
 def _one_of(names: tuple[str, ...]) -> str:
@@ -85,9 +86,10 @@ BUILD_FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
             r".+",
             output_text,
             "<output>",
-            "the last line the build printed that is not blank, its control "
-            "characters removed, a credential in it masked, cut to "
-            f"{OUTPUT_CHARACTERS} characters; escaped when it holds a "
+            "the last line the build printed that is not blank, each "
+            "control character a space, a URL credential or a known token "
+            f"masked, cut to {OUTPUT_CHARACTERS} characters (then `...`); "
+            "escaped when it holds a "
             "character a terminal would act on; `(no output)` when it "
             "printed none",
             free=True,

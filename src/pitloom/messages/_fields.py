@@ -110,7 +110,8 @@ _GENERAL: Final[Mapping[str, Field]] = MappingProxyType(
             file_text,
             "<dir>",
             "a directory as Pitloom names it (a temporary directory by its "
-            "name only); in quotes, escaped, when it holds a control character",
+            "name only, `<checkout>` or `<download>` for a remote source's); "
+            "in quotes, escaped, when it holds a control character",
             free=True,
         ),
         "elements": Field(

@@ -33,7 +33,7 @@ from pitloom.core._models_wheel_build_subprocess import _clean_line
         pytest.param("a\x1bPdcs body\x1b\\b", "ab", id="dcs"),
         pytest.param("a\x1b_apc body\x1b\\b", "ab", id="apc"),
         pytest.param("text\x1b]8;;https://e.invalid", "text", id="osc_unterminated"),
-        pytest.param("  a\tb\x00c  ", "abc", id="control_chars"),
+        pytest.param("  a\tb\x00c  ", "a b c", id="control_chars"),
         pytest.param("", "", id="empty"),
     ],
 )

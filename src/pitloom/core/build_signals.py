@@ -59,7 +59,7 @@ from types import FrameType, TracebackType
 from typing import Final
 
 from pitloom.core.internal_error import InternalError
-from pitloom.messages import BUILD_FRAME, SCAN_FRAME, Frame, Line, emit
+from pitloom.messages import BUILD_FRAME, SCAN_FRAME, Frame, emit
 from pitloom.messages.build import (
     ACTIVITIES,
     INTERRUPTED,
@@ -125,16 +125,21 @@ until it returns to Python; see ``working-docs/design/model-metadata-readers.md`
 _NO_ACTIVITY: Final = GuardedActivity(None, "a guarded activity")
 
 
-def termination_line(
+def say_termination(
     signum: signal.Signals, activity: GuardedActivity, in_hold: bool
-) -> tuple[Line, dict[str, object]]:
-    """The ``interrupted`` line for ending the process by *signum*,
-    received inside a hold of *activity* (*in_hold*) or after it, and its
-    values."""
-    return interrupted_line(in_hold=in_hold), {
-        "signal": signum.name,
-        "activity": activity.name,
-    }
+) -> None:
+    """Say the ``interrupted`` line for ending the process by *signum*,
+    received inside a hold of *activity* (*in_hold*) or after it, after
+    the activity's frame (checked when the activity was made)."""
+    emit(
+        log,
+        INTERRUPTED,
+        logging.WARNING,
+        line=interrupted_line(in_hold=in_hold),
+        frame=activity.frame,
+        signal=signum.name,
+        activity=activity.name,
+    )
 
 
 class TerminationSignal(BaseException):
@@ -296,20 +301,9 @@ class TerminationGuard:
             self._restore()
         self._terminated = True
         # Best effort: running in the handler, this may interrupt a write
-        # to the same stream, which then raises instead of writing. The
-        # activity's frame was checked when it was made (GuardedActivity).
+        # to the same stream, which then raises instead of writing.
         with contextlib.suppress(Exception):
-            line, values = termination_line(
-                signum, self._activity, self._pending_in_hold
-            )
-            emit(
-                log,
-                INTERRUPTED,
-                logging.WARNING,
-                line=line,
-                frame=self._activity.frame,
-                **values,
-            )
+            say_termination(signum, self._activity, self._pending_in_hold)
         signal.raise_signal(signum)
         raise SystemExit(128 + signum)
 

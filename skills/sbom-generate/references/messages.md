@@ -37,6 +37,7 @@ the table of prefixes.
 - [Configuration](messages-config.md): 6 codes
 - [Project metadata](messages-metadata.md): 9 codes
 - [File discovery](messages-file-discovery.md): 3 codes
+- [Builds and temporary directories](messages-build.md): 6 codes
 - [Files and text](messages-files.md): 12 codes
 - [Lock files](messages-lock-files.md): 7 codes
 - [Dependencies](messages-dependencies.md): 6 codes
@@ -51,6 +52,10 @@ the table of prefixes.
 
 | Code | Level | Since |
 | --- | --- | --- |
+| [`build-code-unsafe`](messages-build.md#build-code-unsafe) | WARNING | 0.25.0 |
+| [`build-failed`](messages-build.md#build-failed) | WARNING | 0.25.0 |
+| [`build-processes-unsafe`](messages-build.md#build-processes-unsafe) | WARNING, INFO | 0.25.0 |
+| [`build-timeout`](messages-build.md#build-timeout) | WARNING | 0.25.0 |
 | [`card-malformed`](messages-files.md#card-malformed) | WARNING | 0.23.0 |
 | [`config-invalid`](messages-config.md#config-invalid) | ERROR | 0.25.0 |
 | [`config-malformed`](messages-config.md#config-malformed) | ERROR, WARNING | 0.25.0 |
@@ -102,6 +107,7 @@ the table of prefixes.
 | [`input-not-found/fragment`](messages-targets.md#input-not-foundfragment) | WARNING | 0.25.0 |
 | [`installed-metadata-ambiguous`](messages-metadata.md#installed-metadata-ambiguous) | WARNING | 0.25.0 |
 | [`installed-metadata-unusable`](messages-metadata.md#installed-metadata-unusable) | WARNING | 0.25.0 |
+| [`interrupted`](messages-build.md#interrupted) | ERROR, WARNING | 0.25.0 |
 | [`json-malformed`](messages-files.md#json-malformed) | ERROR, WARNING | 0.23.0 |
 | [`lfs-pointer`](messages-models.md#lfs-pointer) | ERROR, WARNING | 0.22.0 |
 | [`lfs-pointer-malformed`](messages-models.md#lfs-pointer-malformed) | ERROR, WARNING | 0.22.0 |
@@ -186,6 +192,7 @@ the table of prefixes.
 | [`target-ambiguous/git-page`](messages-targets.md#target-ambiguousgit-page) | INFO | 0.25.0 |
 | [`target-wrong-format`](messages-targets.md#target-wrong-format) | ERROR | 0.25.0 |
 | [`temp-dir-unusable`](messages-files.md#temp-dir-unusable) | ERROR, WARNING | 0.24.0 |
+| [`temp-dir-unwritable`](messages-build.md#temp-dir-unwritable) | WARNING | 0.25.0 |
 | [`text-malformed`](messages-files.md#text-malformed) | WARNING | 0.23.0 |
 | [`text-malformed/registry`](messages-files.md#text-malformedregistry) | ERROR, WARNING | 0.25.0 |
 | [`url-moved`](messages-network.md#url-moved) | INFO | 0.24.0 |
@@ -204,6 +211,11 @@ A line may start with one prefix before its text:
 | `loom <subcommand>: <text>` | ERROR | the command line, each subcommand |
 | `loom: <text>` | ERROR | the command line, before a subcommand is known |
 | `Pitloom build hook: <text>` | ERROR | the Hatchling build hook |
-| `FORMAT=<format> FILE=<file>: <text>` | ERROR, WARNING | a model scan, before a model reader's own line |
+| `FORMAT=<format> FILE=<file>: <text>` | WARNING | a model scan, before a model reader's own line |
 | `Git source: <text>` | WARNING, INFO | a Git URL fetch |
+| `Build: <text>` | WARNING, INFO | --allow-build: the build and its temporary directories |
+| `Hugging Face source: <text>` | WARNING | a Hugging Face model fetch, its temporary directory |
+| `PyPI source: <text>` | WARNING | a PyPI URL download, its temporary directory |
+| `AI model scan: <text>` | WARNING | the AI model scan of a wheel, its temporary copy |
+| `Pitloom build hook: <text>` | WARNING | the Hatchling build hook, its own warnings |
 <!-- END GENERATED -->

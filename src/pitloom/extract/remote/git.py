@@ -43,7 +43,6 @@ from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, replace
 from pathlib import Path
-from typing import Final
 from urllib.parse import urlsplit
 
 from pitloom.core.clone_mark import reading_remote_clone

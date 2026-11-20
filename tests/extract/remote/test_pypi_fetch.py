@@ -123,14 +123,14 @@ def test_a_directory_left_behind_warns_once_and_never_raises(
     """A removal that fails (a file held open on Windows) is no error: the
     caller has its result, and one ``WARNING:`` names the directory."""
     publish(fake, "x", {"1.0": [Dist(_ANY)]})
-    monkeypatch.setattr(temp_dirs, "rmtree_quietly", lambda _path, _prefix: None)
+    monkeypatch.setattr(temp_dirs, "rmtree_quietly", lambda _path, *, frame: None)
     with caplog.at_level(logging.WARNING):
         with fetch_pypi_file(f"{_PAGE}x/1.0/", kind=WHEEL) as got:
             folder = got.path.parent
     assert folder.is_dir() and folder.parent == temp
     assert [r.getMessage() for r in caplog.records] == [
-        f"PyPI source: could not fully remove temporary directory "
-        f"'{DOWNLOAD_PLACEHOLDER}' (in the system temp directory)"
+        f"PyPI source: DIR={DOWNLOAD_PLACEHOLDER}: could not be fully removed; "
+        "left in the system temp directory"
     ]
 
 

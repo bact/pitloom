@@ -40,16 +40,22 @@ from pitloom.logging_config import (
     set_error_frame,
 )
 from pitloom.messages import (
+    BUILD_FRAME,
     COMMAND_FRAME,
     FRAMES,
     GIT_FRAME,
+    HF_FRAME,
     HOOK_FRAME,
+    HOOK_STEP_FRAME,
     LOOM_COMMANDS,
+    PYPI_FRAME,
     RELAY_FRAME,
+    SCAN_FRAME,
     TOP_FRAME,
     says,
     trusted_message,
 )
+from pitloom.messages.build import INTERRUPTED
 from pitloom.messages.targets import (
     INPUT_NOT_FOUND,
     MODEL_FILE_NOT_FOUND_LINE,
@@ -123,15 +129,34 @@ def test_a_line_framed_by_any_command_is_trusted_and_a_forged_one_is_not(
     assert not says(INPUT_NOT_FOUND, "WARNING", framed)  # a frame is an ERROR's
 
 
-def test_the_table_is_the_five_frames() -> None:
-    assert FRAMES == (COMMAND_FRAME, TOP_FRAME, HOOK_FRAME, RELAY_FRAME, GIT_FRAME)
+def test_the_table_is_the_ten_frames() -> None:
+    assert FRAMES == (
+        COMMAND_FRAME,
+        TOP_FRAME,
+        HOOK_FRAME,
+        RELAY_FRAME,
+        GIT_FRAME,
+        BUILD_FRAME,
+        HF_FRAME,
+        PYPI_FRAME,
+        SCAN_FRAME,
+        HOOK_STEP_FRAME,
+    )
     assert {f.surface for f in FRAMES} == {
         "the command line, each subcommand",
         "the command line, before a subcommand is known",
         "the Hatchling build hook",
         "a model scan, before a model reader's own line",
         "a Git URL fetch",
+        "--allow-build: the build and its temporary directories",
+        "a Hugging Face model fetch, its temporary directory",
+        "a PyPI URL download, its temporary directory",
+        "the AI model scan of a wheel, its temporary copy",
+        "the Hatchling build hook, its own warnings",
     }
+    # The hook's warnings and its error share one text, at disjoint levels.
+    assert HOOK_STEP_FRAME.template == HOOK_FRAME.template
+    assert not HOOK_STEP_FRAME.levels & HOOK_FRAME.levels
 
 
 def _argv(command: str, tmp: Path) -> list[str]:
@@ -214,7 +239,9 @@ def test_ctrl_c_is_framed_by_the_command_that_was_running(
             action.choices["merge"].set_defaults(func=interrupted)
     monkeypatch.setattr(sys, "argv", ["loom", "merge", "x"])
     assert main() == 130
-    assert "ERROR: loom merge: interrupted\n" in capsys.readouterr().err
+    line = "ERROR: loom merge: interrupted [interrupted]"
+    assert f"{line}\n" in capsys.readouterr().err
+    assert trusted_message(line) is INTERRUPTED
 
 
 def test_ctrl_c_before_the_arguments_parse_is_framed_by_loom_alone(
@@ -225,7 +252,7 @@ def test_ctrl_c_before_the_arguments_parse_is_framed_by_loom_alone(
 
     monkeypatch.setattr("pitloom.__main__._run", interrupted)
     assert main() == 130
-    assert "ERROR: loom: interrupted\n" in capsys.readouterr().err
+    assert "ERROR: loom: interrupted [interrupted]\n" in capsys.readouterr().err
 
 
 def test_print_error_is_unframed_where_nothing_set_a_frame(

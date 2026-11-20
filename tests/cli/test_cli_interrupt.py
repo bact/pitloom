@@ -31,7 +31,7 @@ from pitloom.logging_config import PITLOOM_DEBUG_ENV_VAR
 from tests.build_and_read_shared import pitloom_subprocess_env, spied_raise_signal
 from tests.cli.shared import _make_simple_project
 
-_INTERRUPTED = f"ERROR: {command_frame('project')}interrupted"
+_INTERRUPTED = f"ERROR: {command_frame('project')}interrupted [interrupted]"
 
 
 @pytest.fixture(name="raise_spy")
@@ -79,8 +79,9 @@ def test_ctrl_c_is_one_error_line_and_exit_130(
     env: str | None,
     traceback_shown: bool,
 ) -> None:
-    """Ctrl-C in a subcommand is ``ERROR: loom project: interrupted`` and 130, never a
-    raw traceback; the traceback follows it only when debugging."""
+    """Ctrl-C in a subcommand is ``ERROR: loom project: interrupted`` (code
+    ``interrupted``) and 130, never a raw traceback; the traceback follows it
+    only when debugging."""
     # setenv "0", not delenv: delenv on an absent name records no restore,
     # so --debug's direct write would leak into later tests.
     monkeypatch.setenv(PITLOOM_DEBUG_ENV_VAR, "0" if env is None else env)

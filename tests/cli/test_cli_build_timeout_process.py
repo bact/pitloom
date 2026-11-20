@@ -88,7 +88,8 @@ def test_loom_project_build_timeout_falls_back_and_cleans_up(tmp_path: Path) -> 
     lines = [line for line in stderr.splitlines() if line.strip()]
     # Every stderr line carries exactly one level tag (AGENTS.md "CLI output").
     assert all(line.startswith(_TAGS) for line in lines), lines
-    assert sum("timed out after 20s" in line for line in lines) == 1, lines
+    timed_out = [line for line in lines if "[build-timeout]" in line]
+    assert len(timed_out) == 1 and "timed out after 20 seconds" in timed_out[0], lines
     assert json.loads(out.read_bytes())["@graph"]
     # The build's own temp dir was redirected into Pitloom's work dir...
     build_tmp = Path((project / "tempdir.txt").read_text(encoding="utf-8"))

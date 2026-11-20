@@ -157,9 +157,7 @@ def _wait_for_group_exit(pgid: int) -> bool:
         except _GROUP_GONE_ERRORS:
             return True
         except OSError as exc:
-            log.debug(
-                "%sprocess group %d probe failed: %s", _DEBUG_PREFIX, pgid, exc
-            )
+            log.debug("%sprocess group %d probe failed: %s", _DEBUG_PREFIX, pgid, exc)
             return False
         time.sleep(_GROUP_POLL_SECONDS)
     log.debug("%sprocess group %d still alive after SIGKILL", _DEBUG_PREFIX, pgid)

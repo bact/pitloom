@@ -39,7 +39,6 @@ import pytest
 from pitloom.core import _models_wheel_build_kill as bk
 from pitloom.core import _models_wheel_build_subprocess as bs
 from pitloom.core._models_wheel_build_subprocess import (
-    BuildSubprocessError,
     BuildTimeoutError,
     build_wheel_command,
     run_build_subprocess,
@@ -49,6 +48,14 @@ from pitloom.core.build_signals import (
     TerminationSignal,
 )
 from pitloom.messages import code_of
+from pitloom.messages._fields_build import output_text
+from pitloom.messages.build import (
+    BUILD_EXIT_LINE,
+    BUILD_INTERPRETER_LINE,
+    BUILD_WHEEL_COUNT_LINE,
+    OUTPUT_CHARACTERS,
+    BuildFailedError,
+)
 
 _SLEEPER = [sys.executable, "-c", "import time; time.sleep(120)"]
 
@@ -138,7 +145,6 @@ def test_run_with_timeout_kills_on_timeout(tmp_path: Path) -> None:
     assert time.monotonic() - start < 60
     assert excinfo.value.timeout == 2
     assert excinfo.value.tree_terminated is True
-    assert "timed out after 2s" in str(excinfo.value)
 
 
 def test_run_with_timeout_reports_unconfirmed_kill(
@@ -360,7 +366,7 @@ def test_run_build_subprocess_nonzero_exit(
     caplog.set_level(logging.DEBUG, logger=bs.__name__)
     work_dir = tmp_path / "work"
     work_dir.mkdir()
-    with pytest.raises(BuildSubprocessError) as excinfo:
+    with pytest.raises(BuildFailedError) as excinfo:
         run_build_subprocess(
             tmp_path,
             work_dir,
@@ -368,7 +374,10 @@ def test_run_build_subprocess_nonzero_exit(
             timeout=60,
             termination=TerminationGuard(),
         )
-    assert str(excinfo.value) == "build exited with code 3: ERROR boom"
+    line, values = excinfo.value.said
+    assert line is BUILD_EXIT_LINE and code_of(excinfo.value) == "build-failed"
+    assert (values["exit_code"], values["output"]) == (3, "ERROR boom")
+    assert values["dir"] == tmp_path
     assert "Build: build output: first line" in caplog.text
     assert "\x1b" not in caplog.text
     assert "e.invalid" not in caplog.text
@@ -391,7 +400,7 @@ def test_run_build_subprocess_needs_exactly_one_wheel(
     )
     work_dir = tmp_path / "work"
     work_dir.mkdir()
-    with pytest.raises(BuildSubprocessError, match=f"produced {count} wheels"):
+    with pytest.raises(BuildFailedError) as excinfo:
         run_build_subprocess(
             tmp_path,
             work_dir,
@@ -399,6 +408,8 @@ def test_run_build_subprocess_needs_exactly_one_wheel(
             timeout=60,
             termination=TerminationGuard(),
         )
+    line, values = excinfo.value.said
+    assert line is BUILD_WHEEL_COUNT_LINE and values["number"] == count
 
 
 def test_run_build_subprocess_requires_build_package(
@@ -438,7 +449,7 @@ def test_run_build_subprocess_requires_interpreter_path(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(sys, "executable", "")
-    with pytest.raises(RuntimeError, match="interpreter"):
+    with pytest.raises(BuildFailedError) as excinfo:
         run_build_subprocess(
             tmp_path,
             tmp_path,
@@ -446,6 +457,7 @@ def test_run_build_subprocess_requires_interpreter_path(
             timeout=60,
             termination=TerminationGuard(),
         )
+    assert excinfo.value.said[0] is BUILD_INTERPRETER_LINE
 
 
 # --- log tail --------------------------------------------------------------
@@ -480,12 +492,21 @@ def test_read_log_tail_missing_file(tmp_path: Path) -> None:
     ("lines", "expected"),
     [
         (["a", "\x1b[1;31mERROR: bad\x1b[0m", "", "  "], "ERROR: bad"),
-        (["x\x07y\x00z\x9b"], "xyz"),
+        (["x\x07y\x00z\x9b"], "x y z"),
         ([], "(no output)"),
         (["", "\x1b[0m"], "(no output)"),
-        (["e" * 500], "e" * 197 + "..."),
+        # Whole: the ``output`` field cuts it, not this helper.
+        (["e" * 500], "e" * 500),
     ],
-    ids=["ansi-and-blank", "control-chars", "empty", "only-escapes", "capped"],
+    ids=["ansi-and-blank", "control-chars", "empty", "only-escapes", "whole"],
 )
 def test_last_message_line(lines: list[str], expected: str) -> None:
     assert bs._last_message_line(lines) == expected
+
+
+def test_a_long_output_line_is_cut_by_the_output_field() -> None:
+    """What reaches the printed ``WARNING:`` is the ``output`` field's cut,
+    not the helper's."""
+    whole = bs._last_message_line(["e" * 500])
+    assert len(whole) > OUTPUT_CHARACTERS
+    assert output_text(whole) == "e" * OUTPUT_CHARACTERS + "..."

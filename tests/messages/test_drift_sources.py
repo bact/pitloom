@@ -15,11 +15,13 @@ tests/messages/test_drift_quotes.py (docs and skills).
 from __future__ import annotations
 
 import ast
+import re
 
 import pytest
 
 from pitloom.core.evidence import REASON_CODES
-from pitloom.messages import FRAMES, GIT_FRAME, MESSAGES, trusted_message
+from pitloom.messages import FRAMES, MESSAGES, Message, trusted_message
+from pitloom.messages._templates import template_pattern
 from tests._message_drift import (
     SAMPLES,
     SRC_ROOT,
@@ -131,13 +133,31 @@ def test_every_call_saying_a_family_text_carries_its_code() -> None:
     assert not bare
 
 
+def _trusted_after(head: str, text: str, message: Message, level: str) -> bool:
+    """Whether *text* after a frame printing *head* (one taking no values)
+    is one of *message*'s lines at *level*: a frame of that text allows the
+    code (two frames may print one text: the hook's ``ERROR`` frame and its
+    warnings'), or *head* and *text* together are one of its lines
+    unframed (``Build: `` then an ``Options: `` line is the build line, its
+    free name ``Options: <name>``)."""
+    framed = any(
+        not f.fields and f.render({}) == head and f.allows(message.code, level)
+        for f in FRAMES
+    )
+    shapes = (
+        template_pattern(ln.template) for ln in message.lines if ln.level == level
+    )
+    return framed or any(re.fullmatch(shape, head + text) for shape in shapes)
+
+
 @pytest.mark.parametrize("entry", sorted(MESSAGES), ids=str)
 def test_each_line_reads_back_as_its_entry(entry: str) -> None:
     """Every line, with a sample value for each field, alone and after each
     frame that allows its code at its level, is trusted as its entry, and
-    at no other level; after the Git frame, which no line's own value can
-    take in, only when it allows the code. (Another frame's text may read
-    as a line's own ``FILE=`` value.)"""
+    at no other level; after a frame that takes no values (``Git source: ``,
+    ``Build: ``), which no line's own value can take in, only when a frame
+    of that text allows the code. (A frame's ``FILE=`` text may read as a
+    line's own ``FILE=`` value.)"""
     message = MESSAGES[entry]
     for line in message.lines:
         text = line.render({name: SAMPLES[name] for name in line.fields})
@@ -145,8 +165,11 @@ def test_each_line_reads_back_as_its_entry(entry: str) -> None:
             head = frame.render({name: SAMPLES[name] for name in frame.fields})
             printed = f"{line.level}: {head}{text} [{message.code}]"
             allowed = frame.allows(message.code, line.level)
-            if allowed or frame is GIT_FRAME:
-                assert (trusted_message(printed) is message) is allowed, printed
+            if allowed:
+                assert trusted_message(printed) is message, printed
+            elif not frame.fields:
+                trusted = _trusted_after(head, text, message, line.level)
+                assert (trusted_message(printed) is message) is trusted, printed
         printed = f"{line.level}: {text} [{message.code}]"
         assert trusted_message(printed) is message, printed
         for other in {"ERROR", "WARNING", "INFO"} - message.levels:

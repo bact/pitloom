@@ -15,8 +15,8 @@ from __future__ import annotations
 
 from pitloom.messages._config_place import FINGERPRINT_SHAPE
 from pitloom.messages._fields_credentials import FINGERPRINT as FINGERPRINT_PATTERN
+from pitloom.messages._frames import BUILD_PREFIX
 from pitloom.messages._options import (
-    BUILD_PREFIX,
     CANNOT_BE_USED_LINE,
     CONFIG_NO_TABLE_LINE,
     FINGERPRINT_LINE,

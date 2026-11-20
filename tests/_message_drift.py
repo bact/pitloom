@@ -43,6 +43,7 @@ TEST_LOGGER_PREFIX = "pitloom.test_"
 
 #: A value of each field, as a caller passes it.
 SAMPLES: dict[str, object] = {
+    "activity": "the build",
     "answered": "other-project",
     "arity": "one argument",
     "backend": "mesonpy",
@@ -77,6 +78,7 @@ SAMPLES: dict[str, object] = {
     "entity": "data/imdb",
     "entry": "archive/data.pkl",
     "error": "Error while deserializing header: invalid header length",
+    "exit_code": -9,
     "expected": "boolean",
     "expression": "Apache-2.0 AND MIT",
     "failure": PermissionError(13, "Permission denied", "/abs/m/a.bin"),
@@ -109,9 +111,11 @@ SAMPLES: dict[str, object] = {
     "option": "--allow-build",
     "other": "--pretty",
     "outcome": "skipped",
+    "output": "ERROR Backend subprocess exited when trying to invoke build_wheel",
     "part": "training_config.optimizer",
     "path": "m.gguf",
     "pointer": "software_downloadLocation",
+    "process_group": 4242,
     "root": "proj",
     "purpose": "per-wheel model-scan budget",
     "python": "3.10",
@@ -124,6 +128,7 @@ SAMPLES: dict[str, object] = {
     "seconds": 30,
     "setting": "url-credentials",
     "settings": ("tool.setuptools.cmdclass", "metadata.version"),
+    "signal": "SIGTERM",
     "size": 3,
     "source": "the PyPI JSON API",
     "spdx_id": "https://example.org/ns#File-1",

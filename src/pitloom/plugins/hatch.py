@@ -38,7 +38,7 @@ from pitloom.core.inert_options import HOOK, configured_options, settle_inert
 from pitloom.core.models import get_wheel_files
 from pitloom.core.project import FilesOrigin
 from pitloom.core.quote_source import quote_source
-from pitloom.core.temp_dirs import remove_temp_dir
+from pitloom.core.temp_dirs import check_frame, remove_temp_dir
 from pitloom.enrich import run_enrichers_for_models
 from pitloom.enrich.base import EnrichmentResult
 from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
@@ -56,8 +56,6 @@ log = logging.getLogger(__name__)
 
 #: The name prefix of the directory the SBOM is staged in.
 _STAGING_PREFIX = "pitloom-hatch-"
-#: What starts a message about that directory.
-_LOG_PREFIX = "Pitloom: "
 
 
 #: The first Hatchling that reads build_data["sbom_files"], which this hook
@@ -232,6 +230,7 @@ def _stage_sbom_file(sbom_json: str, sbom_filename: str) -> tuple[Path, Path]:
     (``TemporaryDirectory.cleanup()`` raises when a file is still held open
     on Windows, failing a build whose wheel is already written).
     """
+    check_frame(HOOK_STEP_FRAME)
     staging_dir = Path(tempfile.mkdtemp(prefix=_STAGING_PREFIX))
     staging_path = staging_dir / sbom_filename
     try:

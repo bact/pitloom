@@ -44,6 +44,7 @@ import tempfile
 import zipfile
 from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 
 from pitloom.core._models_wheel_build_subprocess import (
     BuildTimeoutError,
@@ -112,7 +113,7 @@ def _extract_wheel_to_included_files(
     files: list[IncludedFile] = []
     with zipfile.ZipFile(wheel_path) as zf:
         for distribution_path, info in zip_file_members(
-            zf, wheel_path.name, log, _PREFIX
+            zf, wheel_path.name, log, BUILD_FRAME
         ):
             if is_dist_info_path(distribution_path):
                 continue
@@ -227,7 +228,9 @@ def _say_failure(project_dir: Path, exc: Exception) -> None:
             seconds=exc.timeout,
         )
     elif isinstance(exc, BuildFailedError):
-        line, values = exc.said
+        line, said = exc.said
+        # Each value is a field's, written by it: emit takes them as keywords.
+        values: dict[str, Any] = said
         emit(log, BUILD_FAILED, logging.WARNING, line=line, frame=BUILD_FRAME, **values)
     elif code_of(exc) == LIBRARY_MISSING.code:
         emit(

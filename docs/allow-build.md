@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-19
-Last-Modified: 2026-11-13
+Last-Modified: 2026-11-20
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -51,7 +51,8 @@ it executes third-party build-time code from the project being scanned
   see "Timing out a build" below.
 - The build's own stdout/stderr are captured to a log file rather than
   leaking onto Pitloom's own stdout/stderr. A failed build's last output
-  line is part of its `WARNING:`; on failure or timeout, `loom --debug`
+  line is part of its `WARNING:` (`[build-failed]`, a credential in it
+  masked); on failure or timeout, `loom --debug`
   also shows the end of the build output (up to 8 KiB) at `DEBUG:`. The
   build's stdin is closed (`/dev/null`-equivalent), so a backend that
   waits on stdin gets EOF instead of hanging.
@@ -102,6 +103,45 @@ value in place of each `<name>`:
 A `needs-build` line is the one `--allow-build` answers: a real build lists
 the files exactly.
 
+## What Pitloom says about a build
+
+Each build is announced, and each outcome that is no wheel to read is said, on
+stderr in a line that ends with its `[code]`. A line starts `WARNING: Build: `
+or `INFO: Build: `; `Build: ` is a frame that names the step and no part of
+the line, and it admits only the codes below (the `option-no-effect` line also
+starts `Build: `, as a literal, and is not among them) ([Messages and
+codes](messages.md#line-grammar)). Each code, its causes and what to do about
+it are on [Builds and temporary directories](message-codes-build.md). One line
+of each, with a value in place of each `<name>`:
+
+| Code | A line of it |
+| :--- | :--- |
+| `build-code-unsafe` | `WARNING: Build: DIR=<dir>: --allow-build runs a PEP 517 build for up to <seconds> seconds (--build-timeout), which executes the project's build code (build-backend <backend>, no discovery module for it) in an isolated build environment [build-code-unsafe]` |
+| `build-failed` | `WARNING: Build: DIR=<dir>: the build exited with code <exit-code>; last output: <output> [build-failed]` |
+| `build-failed` | `WARNING: Build: DIR=<dir>: no Python interpreter to run PyPA build with; not built [build-failed]` |
+| `build-failed` | `WARNING: Build: DIR=<dir>: the build wrote <number> wheels, not one [build-failed]` |
+| `build-failed` | `WARNING: Build: DIR=<dir>: the built wheel holds no file outside .dist-info; read as a failed discovery [build-failed]` |
+| `build-failed` | `WARNING: Build: DIR=<dir>: the build could not run or its wheel could not be read; <failure> [build-failed]` |
+| `build-timeout` | `WARNING: Build: DIR=<dir>: the build timed out after <seconds> seconds (--build-timeout); its process tree was stopped [build-timeout]` |
+| `build-processes-unsafe` | `INFO: Build: the build left processes running (process group <process-group>); killed [build-processes-unsafe]` |
+| `interrupted` | `WARNING: Build: received SIGTERM during the build; exiting after cleanup [interrupted]` |
+| `temp-dir-unwritable` | `WARNING: Build: DIR=<dir>: could not be fully removed; left in the system temp directory [temp-dir-unwritable]` |
+| `library-missing` | `WARNING: Build: required library not installed: build; install pitloom[build] [library-missing]` |
+
+- The `build-code-unsafe` line comes before the build runs: for a backend no
+  file discoverer of Pitloom reads (as above), or for a supported one whose
+  static discovery failed (`... build-backend <backend>, its static discovery
+  failed) ...`), and says `in Pitloom's own environment (no build isolation)`
+  in place of `in an isolated build environment` with `--no-build-isolation`.
+- A build that fails prints one `[build-failed]` line, the cause: the exit
+  code and the last line the build printed (a credential in it masked, the line
+  cut at 200 characters, then `...`), or the other causes in the table. The
+  file discovery line of the fallback follows it (see above); the exit code of `loom` is 0.
+- `[library-missing]` keeps its code: PyPA `build` is the library, installed by
+  `pip install pitloom[build]`.
+- `INFO:` of `[build-processes-unsafe]` is the clean-up; its `WARNING:` twin
+  says Pitloom could not confirm the processes stopped (see below).
+
 ## Timing out a build
 
 `--build-timeout DURATION` bounds how long the real PEP 517 build (see
@@ -117,13 +157,10 @@ Range: 1 second to 7 days (604800); default 20 minutes (1200) when the
 flag is omitted.
 
 On expiry, Pitloom terminates the build's whole process tree (not just
-the immediate child process) and logs:
-
-```text
-WARNING: Build: build-and-read for <dir> timed out after <N>s (--build-timeout) -- build process tree terminated
-```
-
--- or `... -- could not confirm the build process tree terminated` when
+the immediate child process) and logs `WARNING: Build: DIR=<dir>: the build
+timed out after <seconds> seconds (--build-timeout); its process tree was
+stopped [build-timeout]` -- or `...; could not confirm its process tree stopped
+[build-timeout]` when
 a process in the tree was still alive after the kill (on Windows: when
 `taskkill` did not report success). Either way Pitloom then falls back
 to static file discovery, as without `--allow-build` (see above); the
@@ -143,11 +180,11 @@ extracted-wheel temporary directory (`pitloom-build-and-read-*` in the
 system temp directory) is removed at once, without waiting for the
 current step to finish. Then:
 
-- **Ctrl-C (SIGINT)** stops Pitloom with `ERROR: loom <command>: interrupted` and exit
-  status 130, as for any other command (see
+- **Ctrl-C (SIGINT)** stops Pitloom with `ERROR: loom <command>: interrupted
+  [interrupted]` and exit status 130, as for any other command (see
   [Debugging](cli.md#debugging) for the traceback).
-- **SIGTERM/SIGHUP** log `WARNING: Build: received SIGTERM during the
-  build -- exiting after cleanup` (or `... after the build -- ...` once
+- **SIGTERM/SIGHUP** log `WARNING: Build: received SIGTERM during the build;
+  exiting after cleanup [interrupted]` (or `... after the build; ...` once
   the build has finished and its files are being read) and re-raise the same
   signal, so the exit status still reads "killed by that signal" (143
   for SIGTERM in a shell). Running as PID 1 in a container (no
@@ -156,10 +193,11 @@ current step to finish. Then:
 
 Either way no SBOM is written. Processes a *successful* build leaves
 running in the background are killed before its temporary directory is
-removed (Linux/macOS only), with `INFO: Build: killed processes the
-build left running (process group <N>)` -- or a `WARNING: Build: could
-not confirm the processes the build left running (process group <N>)
-terminated` when some survived the kill (on Linux, e.g. one running as
+removed (Linux/macOS only), with `INFO: Build: the build left processes
+running (process group <process-group>); killed [build-processes-unsafe]` -- or
+`WARNING: Build: the build left processes running (process group
+<process-group>); could not confirm they stopped [build-processes-unsafe]` when
+some survived the kill (on Linux, e.g. one running as
 another user; macOS reports such a survivor the same way as a group
 with only exited processes left, so it goes unreported there).
 
@@ -181,7 +219,8 @@ with only exited processes left, so it goes unreported there).
   is handled like SIGTERM above (the build receives it too, as it
   shares Pitloom's console); after the build, a file still open at that
   moment cannot be deleted on Windows, so the build's temporary
-  directories may be left behind (a `WARNING:` names each one).
+  directories may be left behind (a `WARNING:` ending `[temp-dir-unwritable]`
+  names each one, by its name in the system temp directory).
   Descendants of a build child that has already exited -- including
   background processes a successful build leaves running -- may not be
   reachable.
@@ -223,7 +262,8 @@ target: a non-`bool` `allow`/`no_isolation` (e.g. the string `"false"`)
 or a non-`int` `timeout` raises `TypeError`; a `timeout` outside 1 to
 604800 raises `ValueError`. A field set where it has no effect -- a
 target other than a project directory, or `no_isolation`/`timeout`
-without `allow` -- logs one `WARNING: Build: ...` line per field,
+without `allow` -- logs one `WARNING: Build: ...` line per field
+(`[option-no-effect]`),
 naming the field by its CLI flag spelling (e.g. `--build-timeout`)
 followed by "has no effect" and the reason -- even when `BuildOptions`
 was constructed directly and no CLI flag was ever typed. Intentional:
