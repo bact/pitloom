@@ -106,8 +106,8 @@ ENDPOINT_REFUSED: Final = Message(
     "Hugging Face token must not be sent over plain http.",
     did="Sent no request to the Hub (huggingface_hub would send the token to "
     "the same endpoint): no file of the Hugging Face repository (config.json, "
-    "the card, a licence file), no model_info(), dataset_info() or file "
-    "listing. The model keeps its id and Hub URL only; the SBOM lacks "
+    "the card, a licence file), no model_info() or dataset_info(). The "
+    "model keeps its id and Hub URL only; the SBOM lacks "
     "everything else the Hub states.",
     effect="thinner",
     actor="user",

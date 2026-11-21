@@ -79,7 +79,7 @@ def _patch_aya_vision() -> Any:
         card_data={},  # Gated - ModelCard.load() returns error
         hub_info={"author": "CohereLabs"},
         # _detect_license_from_hf_files also returns (None, None) because
-        # list_repo_files may succeed but licence file downloads are gated.
+        # model_info() may list the licence files but their downloads are gated.
     )
 
 

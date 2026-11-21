@@ -33,9 +33,11 @@ from pitloom.extract.remote._card_description import card_description
 from pitloom.extract.remote._hub_files import HUB_JSON_CAP, FileKind, HubFiles
 from pitloom.extract.remote.huggingface_fetch import (
     _detect_license_from_hf_files,
-    _list_license_files_in_repo,
+    _fetch_all_hf_data,
+    _license_files_in,
     _load_model_card,
     _load_model_info,
+    _resolve_license,
     _safe_load_json,
 )
 
@@ -270,17 +272,41 @@ def test_load_model_info_stated_total_kept_raw(
 
 
 # ---------------------------------------------------------------------------
-# _list_license_files_in_repo
+# _license_files_in
 # ---------------------------------------------------------------------------
 
 
-def test_list_license_files_in_repo_filters_and_orders_by_priority() -> None:
+def test_license_files_in_filters_and_orders_by_priority() -> None:
     # _HF_LICENSE_FILENAMES priority: LICENSE, LICENCE, COPYING, NOTICE, ...
-    existing = {"COPYING", "LICENSE.txt", "LICENSE", "NOTICE"}
-    with patch("huggingface_hub.list_repo_files", return_value=existing):
-        result = _list_license_files_in_repo("org/model")
+    existing = {"COPYING", "LICENSE.txt", "LICENSE", "NOTICE", "docs/LICENSE"}
+    assert _license_files_in(existing) == [
+        "LICENSE",
+        "COPYING",
+        "NOTICE",
+        "LICENSE.txt",
+    ]
 
-    assert result == ["LICENSE", "COPYING", "NOTICE", "LICENSE.txt"]
+
+@pytest.mark.parametrize(
+    ("siblings", "expected"),
+    [
+        (None, None),
+        ([], []),
+        ([{"rfilename": "README.md"}, {"rfilename": "a/LICENSE"}], []),
+        ([{"rfilename": "NOTICE"}, {"rfilename": "LICENSE"}], ["LICENSE", "NOTICE"]),
+    ],
+    ids=["no-file-list", "empty-file-list", "none-of-them", "two-in-priority-order"],
+)
+def test_load_model_info_reads_the_licence_files_from_the_siblings(
+    siblings: list[dict[str, str]] | None, expected: list[str] | None
+) -> None:
+    """Absent (no file list in the response) is not ``[]`` (a list with no
+    licence file): the first is unknown, the second is known."""
+    info = _model_info(sha="deadbeef", siblings=siblings)
+    with patch("huggingface_hub.model_info", return_value=info):
+        result = _load_model_info("org/model")
+    assert result.get("license_files") == expected
+    assert ("license_files" in result) is (expected is not None)
 
 
 # ---------------------------------------------------------------------------
@@ -297,17 +323,16 @@ def test_detect_license_from_hf_files_pinned_revision_detects_license(
     license_file.write_text("MIT License text...", encoding="utf-8")
 
     with patch(
-        "pitloom.extract.remote.huggingface_fetch._list_license_files_in_repo",
-        return_value=["LICENSE"],
+        "pitloom.extract._license_text_match.detect_license_from_text",
+        return_value="MIT",
     ):
-        with patch(
-            "pitloom.extract._license_text_match.detect_license_from_text",
-            return_value="MIT",
-        ):
-            with caplog.at_level(logging.WARNING, logger=_LOGGER_NAME):
-                detected_id, provenance = _detect_license_from_hf_files(
-                    _hub(license_file), "org/model", revision="deadbeef"
-                )
+        with caplog.at_level(logging.WARNING, logger=_LOGGER_NAME):
+            detected_id, provenance = _detect_license_from_hf_files(
+                _hub(license_file),
+                "org/model",
+                revision="deadbeef",
+                license_files=["LICENSE"],
+            )
 
     assert detected_id == "MIT"
     assert provenance == (
@@ -327,19 +352,32 @@ def test_detect_license_from_hf_files_undetected_continues_to_next_file(
     license_file.write_text("Some unrecognizable legal text.", encoding="utf-8")
 
     with patch(
-        "pitloom.extract.remote.huggingface_fetch._list_license_files_in_repo",
-        return_value=["LICENSE", "COPYING"],
+        "pitloom.extract._license_text_match.detect_license_from_text",
+        return_value=None,
     ):
-        with patch(
-            "pitloom.extract._license_text_match.detect_license_from_text",
-            return_value=None,
-        ):
-            hub = _hub(license_file)
-            detected_id, provenance = _detect_license_from_hf_files(hub, "org/model")
-        assert hub.read.call_count == 2
+        hub = _hub(license_file)
+        detected_id, provenance = _detect_license_from_hf_files(
+            hub, "org/model", license_files=["LICENSE", "COPYING"]
+        )
+    assert hub.read.call_count == 2
 
     assert detected_id is None
     assert provenance is None
+
+
+@pytest.mark.parametrize("files", [None, []], ids=["unknown", "none-held"])
+def test_detect_license_from_hf_files_with_no_file_to_read_asks_and_says_nothing(
+    files: list[str] | None, caplog: pytest.LogCaptureFixture
+) -> None:
+    """No file name (the response had no file list, or no licence file in it):
+    nothing is downloaded, and no "without a pinned revision" warning is said
+    for a scan that does not happen."""
+    hub = _hub(None)
+    with caplog.at_level(logging.DEBUG, logger=_LOGGER_NAME):
+        result = _detect_license_from_hf_files(hub, "org/model", license_files=files)
+    assert result == (None, None)
+    hub.read.assert_not_called()
+    assert not [r for r in caplog.records if r.levelno >= logging.WARNING]
 
 
 @pytest.mark.parametrize(
@@ -393,6 +431,7 @@ def test_load_model_info_failure_logs_and_returns_empty(
         "safetensors.total" in r.message and "gguf.total" in r.message
         for r in caplog.records
     )
+    assert any("license (file-based detection)" in r.message for r in caplog.records)
 
 
 _HOSTILE = OSError("404 for o/m\n::error::forged\u202e")
@@ -406,29 +445,47 @@ _HOSTILE = OSError("404 for o/m\n::error::forged\u202e")
             lambda: _load_model_card(_hub(Path("README.md")), "o/m"),
         ),
         ("huggingface_hub.model_info", lambda: _load_model_info("o/m")),
-        ("huggingface_hub.list_repo_files", lambda: _list_license_files_in_repo("o/m")),
         (
             "pathlib.Path.open",
             lambda: _detect_license_from_hf_files(
-                _hub(Path("LICENSE")), "o/m", revision="1"
+                _hub(Path("LICENSE")), "o/m", revision="1", license_files=["LICENSE"]
             ),
         ),
     ],
-    ids=["model-card", "model-info", "list-files", "license-file"],
+    ids=["model-card", "model-info", "license-file"],
 )
 def test_a_hub_error_is_logged_on_one_escaped_line(
     patched: str, call: Any, caplog: pytest.LogCaptureFixture
 ) -> None:
     """A server-controlled error message cannot spill or forge a line."""
-    with (
-        patch(patched, side_effect=_HOSTILE),
-        patch(
-            "huggingface_hub.list_repo_files",
-            side_effect=_HOSTILE if "list" in patched else None,
-            return_value=["LICENSE"],
-        ),
-    ):
+    with patch(patched, side_effect=_HOSTILE):
         call()
     messages = [r.getMessage() for r in caplog.records if r.levelno >= logging.WARNING]
     (message,) = [m for m in messages if "forged" in m]
     assert "\n" not in message and "\u202e" not in message
+
+
+def test_the_licence_file_is_read_at_the_revision_model_info_listed_it_in(
+    tmp_path: Path,
+) -> None:
+    """One ``model_info()`` request gives the revision and the licence file
+    names, so a file is read at the commit whose listing named it."""
+    licence = tmp_path / "LICENSE"
+    licence.write_text("MIT License text", encoding="utf-8")
+    info = _model_info(sha="a" * 40, siblings=[{"rfilename": "LICENSE"}])
+    hub = _hub(licence)
+    with (
+        patch("huggingface_hub.model_info", return_value=info) as request,
+        patch("pitloom.extract.remote.huggingface_fetch._load_model_card") as card,
+        patch(
+            "pitloom.extract._license_text_match.detect_license_from_text",
+            return_value="MIT",
+        ),
+    ):
+        card.return_value = (None, {})
+        data = _fetch_all_hf_data(hub, "org/model")
+        found, _ = _resolve_license(hub, data, "org/model", {})
+    assert found == "MIT"
+    request.assert_called_once()
+    licence_reads = [c for c in hub.read.call_args_list if c.args[1] == "LICENSE"]
+    assert [c.kwargs["revision"] for c in licence_reads] == ["a" * 40]

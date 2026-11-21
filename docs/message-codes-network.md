@@ -199,9 +199,9 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
 - **SBOM effect**: thinner: the SBOM says less than reading the input would.
 - **Pitloom did**: Sent no request to the Hub (huggingface_hub would send the
   token to the same endpoint): no file of the Hugging Face repository
-  (config.json, the card, a licence file), no model_info(), dataset_info() or
-  file listing. The model keeps its id and Hub URL only; the SBOM lacks
-  everything else the Hub states.
+  (config.json, the card, a licence file), no model_info() or dataset_info().
+  The model keeps its id and Hub URL only; the SBOM lacks everything else the
+  Hub states.
 - **Tell the user**: HF_ENDPOINT is not used, and why, as the line says. They
   set it to an https URL without credentials, or unset it for
   https://huggingface.co, and run again. Do not change it for them; ask first,

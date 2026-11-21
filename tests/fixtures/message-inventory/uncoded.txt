@@ -51,7 +51,7 @@ pitloom.extract.env 2
 pitloom.extract.project._sdist_scan 1
 pitloom.extract.remote.huggingface 1
 pitloom.extract.remote.huggingface_dataset 2
-pitloom.extract.remote.huggingface_fetch 5
+pitloom.extract.remote.huggingface_fetch 4
 pitloom.extract.scanner 1
 pitloom.extract.wheel 1
 pitloom.plugins.hatch 7
