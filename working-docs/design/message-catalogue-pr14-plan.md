@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-20
-Last-Modified: 2026-11-20
+Last-Modified: 2026-11-21
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -87,10 +87,10 @@ Surfaces (V):
 | O1 | `_options.py:47-51` | W | `Build: <name>: <option> has no effect <when>` | `build_options.py:163,194` | name masked (`masked_given_path`) | Q2 |
 | H1 | huggingface:149 | I | `Hugging Face URL <u> is read as https://huggingface.co/<id>` | `log_hf_url_rewrite` (callers :294 and the CLI) | `sanitize_url` + `loggable` | `target-ambiguous/hf-url` (Q12) |
 | H2 | fetch:98 | W | `Downloading '<f>' for <id> without a pinned revision; supply hub_info['sha']...` (once per JSON file: up to 3 times a run) | `_safe_load_json` | none; the advice names a library-internal key | `hub-revision-unpinned`, once per model (Q10) |
-| H3 | fetch:273 | W | `Scanning license files for <id> without a pinned revision; ...` | `_detect_license_from_hf_files` | none | same, the same single site |
+| H3 | fetch (`_detect_license_from_hf_files`) | W | `Scanning license files for <id> without a pinned revision; ...` (only reached now when `model_info()` listed files but gave no `sha`) | `_detect_license_from_hf_files` | none | same, the same single site |
 | H4 | fetch:143 | W | `Failed to load model card for <id>: <exc> \| Field(s) affected (skipped): ...` | broad `except` around `read_card` | `local_reason` | removed (Q14) |
 | H5 | fetch:225 | W | `Failed to load model_info() for <id>: <exc> \| Field(s) affected (skipped): author, sha, ...` | `huggingface_hub.model_info` | `one_line(exc)` masks and escapes; text from the server's answer is untrusted | 3.4 classifier |
-| H6 | fetch:247 | W | `Failed to list repo files for <id>: <exc> \| Field(s) affected (skipped): license (file-based detection)` | `list_repo_files` | same | 3.4 classifier |
+| H6 | fetch:247 | W | `Failed to list repo files for <id>: <exc> \| Field(s) affected (skipped): license (file-based detection)` | `list_repo_files` | removed 2026-11-21 (Hub-timeout PR: the names come from `model_info()` `siblings`; its failure line names the loss) | none |
 | H7 | dataset:104 | W | `Failed to load dataset_info() for <id>: ... \| Field(s) affected ...` | `dataset_info` | same | 3.4 classifier |
 | H8 | dataset:133 | W | `Failed to load dataset card for <id>: ...` | broad `except` around `read_card` | `local_reason` | removed (Q14) |
 | P1 | pypi_url:190 | W | `log.warning("%s", error)`, then the CLI's `ERROR: ... [pypi-url-invalid]` | `_refuse`, 7 raises | `sanitize_url` | dropped (Q15) |

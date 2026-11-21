@@ -257,9 +257,9 @@ def read_huggingface(
             the file's own cap
             (:func:`~pitloom.extract.remote._hub_files.file_cap`) and
             passed, with each redirect target, to its ``check_url``; with
-            ``offline`` nothing is fetched. The ``model_info()``,
-            ``dataset_info()`` and file listing requests are
-            ``huggingface_hub``'s own and pass through neither. With
+            ``offline`` nothing is fetched. The ``model_info()`` and
+            ``dataset_info()`` requests are ``huggingface_hub``'s own and pass
+            through neither. With
             ``HF_ENDPOINT`` refused (not https, or holding credentials),
             nothing at all is asked of the Hub: the model keeps its id and
             URL only, with one ``WARNING:``.

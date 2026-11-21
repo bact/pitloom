@@ -13,7 +13,8 @@ a JSON file at :data:`~pitloom.extract.remote._hub_files.HUB_JSON_CAP`, the
 card at :data:`~pitloom.enrich.readme.MODEL_CARD_CAP`, a licence file at
 :data:`~pitloom.extract._license_detect.LICENSE_FILE_CAP`; each redirect
 checked, removed after the read) and read within the same caps;
-``model_info()`` and the file listing are ``huggingface_hub`` API requests.
+``model_info()`` (which also lists the repository's files) is a
+``huggingface_hub`` API request, given a timeout.
 With the Hub refused (``HubFiles.asks_hub`` false), nothing is asked of it:
 the model keeps its id and URL only.
 
@@ -27,7 +28,7 @@ from __future__ import annotations
 
 import json
 import logging
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping, Sequence
 from typing import Any
 
 from pitloom.core.provenance import provenance_segment, provenance_source
@@ -35,6 +36,7 @@ from pitloom.core.quote_source import quote_source
 from pitloom.enrich.readme import MODEL_CARD_CAP, CardKind, read_card
 from pitloom.extract._license_classify import is_vague_license_value
 from pitloom.extract._license_detect import LICENSE_FILE_CAP, read_license_file
+from pitloom.extract.remote._http_fetch import SOCKET_TIMEOUT_SECONDS
 from pitloom.extract.remote._hub_files import (
     HUB_JSON_CAP,
     FileKind,
@@ -182,13 +184,17 @@ def _load_model_info(model_id: str) -> dict[str, Any]:
       repository has no Safetensors metadata.
     * ``gguf_total`` - the same from the GGUF metadata (``gguf.total``),
       kept only when there is no Safetensors metadata.
+    * ``license_files`` - the licence file names the repository holds
+      (:data:`_HF_LICENSE_FILENAMES`), in priority order, read from the
+      file list ``model_info()`` sends with the same ``sha``; absent when the
+      response has no file list, ``[]`` when it lists none of them.
     """
     try:
         # pylint: disable=import-outside-toplevel
 
         from huggingface_hub import model_info
 
-        info = model_info(model_id)
+        info = model_info(model_id, timeout=SOCKET_TIMEOUT_SECONDS)
         result: dict[str, Any] = {}
         if info.author:
             result["author"] = str(info.author)
@@ -202,6 +208,11 @@ def _load_model_info(model_id: str) -> dict[str, Any]:
             result["downloads"] = info.downloads
         if info.tags:
             result["tags"] = list(info.tags)
+        siblings = getattr(info, "siblings", None)
+        if siblings is not None:
+            result["license_files"] = _license_files_in(
+                str(sibling.rfilename) for sibling in siblings
+            )
         if info.safetensors is not None:
             result["safetensors_total"] = info.safetensors.total
         else:
@@ -221,53 +232,44 @@ def _load_model_info(model_id: str) -> dict[str, Any]:
             "tags",
             "safetensors.total",
             "gguf.total",
+            "license (file-based detection)",
         )
         log.warning(msg, loggable(model_id), one_line(exc))
         return {}
 
 
-def _list_license_files_in_repo(model_id: str) -> list[str]:
-    """Return the subset of :data:`_HF_LICENSE_FILENAMES` that exist in the repo.
-
-    Uses :func:`huggingface_hub.list_repo_files` to avoid spurious 404 requests.
-    Returns an empty list on any error (network, auth, etc.).
-    """
-    try:
-        # pylint: disable=import-outside-toplevel
-
-        from huggingface_hub import list_repo_files
-
-        existing: set[str] = set(list_repo_files(model_id))
-        return [f for f in _HF_LICENSE_FILENAMES if f in existing]
-    # pylint: disable-next=broad-exception-caught
-    except Exception as exc:
-        msg = "Failed to list repo files for %s: %s" + field_loss_suffix(
-            "skipped", "license (file-based detection)"
-        )
-        log.warning(msg, loggable(model_id), one_line(exc))
-        return []
+def _license_files_in(files: Iterable[str]) -> list[str]:
+    """Return the subset of :data:`_HF_LICENSE_FILENAMES` that *files* holds,
+    in priority order."""
+    existing = set(files)
+    return [name for name in _HF_LICENSE_FILENAMES if name in existing]
 
 
 def _detect_license_from_hf_files(
     hub: HubFiles,
     model_id: str,
     revision: str | None = None,
+    *,
+    license_files: Sequence[str] | None,
 ) -> tuple[str | None, str | None]:
     """Try to detect an SPDX license ID from licence files in a HF repository.
 
-    Downloads each candidate file in priority order and runs
+    Downloads each of *license_files* (the names ``model_info()`` showed the
+    repository holds, in priority order; ``None`` when it showed no file
+    list) and runs
     :func:`~pitloom.extract._license_text_match.detect_license_from_text`
     on the content.
 
     Returns ``(spdx_id, provenance_string)`` when a match is found above the
     default threshold, or ``(None, None)`` otherwise (at once, asking
-    nothing, with the Hub refused: :attr:`HubFiles.asks_hub`). Each file is
+    nothing, with the Hub refused: :attr:`HubFiles.asks_hub`, or with no
+    file to read). Each file is
     downloaded and read within
     :data:`~pitloom.extract._license_detect.LICENSE_FILE_CAP`, as every
     licence file Pitloom reads is. Requires the ``licenseid`` package and
     its database (``licenseid update --source packaged``).
     """
-    if not hub.asks_hub:
+    if not hub.asks_hub or not license_files:
         return None, None
     if revision is None:
         log.warning(
@@ -279,7 +281,7 @@ def _detect_license_from_hf_files(
     from pitloom.extract._license_text_match import detect_license_from_text
 
     kind = FileKind(LICENSE_FILE_CAP, "license file not read")
-    for filename in _list_license_files_in_repo(model_id):
+    for filename in license_files:
         local_path = hub.read(model_id, filename, revision=revision, kind=kind)
         if local_path is None:
             continue
@@ -368,7 +370,7 @@ def _resolve_license(
         else None
     )
     detected_id, detected_src = _detect_license_from_hf_files(
-        hub, model_id, revision=revision
+        hub, model_id, revision=revision, license_files=hub_info.get("license_files")
     )
     if detected_id:
         provenance["license"] = detected_src or (
