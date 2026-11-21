@@ -1,5 +1,5 @@
 ---
-Last-Modified: 2026-11-20
+Last-Modified: 2026-11-21
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -120,6 +120,8 @@ and this project adheres to
 - A project file that does not parse or read is `config-malformed` or
   `file-unreadable`, whether Pitloom reads its metadata or its `[tool.pitloom]` ([#501])
 - A token after a tab in git's own error text is masked ([#503])
+- Hugging Face `model_info()` and `dataset_info()` requests time out after 30 s;
+  licence file names come from `model_info()`, not a separate listing ([#507])
 
 ### Security
 
@@ -148,6 +150,7 @@ and this project adheres to
 [#502]: https://github.com/bact/pitloom/pull/502
 [#503]: https://github.com/bact/pitloom/pull/503
 [#506]: https://github.com/bact/pitloom/pull/506
+[#507]: https://github.com/bact/pitloom/pull/507
 
 ## [0.24.0] - 2026-11-11
 
