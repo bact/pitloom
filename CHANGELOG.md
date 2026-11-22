@@ -26,10 +26,10 @@ and this project adheres to
 
 - Input, option, SBOM, target, ID registry file, id, key, save, file-set, lock
   file, dependency, configuration, licence, project metadata, file discovery,
-  Git URL, Hugging Face Hub, build, temporary directory and signal messages
-  carry a message code, and a configuration error names the file; see
+  Git URL, Hugging Face Hub, build, temporary directory, signal and build hook
+  messages carry a message code, and a configuration error names the file; see
   `docs/message-codes.md` ([#482], [#485], [#486], [#492], [#496], [#497],
-  [#498], [#501], [#503], [#506], [#508])
+  [#498], [#501], [#503], [#506], [#508], [#511])
 - A credential in an SBOM URL field is warned of; `url-credentials = "refuse"`
   or `--refuse-url-credentials` refuse the SBOM ([#489], [#490])
 - `embed-wheel --sbom` (every string) and `merge` check an SBOM for such
@@ -107,6 +107,9 @@ and this project adheres to
   `Pitloom build hook: ` ([#506])
 - Safetensors reads a plain `license` and `model_version` after the ModelSpec
   keys; each field's provenance names the key read ([#509])
+- The build hook's disabled, not-a-wheel and editable lines carry
+  `[hook-no-effect]` and drop the trailing period and the quotes round the
+  target; its staged-SBOM line starts `Pitloom build hook: ` ([#511])
 
 ### Fixed
 
@@ -164,6 +167,7 @@ and this project adheres to
 [#507]: https://github.com/bact/pitloom/pull/507
 [#508]: https://github.com/bact/pitloom/pull/508
 [#509]: https://github.com/bact/pitloom/pull/509
+[#511]: https://github.com/bact/pitloom/pull/511
 
 ## [0.24.0] - 2026-11-11
 

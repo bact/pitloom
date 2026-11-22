@@ -1,6 +1,6 @@
 ---
 Created: 2026-02-22
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-22
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -372,8 +372,8 @@ inference (or no enrichment) for anything these would have covered.
    a `pyproject.toml` in the model file's own directory (no ancestor
    walk-up) and calls `run_enrichers()` after `read_ai_model()`, before
    `build_model()`. Project-level callers -- `generate_project_sbom()` and
-   the Hatchling build hook's `_build_document_model()`
-   (`plugins/hatch.py`) -- both call the same
+   the Hatchling build hook's `build_document_model()`
+   (`plugins/_hatch_document.py`) -- both call the same
    `run_enrichers_for_models()` (`enrich/__init__.py`), which resolves
    each discovered AI model's own directory from
    `AiModelFormatInfo.physical_path` and returns a parallel

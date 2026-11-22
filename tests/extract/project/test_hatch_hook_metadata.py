@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import logging
 import tempfile
+import types
 from importlib.metadata import PackageNotFoundError
 from pathlib import Path
 from unittest.mock import patch
@@ -28,9 +29,8 @@ from pitloom.extract.project.hatchling import (
     metadata_from_hatchling,
 )
 from pitloom.extract.project.pyproject import read_pyproject
-from pitloom.plugins.hatch import (
-    _check_hatchling_sbom_support,
-)
+from pitloom.plugins._hatch_document import default_hook_sbom_basename
+from pitloom.plugins.hatch import _check_hatchling_sbom_support
 
 from ..conftest import (
     MISSING_LICENSE_FILE_PYPROJECT,
@@ -316,3 +316,20 @@ def test_check_hatchling_sbom_support_raises_when_metadata_missing() -> None:
     ):
         with pytest.raises(RuntimeError, match="version unknown"):
             _check_hatchling_sbom_support()
+
+
+@pytest.mark.parametrize(
+    ("raw_name", "version", "expected"),
+    [
+        pytest.param("My_Pkg.Name", "1.0", "My_Pkg.Name-1.0", id="raw-name-kept"),
+        pytest.param("My_Pkg.Name", None, "My_Pkg.Name", id="no-version"),
+    ],
+)
+def test_default_hook_basename_uses_the_raw_name(
+    raw_name: str, version: str | None, expected: str
+) -> None:
+    metadata = types.SimpleNamespace(
+        core=types.SimpleNamespace(raw_name=raw_name, name=raw_name.lower()),
+        version=version,
+    )
+    assert default_hook_sbom_basename(metadata) == expected

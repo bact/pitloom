@@ -1,6 +1,6 @@
 ---
 Created: 2026-03-25
-Last-Modified: 2026-11-08
+Last-Modified: 2026-11-22
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -82,6 +82,23 @@ Two details worth calling out explicitly:
   does not apply to sdists, so `initialize()` returns immediately for any
   other target.
 
+### What the hook says about its own run
+
+Each line the hook writes itself starts with `Pitloom build hook: `
+(`HOOK_PREFIX`, `pitloom.messages._frames`); a line of the work it runs (project
+metadata, a model scan, an option that has no effect) keeps its own text. A build the hook makes no SBOM for is one
+catalogued `INFO:` family, `hook-no-effect` (`pitloom.messages._hook`), with
+three lines tried in this order, the first that holds winning: `enabled =
+false`; a target other than `wheel`; the `editable` build variant. Each is
+said with `HOOK_STEP_FRAME`, which allows exactly `hook-no-effect` and
+`temp-dir-unwritable` (the staging directory). The SBOM staged for the wheel
+is a summary (`HOOK_SBOM_STAGED`, said with `say_summary`): it reports a
+count, so it has no code, and it carries the prefix as a literal because a
+summary takes no frame. `HOOK_FRAME` still comes before the one `ERROR:`
+line of a failed build. Tests:
+`tests/messages/test_hook_lines.py` (the lines, their order, the frames) and
+`tests/extract/project/test_hatch_hook_hook_basic.py`.
+
 ## Hatchling plugin registration
 
 Hatchling discovers build hooks registered as Python entry points under the
@@ -155,7 +172,7 @@ files = [
 
 The hook's implementation lives in `src/pitloom/plugins/hatch.py`; see that
 module for the authoritative, current source (`PitloomBuildHook.initialize`
-and `finalize`, plus the module-level `_build_document_model` helper). At a
+and `finalize`; helpers in `_hatch_document.py` and `_hatch_base.py`). At a
 high level, `initialize()`:
 
 1. Validates `[tool.hatch.build.hooks.pitloom]` config (`validate_config`);
@@ -167,7 +184,7 @@ high level, `initialize()`:
    `[tool.pitloom]` / `[[tool.pitloom.creator]]` /
    `[[tool.pitloom.creation-tool]]` / `[tool.pitloom.creation]` settings
    (basename, fragments, creator/tool metadata), then builds the format-neutral
-   document via `_build_document_model`, which calls
+   document via `build_document_model` (`_hatch_document.py`), which calls
    `metadata_from_hatchling(self.metadata, project_dir)` for project
    metadata (including the Poetry-fallback gap-fill and dependency/name
    canonicalisation described above), then `get_wheel_files(project_dir)`
@@ -200,7 +217,7 @@ via Hatchling's own plugin-manager import of this module).
 An upper version bound was rejected: it would make Pitloom's own
 `hatchling>=1.32.0` floor a lie for any project pinning an older
 Hatchling, for no real benefit (the fix below supports both). Instead,
-`src/pitloom/plugins/hatch.py` detects the installed Hatchling's actual
+`src/pitloom/plugins/_hatch_base.py` detects the installed Hatchling's actual
 generic arity at runtime, via `len(BuildHookInterface.__parameters__)` --
 a side-effect-free tuple read that cannot itself trigger the subscription
 `TypeError` -- and builds `PitloomBuildHook`'s base class dynamically:
@@ -208,12 +225,12 @@ a side-effect-free tuple read that cannot itself trigger the subscription
 ```python
 if TYPE_CHECKING:
 
-    class _PitloomBuildHookBase(
+    class PitloomBuildHookBase(
         BuildHookInterface[BuilderConfig]  # type: ignore[type-arg, unused-ignore]
     ): ...
 else:
 
-    def _resolve_build_hook_base() -> type:
+    def resolve_build_hook_base() -> type:
         param_count = len(BuildHookInterface.__parameters__)
         if param_count == 1:
             return BuildHookInterface[BuilderConfig]
@@ -221,10 +238,10 @@ else:
             return BuildHookInterface[BuilderConfig, PluginManager]
         raise RuntimeError(...)  # unknown arity -- fail loudly, don't guess
 
-    _PitloomBuildHookBase = _resolve_build_hook_base()
+    PitloomBuildHookBase = resolve_build_hook_base()
 
 
-class PitloomBuildHook(_PitloomBuildHookBase): ...
+class PitloomBuildHook(PitloomBuildHookBase): ...
 ```
 
 Hatchling 1.32.4 (released 2026-09-20) reverted the change as a bug:
@@ -346,7 +363,9 @@ src/pitloom/
 │   └── hatchling.py               # metadata_from_hatchling()
 └── plugins/
     ├── __init__.py
+    ├── _hatch_base.py             # Hatchling base class by generic arity
     ├── _hatch_config.py           # validate_config()
+    ├── _hatch_document.py         # build_document_model(), build datetime
     └── hatch.py                   # PitloomBuildHook + hatch_register_build_hook()
 tests/
 ├── fixtures/

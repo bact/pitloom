@@ -45,6 +45,7 @@ from pitloom.messages import (
     FRAMES,
     GIT_FRAME,
     HF_FRAME,
+    HOOK_PREFIX,
     HOOK_STEP_FRAME,
     MESSAGES,
     PYPI_FRAME,
@@ -61,11 +62,13 @@ from pitloom.messages._options import (
 )
 from pitloom.messages.build import (
     ACTIVITIES,
+    HOOK_SBOM_STAGED,
     INTERRUPTED,
     INTERRUPTED_DURING_LINE,
     TEMP_DIR_UNWRITABLE,
     TERMINATION_SIGNALS,
 )
+from pitloom.messages.config import CLOCK_LINE, DATETIME_UNPINNED
 from pitloom.messages.files import OVER_CAP
 from pitloom.messages.models import LIBRARY_MISSING
 from tests._message_drift import SAMPLES, source_modules
@@ -100,7 +103,10 @@ _TABLE: dict[Frame, tuple[frozenset[str], frozenset[str]]] = {
     HF_FRAME: (frozenset({_TEMP}), frozenset({"WARNING"})),
     PYPI_FRAME: (frozenset({_TEMP}), frozenset({"WARNING"})),
     SCAN_FRAME: (frozenset({"interrupted", _TEMP}), frozenset({"WARNING"})),
-    HOOK_STEP_FRAME: (frozenset({_TEMP}), frozenset({"WARNING"})),
+    HOOK_STEP_FRAME: (
+        frozenset({"hook-no-effect", _TEMP}),
+        frozenset({"WARNING", "INFO"}),
+    ),
 }
 
 #: The helpers that take the frame of a temporary directory.
@@ -193,6 +199,21 @@ def test_the_build_frame_also_trusts_the_scan_library_line() -> None:
     text = scan.render({n: SAMPLES[n] for n in scan.fields})
     line = f"WARNING: Build: {text} [library-missing]"
     assert trusted_message(line) is LIBRARY_MISSING
+
+
+def test_a_hook_line_with_the_prefix_as_a_literal_is_not_framed() -> None:
+    """``datetime-unpinned`` and the staged-SBOM summary carry the hook's
+    prefix in their own text, so the step frame does not come before them:
+    the prefix printed twice is no line the hook prints."""
+    assert CLOCK_LINE.template.startswith(HOOK_PREFIX)
+    assert HOOK_SBOM_STAGED.template.startswith(HOOK_PREFIX)
+    assert not HOOK_STEP_FRAME.allows(DATETIME_UNPINNED.code, "INFO")
+    code = DATETIME_UNPINNED.code
+    assert trusted_message(f"INFO: {CLOCK_LINE.template} [{code}]") is (
+        DATETIME_UNPINNED
+    )
+    twice = f"INFO: {HOOK_PREFIX}{CLOCK_LINE.template} [{code}]"
+    assert trusted_message(twice) is None
 
 
 _BAD_FRAMES = [

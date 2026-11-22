@@ -51,6 +51,13 @@ from pitloom.messages._fields_build import (
     OUTPUT_CHARACTERS,
     TERMINATION_SIGNALS,
 )
+from pitloom.messages._hook import (
+    HOOK_DISABLED_LINE,
+    HOOK_EDITABLE_LINE,
+    HOOK_NO_EFFECT,
+    HOOK_NOT_WHEEL_LINE,
+    HOOK_SBOM_STAGED,
+)
 
 __all__ = [
     "ACTIVITIES",
@@ -65,6 +72,11 @@ __all__ = [
     "BUILD_TIMEOUT",
     "BUILD_UNUSABLE_LINE",
     "BUILD_WHEEL_COUNT_LINE",
+    "HOOK_DISABLED_LINE",
+    "HOOK_EDITABLE_LINE",
+    "HOOK_NOT_WHEEL_LINE",
+    "HOOK_NO_EFFECT",
+    "HOOK_SBOM_STAGED",
     "INTERRUPTED",
     "INTERRUPTED_AFTER_LINE",
     "INTERRUPTED_DURING_LINE",

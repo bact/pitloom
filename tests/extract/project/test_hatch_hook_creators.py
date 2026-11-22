@@ -23,6 +23,8 @@ from typing import Any
 import pytest
 
 from pitloom.__about__ import __version__
+from pitloom.core.config import PitloomConfig
+from pitloom.plugins._hatch_document import build_creation_metadata
 
 from ..conftest import (
     make_hook,
@@ -197,3 +199,22 @@ def test_hook_creation_comment_and_tool_summary() -> None:
         assert tool_elements[0]["summary"] == f"Pitloom {__version__}"
 
         hook.finalize("standard", build_data, "")
+
+
+@pytest.mark.parametrize(
+    ("comment", "kept"),
+    [
+        pytest.param("", "", id="present-but-empty"),
+        pytest.param("mine", "mine", id="set"),
+        pytest.param(
+            None, "Generated via Pitloom Hatchling build hook (PEP 770)", id="absent"
+        ),
+    ],
+)
+def test_the_creation_comment_is_kept_as_configured(
+    comment: str | None, kept: str
+) -> None:
+    config = PitloomConfig(
+        creation_datetime="2026-01-01T00:00:00+00:00", creation_comment=comment
+    )
+    assert build_creation_metadata(config).creation_comment == kept

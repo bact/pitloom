@@ -35,7 +35,7 @@ _ALLOWED = {
     # ZIP entry time when neither the SBOM datetime nor an epoch is set.
     "_embed_wheel.py": 1,
     # Hatchling hook: after creation-datetime and SOURCE_DATE_EPOCH.
-    "plugins/hatch.py": 1,
+    "plugins/_hatch_document.py": 1,
 }
 
 

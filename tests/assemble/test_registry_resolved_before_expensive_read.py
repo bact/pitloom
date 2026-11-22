@@ -31,12 +31,12 @@ from typing import Any
 
 import pytest
 
-import pitloom.plugins.hatch as hatch_module
 from pitloom import loom
 from pitloom.assemble import generate_project_sbom
 from pitloom.core.models import get_wheel_files
 from pitloom.embed import embed_wheel_sbom
 from pitloom.extract.wheel import read_wheel
+from pitloom.plugins._hatch_document import build_document_model
 from tests.assemble.embed_surfaces_shared import demo_project, demo_wheel
 from tests.extract.conftest import make_hook
 
@@ -67,7 +67,7 @@ def test_resolve_before_allow_build_discovery(
 def test_hook_resolves_registry_before_building_document_model(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """A bad declared registry must fail before ``_build_document_model``
+    """A bad declared registry must fail before ``build_document_model``
     (the metadata/file/AI-model scan) ever runs -- resolution moved ahead
     of it in ``initialize()``. Mirrors
     :func:`test_resolve_before_allow_build_discovery` above for the
@@ -77,14 +77,13 @@ def test_hook_resolves_registry_before_building_document_model(
     project = demo_project(tmp_path, toml)
 
     calls: list[object] = []
-    # pylint: disable-next=protected-access
-    real = hatch_module._build_document_model
+    real = build_document_model
 
     def spy(*args: Any, **kwargs: Any) -> Any:
         calls.append(True)
         return real(*args, **kwargs)
 
-    monkeypatch.setattr(hatch_module, "_build_document_model", spy)
+    monkeypatch.setattr("pitloom.plugins.hatch.build_document_model", spy)
 
     hook = make_hook(str(project), {})
     with pytest.raises(FileNotFoundError, match=r"^ID registry file "):

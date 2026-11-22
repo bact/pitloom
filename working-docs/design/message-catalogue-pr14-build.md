@@ -168,7 +168,7 @@ Then:
 
 ### 14c
 
-Split `plugins/hatch.py` first (538 lines, Sonnet with an Opus-checked plan). Then one Sonnet does K1 to K4 under `HOOK_STEP_FRAME` (fence: `plugins/`, `messages/_hook.py`, `tests/plugins/`, `docs/hatchling-build-hook.md`), one Opus review, ratchet 109.
+Split `plugins/hatch.py` first (538 lines, Sonnet with an Opus-checked plan). Then one Sonnet does K1 to K4 under `HOOK_STEP_FRAME` (fence: `plugins/`, `messages/_hook.py`, `tests/plugins/`, `docs/hatchling-build-hook.md`), one Opus review, ratchet 108.
 
 ### 6.1 Stderr sweep (HEAD versus the tree, offline)
 
