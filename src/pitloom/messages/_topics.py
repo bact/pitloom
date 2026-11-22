@@ -162,6 +162,8 @@ _TOPIC_FAMILIES: Final[Mapping[str, tuple[str, ...]]] = MappingProxyType(
         "network": (
             "download-network-failed",
             "download-timeout",
+            "hub-response-invalid",
+            "hub-revision-unpinned",
             "offline-unusable",
             "query-no-effect",
             "url-moved",

@@ -4,8 +4,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """The ``model_info()`` and ``dataset_info()`` requests carry a timeout: a Hub
 that accepts the connection and never answers ends in the one ``WARNING:`` of a
-failed request, not in a run that waits for ever (``huggingface_hub`` sets none
-of its own).
+timed-out request (``download-timeout``), not in a run that waits for ever
+(``huggingface_hub`` sets none of its own).
 
 See also: tests/extract/remote/test_huggingface_fetch.py (what the readers
 return) and tests/extract/remote/test_huggingface_dataset.py.
@@ -26,6 +26,8 @@ from huggingface_hub import hf_api
 from pitloom.extract.remote._http_fetch import SOCKET_TIMEOUT_SECONDS
 from pitloom.extract.remote.huggingface_dataset import _load_dataset_info
 from pitloom.extract.remote.huggingface_fetch import _load_model_info
+from pitloom.logging_config import CODE_ATTR
+from pitloom.messages.network import DOWNLOAD_TIMEOUT
 
 pytestmark = [pytest.mark.platform, pytest.mark.loopback]  # sockets, threads
 
@@ -122,4 +124,6 @@ def test_a_hub_that_never_answers_is_one_failed_request(
     assert result == [failed]
     assert silent_hub, "the request never reached the silent server"
     warnings = [r for r in caplog.records if r.levelname == "WARNING"]
-    assert len(warnings) == 1 and "Failed to load" in warnings[0].getMessage()
+    assert len(warnings) == 1
+    assert getattr(warnings[0], CODE_ATTR) == DOWNLOAD_TIMEOUT.code
+    assert "within 1 seconds" in warnings[0].getMessage()  # 0.5 s, rounded up

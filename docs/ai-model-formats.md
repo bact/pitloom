@@ -441,7 +441,9 @@ loom model Qwen/Qwen3-235B-A22B
 ```
 
 The `www.huggingface.co` and `hf.co` forms, `http://` and any case of the host
-are read as `https://huggingface.co/...`, with an `INFO:` line saying so.
+are read as `https://huggingface.co/...`, with one `INFO:` line saying so
+([`target-ambiguous/hf-url`](message-codes-targets.md#target-ambiguoushf-url)):
+`INFO: URL=<url>: read as Hugging Face model <target> [target-ambiguous/hf-url]`.
 
 This reads the model card, `config.json`, `tokenizer_config.json`,
 `generation_config.json` and the Hub's model information, and produces an
@@ -486,6 +488,28 @@ requests, each with a 30-second socket timeout (per connect or read, no total
 deadline), and pass through neither the cap nor the library's `check_url=`,
 which every file download does.
 
+A failed model or dataset information request is one `WARNING:` that says
+what is lost, with the same codes: a request that failed or timed out
+(`download-network-failed`, `download-timeout`), `HF_HUB_OFFLINE`
+(`offline-unusable`), or an answer that could not be read
+([`hub-response-invalid`](message-codes-network.md#hub-response-invalid)):
+`WARNING: URL=<url>: the Hub's answer could not be read (<failure>); <outcome>
+[hub-response-invalid]`. A model whose information failed keeps its id and
+URL and has no author, version, dates, tags or parameter count from the Hub,
+and no licence file is looked for, since only the information lists them.
+
+A model read with no revision (the information failed, or the Hub, a mirror
+say, stated none) has its files read at the default branch as it is at the
+time of the run, which can change between runs. One `WARNING:` says so, once
+per read of a model, however many files are read
+([`hub-revision-unpinned`](message-codes-network.md#hub-revision-unpinned)):
+`WARNING: URL=<url>: the Hub stated no revision; files are read at the default
+branch as it is now [hub-revision-unpinned]`. No file is read, and this line is
+not said, with the Hub refused (`--offline`, a refused `HF_ENDPOINT`) or
+`HF_HUB_OFFLINE` set. There is no option to pin the revision: for a repeatable
+result, download the repository at a commit and run `loom model` on the local
+copy.
+
 It never opens a model file of the repository, so it reads no per-file
 metadata and no hash: a repository whose weights are a `.keras` file gets an
 SBOM from its card and configuration files, with no Keras-derived field, no
@@ -510,9 +534,13 @@ case-insensitive, so `O/D` is `o/d`) is one dataset, and a card lists at most
 | creator (`publishedBy`) | the repository owner | `dataset_info author`, `Method: repository_owner` |
 
 A field the dataset does not state is left out. A failed request (a network
-error, a gated, private or deleted dataset) or a card that cannot be read is
-one `WARNING:` naming the dataset (never a path in the local cache), which keeps its name and download URL. These requests run only when
-the model itself is looked up, so `--offline` stops them too.
+error, a gated, private or deleted dataset) is one `WARNING:` naming the
+dataset's page and what is not recorded, as for a model
+(`WARNING: URL=<url>: <failure>; <outcome> [download-network-failed]`; never a
+path in the local cache); the dataset keeps its name and download URL. A card
+that cannot be read or parsed is one `WARNING:` of its own, as a local card is.
+These requests run only when the model itself is looked up, so `--offline`
+stops them too.
 
 ## Not yet supported
 

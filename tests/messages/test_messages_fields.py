@@ -24,7 +24,11 @@ from pitloom.core.ai_metadata import AiModelFormat
 from pitloom.core.given_path import GivenPath, TypedPath
 from pitloom.core.lfs_pointer import size_text as lfs_size_text
 from pitloom.messages import FIELDS, FRAMES, RELAY_FRAME, Frame, Line, size_text
-from pitloom.messages._field_writers import entities_text, failure_text
+from pitloom.messages._field_writers import (
+    FAILURE_CHARACTERS,
+    entities_text,
+    failure_text,
+)
 from pitloom.messages._fields import _merged
 from pitloom.messages._fields_licence import LICENCE_FIELDS
 from pitloom.messages._fields_lock import value_type_text
@@ -231,6 +235,25 @@ def test_render_takes_exactly_the_names_of_its_template(values: dict[str, Any]) 
 def test_failure_text_drops_a_memory_address(text: str, expected: str) -> None:
     """A deserialiser's default repr must not make stderr differ per run."""
     assert failure_text(TypeError(text)) == expected
+
+
+def test_failure_text_is_cut_after_masking() -> None:
+    """A server's error page (``huggingface_hub`` puts it in the exception's
+    text) cannot make the line longer than a reader trusts, and a token
+    straddling the cut is masked, not half shown."""
+    token = "hf_" + "A" * 34
+    text = "a" * (FAILURE_CHARACTERS - 10) + f" Bearer {token} " + "b" * 100_000
+    shown = failure_text(ValueError(text))
+    assert len(shown) == FAILURE_CHARACTERS + len("...")
+    assert shown.endswith("...") and token[:8] not in shown
+    userinfo = "a" * (FAILURE_CHARACTERS - 20) + " https://user:SECRETPASSWORD@host/x "
+    straddling = failure_text(ValueError(userinfo))
+    assert "SECRET" not in straddling and "https://***:***@" in straddling
+    assert failure_text(OSError(5, "e" * 2000)).endswith("...")
+    assert failure_text(ValueError("short")) == "short"
+    assert failure_text(ValueError("x" * FAILURE_CHARACTERS)) == "x" * (
+        FAILURE_CHARACTERS
+    )
 
 
 def test_size_text_has_one_writer() -> None:

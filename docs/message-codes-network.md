@@ -20,9 +20,11 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
 
 | Code | Level | Means | Since |
 | --- | --- | --- | --- |
-| [`download-network-failed`](#download-network-failed) | ERROR, WARNING | A request to a remote source failed. PyPI or Hugging Face: an HTTP status other than 404 (a 401 or 403 for a private or gated repository read without access), a refused or reset connection, a name that did not resolve, or an answer cut short. Git: git could not reach the repository (a name that did not resolve, a refused, reset or timed-out connection, a TLS failure, an HTTP 5xx answer); a git failure with any other cause is git-repository-unusable. | 0.24.0 |
-| [`download-timeout`](#download-timeout) | ERROR, WARNING | A request to PyPI, to the host that serves a file or to the Hugging Face Hub, or the git calls that fetch a repository, did not finish within the time Pitloom allows. | 0.24.0 |
-| [`offline-unusable`](#offline-unusable) | ERROR, WARNING | Offline mode is on and the target must be fetched: a Git URL, a PyPI URL or a Hugging Face repository. Offline mode is --offline, the offline key of --config, or offline=True; for a file of a Hugging Face repository also huggingface_hub's own HF_HUB_OFFLINE. | 0.24.0 |
+| [`download-network-failed`](#download-network-failed) | ERROR, WARNING | A request to a remote source failed. PyPI or a Hugging Face file: an HTTP status other than 404 (a 401 or 403 for a private or gated repository read without access), a refused or reset connection, a name that did not resolve, or an answer cut short. The Hugging Face Hub API (model_info(), dataset_info()): any HTTP error status, a 404 for a repository that does not exist or is private included, or a connection that failed. Git: git could not reach the repository (a name that did not resolve, a refused, reset or timed-out connection, a TLS failure, an HTTP 5xx answer); a git failure with any other cause is git-repository-unusable. | 0.24.0 |
+| [`download-timeout`](#download-timeout) | ERROR, WARNING | A request to PyPI, to the host that serves a file or to the Hugging Face Hub (a file, or the API's model_info() or dataset_info()), or the git calls that fetch a repository, did not finish within the time Pitloom allows. | 0.24.0 |
+| [`hub-response-invalid`](#hub-response-invalid) | WARNING | The Hugging Face Hub answered model_info() or dataset_info() with something huggingface_hub or Pitloom could not read: not JSON, or JSON without the shape the API gives. | 0.25.0 |
+| [`hub-revision-unpinned`](#hub-revision-unpinned) | WARNING | model_info() stated no revision (commit hash) of a Hugging Face model: the request failed, or the Hub (a mirror, a private Hub) sent none. Its files (config.json, the model card, a licence file) are read at the default branch as it is at the time of the run, which can change between runs. | 0.25.0 |
+| [`offline-unusable`](#offline-unusable) | ERROR, WARNING | Offline mode is on and the target must be fetched: a Git URL, a PyPI URL or a Hugging Face repository. Offline mode is --offline, the offline key of --config, or offline=True; for a file of a Hugging Face repository, or the Hub API's model_info() and dataset_info(), also huggingface_hub's own HF_HUB_OFFLINE. | 0.24.0 |
 | [`query-no-effect`](#query-no-effect) | INFO | The PyPI or Git URL given holds a query or a fragment (a tab of the page) that names no project, release, branch, tag or commit; or a Git page URL's version query names none of them. | 0.24.0 |
 | [`url-moved`](#url-moved) | INFO | PyPI, or the host serving a file, redirected a request to another URL on a host Pitloom reads PyPI from (a renamed project, a normalised name); or a Git URL, asked before git is run, redirects to another https URL of a repository (a renamed or moved repository). | 0.24.0 |
 | [`url-moved/hf-endpoint`](#url-movedhf-endpoint) | INFO | huggingface_hub's HF_ENDPOINT names a Hub other than https://huggingface.co (a mirror, a private Hub). | 0.24.0 |
@@ -34,17 +36,20 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
 
 - **Level**: ERROR, WARNING. As an ERROR, the command stops for that input and
   writes nothing for it (exit 1).
-- **Means**: A request to a remote source failed. PyPI or Hugging Face: an HTTP
-  status other than 404 (a 401 or 403 for a private or gated repository read
-  without access), a refused or reset connection, a name that did not resolve,
-  or an answer cut short. Git: git could not reach the repository (a name that
-  did not resolve, a refused, reset or timed-out connection, a TLS failure, an
-  HTTP 5xx answer); a git failure with any other cause is
-  git-repository-unusable.
+- **Means**: A request to a remote source failed. PyPI or a Hugging Face file:
+  an HTTP status other than 404 (a 401 or 403 for a private or gated repository
+  read without access), a refused or reset connection, a name that did not
+  resolve, or an answer cut short. The Hugging Face Hub API (model_info(),
+  dataset_info()): any HTTP error status, a 404 for a repository that does not
+  exist or is private included, or a connection that failed. Git: git could not
+  reach the repository (a name that did not resolve, a refused, reset or
+  timed-out connection, a TLS failure, an HTTP 5xx answer); a git failure with
+  any other cause is git-repository-unusable.
 - **SBOM effect**: not-written: no SBOM is written for the input.
 - **Pitloom did**: Wrote no SBOM (the error: pypi.download-failed,
   git.clone-failed); for a Hugging Face file, left that file out and read the
-  rest (the warning).
+  rest; for a Hub API request, recorded none of what it states, as the line's
+  outcome names, and read the rest (the warning).
 - **Tell the user**: the request failed, with the reason the line gives. They
   check the network and run again; for a private or gated Hugging Face
   repository (HTTP 401 or 403) they sign in with an account that has access
@@ -63,12 +68,13 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
 - **Level**: ERROR, WARNING. As an ERROR, the command stops for that input and
   writes nothing for it (exit 1).
 - **Means**: A request to PyPI, to the host that serves a file or to the Hugging
-  Face Hub, or the git calls that fetch a repository, did not finish within the
-  time Pitloom allows.
+  Face Hub (a file, or the API's model_info() or dataset_info()), or the git
+  calls that fetch a repository, did not finish within the time Pitloom allows.
 - **SBOM effect**: not-written: no SBOM is written for the input.
 - **Pitloom did**: Stopped the request and wrote no SBOM (the error:
   pypi.download-timeout, git.timeout); for a Hugging Face file, left that file
-  out and read the rest (the warning).
+  out and read the rest; for a Hub API request, recorded none of what it states,
+  as the line's outcome names, and read the rest (the warning).
 - **Tell the user**: the request timed out. They check the network and run
   again, or fetch the file or repository themselves and run Pitloom on the local
   copy. Do not retry in a loop; ask first, and with nobody to ask, report it
@@ -81,18 +87,61 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
   WARNING: URL=<url>: no complete answer within <seconds> seconds; <outcome> [download-timeout]
   ```
 
+### `hub-response-invalid`
+
+- **Level**: WARNING.
+- **Means**: The Hugging Face Hub answered model_info() or dataset_info() with
+  something huggingface_hub or Pitloom could not read: not JSON, or JSON without
+  the shape the API gives.
+- **SBOM effect**: thinner: the SBOM says less than reading the input would.
+- **Pitloom did**: Recorded none of what the request states, as the line's
+  outcome names, and read the rest.
+- **Tell the user**: the Hub's answer was not usable, as the line says. They may
+  run again later; with HF_ENDPOINT set, the Hub it names may not speak the
+  Hugging Face API. Do not change HF_ENDPOINT for them; ask first, and with
+  nobody to ask, report it only.
+- **Lines**:
+
+  ```text
+  WARNING: URL=<url>: the Hub's answer could not be read (<failure>); <outcome> [hub-response-invalid]
+  ```
+
+### `hub-revision-unpinned`
+
+- **Level**: WARNING.
+- **Means**: model_info() stated no revision (commit hash) of a Hugging Face
+  model: the request failed, or the Hub (a mirror, a private Hub) sent none. Its
+  files (config.json, the model card, a licence file) are read at the default
+  branch as it is at the time of the run, which can change between runs.
+- **SBOM effect**: weaker: what the SBOM says is less sure.
+- **Pitloom did**: Read the model's files at the default branch (said once per
+  read of a model, however many files); the SBOM records no version of the
+  model.
+- **Tell the user**: the files were read without a revision, so a later run can
+  read other files. Nothing they pass to Pitloom pins it; for a repeatable
+  result they download the repository at a commit and run Pitloom on the local
+  copy. Do not download it for them; ask first, and with nobody to ask, report
+  it only.
+- **Lines**:
+
+  ```text
+  WARNING: URL=<url>: the Hub stated no revision; files are read at the default branch as it is now [hub-revision-unpinned]
+  ```
+
 ### `offline-unusable`
 
 - **Level**: ERROR, WARNING. As an ERROR, the command stops for that input and
   writes nothing for it (exit 1).
 - **Means**: Offline mode is on and the target must be fetched: a Git URL, a
   PyPI URL or a Hugging Face repository. Offline mode is --offline, the offline
-  key of --config, or offline=True; for a file of a Hugging Face repository also
-  huggingface_hub's own HF_HUB_OFFLINE.
+  key of --config, or offline=True; for a file of a Hugging Face repository, or
+  the Hub API's model_info() and dataset_info(), also huggingface_hub's own
+  HF_HUB_OFFLINE.
 - **SBOM effect**: not-written: no SBOM is written for the input.
 - **Pitloom did**: Fetched nothing and wrote no SBOM (the error: git.offline,
-  pypi.offline, huggingface.offline); for a Hugging Face file under
-  HF_HUB_OFFLINE, left that file out and read the rest (the warning).
+  pypi.offline, huggingface.offline); for a Hugging Face file or Hub API request
+  under HF_HUB_OFFLINE, left it out, as the line's outcome names, and read the
+  rest (the warning).
 - **Tell the user**: the target must be fetched and offline mode forbids it.
   They run again without offline mode (no --offline, offline = false in the
   config, HF_HUB_OFFLINE unset), or fetch the repository or file themselves and

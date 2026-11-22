@@ -432,8 +432,11 @@ def one_line(value: object, limit: int | None = None, *, ellipsis: bool = False)
     return shown
 
 
-def failure_reason(failure: BaseException) -> str:
-    """The text of *failure* for a message, as :func:`one_line` writes it.
+def failure_reason(
+    failure: BaseException, limit: int | None = None, *, ellipsis: bool = False
+) -> str:
+    """The text of *failure* for a message, as :func:`one_line` writes it
+    (*limit* and *ellipsis* as there).
 
     An :class:`http.client.InvalidURL` quotes the path of the URL it
     refused, without its scheme (``'/x?token=...'``), where no URL masking
@@ -443,8 +446,10 @@ def failure_reason(failure: BaseException) -> str:
     masked."""
     if isinstance(failure, http.client.InvalidURL):
         head = _QUOTED_VALUE.split(str(failure), maxsplit=1)[0].rstrip(" :")
-        return one_line(head) if head.strip() else type(failure).__name__
-    return one_line(failure)
+        if head.strip():
+            return one_line(head, limit, ellipsis=ellipsis)
+        return type(failure).__name__
+    return one_line(failure, limit, ellipsis=ellipsis)
 
 
 #: Where a quoted value (a ``repr``) starts in an exception's text: a quote

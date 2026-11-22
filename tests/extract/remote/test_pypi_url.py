@@ -181,19 +181,18 @@ def test_the_name_is_kept_as_given() -> None:
         "dotless-i",
     ],
 )
-def test_a_url_that_is_not_read_is_refused_aloud(
+def test_a_url_that_is_not_read_is_refused_with_its_code(
     url: str, line: Line, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """Each refusal is the catalogued line, its code on the error, and a
-    ``WARNING:``; a password is never shown."""
-    with caplog.at_level(logging.WARNING), pytest.raises(ValueError) as info:
+    """Each refusal is the catalogued line and its code on the error; it logs
+    nothing (the CLI prints the error once); a password is never shown."""
+    with caplog.at_level(logging.DEBUG), pytest.raises(ValueError) as info:
         parse_pypi_url(url)
     assert code_of(info.value) == PYPI_URL_INVALID.code
     tail = re.split(r"%\(\w+\)s", line.template)[-1]
     assert str(info.value).endswith(tail)
-    assert [r.levelname for r in caplog.records] == ["WARNING"]
-    assert str(info.value) in caplog.text
-    assert "secret" not in caplog.text and "secret" not in str(info.value)
+    assert caplog.records == []
+    assert "secret" not in str(info.value)
     assert "\n" not in str(info.value)
 
 

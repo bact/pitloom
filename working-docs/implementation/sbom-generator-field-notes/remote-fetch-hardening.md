@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-10
-Last-Modified: 2026-11-10
+Last-Modified: 2026-11-22
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -72,8 +72,8 @@ state principles and the shape of each fix, not a way to reproduce a fault.
   arrives. Do: list every request a third-party client makes on your behalf
   and decide each one; a check on your own requests does not cover the
   library's.
-- **What stays outside is written down.** The Hub's API calls (model info,
-  file listing) remain library requests: they download no file, and the cap
+- **What stays outside is written down.** The Hub's API calls (model info and
+  dataset info) remain library requests: they download no file, and the cap
   and URL check do not reach them. That is stated in the user page and the
   notes. Do: state the boundary of a policy where a user reads it.
 
