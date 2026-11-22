@@ -28,6 +28,7 @@ from pitloom.extract.ai_model import _gguf_datasets
 from pitloom.extract.ai_model.gguf import read_gguf
 from pitloom.messages.files import Cap
 from tests.extract.ai_model.gguf_builders import (
+    BOOL,
     STRING,
     UINT32,
     array,
@@ -271,6 +272,84 @@ def test_both_spellings_give_each_dataset_once_numbered_first(
     assert meta.provenance["datasets"] == provenance
 
 
+def test_entry_fields_are_read_as_their_kind(tmp_path: Path) -> None:
+    """A version may be a number; a creator must be text, and a blank or
+    non-text ``author`` gives way to ``organization``."""
+    meta = _read(
+        tmp_path,
+        _number("general.dataset.count", 2),
+        _text("general.dataset.0.name", "a"),
+        _number("general.dataset.0.version", 2),
+        _number("general.dataset.0.author", 5),
+        _text("general.dataset.0.organization", "Org"),
+        _text("general.dataset.1.name", "b"),
+        _text("general.dataset.1.author", "  "),
+        _text("general.dataset.1.organization", "Org"),
+    )
+    first, second = (ref.metadata for ref in meta.datasets)
+    assert (first.version, first.creator, second.creator) == ("2", "Org", "Org")
+
+
+def test_the_first_numbered_entry_of_a_name_is_kept(tmp_path: Path) -> None:
+    meta = _read(
+        tmp_path,
+        _number("general.dataset.count", 2),
+        _text("general.dataset.0.name", "d"),
+        _text("general.dataset.0.version", "1"),
+        _text("general.dataset.1.name", "d"),
+        _text("general.dataset.1.version", "2"),
+    )
+    assert _names(meta) == ["d"]
+    assert meta.datasets[0].metadata.version == "1"
+
+
+def test_the_last_entry_a_count_names_is_read(tmp_path: Path) -> None:
+    """The count is bounded by the file's fields (here 5, with the
+    reader's header fields), never below the ids it names."""
+    meta = _read(
+        tmp_path,
+        _number("general.dataset.count", 5),
+        _text("general.dataset.4.name", "d"),
+    )
+    assert _names(meta) == ["d"]
+
+
+def test_a_huge_count_reads_no_more_ids_than_the_file_has_fields(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    calls: list[int] = []
+    real = _gguf_datasets._numbered_entry  # pylint: disable=protected-access
+
+    def spy(fields: dict[str, object], index: int, *rest: str) -> object:
+        calls.append(index)
+        return real(fields, index, *rest)
+
+    monkeypatch.setattr(_gguf_datasets, "_numbered_entry", spy)
+    _read(tmp_path, _number("general.dataset.count", 0xFFFFFFFF))
+    assert 0 < len(calls) < 10
+
+
+def test_a_listed_name_keeps_bytes_that_are_not_utf8(tmp_path: Path) -> None:
+    raw = b"d\xff"
+    pair = array(STRING, 1, struct.pack("<Q", len(raw)) + raw, key=b"general.datasets")
+    meta = _read(tmp_path, pair)
+    assert _names(meta) == ["d\udcff"]
+
+
+def test_a_plain_http_link_is_a_download_location(tmp_path: Path) -> None:
+    meta = _read(tmp_path, _listed("http://x.org/d"))
+    assert meta.datasets[0].metadata.download_url == "http://x.org/d"
+
+
+def test_the_real_cap_keeps_a_thousand(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    with caplog.at_level(logging.WARNING):
+        meta = _read(tmp_path, _listed(*(f"d{i}" for i in range(1001))))
+    assert len(meta.datasets) == 1000
+    assert "1000-dataset GGUF-datasets cap" in logged_warnings(caplog)[0]
+
+
 def test_imatrix_calibration_data_is_never_a_dataset(tmp_path: Path) -> None:
     meta = _read(tmp_path, _text("quantize.imatrix.dataset", "imatrix-training-3"))
     assert not meta.datasets
@@ -284,11 +363,22 @@ def test_imatrix_calibration_data_is_never_a_dataset(tmp_path: Path) -> None:
         # a count the file has no entries for: bounded by the keys there are
         (_number("general.dataset.count", 0xFFFFFFFF),),
         (_text("general.dataset.count", "1"), _text("general.dataset.0.name", "d")),
+        (
+            kv(b"general.dataset.count", BOOL, b"\x01"),
+            _text("general.dataset.0.name", "d"),
+        ),
         (_text("general.dataset.0.name", "d"),),  # no count: no entries
         (array(UINT32, 1, struct.pack("<I", 1), key=b"general.datasets"),),
         (array(STRING, 0, key=b"general.datasets"),),
     ],
-    ids=["huge-count", "text-count", "no-count", "number-array", "empty-array"],
+    ids=[
+        "huge-count",
+        "text-count",
+        "bool-count",
+        "no-count",
+        "number-array",
+        "empty-array",
+    ],
 )
 def test_no_dataset_from_what_names_none_and_no_warning(
     tmp_path: Path, caplog: pytest.LogCaptureFixture, pairs: tuple[bytes, ...]

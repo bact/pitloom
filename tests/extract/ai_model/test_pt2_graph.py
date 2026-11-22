@@ -49,9 +49,13 @@ _COUNT = (
 
 
 def _weight(
-    sizes: object, is_param: object = True, path: str = "w", offset: int = 0
+    sizes: object,
+    is_param: object = True,
+    path: str = "w",
+    offset: int = 0,
+    strides: object = None,
 ) -> dict[str, object]:
-    meta = {"sizes": sizes, "storage_offset": {"as_int": offset}}
+    meta = {"sizes": sizes, "storage_offset": {"as_int": offset}, "strides": strides}
     return {"path_name": path, "is_param": is_param, "tensor_meta": meta}
 
 
@@ -107,10 +111,11 @@ def test_a_weight_stored_once_counts_once(tmp_path: Path) -> None:
                 "q": _weight([{"as_int": 4}], path="w1"),
                 "k": _weight([{"as_int": 4}], path="w1", offset=4),  # a view
                 "other": _weight(embed, path="w2"),  # same shape, own blob
+                "t": _weight(embed, path="w0", strides=[{"as_int": 1}]),  # a view
             }
         ),
     )
-    assert meta.parameter_count == 40 + 4 + 4 + 40
+    assert meta.parameter_count == 40 + 4 + 4 + 40 + 40
 
 
 @pytest.mark.parametrize(
@@ -135,13 +140,21 @@ def test_no_count_and_no_warning(
 @pytest.mark.parametrize(
     ("files", "said"),
     [
-        ({_WEIGHTS: b"{not json"}, "parameter_count"),
+        ({_WEIGHTS: b"{not json"}, f"Failed to read PT2 m/{_WEIGHTS}"),
         (_weights([]), "parameter_count"),
         (_weights({"w": "x"}), "parameter_count"),
         (_weights({"w": {"is_param": True, "tensor_meta": {}}}), "parameter_count"),
         (_weights({"w": _weight([{"as_expr": {"expr_str": "s0"}}])}), "not a"),
+        (_weights({"w": _weight([{"as_int": 3, "x": 1}])}), "not a"),
     ],
-    ids=["not-json", "config-list", "weight-text", "no-sizes", "symbolic-size"],
+    ids=[
+        "not-json",
+        "config-list",
+        "weight-text",
+        "no-sizes",
+        "symbolic-size",
+        "size-with-more",
+    ],
 )
 def test_an_unreadable_config_is_warned_and_gives_no_count(
     tmp_path: Path, caplog: pytest.LogCaptureFixture, files: dict[str, bytes], said: str
@@ -172,6 +185,16 @@ def test_an_unparsable_model_json_loses_the_framework_version_too(
     assert meta.format_info.framework_version is None
     (warning,) = logged_warnings(caplog)
     assert "framework_version" in warning
+
+
+def test_a_model_json_nested_too_deep_is_warned_not_raised(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    with caplog.at_level(logging.WARNING):
+        meta = _read(tmp_path, {"models/model.json": b"[" * 100_000})
+    assert not meta.inputs
+    (warning,) = logged_warnings(caplog)
+    assert "Failed to parse PT2 model graph" in warning
 
 
 def test_a_weights_config_over_a_cap_is_not_absorbed(

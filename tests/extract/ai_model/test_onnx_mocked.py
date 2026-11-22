@@ -459,3 +459,29 @@ def test_onnx_repeated_metadata_props_key_warns_once_keeps_last(
     # The first three keys are named, the rest only counted
     assert "fourth_key" not in messages[0] and "fifth_key" not in messages[0]
     assert messages[0].endswith(", ...")
+
+
+@pytest.mark.parametrize(
+    ("producer", "tool", "version"),
+    [
+        (("tf2onnx", "1.16.1"), "tf2onnx", "1.16.1"),
+        ((" t ", "  "), "t", None),  # stated text: stripped, blank is none
+    ],
+    ids=["both", "blank-version"],
+)
+def test_onnx_producer_is_the_writing_tool_and_a_property(
+    tmp_path: Path, producer: tuple[str, str], tool: str, version: str | None
+) -> None:
+    meta = _read_mock(tmp_path, producer=producer)
+    info = meta.format_info
+    assert (info.writing_tool, info.writing_tool_version) == (tool, version)
+    assert info.framework is None  # the writer is not the framework
+    assert meta.properties["producer_name"] == producer[0]
+    assert meta.provenance["writing_tool"].endswith("Field: producer_name")
+    if version is None:
+        assert "writing_tool_version" not in meta.provenance
+    else:
+        assert meta.properties["producer_version"] == version
+        assert meta.provenance["writing_tool_version"].endswith(
+            "Field: producer_version"
+        )
