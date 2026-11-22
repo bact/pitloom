@@ -9,8 +9,8 @@ downloaded at the revision ``model_info()`` states, through the capped
 client, into a temporary directory removed afterwards; the library's
 ``check_url`` sees each request and ``max_download_bytes`` caps each file.
 
-The Hub API requests (``model_info()``, the file listing,
-``dataset_info()``) are ``huggingface_hub``'s and are patched here.
+The Hub API requests (``model_info()``, whose ``siblings`` list the files,
+and ``dataset_info()``) are ``huggingface_hub``'s and are patched here.
 
 See also: tests/extract/remote/test_hub_files.py (the downloads) and
 tests/_fake_hub.py.
@@ -65,12 +65,11 @@ def _fake(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Iterator[FakeHub]:
             patch.object(
                 huggingface_fetch,
                 "_load_model_info",
-                return_value={"author": "acme", "sha": _SHA},
-            ),
-            patch.object(
-                huggingface_fetch,
-                "_list_license_files_in_repo",
-                return_value=["LICENSE"],
+                return_value={
+                    "author": "acme",
+                    "sha": _SHA,
+                    "license_files": ["LICENSE"],
+                },
             ),
             patch.object(
                 hub_dataset,

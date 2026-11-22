@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-14
-Last-Modified: 2026-11-21
+Last-Modified: 2026-11-22
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -493,7 +493,7 @@ instead of `huggingface.co`, the token sent to it only, with an `INFO:`
 ([`url-moved/hf-endpoint`](message-codes-network.md#url-movedhf-endpoint)); an
 `HF_ENDPOINT` that is not https (or holds credentials, a query or a fragment)
 is refused, so the token never goes over plain http: nothing is asked of the
-Hub (no file, no model or dataset information, no file listing), the SBOM
+Hub (no file, no model or dataset information), the SBOM
 holds the model's id and URL only, with one `WARNING:`
 ([`url-unsafe/hf-endpoint`](message-codes-network.md#url-unsafehf-endpoint)).
 `https://HuggingFace.co/` and the port 443 count as the default Hub. A file the
@@ -506,9 +506,11 @@ carrying the code a Git or PyPI URL fails with
 [`url-unsafe`](message-codes-network.md#url-unsafe)). `--offline` refuses the model
 ([`offline-unusable`](message-codes-network.md#offline-unusable)), and with
 `huggingface_hub`'s `HF_HUB_OFFLINE` set no file is downloaded (one
-`WARNING:` each). The Hub's model and dataset information and its file
-listing are `huggingface_hub` requests and pass through neither the cap nor
-the library's `check_url=`, which every file download does.
+`WARNING:` each). The Hub's model and dataset information (the model
+information also lists the repository's files) are `huggingface_hub`
+requests, each with a 30-second socket timeout (per connect or read, no total
+deadline), and pass through neither the cap nor the library's `check_url=`,
+which every file download does.
 
 It never opens a model file of the repository, so it reads no per-file
 metadata and no hash: a repository whose weights are a `.keras` file gets an

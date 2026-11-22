@@ -20,7 +20,6 @@ from pitloom.extract.remote._hub_files import HubFiles
 from pitloom.extract.remote.huggingface import read_huggingface
 from pitloom.extract.remote.huggingface_fetch import (
     _detect_license_from_hf_files,
-    _list_license_files_in_repo,
 )
 from tests.extract.remote.hf_patches._hf_patches_base import (
     _make_card_data,
@@ -193,30 +192,12 @@ def test_detect_license_from_hf_files_returns_none_on_empty_file(
     tmp_path: Any,
 ) -> None:
     # Empty licence file should not produce a match.
-    with patch(
-        "pitloom.extract.remote.huggingface_fetch._list_license_files_in_repo",
-        return_value=["LICENSE"],
-    ):
-        empty_file = tmp_path / "LICENSE"
-        empty_file.write_text("", encoding="utf-8")
-        detected_id, _ = _detect_license_from_hf_files(
-            fake_hub(empty_file), "org/model"
-        )
+    empty_file = tmp_path / "LICENSE"
+    empty_file.write_text("", encoding="utf-8")
+    detected_id, _ = _detect_license_from_hf_files(
+        fake_hub(empty_file), "org/model", license_files=["LICENSE"]
+    )
     assert detected_id is None
-
-
-def test_list_license_files_in_repo_failure_logs_and_returns_empty(
-    caplog: pytest.LogCaptureFixture,
-) -> None:
-    with patch(
-        "huggingface_hub.list_repo_files", side_effect=OSError("listing failed")
-    ):
-        with caplog.at_level(
-            logging.DEBUG, logger="pitloom.extract.remote.huggingface_fetch"
-        ):
-            result = _list_license_files_in_repo("org/model")
-    assert not result
-    assert any("org/model" in r.message for r in caplog.records)
 
 
 @pytest.mark.parametrize("failing", ["download", "read"])
@@ -234,17 +215,15 @@ def test_detect_license_from_hf_files_failure_logs_and_continues(
         return licence
 
     with (
-        patch(
-            "pitloom.extract.remote.huggingface_fetch._list_license_files_in_repo",
-            return_value=["LICENSE"],
-        ),
         patch_hub_fetch(serve),
         patch("pathlib.Path.open", side_effect=OSError("read failed"))
         if failing == "read"
         else contextlib.nullcontext(),
     ):
         hub = HubFiles(RemoteFetchPolicy(), tmp_path, None)
-        detected_id, provenance = _detect_license_from_hf_files(hub, "org/model", "1")
+        detected_id, provenance = _detect_license_from_hf_files(
+            hub, "org/model", "1", license_files=["LICENSE"]
+        )
     assert (detected_id, provenance) == (None, None)
     (message,) = [
         r.getMessage() for r in caplog.records if r.levelno >= logging.WARNING
@@ -278,7 +257,9 @@ def test_kimi_vague_license_triggers_file_detection() -> None:
             detected_mock,
         ):
             meta = read_huggingface("moonshotai/Kimi-K2.6")
-    detected_mock.assert_called_once_with(ANY, "moonshotai/Kimi-K2.6", revision=None)
+    detected_mock.assert_called_once_with(
+        ANY, "moonshotai/Kimi-K2.6", revision=None, license_files=None
+    )
     assert meta.license == "MIT"
     assert meta.extra_data.get("hf.license_raw") == "other"
 

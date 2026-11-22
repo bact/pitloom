@@ -337,8 +337,8 @@ class HubFiles:
     @property
     def asks_hub(self) -> bool:
         """Whether anything may be asked of the Hub in this read: a file,
-        or ``huggingface_hub``'s ``model_info()``, ``dataset_info()`` or
-        file listing, which go to the same ``HF_ENDPOINT`` with the token.
+        or ``huggingface_hub``'s ``model_info()`` or ``dataset_info()``,
+        which go to the same ``HF_ENDPOINT`` with the token.
         ``False`` once :func:`hub_base` refused it."""
         return self.base is not None
 
