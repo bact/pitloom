@@ -25,6 +25,7 @@ from pitloom.core.dataset_names import (
     MAX_CARD_DATASETS,
     dataset_key,
     distinct_dataset_names,
+    distinct_datasets,
 )
 from pitloom.enrich.readme import ReadmeEnricher
 
@@ -55,6 +56,20 @@ def test_the_cap_cuts_in_order_and_counts_distinct_names(
     assert caplog.messages == [
         f"FILE=card.md: larger than the {MAX_CARD_DATASETS}-dataset "
         f"model-card-datasets cap; the first {MAX_CARD_DATASETS} kept"
+    ]
+
+
+def test_the_version_is_part_of_a_dataset_s_identity(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """One name at two versions stays two; a repeat of a name and version
+    is one, its other spelling said once."""
+    entries = [("O/D", "1"), ("o/d", "2"), ("o/d", "1"), ("O/D", None), (" ", "1")]
+    with caplog.at_level(logging.INFO, logger="pitloom"):
+        kept = distinct_datasets(entries, CARD_DATASETS_CAP, "m.gguf")
+    assert kept == [("O/D", "1"), ("o/d", "2"), ("O/D", None)]
+    assert caplog.messages == [
+        "dataset O/D and o/d name one dataset; the first spelling is kept"
     ]
 
 

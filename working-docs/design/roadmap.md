@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-11-22
+Last-Modified: 2026-11-23
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -488,7 +488,8 @@ Recorded findings; each is fixable on its own.
   --sbom-basename`, more. See [embed-wheel-followups.md](embed-wheel-followups.md).
 - **setuptools config reading**: `version = attr:` crash, `file:` path
   confinement, untagged warnings. See [setuptools-config-followups.md](setuptools-config-followups.md).
-- **ID registry**: what v3 leaves open. See
+- **ID registry**: what v3 leaves open; dataset identity by name and version
+  everywhere (needs a go-ahead). See
   [id-registry-followups.md](id-registry-followups.md).
 - **AI model scanning**: `env` scans no models; no warning when an extension
   disagrees with the content ([#103](https://github.com/bact/pitloom/issues/103)).

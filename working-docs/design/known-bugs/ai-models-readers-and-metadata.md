@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-02
-Last-Modified: 2026-11-22
+Last-Modified: 2026-11-23
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -248,12 +248,6 @@ history.
   a cohesive part out (the clone helpers are already in
   `_models_wheel_clone.py`).
   *Found 2026-11-09, review of #464.*
-- [ ] **Two GGUF dataset entries of one name keep the first, silently (S).**
-  `general.dataset.0` and `.1` both named `X`, versions 1.0 and 2.0: only
-  1.0 is kept, and the dropped version is not said. A warning needs a
-  catalogue message (a dropped keyed fact); or the identity could carry the
-  version. Rare: `gguf-py` writes one entry per card dataset.
-  *Found 2026-11-22, review of #509.*
 - [ ] **The parameter-count note says "stored tensors" (S).**
   `PARAMETER_COUNT_NOTE` reads "the number of elements in the model's stored
   tensors"; a CRFsuite count is its feature count (one weight each, no
@@ -270,6 +264,15 @@ release ships.
 
 ### Fixed, P3: after 0.24.0
 
+- [x] **Two GGUF dataset entries of one name keep the first, silently
+  (S).** Fixed (#509): the GGUF reader's identity is the name and the
+  version (`core.dataset_names.distinct_datasets`), so `X` 1.0 and `X` 2.0
+  both reach the assembler, which still folds them into one package by
+  name, with `WARNING: FIELD=version ...`. Entries of one name and version
+  fold with a `WARNING:` per field stated differently. Making the version
+  part of the identity everywhere (merge, ID registry keys) is open: see
+  [id-registry-followups.md](../id-registry-followups.md#dataset-identity-name-and-version).
+  *Found 2026-11-22, review of #509.*
 - [x] **Safetensors `framework` treats a blank value as present (S).**
   Fixed (#509): `format`, else `modelspec.implementation`, through the
   shared stated-text helper, a blank one giving way; its provenance names

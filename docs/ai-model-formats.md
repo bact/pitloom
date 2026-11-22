@@ -246,7 +246,12 @@ can hold it, Pitloom does not read it. **--**: the format has no such field.
     `repo_url` is its download location as written, `version` and
     `description` are read, `author`, else `organization`, is its creator.
     The numbered entries come first; a dataset named in both is one
-    dataset, a Hub id in any case. At most
+    dataset, a Hub id in any case (an array element is the first numbered
+    entry of its name). Two numbered entries of one name and version are
+    one dataset, the first's values kept, with a `WARNING:` per field
+    they state differently; one name at two versions is two datasets,
+    which the SBOM still shows as one package, the first version kept,
+    with a `WARNING:`. At most
     1000, with one `WARNING:` past them. `quantize.imatrix.dataset`
     (written by `llama-quantize`) is the calibration text of an importance
     matrix, not training data: it stays a property. `general.base_model.*`

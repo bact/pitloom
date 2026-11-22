@@ -45,10 +45,14 @@ from typing import Any, NamedTuple
 from urllib.parse import urlsplit
 
 from pitloom.core.ai_metadata import model_cap
+from pitloom.core.dataset_merge import merge_dataset_into
 from pitloom.core.dataset_metadata import DatasetMetadata, DatasetReference
 from pitloom.core.dataset_names import (
     MAX_CARD_DATASETS,
-    distinct_dataset_names,
+    DatasetIdentity,
+    dataset_identity,
+    dataset_key,
+    distinct_datasets,
     is_hub_dataset_id,
 )
 from pitloom.core.provenance import provenance_segment
@@ -281,9 +285,15 @@ def read_gguf_datasets(
     model's ``datasets`` field (``None`` with none).
 
     The numbered entries come first, then the ``general.datasets``
-    elements; each dataset once by its first spelling
-    (:func:`~pitloom.core.dataset_names.distinct_dataset_names`), at most
-    :data:`GGUF_DATASETS_CAP` of them, with one ``WARNING:`` naming *where*
+    elements; each dataset once by its first spelling, the name and version
+    its identity (:func:`~pitloom.core.dataset_names.distinct_datasets`): one
+    name at two versions is two datasets, which the assembler folds into
+    one package with a ``WARNING:``. An element, which states no version,
+    is another spelling of the first numbered entry of its name. A later
+    entry of a kept identity fills the fields the first leaves unset, with
+    a ``WARNING:`` for each that both state differently
+    (:func:`~pitloom.core.dataset_merge.merge_dataset_into`). At most
+    :data:`GGUF_DATASETS_CAP` datasets, with one ``WARNING:`` naming *where*
     when more are listed. Elements are decoded only as far as the cap needs.
 
     Args:
@@ -295,33 +305,48 @@ def read_gguf_datasets(
         where: The model's path, for the over-cap warning.
         file_name: The model's file name, naming it in a URL warning.
     """
-    found: dict[str, DatasetMetadata] = {}
-    # The field each spelling came from, so the provenance names only the
+    found: dict[DatasetIdentity, DatasetMetadata] = {}
+    # The field each dataset came from, so the provenance names only the
     # fields of the datasets kept.
-    origin: dict[str, str] = {}
+    origin: dict[DatasetIdentity, str] = {}
+    warned: dict[DatasetIdentity, set[str]] = {}
+    # The version of the first numbered entry of each name: an array
+    # element, which states none, is another spelling of that entry.
+    first_version: dict[str, str | None] = {}
 
-    def names() -> Iterator[str]:
+    def keep(meta: DatasetMetadata, version: str | None, field: str) -> None:
+        identity = dataset_identity(meta.name, version)
+        if identity in found:
+            merge_dataset_into(
+                found[identity], meta, warned.setdefault(identity, set())
+            )
+        else:
+            found[identity] = meta
+            origin[identity] = field
+
+    def entries() -> Iterator[tuple[str, str | None]]:
         for index in range(_entry_count(fields)):
             meta = _numbered_entry(fields, index, source, file_name)
             if meta is not None:
-                if meta.name not in found:
-                    found[meta.name] = meta
-                    origin[meta.name] = _NUMBERED_FIELD
-                yield meta.name
-        named: dict[str, str] = {}  # element text -> the name it gives
+                first_version.setdefault(dataset_key(meta.name), meta.version)
+                keep(meta, meta.version, _NUMBERED_FIELD)
+                yield meta.name, meta.version
+        named: dict[str, tuple[str, str | None]] = {}  # element text -> entry
         for listed_text in _listed_names(listed):
             text = listed_text.strip()
             if text and text not in named:
                 meta = _listed_entry(text, source, file_name)
-                named[text] = meta.name
-                if meta.name not in found:
-                    found[meta.name] = meta
-                    origin[meta.name] = DATASETS_KEY
-            yield named.get(text, text)
+                version = first_version.get(dataset_key(meta.name))
+                named[text] = (meta.name, version)
+                keep(meta, version, DATASETS_KEY)
+            yield named.get(text, (text, None))
 
-    kept = distinct_dataset_names(names(), model_cap(GGUF_DATASETS_CAP, "gguf"), where)
+    cap = model_cap(GGUF_DATASETS_CAP, "gguf")
+    kept = [
+        dataset_identity(*entry) for entry in distinct_datasets(entries(), cap, where)
+    ]
     if not kept:
         return [], None
-    datasets = [DatasetReference(role="trainedOn", metadata=found[n]) for n in kept]
-    used = dict.fromkeys(origin[n] for n in kept)
+    datasets = [DatasetReference(role="trainedOn", metadata=found[i]) for i in kept]
+    used = dict.fromkeys(origin[i] for i in kept)
     return datasets, provenance_segment(source, "Field", ", ".join(used))

@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-29
-Last-Modified: 2026-11-17
+Last-Modified: 2026-11-23
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -194,6 +194,34 @@ and a re-minted id can in theory collide with a *later* fragment that carries
 the same id (for example `<ns>#DatasetPackage-1` re-declared by a later
 fragment and not in the base; all fragments load before the first merge, so a
 pre-scan is possible). Accepted for now.
+
+### Dataset identity: name and version
+
+Ruled 2026-11-23 (option B of the #509 question): make `(name, version)`
+the identity of a dataset everywhere, not yet built; the registry key
+change needs the user's go-ahead first. Today only the GGUF reader keys a
+dataset by name and version (`core.dataset_names.dataset_identity`,
+`distinct_datasets`, #509). Everything after it keys by name alone
+(`dataset_key`), so two releases of one dataset become one package:
+
+- `core.dataset_merge.merge_dataset_references` folds every reference by
+  name; a second version is dropped with `WARNING: FIELD=version ...`.
+- ID registry keys: `(dataset_DatasetPackage, name)` in
+  `_loom_dataset.py`, `id_registry/import_keys.py` and
+  `assemble/spdx3/_reserved_ids.model_dataset_keys`; two packages of one
+  name would share one key, so one id. A registry key change.
+- The README enricher (`enrich/readme.py`) and the Hub card route
+  (`extract/remote/huggingface_field.py`, `huggingface_dataset.py`) dedupe
+  by `dataset_key`; a card states no version, so only the rule below
+  matters there.
+- `dataset_creation_info` in `assemble/spdx3/dataset.py` maps a name to
+  its enrichment `CreationInfo`.
+
+Open question: does a reference with no version join a versioned one (the
+card's `allenai/c4` and a GGUF's `allenai/c4` 2.0)? Joining is not
+transitive (`d`, `d` 1, `d` 2: which does `d` join?). The GGUF reader's
+answer, for its own array only: an element is another spelling of the first
+numbered entry of its name.
 
 ### `pitloom.loom` run namespaces
 

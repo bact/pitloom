@@ -437,17 +437,73 @@ def test_entry_fields_are_read_as_their_kind(tmp_path: Path) -> None:
     assert (first.version, first.creator, second.creator) == ("2", "Org", "Org")
 
 
-def test_the_first_numbered_entry_of_a_name_is_kept(tmp_path: Path) -> None:
-    meta = _read(
+def _two_releases(tmp_path: Path, second: str) -> AiModelMetadata:
+    """Entries ``d`` 1 and ``d`` *second*, the first located, the second
+    described, and an array element ``d``."""
+    return _read(
         tmp_path,
         _number("general.dataset.count", 2),
         _text("general.dataset.0.name", "d"),
         _text("general.dataset.0.version", "1"),
+        _text("general.dataset.0.repo_url", "https://x.org/d1"),
         _text("general.dataset.1.name", "d"),
-        _text("general.dataset.1.version", "2"),
+        _text("general.dataset.1.version", second),
+        _text("general.dataset.1.repo_url", "https://x.org/d2"),
+        _text("general.dataset.1.description", "Second"),
+        _listed("d"),
     )
-    assert _names(meta) == ["d"]
-    assert meta.datasets[0].metadata.version == "1"
+
+
+def test_one_name_at_two_versions_is_two_datasets(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """The array element is another spelling of the first entry."""
+    with caplog.at_level(logging.INFO):
+        meta = _two_releases(tmp_path, "2")
+    data = [ref.metadata for ref in meta.datasets]
+    assert [(d.name, d.version, d.download_url) for d in data] == [
+        ("d", "1", "https://x.org/d1"),
+        ("d", "2", "https://x.org/d2"),
+    ]
+    assert data[0].description is None
+    assert not logged_warnings(caplog)
+    assert meta.provenance["datasets"] == _NUMBERED  # the element joined
+
+
+def test_one_name_at_one_version_is_one_dataset_and_a_dropped_fact_is_said(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """The first entry is kept; the second fills what it leaves unset and
+    its differing location is warned of."""
+    with caplog.at_level(logging.WARNING):
+        meta = _two_releases(tmp_path, "1")
+    (ref,) = meta.datasets
+    data = ref.metadata
+    assert (data.version, data.download_url, data.description) == (
+        "1",
+        "https://x.org/d1",
+        "Second",
+    )
+    assert logged_warnings(caplog) == [
+        "FIELD=download_url: references to dataset d differ; the first is kept"
+    ]
+
+
+def test_two_versions_reach_the_sbom_as_one_package_with_a_warning(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """The assembler's fold names one dataset by its name: it keeps the
+    first version and says so."""
+    meta = _two_releases(tmp_path, "2")
+    creation = CreationMetadata(creation_datetime="2026-01-01T00:00:00Z")
+    with caplog.at_level(logging.WARNING):
+        graph = json.loads(build_model(meta, creation).to_json())["@graph"]
+    (package,) = [e for e in graph if e["type"] == "dataset_DatasetPackage"]
+    assert package["software_packageVersion"] == "1"
+    assert [w for w in logged_warnings(caplog) if "dataset d" in w] == [
+        "FIELD=version: references to dataset d differ; the first is kept",
+        "FIELD=download_url: references to dataset d differ; the first is kept",
+    ]
 
 
 def test_the_last_entry_a_count_names_is_read(tmp_path: Path) -> None:
