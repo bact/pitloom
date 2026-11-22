@@ -52,6 +52,10 @@ SAFETENSORS_FORMAT_MAX_HEADER_BYTES = 100_000_000
 MAX_SAFETENSORS_HEADER_BYTES = 16 * 1024 * 1024
 
 
+#: The ``__metadata__`` keys of the framework (``pt`` for PyTorch), in the
+#: order tried.
+_FRAMEWORK_KEYS = ("format", "modelspec.implementation")
+
 #: The ``__metadata__`` keys of each field, in the order tried:
 #: name, description, version, architecture, quantization. kohya-ss
 #: ``ss_base_model_version`` names the base model, not this one: it stays in
@@ -234,11 +238,9 @@ def read_safetensors(model_path: Path) -> AiModelMetadata:
 
     # Some Safetensors files record the originating framework under "format"
     # (e.g. "pt" for PyTorch) or "modelspec.implementation".
-    framework = (
-        metadata.get("format") or metadata.get("modelspec.implementation") or None
+    framework = _stated_field(
+        metadata, "framework", _FRAMEWORK_KEYS, source, provenance
     )
-    if framework:
-        provenance["framework"] = f"{source} | Field: __metadata__"
 
     # Well-known keys of __metadata__; a blank value reads as absent and
     # gives way to the next key.

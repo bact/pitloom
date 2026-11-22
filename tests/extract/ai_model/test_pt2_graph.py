@@ -110,12 +110,13 @@ def test_a_weight_stored_once_counts_once(tmp_path: Path) -> None:
                 "lm_head.weight": _weight(embed, path="w0"),  # tied
                 "q": _weight([{"as_int": 4}], path="w1"),
                 "k": _weight([{"as_int": 4}], path="w1", offset=4),  # a view
+                "q2": _weight([{"as_int": 2}], path="w1"),  # a shorter view
                 "other": _weight(embed, path="w2"),  # same shape, own blob
                 "t": _weight(embed, path="w0", strides=[{"as_int": 1}]),  # a view
             }
         ),
     )
-    assert meta.parameter_count == 40 + 4 + 4 + 40 + 40
+    assert meta.parameter_count == 40 + 4 + 4 + 2 + 40 + 40
 
 
 @pytest.mark.parametrize(

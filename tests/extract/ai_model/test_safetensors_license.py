@@ -136,3 +136,29 @@ def test_model_version_is_the_last_version_key(
     assert meta.provenance["version"] == (
         f"Source: m.safetensors | Field: __metadata__.{key}"
     )
+
+
+@pytest.mark.parametrize(
+    ("metadata", "framework", "key"),
+    [
+        ({"format": "pt"}, "pt", "format"),
+        (
+            {"format": " ", "modelspec.implementation": "sgm"},
+            "sgm",
+            "modelspec.implementation",
+        ),
+        ({"format": "  "}, None, None),
+    ],
+    ids=["format", "blank-gives-way", "blank"],
+)
+def test_the_framework_cites_its_key_and_a_blank_one_is_none(
+    tmp_path: Path, metadata: dict[str, object], framework: str | None, key: str | None
+) -> None:
+    meta = read_safetensors(_file(tmp_path / "m.safetensors", metadata))
+    assert meta.format_info.framework == framework
+    if key is None:
+        assert "framework" not in meta.provenance
+    else:
+        assert meta.provenance["framework"] == (
+            f"Source: m.safetensors | Field: __metadata__.{key}"
+        )

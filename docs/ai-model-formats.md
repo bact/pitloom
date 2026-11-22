@@ -228,15 +228,21 @@ can hold it, Pitloom does not read it. **--**: the format has no such field.
 29. Training datasets, `trainedOn`: the spec's `general.datasets` (a string
     array of names or links; a link is also the download location) and
     llama.cpp's numbered `general.dataset.<id>.*` entries
-    (`general.dataset.count`; `name`, else `repo_url`, names the dataset;
-    `repo_url` is its download location, `version` and `description` are
-    read, `author`, else `organization`, is its creator). llama.cpp writes
-    a card's Hub id `owner/name` as a title-cased `name` and the model-path
-    URL `https://huggingface.co/owner/name` as `repo_url`, so a `repo_url`
-    on `huggingface.co` naming a Hub dataset names it by that id, located
-    at its dataset page, as a Hub model card's datasets are
-    (`Method: hub_dataset_id`). The numbered entries come first; a dataset
-    named in both is one dataset, a Hub id in any case. At most
+    (`general.dataset.count`). A Hub dataset page,
+    `https://huggingface.co/datasets/<id>`, as a numbered entry's
+    `repo_url` or an array element, names the dataset by its Hub id
+    (`Method: hub_dataset_id`), as a Hub model card's datasets are named.
+    llama.cpp writes a card's Hub id `owner/name` as `name` = a title of
+    the name part (`OpenHermes 2.5`), `organization` = a title of the owner,
+    a `version` guessed from the name, and the model page URL
+    `https://huggingface.co/owner/name` (no dataset is there) as `repo_url`;
+    an entry with exactly that `name` and `repo_url` is named by the Hub id,
+    located at its dataset page, and its made-up organisation and version
+    are not read. Otherwise `name`, else `repo_url`, names the dataset;
+    `repo_url` is its download location as written, `version` and
+    `description` are read, `author`, else `organization`, is its creator.
+    The numbered entries come first; a dataset named in both is one
+    dataset, a Hub id in any case. At most
     1000, with one `WARNING:` past them. `quantize.imatrix.dataset`
     (written by `llama-quantize`) is the calibration text of an importance
     matrix, not training data: it stays a property. `general.base_model.*`

@@ -105,84 +105,165 @@ def test_numbered_entries_are_trained_on_datasets(tmp_path: Path) -> None:
 _HUB = f"{_SOURCE} | Field: general.dataset.0.repo_url | Method: hub_dataset_id"
 
 
+def test_an_entry_gguf_py_wrote_is_named_by_its_hub_id(tmp_path: Path) -> None:
+    """gguf-py writes a card's ``teknium/OpenHermes-2.5`` as the title
+    ``OpenHermes 2.5``, the titled owner, a version guessed from the name
+    and the model-path URL: the dataset is the Hub id, at its page, and the
+    made-up organisation and version are not read."""
+    meta = _read(
+        tmp_path,
+        _number("general.dataset.count", 1),
+        _text("general.dataset.0.name", "OpenHermes 2.5"),
+        _text("general.dataset.0.organization", "Teknium"),
+        _text("general.dataset.0.version", "2.5"),
+        _text("general.dataset.0.author", "Ann"),  # not gguf-py's: read
+        _text(
+            "general.dataset.0.repo_url",
+            "http://huggingface.co/teknium/OpenHermes-2.5",
+        ),
+    )
+    data = meta.datasets[0].metadata
+    assert (data.name, data.download_url, data.version, data.creator) == (
+        "teknium/OpenHermes-2.5",
+        "https://huggingface.co/datasets/teknium/OpenHermes-2.5",
+        None,
+        "Ann",
+    )
+    assert data.provenance["name"] == _HUB
+    assert data.provenance["download_url"] == _HUB
+    assert meta.properties["general.dataset.0.name"] == "OpenHermes 2.5"
+
+
 @pytest.mark.parametrize(
-    ("repo_url", "name", "location"),
+    ("organization", "version", "creator", "read_version"),
     [
-        # gguf-py's model-path spelling of the card's id: the dataset page
-        (
-            "https://huggingface.co/allenai/c4",
-            "allenai/c4",
-            "https://huggingface.co/datasets/allenai/c4",
-        ),
-        (
-            "https://huggingface.co/datasets/teknium/OpenHermes-2.5/",
-            "teknium/OpenHermes-2.5",
-            "https://huggingface.co/datasets/teknium/OpenHermes-2.5/",
-        ),
-        (
-            "https://huggingface.co/datasets/c4",
-            "c4",
-            "https://huggingface.co/datasets/c4",
-        ),
+        ("Allenai", "2", None, "2"),  # the titled owner; 2 is not in the id
+        ("AI2", "c4", "AI2", None),  # a word of the name part is gguf-py's
     ],
-    ids=["model-path", "dataset-page", "legacy-id"],
+    ids=["titled-owner", "name-word"],
 )
-def test_a_hub_repo_url_names_the_dataset_by_its_hub_id(
-    tmp_path: Path, repo_url: str, name: str, location: str
+def test_only_what_gguf_py_derives_from_the_id_is_left_out(
+    tmp_path: Path,
+    organization: str,
+    version: str,
+    creator: str | None,
+    read_version: str | None,
 ) -> None:
     meta = _read(
         tmp_path,
         _number("general.dataset.count", 1),
-        _text("general.dataset.0.name", "C4"),  # gguf-py's title
-        _text("general.dataset.0.organization", "Allenai"),
-        _text("general.dataset.0.repo_url", repo_url),
+        _text("general.dataset.0.name", "C4"),
+        _text("general.dataset.0.organization", organization),
+        _text("general.dataset.0.version", version),
+        _text("general.dataset.0.repo_url", "https://huggingface.co/allenai/c4"),
     )
     data = meta.datasets[0].metadata
-    assert (data.name, data.download_url, data.creator) == (name, location, "Allenai")
-    assert data.provenance["name"] == _HUB
-    page = repo_url == location
-    assert data.provenance["download_url"] == (
-        f"{_SOURCE} | Field: general.dataset.0.repo_url" if page else _HUB
-    )
-    assert meta.properties["general.dataset.0.name"] == "C4"
+    assert (data.creator, data.version) == (creator, read_version)
 
 
 @pytest.mark.parametrize(
     "repo_url",
     [
+        "https://huggingface.co/datasets/teknium/OpenHermes-2.5/",
+        "https://HuggingFace.co/datasets/c4",  # a legacy id, any host case
+    ],
+    ids=["dataset-page", "legacy-id"],
+)
+def test_a_hub_dataset_page_names_the_dataset_by_its_hub_id(
+    tmp_path: Path, repo_url: str
+) -> None:
+    """A dataset page is a dataset whatever the entry's name; its stated
+    fields are the writer's own, so all are read."""
+    meta = _read(
+        tmp_path,
+        _number("general.dataset.count", 1),
+        _text("general.dataset.0.name", "Anything"),
+        _text("general.dataset.0.organization", "Allenai"),
+        _text("general.dataset.0.repo_url", repo_url),
+    )
+    data = meta.datasets[0].metadata
+    name = repo_url.rstrip("/").split("/datasets/")[1]
+    assert (data.name, data.download_url, data.creator) == (name, repo_url, "Allenai")
+    assert data.provenance == {
+        "name": _HUB,
+        "download_url": f"{_SOURCE} | Field: general.dataset.0.repo_url",
+        "creator": f"{_SOURCE} | Field: general.dataset.0.organization",
+    }
+
+
+@pytest.mark.parametrize(
+    "repo_url",
+    [
+        "https://huggingface.co/papers/2301.00001",  # the name is not its title
+        "https://huggingface.co/allenai/d",  # a model page, not gguf-py's
+        "https://huggingface.co:abc/allenai/c4",  # a port, even unparsable
+        "https://huggingface.co:99999/allenai/c4",
+        "https://huggingface.co:443/allenai/c4",
+        "https://huggingface.co./allenai/c4",
+        "ftp://huggingface.co/allenai/c4",
         "https://huggingface.co/allenai",  # one segment: a model, if anything
-        "https://huggingface.co/a/b/c",
+        "https://huggingface.co/allenai/c4/tree/main",
         "https://huggingface.co/datasets/a/b/c",
         "https://huggingface.co/datasets/",
-        "https://huggingface.co/a/b?x=1",
-        "https://huggingface.co/a/b#x",
-        "https://huggingface.co:8443/a/b",
-        "https://u@huggingface.co/a/b",
-        "https://hf.co/a/b",
-        "https://huggingface.co/a--b/c",  # no Hub id
+        "https://huggingface.co/allenai/c4?x=1",
+        "https://huggingface.co/allenai/c4#x",
+        "https://u@huggingface.co/allenai/c4",
+        "https://hf.co/allenai/c4",
+        "https://huggingface.co/datasets/a--b/c",  # no Hub id
     ],
 )
 def test_any_other_repo_url_is_kept_as_written(tmp_path: Path, repo_url: str) -> None:
     meta = _read(
         tmp_path,
         _number("general.dataset.count", 1),
-        _text("general.dataset.0.name", "d"),
+        _text("general.dataset.0.name", "C4"),
+        _text("general.dataset.0.organization", "Allenai"),
         _text("general.dataset.0.repo_url", repo_url),
     )
     data = meta.datasets[0].metadata
-    assert (data.name, data.download_url) == ("d", repo_url)
+    assert (data.name, data.download_url, data.creator) == ("C4", repo_url, "Allenai")
 
 
-def test_a_hub_repo_url_and_the_spec_array_give_one_dataset(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    "listed",
+    ["AllenAI/C4", "https://huggingface.co/datasets/allenai/c4"],
+    ids=["hub-id", "dataset-page"],
+)
+def test_a_hub_repo_url_and_the_spec_array_give_one_dataset(
+    tmp_path: Path, listed: str
+) -> None:
     meta = _read(
         tmp_path,
         _number("general.dataset.count", 1),
         _text("general.dataset.0.name", "C4"),
         _text("general.dataset.0.repo_url", "https://huggingface.co/allenai/c4"),
-        _listed("AllenAI/C4"),
+        _listed(listed),
     )
     assert _names(meta) == ["allenai/c4"]
     assert meta.provenance["datasets"] == _NUMBERED
+
+
+def test_a_listed_dataset_page_is_named_by_its_hub_id(tmp_path: Path) -> None:
+    page, model = "https://huggingface.co/datasets/o/d", "https://huggingface.co/o/d"
+    meta = _read(tmp_path, _listed(page, model))
+    assert _names(meta) == ["o/d", model]  # a model-path link is kept as written
+    hub, other = (ref.metadata for ref in meta.datasets)
+    assert (hub.download_url, other.download_url) == (page, model)
+    assert hub.provenance == {
+        "name": f"{_LISTED} | Method: hub_dataset_id",
+        "download_url": _LISTED,
+    }
+
+
+@pytest.mark.parametrize(
+    "words",
+    ["c4", "OpenHermes-2.5", "ultrachat_200k", "open-orca", "v2-beta", "LLaMA-v1.5-x"],
+)
+def test_the_title_is_gguf_py_s(words: str) -> None:
+    """Drift guard: Pitloom's copy of ``Metadata.id_to_title``."""
+    metadata = pytest.importorskip("gguf.metadata")
+    title = metadata.Metadata.id_to_title(words)
+    assert _gguf_datasets.gguf_py_title(words) == title
 
 
 def test_an_entry_without_a_name_is_named_by_its_repo_url(tmp_path: Path) -> None:

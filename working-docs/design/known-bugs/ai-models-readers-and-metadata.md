@@ -198,12 +198,6 @@ history.
 
 ### Found in review rounds, not yet prioritised
 
-- [ ] **Safetensors `framework` treats a blank value as present (S).**
-  `format` and `modelspec.implementation` are chosen with `or`, which skips
-  an empty string but not a white-space-only value (`" "`): that still counts
-  as present, while every other blank text field gives way (#427). Use the
-  shared stated-text helper.
-  *Found 2026-11-03, review of the merges #426 to #429.*
 - [ ] **A lone surrogate is escaped only on the scanner path (S, test-helper
   trap).** `cap_and_warn` escapes it, so `read_model_candidate` returns safe
   text; `read_ai_model` called directly returns the raw surrogate, and a
@@ -275,6 +269,11 @@ Kept for history, with the PR. A fixed entry moves to
 release ships.
 
 ### Fixed, P3: after 0.24.0
+
+- [x] **Safetensors `framework` treats a blank value as present (S).**
+  Fixed (#509): `format`, else `modelspec.implementation`, through the
+  shared stated-text helper, a blank one giving way; its provenance names
+  the key read. *Found 2026-11-03, review of the merges #426 to #429.*
 
 Found by the fact-check of the AI SBOM workshop paper against 0.24.0
 (2026-11-14).

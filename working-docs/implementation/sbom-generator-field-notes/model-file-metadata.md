@@ -240,8 +240,10 @@ fact-check of the LLMSC 2027 workshop paper draft against 0.24.0 (#483,
   `/datasets/` that does not resolve (401; the `/datasets/` page answers
   200). Read as stated, the same dataset is `C4` in the GGUF and
   `allenai/c4` on the card beside it: two packages. Pitloom names a
-  numbered entry by the Hub id of such a `repo_url` and locates it at the
-  dataset page, as the card route does. Do: read every spelling the spec
+  numbered entry by the Hub id when its `name` is exactly gguf-py's title
+  of its `repo_url`'s name part (proof that gguf-py wrote it; a model page
+  link otherwise stays as written), locates it at the dataset page, as the
+  card route does, and drops the made-up organisation and version. Do: read every spelling the spec
   and the reference writer use, the spec's first; map a key by what its
   writer means (calibration is not training); read the writer's source to
   see which stated values it made up, and recover the identity it lost.
