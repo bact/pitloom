@@ -279,7 +279,7 @@ def test_generate_dispatches_local_ai_model_file_by_extension(
     """A local file whose extension matches a known AI-model format
     dispatches to generate_model_sbom(), even though it is a real file
     on disk (unlike the Hugging Face source string case above). ``.pt2``
-    is covered: a PyTorch PT2/ExecuTorch file must not fall through to
+    is covered: a PyTorch PT2 (``torch.export``) file must not fall through to
     project-SBOM generation."""
     model_path = tmp_path / f"weights{suffix}"
     model_path.write_bytes(b"\x00")

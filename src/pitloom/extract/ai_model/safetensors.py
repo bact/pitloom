@@ -33,9 +33,11 @@ from pitloom.messages.files import Cap
 
 log = logging.getLogger(__name__)
 
-#: The ModelSpec key stable-diffusion-xl-base-1.0 and stable-cascade write the
-#: licence in; no other licence key appears in the files measured.
-_LICENSE_KEY = "modelspec.license"
+#: The ``__metadata__`` keys stating the licence, in the order tried: the
+#: ModelSpec key (stable-diffusion-xl-base-1.0, stable-cascade), then the
+#: plain ``license`` key Lightricks LTX-Video and LTX-2 write (a name, or
+#: the whole licence text). The format defines neither.
+_LICENSE_KEYS = ("modelspec.license", "license")
 
 #: Longest JSON header the format allows: ``safetensors``' own
 #: ``MAX_HEADER_SIZE``, inclusive. It decides whether a file is Safetensors
@@ -50,14 +52,18 @@ SAFETENSORS_FORMAT_MAX_HEADER_BYTES = 100_000_000
 MAX_SAFETENSORS_HEADER_BYTES = 16 * 1024 * 1024
 
 
+#: The ``__metadata__`` keys of the framework (``pt`` for PyTorch), in the
+#: order tried.
+_FRAMEWORK_KEYS = ("format", "modelspec.implementation")
+
 #: The ``__metadata__`` keys of each field, in the order tried:
 #: name, description, version, architecture, quantization. kohya-ss
 #: ``ss_base_model_version`` names the base model, not this one: it stays in
-#: ``properties`` only.
+#: ``properties`` only. ``model_version`` is LTX-2's.
 _STATED_KEYS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("name", ("modelspec.title", "name")),
     ("description", ("modelspec.description", "description")),
-    ("version", ("modelspec.version", "version")),
+    ("version", ("modelspec.version", "version", "model_version")),
     ("architecture", ("modelspec.architecture", "architecture")),
     ("quantization", ("modelspec.precision", "precision")),
 )
@@ -152,16 +158,16 @@ def _originators(
 def _license(
     metadata: dict[str, str], source: str, provenance: dict[str, str]
 ) -> str | None:
-    """The model licence of ``modelspec.license`` (a licence name or an SPDX
-    expression, as written), if it is non-blank. Free text, so this reader
-    calls no SPDX-only warning; the assembler's own classification still
-    reports a value that looks like a broken expression. The format has no
-    licence key of its own."""
-    value = (metadata.get(_LICENSE_KEY) or "").strip()
-    if not value:
+    """The model licence of the first of :data:`_LICENSE_KEYS` that is not
+    blank (a licence name, an SPDX expression or a licence text, as
+    written). Free text, so this reader calls no SPDX-only warning; the
+    assembler's own classification still reports a value that looks like a
+    broken expression. The format has no licence key of its own."""
+    found = first_stated_text(metadata, _LICENSE_KEYS)
+    if found is None:
         return None
-    provenance["license"] = f"{source} | Field: __metadata__.{_LICENSE_KEY}"
-    return value
+    provenance["license"] = f"{source} | Field: __metadata__.{found[0]}"
+    return found[1]
 
 
 def _stated_field(
@@ -172,11 +178,11 @@ def _stated_field(
     provenance: dict[str, str],
 ) -> str | None:
     """The text of the first of *keys* in *metadata* that is not blank, with
-    *field*'s provenance."""
+    *field*'s provenance naming that key."""
     found = first_stated_text(metadata, keys)
     if found is None:
         return None
-    provenance[field] = f"{source} | Field: __metadata__"
+    provenance[field] = f"{source} | Field: __metadata__.{found[0]}"
     return found[1]
 
 
@@ -198,9 +204,10 @@ def read_safetensors(model_path: Path) -> AiModelMetadata:
     - ``modelspec.architecture`` -> architecture
     - ``modelspec.title`` or ``name`` -> name
     - ``modelspec.description`` or ``description`` -> description
+    - ``modelspec.version``, ``version`` or ``model_version`` -> version
     - ``modelspec.precision`` -> quantization (e.g. "fp16", "bf16")
     - ``modelspec.author`` -> one originator (not split on commas)
-    - ``modelspec.license`` -> the licence, as written
+    - ``modelspec.license`` or ``license`` -> the licence, as written
 
     ``parameter_count`` is the sum of the elements of every tensor, from the
     header's shapes. A model sharded over several files gets each file's own
@@ -231,11 +238,9 @@ def read_safetensors(model_path: Path) -> AiModelMetadata:
 
     # Some Safetensors files record the originating framework under "format"
     # (e.g. "pt" for PyTorch) or "modelspec.implementation".
-    framework = (
-        metadata.get("format") or metadata.get("modelspec.implementation") or None
+    framework = _stated_field(
+        metadata, "framework", _FRAMEWORK_KEYS, source, provenance
     )
-    if framework:
-        provenance["framework"] = f"{source} | Field: __metadata__"
 
     # Well-known keys of __metadata__; a blank value reads as absent and
     # gives way to the next key.

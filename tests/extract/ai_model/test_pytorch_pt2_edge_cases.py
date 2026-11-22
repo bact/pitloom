@@ -22,9 +22,9 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from pitloom.extract.ai_model._pt2_graph import read_pt2_graph
 from pitloom.extract.ai_model.pytorch_pt2 import (
     _read_pt2_format_version,
-    _read_pt2_graph_io,
     _read_pt2_zip,
     read_pytorch_pt2,
 )
@@ -58,7 +58,7 @@ def _graph_io(
     )
     provenance: dict[str, str] = {}
     with _zipfile.ZipFile(_io.BytesIO(buf)) as zf:
-        inputs, outputs = _read_pt2_graph_io(zf, "", "Source: model.pt2", provenance)
+        inputs, outputs, _ = read_pt2_graph(zf, "", "Source: model.pt2", provenance)
     return inputs, outputs, provenance
 
 
@@ -144,7 +144,7 @@ def test_read_pt2_zip_whitespace_only_version_file_skips_provenance() -> None:
     mock_zf.open.return_value.__enter__.return_value.read.return_value = b"  \n"
 
     res = _read_pt2_zip(mock_zf, "Source: model.pt2")
-    (_, _, version, _, format_version, _, provenance, _, _, _) = res
+    (_, _, version, _, format_version, _, provenance, _, _, _, _) = res
     assert version is None
     assert format_version is None
     assert "version" not in provenance

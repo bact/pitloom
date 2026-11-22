@@ -78,10 +78,12 @@ def _make_onnx_mock(
     opset_versions: dict[str, int] | None = None,
     inputs: list[MagicMock] | None = None,
     outputs: list[MagicMock] | None = None,
+    producer: tuple[str, str] = ("", ""),
 ) -> MagicMock:
     """Build a minimal mock of an onnx.ModelProto."""
     model = MagicMock(spec=_MODEL_PROTO_FIELDS)
     model.ir_version = 8
+    model.producer_name, model.producer_version = producer
     model.graph.name = graph_name
     model.doc_string = doc_string
     model.model_version = model_version
@@ -399,7 +401,9 @@ def test_mocked_model_proto_fields_exist() -> None:
         assert set(fields) <= set(proto.DESCRIPTOR.fields_by_name), proto
 
 
-@pytest.mark.parametrize("key", ["domain", "opset.ai.onnx", "metadata_props.x"])
+@pytest.mark.parametrize(
+    "key", ["producer_name", "domain", "opset.ai.onnx", "metadata_props.x"]
+)
 @pytest.mark.parametrize("field_domain", ["org.example", ""])
 def test_onnx_metadata_props_never_collide_with_fields(
     tmp_path: Path, caplog: pytest.LogCaptureFixture, key: str, field_domain: str
@@ -455,3 +459,29 @@ def test_onnx_repeated_metadata_props_key_warns_once_keeps_last(
     # The first three keys are named, the rest only counted
     assert "fourth_key" not in messages[0] and "fifth_key" not in messages[0]
     assert messages[0].endswith(", ...")
+
+
+@pytest.mark.parametrize(
+    ("producer", "tool", "version"),
+    [
+        (("tf2onnx", "1.16.1"), "tf2onnx", "1.16.1"),
+        ((" t ", "  "), "t", None),  # stated text: stripped, blank is none
+    ],
+    ids=["both", "blank-version"],
+)
+def test_onnx_producer_is_the_writing_tool_and_a_property(
+    tmp_path: Path, producer: tuple[str, str], tool: str, version: str | None
+) -> None:
+    meta = _read_mock(tmp_path, producer=producer)
+    info = meta.format_info
+    assert (info.writing_tool, info.writing_tool_version) == (tool, version)
+    assert info.framework is None  # the writer is not the framework
+    assert meta.properties["producer_name"] == producer[0]
+    assert meta.provenance["writing_tool"].endswith("Field: producer_name")
+    if version is None:
+        assert "writing_tool_version" not in meta.provenance
+    else:
+        assert meta.properties["producer_version"] == version
+        assert meta.provenance["writing_tool_version"].endswith(
+            "Field: producer_version"
+        )

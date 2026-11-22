@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Mapping
 from pathlib import Path
-from typing import Any
+from typing import Any, NamedTuple
 
 from pitloom.core.ai_metadata import (
     AiModelFormat,
@@ -19,6 +19,7 @@ from pitloom.core.ai_metadata import (
     source_metadata,
     value_text,
 )
+from pitloom.core.dataset_metadata import DatasetReference
 from pitloom.core.model_originators import (
     ORIGINATORS_PROVENANCE_KEY,
     originator_names,
@@ -27,9 +28,9 @@ from pitloom.core.provenance import provenance_segment, provenance_source
 from pitloom.core.quote_source import quote_source
 from pitloom.core.scalar_text import scalar_text
 from pitloom.extract._extract_utils import record_dict_field_provenance
-from pitloom.extract._license import warn_unless_expression
-from pitloom.extract._license_classify import is_vague_license_value, is_weak_licence
 from pitloom.extract.ai_model._gguf_bounds import check_gguf_header
+from pitloom.extract.ai_model._gguf_datasets import DATASETS_KEY, read_gguf_datasets
+from pitloom.extract.ai_model._gguf_licence import read_gguf_license
 from pitloom.extract.ai_model._stated_text import stated_text
 from pitloom.extract.ai_model.parameter_count import derived_parameter_count
 from pitloom.extract.ai_model.reader_requirements import missing_library
@@ -48,8 +49,6 @@ _GGUF_DESCRIPTION_KEYS = ("general.description",)
 _GGUF_ARCH_KEY = "general.architecture"
 _GGUF_VERSION_KEY = "general.version"
 _GGUF_FILE_TYPE_KEY = "general.file_type"
-_GGUF_LICENSE_KEY = "general.license"
-_GGUF_LICENSE_NAME_KEY = "general.license.name"
 # Producer names, in the order they are read
 _GGUF_ORIGINATOR_KEYS = ("general.author", "general.organization")
 _GGUF_SPLIT_COUNT_KEY = "split.count"
@@ -298,36 +297,6 @@ def _extract_gguf_core_fields(
     return name, description, architecture, version, quantization
 
 
-def _read_gguf_license(
-    fields: dict[str, Any], source: str, provenance: dict[str, str]
-) -> str | None:
-    """Return ``general.license`` (an SPDX expression by the GGUF spec), if
-    it is a non-blank string; a value of another type stays in
-    ``properties`` only. One that is no SPDX expression (``llama3.1``) is
-    text, with a ``WARNING:``. With no ``general.license``, or a placeholder
-    (``other``, ``custom``, ``N/A``, ``NOASSERTION``, ...),
-    ``general.license.name`` (the licence's name: free text, no field
-    warning) stands in; ``general.license.link`` is not read. A placeholder
-    pointing elsewhere (``other``, ``custom``, ``N/A``: not
-    ``NOASSERTION``/``UNKNOWN``, which say "not known") with no name is no
-    licence, as on the Hub."""
-    license_expr = stated_text(fields.get(_GGUF_LICENSE_KEY))
-    name = stated_text(fields.get(_GGUF_LICENSE_NAME_KEY))
-    # llama.cpp's converter writes a card's ``license: other`` with its
-    # ``license_name`` as ``general.license.name``: a placeholder (``other``,
-    # ``NOASSERTION``, ...) gives way to it; ``NONE`` is a statement and stays.
-    weak = is_weak_licence(license_expr)
-    vague = not weak and is_vague_license_value(license_expr)
-    if license_expr and not vague and not (name and weak):
-        warn_unless_expression(license_expr, _GGUF_LICENSE_KEY)
-        provenance["license"] = f"{source} | Field: {_GGUF_LICENSE_KEY}"
-        return license_expr
-    if not name:
-        return None
-    provenance["license"] = f"{source} | Field: {_GGUF_LICENSE_NAME_KEY}"
-    return name
-
-
 def _originators(
     fields: dict[str, Any], source: str, provenance: dict[str, str]
 ) -> list[str]:
@@ -389,11 +358,22 @@ def _categorize_gguf_fields(
     return hyperparameters, properties
 
 
-def _load_fields(
-    model_path: Path,
-) -> tuple[dict[str, Any], dict[str, Any], dict[str, str], list[list[int]]]:
+class _Loaded(NamedTuple):
+    """What :func:`_load_fields` copies out of a GGUF file."""
+
+    fields: dict[str, Any]
+    raw_metadata: dict[str, Any]
+    derived: dict[str, str]
+    shapes: list[list[int]]
+    datasets: list[DatasetReference]
+    datasets_provenance: str | None
+
+
+def _load_fields(model_path: Path, source: str) -> _Loaded:
     """:func:`_read_fields` of the file at *model_path*, its header bounded
-    first, and the shape of every tensor (already in memory, so no I/O).
+    first, the shape of every tensor (already in memory, so no I/O) and the
+    datasets it names (:func:`read_gguf_datasets`, *source* their
+    provenance).
 
     Raises:
         ImportError: If ``gguf`` is not installed.
@@ -430,7 +410,21 @@ def _load_fields(
 
     try:
         fields, raw_metadata, derived = _read_fields(reader.fields)
-        return fields, raw_metadata, derived, [t.shape.tolist() for t in reader.tensors]
+        datasets, datasets_provenance = read_gguf_datasets(
+            fields,
+            reader.fields.get(DATASETS_KEY),
+            source,
+            str(model_path),
+            model_path.name,
+        )
+        return _Loaded(
+            fields,
+            raw_metadata,
+            derived,
+            [t.shape.tolist() for t in reader.tensors],
+            datasets,
+            datasets_provenance,
+        )
     except ValueError as exc:
         raise ValueError(
             f"Failed to read GGUF file {quote_source(model_path)}: {exc}"
@@ -455,9 +449,12 @@ def read_gguf(model_path: Path) -> AiModelMetadata:
         pitloom.extract.ai_model.limits.ModelLimitExceeded: The header is over
             a bound (:func:`~pitloom.extract.ai_model._gguf_bounds.check_gguf_header`).
     """
-    fields, raw_metadata, derived, shapes = _load_fields(model_path)
     source = provenance_source(model_path.name)
+    loaded = _load_fields(model_path, source)
+    fields = loaded.fields
     provenance: dict[str, str] = {}
+    if loaded.datasets_provenance:
+        provenance["datasets"] = loaded.datasets_provenance
     format_version = stated_text(fields.get(_GGUF_FORMAT_VERSION_KEY), scalar=True)
     if format_version:
         provenance["format_version"] = f"{source} | Field: {_GGUF_FORMAT_VERSION_KEY}"
@@ -471,9 +468,9 @@ def read_gguf(model_path: Path) -> AiModelMetadata:
     ) = _extract_gguf_core_fields(fields, source, provenance)
 
     hyperparameters, properties = _categorize_gguf_fields(
-        fields, source, provenance, derived
+        fields, source, provenance, loaded.derived
     )
-    license_expr = _read_gguf_license(fields, source, provenance)
+    license_expr = read_gguf_license(fields, source, provenance)
 
     return AiModelMetadata(
         format_info=AiModelFormatInfo(
@@ -488,12 +485,13 @@ def read_gguf(model_path: Path) -> AiModelMetadata:
         architecture=architecture,
         quantization=quantization,
         parameter_count=_parameter_count(
-            shapes, fields, source, provenance, str(model_path)
+            loaded.shapes, fields, source, provenance, str(model_path)
         ),
         license=license_expr,
         originators=_originators(fields, source, provenance),
         hyperparameters=hyperparameters,
         properties=properties,
-        **source_metadata(raw_metadata),
+        **source_metadata(loaded.raw_metadata),
+        datasets=loaded.datasets,
         provenance=provenance,
     )

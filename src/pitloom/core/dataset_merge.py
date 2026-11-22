@@ -34,7 +34,7 @@ from pitloom.logging_config import loggable
 
 log = logging.getLogger(__name__)
 
-__all__ = ["MergedDataset", "merge_dataset_references"]
+__all__ = ["MergedDataset", "merge_dataset_into", "merge_dataset_references"]
 
 #: Fields that identify the dataset or record where values came from; never
 #: filled or compared field by field.
@@ -83,11 +83,12 @@ def _differ(field_name: str, mine: Any, theirs: Any) -> bool:
     return bool(mine != theirs)
 
 
-def _merge_into(
+def merge_dataset_into(
     target: DatasetMetadata, other: DatasetMetadata, warned: set[str]
 ) -> None:
-    """Fill the unset fields of *target* from *other*; warn once of each
-    field (not in *warned*) both set to different values."""
+    """Fill the unset fields of *target* from *other*, a reference to the
+    same dataset; warn once of each field (not in *warned*, which this
+    updates) both set to different values: the first is kept."""
     for item in dataclasses.fields(DatasetMetadata):
         if item.name in _NOT_MERGED:
             continue
@@ -128,5 +129,5 @@ def merge_dataset_references(
         if reference.metadata.name not in known.names:
             log_one_dataset(known.names[0], reference.metadata.name)
             known.names.append(reference.metadata.name)
-        _merge_into(known.metadata, reference.metadata, warned[key])
+        merge_dataset_into(known.metadata, reference.metadata, warned[key])
     return list(merged.values())

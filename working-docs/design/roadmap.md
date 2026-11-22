@@ -309,9 +309,10 @@ Highest priority first.
 - [ ] **TensorFlow Lite** (and SavedModel): `TFL3` FlatBuffer checked on two
   Hub files; design note with open questions. See
   [tensorflow-lite-savedmodel-support.md](tensorflow-lite-savedmodel-support.md).
-- [ ] **Fields the built model readers leave unread**: PT2 parameter count
-  from `is_param`, GGUF `general.base_model.*`/`general.dataset.*`/`general.source.*`
-  as lineage and datasets, the Hub's declared per-file LFS SHA-256. See
+- [ ] **Fields the built model readers leave unread**: GGUF datasets, PT2
+  and CRFsuite counts built 2026-11-21; open: GGUF `general.base_model.*`/
+  `general.source.*` lineage, PT2 I/O dtypes, the Hub's declared per-file
+  LFS SHA-256. See
   [model-metadata-extraction.md](model-metadata-extraction.md#fields-the-built-readers-could-read).
 - [ ] **Other model formats**: scikit-learn (pickle/joblib). See
   [model-metadata-extraction.md](model-metadata-extraction.md),
@@ -499,7 +500,8 @@ Recorded findings; each is fixable on its own.
   --sbom-basename`, more. See [embed-wheel-followups.md](embed-wheel-followups.md).
 - **setuptools config reading**: `version = attr:` crash, `file:` path
   confinement, untagged warnings. See [setuptools-config-followups.md](setuptools-config-followups.md).
-- **ID registry**: what v3 leaves open. See
+- **ID registry**: what v3 leaves open; dataset identity by name and version
+  everywhere (needs a go-ahead). See
   [id-registry-followups.md](id-registry-followups.md).
 - **AI model scanning**: `env` scans no models; no warning when an extension
   disagrees with the content ([#103](https://github.com/bact/pitloom/issues/103)).

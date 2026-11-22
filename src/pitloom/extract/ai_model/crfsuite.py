@@ -27,6 +27,10 @@ from pitloom.core.ai_metadata import (
     source_metadata,
 )
 from pitloom.core.canonical_json import canonical_json
+from pitloom.core.model_parameters import (
+    ONE_WEIGHT_PER_FEATURE_METHOD,
+    PARAMETER_COUNT_PROVENANCE_KEY,
+)
 from pitloom.core.provenance import provenance_source
 from pitloom.core.quote_source import quote_source
 from pitloom.extract.ai_model.formats import FormatError, Limits
@@ -96,6 +100,8 @@ def read_crfsuite(model_path: Path) -> AiModelMetadata:
 
     ``outputs`` is one ``label_sequence`` of symbolic length
     ``sequence_length``: a tagger emits one label per input item.
+    ``parameter_count`` is the ``FEAT`` chunk's feature count: each feature
+    stores one weight (unset for a model of no feature).
 
     Args:
         model_path: Path to a CRFsuite model (``.crfsuite``, or ``.model``).
@@ -147,6 +153,14 @@ def read_crfsuite(model_path: Path) -> AiModelMetadata:
         if key in properties:
             provenance[f"properties.{key}"] = f"{source} | Field: {location}"
 
+    # Each feature the FEAT chunk lists carries one weight (crf1d_model.c
+    # crf1dmw_put_feature); a trained model keeps only the non-zero ones.
+    parameter_count = model.num_features or None
+    if parameter_count:
+        provenance[PARAMETER_COUNT_PROVENANCE_KEY] = (
+            f"{source} | Field: FEAT.num{ONE_WEIGHT_PER_FEATURE_METHOD}"
+        )
+
     outputs: list[dict[str, Any]] = []
     if labels:
         provenance["description"] = (
@@ -170,6 +184,7 @@ def read_crfsuite(model_path: Path) -> AiModelMetadata:
         ),
         description=_description(labels),
         type_of_model="conditional random field",
+        parameter_count=parameter_count,
         properties=properties,
         **source_metadata(properties, natives),
         outputs=outputs,

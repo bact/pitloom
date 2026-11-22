@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-17
-Last-Modified: 2026-11-06
+Last-Modified: 2026-11-22
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -82,12 +82,13 @@ Model version, Model description, Model external references
   person-or-organisation decision, and a producer stated only in prose.
   See [g7-model-producer-parameter-count.md](../implementation/g7-model-producer-parameter-count.md).
 - **Parameter count** -- done (#6, below): derived from tensor shapes
-  (GGUF, Safetensors, ONNX) or stated by the Hub (`safetensors.total`, else
+  (GGUF, Safetensors, ONNX, PT2's weights config), a CRFsuite model's
+  feature count (#509), or stated by the Hub (`safetensors.total`, else
   `gguf.total`), as an `ai_hyperparameter` entry. Only the Hub states a
   ready count, through those two fields; `config.json` has none. What
   remains is a count stated only in prose, and the formats without a cheap
-  source (PT2, PyTorch classic, Keras, HDF5, NumPy, fastText, CRFsuite). See
-  the same document.
+  source (PyTorch classic, Keras, HDF5, NumPy, fastText). See the same
+  document.
 - **Dataset provenance** (collection method, origin) and **Model
   training properties** (pre-training vs. fine-tune vs. RLHF, etc.) --
   the one pair of genuinely new capture surfaces, not wiring fixes.

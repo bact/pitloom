@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-21
-Last-Modified: 2026-11-10
+Last-Modified: 2026-11-21
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -345,3 +345,24 @@ declined or fixed entry with its outcome.
 - Evidence: `tests/assemble/test_generate_pypi_provenance.py`
 - Status: noted
 - Date: 2026-11-10
+
+### FG-16 The tool that wrote a model file has no property
+
+- Format and version: SPDX 3.0.1, AI and Software profiles
+- Element or property: `ai_AIPackage`; nearest are `comment`, a `Tool`
+  element with a `generates` relationship, and `CreationInfo.createdUsing`
+  (which names the tool that wrote the SPDX element, not the model file)
+- Fact to record: the exporter or converter that wrote the model file and
+  its version, as the file names them (ONNX `producer_name`,
+  `producer_version`: `pytorch`, `tf2onnx`, `skl2onnx`), which is neither
+  the model's producer (`originatedBy`) nor, for a converter, its framework
+- Pitloom today: a line of the package `comment`, `Model file written by:
+  <tool> <version>`, with `writing_tool` provenance naming the field
+- Why imprecise: no property for the tool that serialised an artefact; a
+  `Tool` with `generates` would claim the tool made the model, not only the
+  file
+- Proposal: a serialising-tool property on a software artefact (name,
+  version, its source), to SPDX 3.1 [maintainer to add link and wording]
+- Evidence: `tests/assemble/test_ai_package_comment.py`
+- Status: noted
+- Date: 2026-11-21

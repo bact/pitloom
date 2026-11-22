@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-08
-Last-Modified: 2026-11-14
+Last-Modified: 2026-11-22
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -222,4 +222,65 @@ fact-check of the LLMSC 2027 workshop paper draft against 0.24.0 (#483,
   the Hub API states each LFS file's SHA-256 (`files_metadata=True`), a
   declared hash to record as such, never as one measured. Do: when comparing
   formats, list per format what it can hold and what the tool reads in
-  separate columns; the gap is a finding.
+  separate columns; the gap is a finding. (Built 2026-11-21: GGUF datasets,
+  a PT2 count; still open: GGUF lineage, the Hub hash, which needs a
+  per-file element the Hub route does not write.)
+- **One concept, two spellings in one format, and a third key that looks
+  alike.** The ggml spec defines `general.datasets` (a string array);
+  llama.cpp's `gguf-py` writes `general.dataset.count` and
+  `general.dataset.<id>.{name, organization, repo_url, ...}` instead (since
+  late 2024). A reader of one spelling misses the other: in 904 Hub model
+  headers, one GGUF listed 32 datasets in `general.datasets`, and the reader
+  kept only the array's length. `quantize.imatrix.dataset`, in 32 of those
+  headers, names the calibration text of an importance matrix written by
+  `llama-quantize`: data the quantiser saw, not training data. The
+  converter also rewrites a card's Hub id `allenai/c4`: `name` becomes a
+  title (`C4`, `OpenHermes 2.5`), `organization` a title (`Allenai`), and
+  `repo_url` `https://huggingface.co/allenai/c4`, a model URL path without
+  `/datasets/` that does not resolve (401; the `/datasets/` page answers
+  200). Read as stated, the same dataset is `C4` in the GGUF and
+  `allenai/c4` on the card beside it: two packages. Pitloom treats an
+  entry as gguf-py's when its `repo_url` matches gguf-py's own pattern and
+  its `name` is exactly gguf-py's title of the name part (a model page
+  link otherwise stays as written). It drops the made-up organisation and
+  version (a version gguf-py joins from several words too), and names the
+  entry by the Hub id at the dataset page, as the card route does. The
+  converter's pattern also splits a legacy page `.../datasets/squad` into
+  the owner `datasets`, and a `papers/<id>` link alike: the made-up
+  `Datasets` organisation is dropped there too, and a site area is no
+  dataset id. A card's id with no owner gets no `repo_url`, so its made-up
+  values cannot be told apart. Do: read every spelling the spec
+  and the reference writer use, the spec's first; map a key by what its
+  writer means (calibration is not training); read the writer's source to
+  see which stated values it made up, and recover the identity it lost.
+- **A licence key can hold the licence itself.** Lightricks write a plain
+  `license` key in Safetensors `__metadata__` (no ModelSpec prefix): LTX-Video
+  a name (`Apache License 2.0`), LTX-2 its whole 21 KB licence agreement,
+  beside `model_version`. Ten of the 904 Hub headers had it; a reader of
+  `modelspec.license` only gave them no licence. Do: treat a licence field's
+  value as name, expression or text until classified; read the conventional
+  unprefixed key after the namespaced one, and cite the key read.
+- **A file's "producer" names its writer, not its maker.** ONNX
+  `producer_name`/`producer_version` is "the tool used to generate the model"
+  (`pytorch`, `tf2onnx`, `skl2onnx`): the exporter or converter. Pitloom
+  stored it as the framework and wrote it nowhere; mapping it to
+  `originatedBy` would credit the converter with the model. SPDX 3.0.1 has no
+  property for the tool that serialised an artefact (`createdUsing` names
+  the SBOM's tool), so it is a comment line (FG-16). Do: keep three roles
+  apart, who made the model, which framework it runs in, which tool wrote
+  the file.
+- **A format's own "parameter" flag is narrower than a cross-format
+  count.** A PT2 weights config marks each weight `is_param` (an
+  `nn.Parameter`) or not (a buffer). Summing only `is_param` gives a
+  trainable count, but every other format's count, and the SBOM's own note
+  ("elements in the model's stored tensors"), includes buffers. Pitloom
+  sums every stored weight, but a stored weight once: `torch.export` writes
+  one blob per shared storage and lists every name of it (tied
+  `lm_head.weight` and `embed.weight`) with that blob's `path_name`, so a
+  sum over the config's names counts a tied weight twice. Names with one
+  `path_name`, sizes, strides and offset are one weight. A CRFsuite model
+  stores one weight per feature, so its `FEAT` count is its count (the
+  header's own `num_features` is always 0). Do: define a cross-format
+  figure once, apply that definition in each reader, and keep a narrower
+  figure for its own field; check what the format stores once that its index
+  lists twice.

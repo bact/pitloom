@@ -17,8 +17,8 @@ reference: tests never regenerate them, and byte-identity across platforms is
 not verified (identical across runs on one macOS arm64 machine).
 
 Common to both: magic `lCRF`, type `FOMC`, version 100, header
-`num_features` 0 (the writer never sets it; the count is `FEAT.num`),
-CQDB `flag` 0.
+`num_features` 0 (the writer never sets it; the count is `FEAT.num`, which
+is the `parameter_count`: one weight per feature), CQDB `flag` 0.
 
 ## crfsuite/complete.crfsuite
 

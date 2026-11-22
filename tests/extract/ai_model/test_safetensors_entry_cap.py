@@ -106,5 +106,7 @@ def test_well_known_keys_sorting_after_the_cap_are_still_read(tmp_path: Path) ->
         meta.quantization,
         meta.format_info.framework,
     ) == ("RealName", "Some text", "2.0", "llama", "fp16", "pt")
-    for field in ("name", "description", "version", "architecture", "quantization"):
-        assert meta.provenance[field].endswith("Field: __metadata__")
+    keys = [k for k in well_known if k.startswith("modelspec.")]
+    fields = ("name", "description", "version", "architecture", "quantization")
+    for field, key in zip(fields, keys, strict=True):
+        assert meta.provenance[field].endswith(f"Field: __metadata__.{key}")

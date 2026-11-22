@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-28
-Last-Modified: 2026-11-09
+Last-Modified: 2026-11-22
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -72,7 +72,7 @@ Rules:
 | Keras v3 | parameter count; the optimiser's settings, `loss_weights`, `weighted_metrics`, `run_eagerly`, `steps_per_execution`, `jit_compile` | the weights member is not opened; the HDF5 reader skips the same `training_config` keys |
 | NumPy | inputs | an array is data, not a model input |
 | PyTorch classic | hyperparameters, inputs, training | a pickle of arbitrary objects; only the top class is read, without running it |
-| Safetensors | inputs, a licence key other than `modelspec.license` | weights only; no other key seen |
+| Safetensors | inputs | weights only |
 | Hugging Face Hub | labels | not read |
 | Hugging Face Hub (model card) | `license_name` beside `license: other` | not read; the card path falls back to licence-file detection |
 | Hugging Face Hub (dataset card) | placeholder rule | its own (`other` only), not the shared `is_vague_license_value` |
@@ -111,14 +111,14 @@ nobody checked the file format for it; do not assume.
 | Format | Versions the code knows | Stored in the file | Not stored (do not read), or stored and deliberately not read | Version-dependent |
 | - | - | - | - | - |
 | fastText | header int32 after magic `793712314` | `dim`, `ws`, `epoch`, `minCount`, `neg`, `wordNgrams`, `loss`, `model`, `bucket`, `minn`, `maxn`, `lrUpdateRate`, `t` (`Args::save`) | Not stored: `lr`, `minCountLabel` (loader defaults); labels of cbow/skipgram are the word vocabulary | version 11: loader resets `maxn` to 0, supervised only (`fasttext.py`) |
-| GGUF | header version (kept as `GGUF.version`) | typed key-value pairs (`general.*`, `<arch>.*`), tensor infos | Stored, recorded by length only: arrays; `general.file_type` 1024 (`GUESSED`) is not a stated type | not the format version: a sharded model (`split.count` above 1) gets no summed parameter count (`gguf.py`) |
+| GGUF | header version (kept as `GGUF.version`) | typed key-value pairs (`general.*`, `<arch>.*`), tensor infos | Stored, recorded by length only: arrays (but `general.datasets`, read as datasets); `general.file_type` 1024 (`GUESSED`) is not a stated type | not the format version: a sharded model (`split.count` above 1) gets no summed parameter count (`gguf.py`) |
 | ONNX | `ir_version`, opset imports | graph, initializers, `metadata_props`, `model_version`, `producer_*`, `domain` | an unset proto3 scalar reads as `0`/`""` | IR 3 lists weights in `graph.input`; from IR 4 a name in both is an input with a default; `model_version` may be bit-packed SemVer (`onnx.py`) |
 | Safetensors | none in the format | JSON header: tensor dtype, shape, offsets; `__metadata__`: flat string-to-string, free-form | any author, licence or version key: the format has none; conventions only (ModelSpec `modelspec.*`, kohya `ss_*`) | not measured |
 | NumPy | `.npy` format version in bytes 6-7 (1.0, 2.0, 3.0); `.npz` is a ZIP | dtype, shape, order | any model meaning | the header encoding follows the major version (`numpy.py`) |
 | HDF5, Keras v1-v2 | `keras_version` root attribute (major = `v1`/`v2`) | root attributes `keras_version`, `backend`, JSON `model_config`, `training_config` | an HDF5 file without them is not a Keras model | recorded as `format_version` (`hdf5.py`) |
 | Keras v3 | `metadata.json` `keras_version` | ZIP: `metadata.json`, `config.json`, `model.weights.h5` | Stored, not read: the weights member; `compile_config` is read as HDF5's `training_config` (optimizer, loss, metrics: `keras_training_config.py`), `config.json['metadata']` is a convention of some exporters (the fixture's description, author, version, licence), not a Keras field, and is not mapped | the ZIP magic is shared, so detection needs the `.keras` extension and a ZIP header (`reader.py`) |
 | PyTorch classic | not read | ZIP members and the top class of `data.pkl` (found without running it), or an old raw pickle (`format_detail: raw pickle`) | Stored, not read: the pickled objects | pickle protocol: not measured |
-| PT2 / ExecuTorch | no format version read (`extra/model_version` is the model's) | ZIP, `extra/` files, `models/model.json` signature | Stored, not read: parameters, buffers, constants (not inputs) | not measured |
+| PT2 (`torch.export`) | no format version read (`extra/model_version` is the model's) | ZIP, `extra/` files, `models/model.json` signature and `torch_version`, `data/weights/model_weights_config.json` sizes (the parameter count) | Stored, not read: the weight blobs, constants (not inputs) | not measured |
 | CRFsuite | header version 100, type `FOMC` | header counts, labels | Stored, not read: feature weights, attribute strings | any other version or type is `UnsupportedVersion` (`formats/crfsuite.py`) |
 | Hugging Face Hub | the repository revision (40-digit hash) | API fields, model card YAML | a card's free text as a fact | not a file format |
 

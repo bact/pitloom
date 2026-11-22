@@ -133,20 +133,22 @@ def _onnx_tensor_specs(
 def _extract_onnx_properties(
     model: Any, source: str, provenance: dict[str, str]
 ) -> tuple[dict[str, str], dict[str, int]]:
-    """Extract domain, opset versions, and metadata_props into properties dict.
+    """Extract the producer, domain, opset versions, and metadata_props into
+    a properties dict.
 
     Returns ``(properties, natives)``: *natives* holds each opset version as
     the integer it is, for :func:`~pitloom.core.ai_metadata.source_metadata`.
 
     ``metadata_props`` keys get the ``metadata_props.`` prefix, so they never
-    collide with ``domain`` or ``opset.<domain>``. A key the file repeats
-    (the ONNX checker rejects that) keeps its last value; one warning per
-    file names how many keys repeat and the first few.
+    collide with ``producer_name``, ``domain`` or ``opset.<domain>``. A key
+    the file repeats (the ONNX checker rejects that) keeps its last value;
+    one warning per file names how many keys repeat and the first few.
     """
     properties: dict[str, str] = {}
     natives: dict[str, int] = {}
-    if model.domain:
-        properties["domain"] = model.domain
+    for field in ("producer_name", "producer_version", "domain"):
+        if getattr(model, field):
+            properties[field] = getattr(model, field)
     for opset in model.opset_import:
         opset_domain = opset.domain if opset.domain else "ai.onnx"
         record_scalar_property(
@@ -304,8 +306,11 @@ def read_onnx(model_path: Path) -> AiModelMetadata:
     (from IR 4 on, such an input is one with a default, and kept). A
     ``shape`` is given only where the file has one: not for an unknown
     rank or a non-tensor value (a sequence).
-    ``properties`` holds ``domain``, ``opset.<domain>`` and every
-    ``metadata_props`` entry as ``metadata_props.<key>``. ``originators``
+    ``producer_name`` and ``producer_version`` name the tool that wrote the
+    file (``format_info.writing_tool``), never the model's producer.
+    ``properties`` holds ``producer_name``, ``producer_version``,
+    ``domain``, ``opset.<domain>`` and every ``metadata_props`` entry as
+    ``metadata_props.<key>``. ``originators``
     are the comma-separated names of ``model_author``;
     ``parameter_count`` is the element sum of the graph initializers
     (see :func:`_initializer_shapes`), unset when there is none.
@@ -341,13 +346,15 @@ def read_onnx(model_path: Path) -> AiModelMetadata:
         format_version = str(model.ir_version)
         provenance["format_version"] = f"{source} | Field: ir_version"
 
-    framework = model.producer_name if model.producer_name else None
-    if framework:
-        provenance["framework"] = f"{source} | Field: producer_name"
-
-    framework_version = model.producer_version if model.producer_version else None
-    if framework_version:
-        provenance["framework_version"] = f"{source} | Field: producer_version"
+    # The exporter or converter that wrote the file (``pytorch``,
+    # ``tf2onnx``, ``skl2onnx``): neither the model's producer nor, for a
+    # converter, its framework.
+    writing_tool = stated_text(model.producer_name)
+    if writing_tool:
+        provenance["writing_tool"] = f"{source} | Field: producer_name"
+    writing_tool_version = stated_text(model.producer_version)
+    if writing_tool_version:
+        provenance["writing_tool_version"] = f"{source} | Field: producer_version"
 
     name = _resolve_onnx_name(model.graph.name, source, provenance)
     description = stated_text(model.doc_string)
@@ -388,8 +395,8 @@ def read_onnx(model_path: Path) -> AiModelMetadata:
             file_name=model_path.name,
             model_format=AiModelFormat.ONNX,
             format_version=format_version,
-            framework=framework,
-            framework_version=framework_version,
+            writing_tool=writing_tool,
+            writing_tool_version=writing_tool_version,
         ),
         name=name,
         description=description,

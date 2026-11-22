@@ -1,6 +1,6 @@
 ---
 Created: 2026-03-05
-Last-Modified: 2026-11-14
+Last-Modified: 2026-11-22
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -31,31 +31,51 @@ without executing model code.
 ## Fields the built readers could read
 
 Found by the fact-check of the AI SBOM workshop paper (2026-11-14, 0.24.0
-code): data each format carries that its reader leaves unread. Not built.
+code): data each format carries that its reader leaves unread. Built
+2026-11-21 (model-reader gaps PR): GGUF datasets (`general.datasets` and
+`general.dataset.<id>.*` as `trainedOn`; a numbered entry's Hub
+`repo_url` names it by its Hub id, located at its dataset page), the PT2
+parameter count (a weight several names share counted once) and
+`torch_version`, the CRFsuite parameter count (`FEAT.num`), the ONNX
+producer as the file's writing tool, Safetensors plain `license` and
+`model_version` (each Safetensors field's provenance names the key read).
+See [docs/ai-model-formats.md](../../docs/ai-model-formats.md).
+Still open:
 
-- **PT2 parameter count from `is_param`.** `data/weights/model_weights_config.json`
-  lists each weight with `is_param` (a parameter, not a buffer) and
-  `tensor_meta.sizes`; their product summed over `is_param: true` entries is
-  a true parameter count (`Method: tensor_element_sum`, as GGUF), with no
-  tensor bytes read. Constants (`model_constants_config.json`) are not
-  parameters. Check `sizes` entries that are symbolic (`as_expr`), not
-  `as_int`.
-- **GGUF lineage and datasets.** `general.base_model.count` with
-  `general.base_model.N.{name,organization,version,repo_url,...}` and
-  `general.dataset.count` with `general.dataset.N.*` map to `descendantOf`
-  and `trainedOn`, as the Hub route does from a card; `general.source.url`
-  and `general.source.huggingface.repository` to where the model came from.
-  Decide the target element (a named package without a hash, as the Hub
-  route) and the relationship completeness. See also
-  [g7-ai-sbom-coverage.md](g7-ai-sbom-coverage.md) (`general.base_model.N.*`).
+- **PT2 trainable-parameter count from `is_param`.** The PT2 count sums
+  every stored weight (parameters and buffers), as every other format's
+  `parameters` entry does and as the package comment says ("elements in
+  the model's stored tensors"). `is_param` would give a separate trainable
+  count, which needs its own key or property (FG-1 in
+  [sbom-format-gaps.md](sbom-format-gaps.md)), not the `parameters` entry.
+- **PT2 input and output dtype and shape.** `models/model.json`
+  `tensor_values` holds each signature tensor's `dtype` (a `torch.export`
+  `ScalarType` number) and `sizes`; mapping the number needs the schema's
+  enum (`torch/_export/serde/schema.py`), checked against a real export.
+- **GGUF lineage.** `general.base_model.count` with
+  `general.base_model.N.{name,organization,version,repo_url,...}` could map
+  to `descendantOf`, and `general.source.url` and
+  `general.source.huggingface.repository` to where the model came from.
+  Open: the base-model package today assumes a Hub id (its `externalRef` is
+  `https://huggingface.co/<id>`), and a GGUF entry is a display name plus a
+  URL; one model may name several. Kept as properties until decided. See
+  also [g7-ai-sbom-coverage.md](g7-ai-sbom-coverage.md)
+  (`general.base_model.N.*`).
 - **The Hub's declared per-file SHA-256.** `model_info(files_metadata=True)`
   gives each LFS file's `lfs.sha256` (and `size`): a hash the Hub states,
-  never measured by Pitloom. Record it as declared (evidence level
-  `declared`, source the Hub API; see
-  [evidence-levels.md](evidence-levels.md)) on a per-file element, never as a
-  measured `verifiedUsing`. Related: the Hub per-file format entry in
-  [known-bugs](known-bugs/ai-models-readers-and-metadata.md) and
-  [hub-model-file-range-read.md](hub-model-file-range-read.md).
+  never measured by Pitloom. Not built: the Hub route writes one
+  `ai_AIPackage` for the repository and no per-file element, so there is
+  nowhere to hang a declared hash yet. Decide first the element (one
+  `software_File` per repository file, `contains` from the package, as a
+  local LFS pointer file gets with its `oid`, FG-10) or a record (a
+  provenance record listing paths and hashes, as the PyPI acquisition
+  record, FG-15), and the cost (`files_metadata=True` returns every file's
+  entry: tens of thousands for a large repository), on top of #507, which
+  reworked the same `model_info()` call (timeouts). Record it as declared
+  (evidence level `declared`, source the Hub API; see
+  [evidence-levels.md](evidence-levels.md)). Related: the Hub per-file
+  format entry in [known-bugs](known-bugs/ai-models-readers-and-metadata.md)
+  and [hub-model-file-range-read.md](hub-model-file-range-read.md).
 
 ## AI dataset metadata extraction
 

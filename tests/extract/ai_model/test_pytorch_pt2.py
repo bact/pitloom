@@ -300,7 +300,7 @@ def test_read_pt2_zip_archive_version_read_failure_logs_and_continues(
     with caplog.at_level(logging.DEBUG, logger="pitloom.extract.ai_model.pytorch_pt2"):
         result = _read_pt2_zip(mock_zf, "Source: model.pt2")
 
-    (_, _, _, _, format_version, _, provenance, _, _, _) = result
+    (_, _, _, _, format_version, _, provenance, _, _, _, _) = result
     assert format_version is None
     assert "format_version" not in provenance
     assert any("archive_version" in r.message for r in caplog.records)

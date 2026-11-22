@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-15
-Last-Modified: 2026-10-27
+Last-Modified: 2026-11-22
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -247,10 +247,11 @@ into the registry file (an `Agent` table, no counter), as it does for
 the output is unaffected; no lookup or key changes, but users who commit the
 registry will see new rows.
 
-**Formats left silent**, each for a stated reason: PT2 (no weights metadata
-read), PyTorch pickle (no shapes without unpickling), Keras and HDF5
-(weights not read), NumPy (a bare array is not a model), fastText (matrix
-size follows the dictionary stream), CRFsuite (no shapes in the header read).
+**Formats left silent**, each for a stated reason: PyTorch pickle (no
+shapes without unpickling), Keras and HDF5 (weights not read), NumPy (a bare
+array is not a model), fastText (matrix size follows the dictionary
+stream). PT2 (the sizes its weights config states) and CRFsuite (its
+feature count) got a count later, in #509.
 
 ## Probe matrix
 
@@ -270,10 +271,10 @@ Measured 2026-10-15 on the fixtures under `tests/fixtures/aimodels/`; only
 | ONNX | `metadata_props.model_author` | comma list | `originatedBy` | built |
 | ONNX | `graph.initializer`, `graph.sparse_initializer` (+ subgraphs) | dims, summed (`Field: graph.initializer, graph.sparse_initializer`) | `parameters` | built: encoder-q4f16 4890637; gpt2-tiny-decoder 404256; light-inception-v2 5417; resnet-tiny-beans 189347; squeezenet1.1-7 1235498 |
 | PT2 | `extra/author` | one string | `originatedBy` | built |
-| PT2 | weights | not read | -- | silent |
+| PT2 | weights | not read | -- | silent (a count from `model_weights_config.json` sizes since #509) |
 | Hugging Face | `info.author` | repository owner | `originatedBy` and `suppliedBy` (one `Agent`), `Method: repository_owner` | built |
 | Hugging Face | `info.safetensors.total`, else `info.gguf.total` | stated int | `parameters`, `Method: tensor_element_sum` | built: `openai-community/gpt2` 137022720 from the default `model_info` (Hub API, 2026-10-15) |
-| PyTorch classic, Keras, HDF5, NumPy, fastText, CRFsuite | -- | -- | -- | silent, see above |
+| PyTorch classic, Keras, HDF5, NumPy, fastText, CRFsuite | -- | -- | -- | silent, see above (CRFsuite counted since #509) |
 
 The probes also found that `safe_open` (0.8.0) checks
 shapes against offsets, which bounds a Safetensors count by the file size;

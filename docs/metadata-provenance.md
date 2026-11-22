@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-08
-Last-Modified: 2026-11-10
+Last-Modified: 2026-11-22
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -116,7 +116,9 @@ value, not just where it read it from:
 | `flit_dynamic_metadata` | A Flit dynamic `version` or `description`, read from the module's `__version__` and docstring with flit-core's own AST scan. |
 | `member_count` | A ZIP-based model archive's member count (property `archive_member_count`), read from the archive's central directory. |
 | `yaml_frontmatter` | Read from a local README/model card's YAML frontmatter block during enrichment. |
-| `tensor_element_sum` | An AI model's parameter count: the sum of the element counts of its tensors, derived by Pitloom (GGUF `tensor_infos`, Safetensors header shapes, ONNX `graph.initializer` and `graph.sparse_initializer`) or computed by the Hugging Face Hub (`safetensors.total`, `gguf.total`). All stored tensors count: [what that means](ai-model-formats.md#what-the-count-counts). |
+| `tensor_element_sum` | An AI model's parameter count: the sum of the element counts of its tensors, derived by Pitloom (GGUF `tensor_infos`, Safetensors header shapes, ONNX `graph.initializer` and `graph.sparse_initializer`, PT2 `data/weights/model_weights_config.json` sizes) or computed by the Hugging Face Hub (`safetensors.total`, `gguf.total`). All stored tensors count: [what that means](ai-model-formats.md#what-the-count-counts). |
+| `one_weight_per_feature` | A CRFsuite model's parameter count: the feature count of its `FEAT` chunk, each feature storing one weight. |
+| `hub_dataset_id` | A GGUF training dataset's name: the Hub id a Hub dataset page names, or the one llama.cpp split into its model-path `repo_url`; for the latter, also its download location, that dataset's page. |
 | `comma_list` | An ONNX model's originators, split on commas because the `model_author` property is a comma-separated list; set only when the text has a comma. A name that holds a comma (`Doe, Jane`) is split too. |
 | `latest-release` | The version of a file read from a PyPI URL that named none: the release PyPI lists as the latest (see [the download record](#the-download-record-a-file-read-from-a-pypi-url)). |
 | `running-environment` | The wheel read from a PyPI URL was picked for the Python and platform Pitloom ran on, not named by the URL. |

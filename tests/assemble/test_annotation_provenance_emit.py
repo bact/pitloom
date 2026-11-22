@@ -320,7 +320,7 @@ def test_filter_high_signal_keeps_evidence_on_a_transparent_source() -> None:
 def test_filter_high_signal_keeps_nonmanifest_sources() -> None:
     prov = {
         "declared_constraint": "requests>=2.28.0",
-        "architecture": "Source: model.safetensors | Field: __metadata__",
+        "architecture": "Source: model.safetensors | Field: __metadata__.architecture",
         "package": "Source: pipdeptree (deployed environment)",
         "note": "Phantom dependency bundled in distribution artifact",
     }
