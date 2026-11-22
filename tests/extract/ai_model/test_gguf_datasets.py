@@ -76,7 +76,7 @@ def test_numbered_entries_are_trained_on_datasets(tmp_path: Path) -> None:
         _text("general.dataset.0.version", "1.0"),
         _text("general.dataset.0.description", "Dialogues"),
         _text("general.dataset.0.url", "https://example.org/paper"),
-        _text("general.dataset.0.repo_url", "https://huggingface.co/h4/ultrachat"),
+        _text("general.dataset.0.repo_url", "https://example.org/ultrachat"),
         _text("general.dataset.1.organization", "Org"),  # no name, no repo_url
     )
     assert [ref.role for ref in meta.datasets] == ["trainedOn"]
@@ -88,7 +88,7 @@ def test_numbered_entries_are_trained_on_datasets(tmp_path: Path) -> None:
         "Dialogues",
     )
     # repo_url is where the data is; url (a home page) is not
-    assert data.download_url == "https://huggingface.co/h4/ultrachat"
+    assert data.download_url == "https://example.org/ultrachat"
     assert data.provenance == {
         "name": f"{_SOURCE} | Field: general.dataset.0.name",
         "download_url": f"{_SOURCE} | Field: general.dataset.0.repo_url",
@@ -99,6 +99,89 @@ def test_numbered_entries_are_trained_on_datasets(tmp_path: Path) -> None:
     assert meta.provenance["datasets"] == _NUMBERED
     # the keys stay properties too
     assert meta.properties["general.dataset.0.name"] == "Ultrachat_200K"
+
+
+_HUB = f"{_SOURCE} | Field: general.dataset.0.repo_url | Method: hub_dataset_id"
+
+
+@pytest.mark.parametrize(
+    ("repo_url", "name", "location"),
+    [
+        # gguf-py's model-path spelling of the card's id: the dataset page
+        (
+            "https://huggingface.co/allenai/c4",
+            "allenai/c4",
+            "https://huggingface.co/datasets/allenai/c4",
+        ),
+        (
+            "https://huggingface.co/datasets/teknium/OpenHermes-2.5/",
+            "teknium/OpenHermes-2.5",
+            "https://huggingface.co/datasets/teknium/OpenHermes-2.5/",
+        ),
+        (
+            "https://huggingface.co/datasets/c4",
+            "c4",
+            "https://huggingface.co/datasets/c4",
+        ),
+    ],
+    ids=["model-path", "dataset-page", "legacy-id"],
+)
+def test_a_hub_repo_url_names_the_dataset_by_its_hub_id(
+    tmp_path: Path, repo_url: str, name: str, location: str
+) -> None:
+    meta = _read(
+        tmp_path,
+        _number("general.dataset.count", 1),
+        _text("general.dataset.0.name", "C4"),  # gguf-py's title
+        _text("general.dataset.0.organization", "Allenai"),
+        _text("general.dataset.0.repo_url", repo_url),
+    )
+    data = meta.datasets[0].metadata
+    assert (data.name, data.download_url, data.creator) == (name, location, "Allenai")
+    assert data.provenance["name"] == _HUB
+    page = repo_url == location
+    assert data.provenance["download_url"] == (
+        f"{_SOURCE} | Field: general.dataset.0.repo_url" if page else _HUB
+    )
+    assert meta.properties["general.dataset.0.name"] == "C4"
+
+
+@pytest.mark.parametrize(
+    "repo_url",
+    [
+        "https://huggingface.co/allenai",  # one segment: a model, if anything
+        "https://huggingface.co/a/b/c",
+        "https://huggingface.co/datasets/a/b/c",
+        "https://huggingface.co/datasets/",
+        "https://huggingface.co/a/b?x=1",
+        "https://huggingface.co/a/b#x",
+        "https://huggingface.co:8443/a/b",
+        "https://u@huggingface.co/a/b",
+        "https://hf.co/a/b",
+        "https://huggingface.co/a--b/c",  # no Hub id
+    ],
+)
+def test_any_other_repo_url_is_kept_as_written(tmp_path: Path, repo_url: str) -> None:
+    meta = _read(
+        tmp_path,
+        _number("general.dataset.count", 1),
+        _text("general.dataset.0.name", "d"),
+        _text("general.dataset.0.repo_url", repo_url),
+    )
+    data = meta.datasets[0].metadata
+    assert (data.name, data.download_url) == ("d", repo_url)
+
+
+def test_a_hub_repo_url_and_the_spec_array_give_one_dataset(tmp_path: Path) -> None:
+    meta = _read(
+        tmp_path,
+        _number("general.dataset.count", 1),
+        _text("general.dataset.0.name", "C4"),
+        _text("general.dataset.0.repo_url", "https://huggingface.co/allenai/c4"),
+        _listed("AllenAI/C4"),
+    )
+    assert _names(meta) == ["allenai/c4"]
+    assert meta.provenance["datasets"] == _NUMBERED
 
 
 def test_an_entry_without_a_name_is_named_by_its_repo_url(tmp_path: Path) -> None:
@@ -168,9 +251,10 @@ def test_every_numbered_entry_is_read_in_order(tmp_path: Path) -> None:
     ("listed", "provenance"),
     [
         (("a/b",), _NUMBERED),  # the array repeats the entry: one dataset
-        (("A/B", "c"), f"{_NUMBERED}, general.datasets"),  # a Hub id, any case
+        (("A/B",), _NUMBERED),  # a Hub id, any case: no listed one kept
+        (("A/B", "c"), f"{_NUMBERED}, general.datasets"),
     ],
-    ids=["same", "case-and-more"],
+    ids=["same", "case", "case-and-more"],
 )
 def test_both_spellings_give_each_dataset_once_numbered_first(
     tmp_path: Path, listed: tuple[str, ...], provenance: str
@@ -225,10 +309,27 @@ def test_over_the_cap_keeps_the_first_and_warns_once(
     with caplog.at_level(logging.WARNING):
         meta = _read(tmp_path, _listed("a", "a", "b", "c", "d"))
     assert _names(meta) == ["a", "b"]
+    assert meta.provenance["datasets"] == _LISTED
     warnings = logged_warnings(caplog)
     assert len(warnings) == 1
     assert "FORMAT=gguf" in warnings[0]
     assert "2-dataset GGUF-datasets cap" in warnings[0]
+
+
+def test_a_listed_name_past_the_cap_is_not_in_the_provenance(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        _gguf_datasets, "GGUF_DATASETS_CAP", Cap(1, "dataset", "GGUF-datasets")
+    )
+    meta = _read(
+        tmp_path,
+        _number("general.dataset.count", 1),
+        _text("general.dataset.0.name", "a"),
+        _listed("x"),
+    )
+    assert _names(meta) == ["a"]
+    assert meta.provenance["datasets"] == _NUMBERED
 
 
 def test_the_sbom_links_each_dataset_with_trained_on(tmp_path: Path) -> None:

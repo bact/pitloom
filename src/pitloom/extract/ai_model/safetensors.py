@@ -174,11 +174,11 @@ def _stated_field(
     provenance: dict[str, str],
 ) -> str | None:
     """The text of the first of *keys* in *metadata* that is not blank, with
-    *field*'s provenance."""
+    *field*'s provenance naming that key."""
     found = first_stated_text(metadata, keys)
     if found is None:
         return None
-    provenance[field] = f"{source} | Field: __metadata__"
+    provenance[field] = f"{source} | Field: __metadata__.{found[0]}"
     return found[1]
 
 

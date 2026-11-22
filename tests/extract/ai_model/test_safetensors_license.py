@@ -118,19 +118,21 @@ def test_the_plain_license_key_is_the_fallback(
 
 
 @pytest.mark.parametrize(
-    ("metadata", "expected"),
+    ("metadata", "expected", "key"),
     [
-        ({"model_version": "2.3.0"}, "2.3.0"),
-        ({"version": "1", "model_version": "2.3.0"}, "1"),
-        ({"version": " ", "model_version": "2.3.rc1"}, "2.3.rc1"),
+        ({"model_version": "2.3.0"}, "2.3.0", "model_version"),
+        ({"version": "1", "model_version": "2.3.0"}, "1", "version"),
+        ({"version": " ", "model_version": "2.3.rc1"}, "2.3.rc1", "model_version"),
     ],
     ids=["model-version", "version-first", "blank-gives-way"],
 )
 def test_model_version_is_the_last_version_key(
-    tmp_path: Path, metadata: dict[str, object], expected: str
+    tmp_path: Path, metadata: dict[str, object], expected: str, key: str
 ) -> None:
     """LTX-2 writes its version under ``model_version``, beside ``license``."""
     meta = read_safetensors(_file(tmp_path / "m.safetensors", metadata))
 
     assert meta.version == expected
-    assert meta.provenance["version"] == "Source: m.safetensors | Field: __metadata__"
+    assert meta.provenance["version"] == (
+        f"Source: m.safetensors | Field: __metadata__.{key}"
+    )

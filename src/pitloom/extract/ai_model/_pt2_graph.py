@@ -176,9 +176,15 @@ def _size(size: object) -> object:
 
 
 def _weight_shapes(raw: bytes) -> list[Sequence[object]]:
-    """The sizes of each entry of a weights config: parameters and buffers
-    alike (``is_param`` tells them apart), as every format's count includes
-    the buffers a file stores.
+    """The sizes of each stored weight of a weights config: parameters and
+    buffers alike (``is_param`` tells them apart), as every format's count
+    includes the buffers a file stores.
+
+    ``torch.export`` stores the storage that several names share (tied
+    weights) as one blob and lists each name with that blob's
+    ``path_name``; names whose ``path_name``, sizes, strides and storage
+    offset all match are one stored weight, counted once. Different views
+    of one blob are each counted.
 
     Raises:
         ValueError: The text is not JSON, or an entry is not as
@@ -188,12 +194,25 @@ def _weight_shapes(raw: bytes) -> list[Sequence[object]]:
         _json_object(json.loads(raw), "weights config").get("config"), "config"
     )
     shapes: list[Sequence[object]] = []
+    seen: set[str] = set()
     for entry in config.values():
         weight = _json_object(entry, "weight")
-        sizes = _json_object(weight.get("tensor_meta"), "tensor_meta").get("sizes")
+        meta = _json_object(weight.get("tensor_meta"), "tensor_meta")
+        sizes = meta.get("sizes")
         if not isinstance(sizes, list):
             raise ValueError("tensor_meta.sizes is not a list")
-        shapes.append([_size(size) for size in sizes])
+        view = json.dumps(
+            [
+                weight.get("path_name"),
+                sizes,
+                meta.get("strides"),
+                meta.get("storage_offset"),
+            ],
+            sort_keys=True,
+        )
+        if view not in seen:
+            seen.add(view)
+            shapes.append([_size(size) for size in sizes])
     return shapes
 
 

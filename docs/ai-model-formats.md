@@ -230,8 +230,13 @@ can hold it, Pitloom does not read it. **--**: the format has no such field.
     llama.cpp's numbered `general.dataset.<id>.*` entries
     (`general.dataset.count`; `name`, else `repo_url`, names the dataset;
     `repo_url` is its download location, `version` and `description` are
-    read, `author`, else `organization`, is its creator). The numbered
-    entries come first; a dataset named in both is one dataset. At most
+    read, `author`, else `organization`, is its creator). llama.cpp writes
+    a card's Hub id `owner/name` as a title-cased `name` and the model-path
+    URL `https://huggingface.co/owner/name` as `repo_url`, so a `repo_url`
+    on `huggingface.co` naming a Hub dataset names it by that id, located
+    at its dataset page, as a Hub model card's datasets are
+    (`Method: hub_dataset_id`). The numbered entries come first; a dataset
+    named in both is one dataset, a Hub id in any case. At most
     1000, with one `WARNING:` past them. `quantize.imatrix.dataset`
     (written by `llama-quantize`) is the calibration text of an importance
     matrix, not training data: it stays a property. `general.base_model.*`
@@ -336,7 +341,9 @@ it labels that too.
   external data file by its declared dimensions (the file is not read).
   `Constant` nodes and `model.functions` are not counted.
 - PT2 counts every weight its weights config lists, parameters and buffers
-  alike, by the sizes the config states (no tensor is read); lifted
+  alike, by the sizes the config states (no tensor is read). Names sharing
+  one stored weight (tied weights: one blob, one view) count once; views
+  of one blob count each; lifted
   constants, in their own config, are not counted. A symbolic size gives
   none, with the malformed-dimension `WARNING:` below.
 - CRFsuite counts its features (`Method: one_weight_per_feature`): each

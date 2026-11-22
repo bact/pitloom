@@ -48,8 +48,11 @@ _COUNT = (
 )
 
 
-def _weight(sizes: object, is_param: object = True) -> dict[str, object]:
-    return {"path_name": "w", "is_param": is_param, "tensor_meta": {"sizes": sizes}}
+def _weight(
+    sizes: object, is_param: object = True, path: str = "w", offset: int = 0
+) -> dict[str, object]:
+    meta = {"sizes": sizes, "storage_offset": {"as_int": offset}}
+    return {"path_name": path, "is_param": is_param, "tensor_meta": meta}
 
 
 def _read(tmp_path: Path, files: dict[str, bytes]) -> AiModelMetadata:
@@ -81,14 +84,33 @@ def test_parameters_and_buffers_count_as_in_every_format(tmp_path: Path) -> None
         tmp_path,
         _weights(
             {
-                "w": _weight([{"as_int": 3}, {"as_int": 4}]),
-                "b": _weight([{"as_int": 4}]),
-                "running_mean": _weight([{"as_int": 100}], is_param=False),
+                "w": _weight([{"as_int": 3}, {"as_int": 4}], path="w0"),
+                "b": _weight([{"as_int": 4}], path="w1"),
+                "running_mean": _weight([{"as_int": 100}], False, path="w2"),
             }
         ),
     )
     assert meta.parameter_count == 116
     assert meta.provenance[PARAMETER_COUNT_PROVENANCE_KEY] == _COUNT
+
+
+def test_a_weight_stored_once_counts_once(tmp_path: Path) -> None:
+    """Tied weights share one blob (one ``path_name``) and one view: one
+    stored weight. Two views of one blob are each counted."""
+    embed = [{"as_int": 10}, {"as_int": 4}]
+    meta = _read(
+        tmp_path,
+        _weights(
+            {
+                "embed.weight": _weight(embed, path="w0"),
+                "lm_head.weight": _weight(embed, path="w0"),  # tied
+                "q": _weight([{"as_int": 4}], path="w1"),
+                "k": _weight([{"as_int": 4}], path="w1", offset=4),  # a view
+                "other": _weight(embed, path="w2"),  # same shape, own blob
+            }
+        ),
+    )
+    assert meta.parameter_count == 40 + 4 + 4 + 40
 
 
 @pytest.mark.parametrize(

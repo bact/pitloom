@@ -1,6 +1,6 @@
 ---
 Created: 2026-03-05
-Last-Modified: 2026-11-09
+Last-Modified: 2026-11-22
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -39,7 +39,7 @@ Format detection is handled by
 | NumPy | `.npy`, `.npz` | `numpy.py` | `numpy` (`pitloom[numpy]`) | Memory-map header to read shape and dtype without loading tensor data |
 | ONNX | `.onnx` | `onnx.py` | `onnx` (`pitloom[onnx]`) | `onnx.load()` to access graph properties and `metadata_props` dictionary |
 | PyTorch classic | `.pt`, `.pth` | `pytorch.py` | `fickling` (`pitloom[pytorch]`) | ZIP archive structure inspection; `fickling` for safe pickle AST inspection (never calls `pickle.load`) |
-| PyTorch PT2 / ExecuTorch | `.pt2` | `pytorch_pt2.py` | (stdlib only) | ZIP archive structure; `extra/` metadata files; `models/model.json` signature user inputs/outputs |
+| PyTorch PT2 (`torch.export`) | `.pt2` | `pytorch_pt2.py` | (stdlib only) | ZIP archive structure; `extra/` metadata files; `models/model.json` signature user inputs/outputs |
 | Safetensors | `.safetensors` | `safetensors.py` | `safetensors` (`pitloom[safetensors]`) | `safe_open()` reads the JSON header without loading multi-gigabyte weight tensors |
 
 ## Format reference tools and prior art

@@ -437,8 +437,8 @@ def read_pytorch_pt2(model_path: Path) -> AiModelMetadata:
       :attr:`~AiModelMetadata.outputs` (the signature's user inputs and
       outputs), ``torch_version`` -> ``format_info.framework_version``
     - ``data/weights/model_weights_config.json`` ->
-      :attr:`~AiModelMetadata.parameter_count` (the ``is_param`` weights'
-      sizes; no tensor is read)
+      :attr:`~AiModelMetadata.parameter_count` (the sizes of every stored
+      weight, parameters and buffers, a shared one once; no tensor is read)
 
     ``format_info.framework`` is ``pytorch``.
 

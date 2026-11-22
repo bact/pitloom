@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-08
-Last-Modified: 2026-11-21
+Last-Modified: 2026-11-22
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -234,11 +234,17 @@ fact-check of the LLMSC 2027 workshop paper draft against 0.24.0 (#483,
   kept only the array's length. `quantize.imatrix.dataset`, in 32 of those
   headers, names the calibration text of an importance matrix written by
   `llama-quantize`: data the quantiser saw, not training data. The
-  converter also builds a dataset's `repo_url` as
-  `https://huggingface.co/<org>/<name>`, a model URL path, without
-  `/datasets/`; Pitloom records it as stated. Do: read every spelling the
-  spec and the reference writer use, the spec's first; map a key by what its
-  writer means (calibration is not training).
+  converter also rewrites a card's Hub id `allenai/c4`: `name` becomes a
+  title (`C4`, `OpenHermes 2.5`), `organization` a title (`Allenai`), and
+  `repo_url` `https://huggingface.co/allenai/c4`, a model URL path without
+  `/datasets/` that does not resolve (401; the `/datasets/` page answers
+  200). Read as stated, the same dataset is `C4` in the GGUF and
+  `allenai/c4` on the card beside it: two packages. Pitloom names a
+  numbered entry by the Hub id of such a `repo_url` and locates it at the
+  dataset page, as the card route does. Do: read every spelling the spec
+  and the reference writer use, the spec's first; map a key by what its
+  writer means (calibration is not training); read the writer's source to
+  see which stated values it made up, and recover the identity it lost.
 - **A licence key can hold the licence itself.** Lightricks write a plain
   `license` key in Safetensors `__metadata__` (no ModelSpec prefix): LTX-Video
   a name (`Apache License 2.0`), LTX-2 its whole 21 KB licence agreement,
@@ -260,7 +266,11 @@ fact-check of the LLMSC 2027 workshop paper draft against 0.24.0 (#483,
   `nn.Parameter`) or not (a buffer). Summing only `is_param` gives a
   trainable count, but every other format's count, and the SBOM's own note
   ("elements in the model's stored tensors"), includes buffers. Pitloom
-  sums every stored weight. A CRFsuite model stores one weight per feature,
-  so its `FEAT` count is its count (the header's own `num_features` is
-  always 0). Do: define a cross-format figure once, apply that definition
+  sums every stored weight, but a stored weight once: `torch.export` writes
+  one blob per shared storage and lists every name of it (tied
+  `lm_head.weight` and `embed.weight`) with that blob's `path_name`, so a
+  sum over the config's names counts a tied weight twice. Names with one
+  `path_name`, sizes, strides and offset are one weight. A CRFsuite model
+  stores one weight per feature, so its `FEAT` count is its count (the
+  header's own `num_features` is always 0). Do: define a cross-format figure once, apply that definition
   in each reader, and keep a narrower figure for its own field.

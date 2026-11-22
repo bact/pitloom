@@ -27,7 +27,10 @@ from pitloom.core.ai_metadata import (
     source_metadata,
 )
 from pitloom.core.canonical_json import canonical_json
-from pitloom.core.model_parameters import PARAMETER_COUNT_PROVENANCE_KEY
+from pitloom.core.model_parameters import (
+    ONE_WEIGHT_PER_FEATURE_METHOD,
+    PARAMETER_COUNT_PROVENANCE_KEY,
+)
 from pitloom.core.provenance import provenance_source
 from pitloom.core.quote_source import quote_source
 from pitloom.extract.ai_model.formats import FormatError, Limits
@@ -155,7 +158,7 @@ def read_crfsuite(model_path: Path) -> AiModelMetadata:
     parameter_count = model.num_features or None
     if parameter_count:
         provenance[PARAMETER_COUNT_PROVENANCE_KEY] = (
-            f"{source} | Field: FEAT.num | Method: one_weight_per_feature"
+            f"{source} | Field: FEAT.num{ONE_WEIGHT_PER_FEATURE_METHOD}"
         )
 
     outputs: list[dict[str, Any]] = []
