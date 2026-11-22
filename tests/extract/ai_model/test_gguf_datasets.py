@@ -161,6 +161,20 @@ def test_only_what_gguf_py_derives_from_the_id_is_left_out(
     assert (data.creator, data.version) == (creator, read_version)
 
 
+def test_an_author_or_description_from_name_words_is_read(tmp_path: Path) -> None:
+    """gguf-py derives only the organisation and the version from the id."""
+    meta = _read(
+        tmp_path,
+        _number("general.dataset.count", 1),
+        _text("general.dataset.0.name", "C4"),
+        _text("general.dataset.0.author", "c4"),
+        _text("general.dataset.0.description", "c4"),
+        _text("general.dataset.0.repo_url", "https://huggingface.co/allenai/c4"),
+    )
+    data = meta.datasets[0].metadata
+    assert (data.name, data.creator, data.description) == ("allenai/c4", "c4", "c4")
+
+
 @pytest.mark.parametrize(
     "repo_url",
     [
@@ -205,6 +219,8 @@ def test_a_hub_dataset_page_names_the_dataset_by_its_hub_id(
         "https://huggingface.co/allenai/c4/tree/main",
         "https://huggingface.co/datasets/a/b/c",
         "https://huggingface.co/datasets/",
+        "https://huggingface.co/datasets/allenai/c4?x=1",
+        "https://huggingface.co/datasets/allenai/c4#x",
         "https://huggingface.co/allenai/c4?x=1",
         "https://huggingface.co/allenai/c4#x",
         "https://u@huggingface.co/allenai/c4",
@@ -249,10 +265,23 @@ def test_gguf_py_s_legacy_dataset_page_drops_what_it_made_up(
 @pytest.mark.parametrize(
     ("url", "name", "organization"),
     [
+        *(
+            (f"https://huggingface.co/{area}/x", "X", area.title())
+            for area in ("api", "blog", "collections", "docs", "papers", "spaces")
+        ),
         ("https://huggingface.co/papers/2301.00001", "2301.00001", "Papers"),
         ("https://huggingface.co/a--b/c", "C", "A B"),  # no Hub id
     ],
-    ids=["site-area", "no-hub-id"],
+    ids=[
+        "api",
+        "blog",
+        "collections",
+        "docs",
+        "papers",
+        "spaces",
+        "paper-id",
+        "no-hub-id",
+    ],
 )
 def test_a_split_gguf_py_wrote_that_is_no_dataset_id_stays_as_written(
     tmp_path: Path, url: str, name: str, organization: str
@@ -323,7 +352,15 @@ def test_a_listed_dataset_page_is_named_by_its_hub_id(tmp_path: Path) -> None:
 
 @pytest.mark.parametrize(
     "words",
-    ["c4", "OpenHermes-2.5", "ultrachat_200k", "open-orca", "v2-beta", "LLaMA-v1.5-x"],
+    [
+        "c4",
+        "OpenHermes-2.5",
+        "ultrachat_200k",
+        "open-orca",
+        "v2-beta",
+        "LLaMA-v1.5-x",
+        "1b-instruct",
+    ],
 )
 def test_the_title_is_gguf_py_s(words: str) -> None:
     """Drift guard: Pitloom's copy of ``Metadata.id_to_title``."""
@@ -504,6 +541,54 @@ def test_two_versions_reach_the_sbom_as_one_package_with_a_warning(
         "FIELD=version: references to dataset d differ; the first is kept",
         "FIELD=download_url: references to dataset d differ; the first is kept",
     ]
+
+
+def test_a_field_differing_in_three_entries_of_one_dataset_is_said_once(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    pairs = [_number("general.dataset.count", 3)]
+    for index in range(3):
+        pairs.append(_text(f"general.dataset.{index}.name", "d"))
+        pairs.append(
+            _text(f"general.dataset.{index}.repo_url", f"https://x.org/{index}")
+        )
+    with caplog.at_level(logging.WARNING):
+        meta = _read(tmp_path, *pairs)
+    assert [ref.metadata.download_url for ref in meta.datasets] == ["https://x.org/0"]
+    assert logged_warnings(caplog) == [
+        "FIELD=download_url: references to dataset d differ; the first is kept"
+    ]
+
+
+def test_an_element_joins_the_first_entry_of_its_name_in_any_spelling(
+    tmp_path: Path,
+) -> None:
+    """``O/D`` and ``o/d`` are one Hub id; the element fills the first
+    entry's location, not the second's."""
+    page = "https://huggingface.co/datasets/o/d"
+    meta = _read(
+        tmp_path,
+        _number("general.dataset.count", 2),
+        _text("general.dataset.0.name", "O/D"),
+        _text("general.dataset.0.version", "1"),
+        _text("general.dataset.1.name", "O/D"),
+        _text("general.dataset.1.version", "2"),
+        _listed(page),
+    )
+    data = [ref.metadata for ref in meta.datasets]
+    assert [(d.name, d.version, d.download_url) for d in data] == [
+        ("O/D", "1", page),
+        ("O/D", "2", None),
+    ]
+
+
+def test_a_repeated_element_is_read_and_warned_of_once(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    with caplog.at_level(logging.WARNING):
+        meta = _read(tmp_path, _listed("https://a b", "https://a b"))
+    assert _names(meta) == ["https://a b"]
+    assert len(logged_warnings(caplog)) == 1
 
 
 def test_the_last_entry_a_count_names_is_read(tmp_path: Path) -> None:

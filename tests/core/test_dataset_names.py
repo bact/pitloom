@@ -63,8 +63,15 @@ def test_the_version_is_part_of_a_dataset_s_identity(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     """One name at two versions stays two; a repeat of a name and version
-    is one, its other spelling said once."""
-    entries = [("O/D", "1"), ("o/d", "2"), ("o/d", "1"), ("O/D", None), (" ", "1")]
+    is one, its other spelling said once; a name is kept stripped."""
+    entries = [
+        (" O/D ", "1"),
+        ("o/d", "2"),
+        ("o/d", "1"),
+        ("o/d", "1"),
+        ("O/D", None),
+        (" ", "1"),
+    ]
     with caplog.at_level(logging.INFO, logger="pitloom"):
         kept = distinct_datasets(entries, CARD_DATASETS_CAP, "m.gguf")
     assert kept == [("O/D", "1"), ("o/d", "2"), ("O/D", None)]

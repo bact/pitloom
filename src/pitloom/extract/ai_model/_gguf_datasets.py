@@ -134,9 +134,8 @@ def hub_dataset_page(url: str) -> str | None:
     ):
         return None
     area, _, hub_id = parts.path.strip("/").partition("/")
-    if area != "datasets" or hub_id.count("/") > 1:
-        return None
-    return hub_id if is_hub_dataset_id(hub_id) else None
+    # a Hub id has at most one "/": a deeper path is no Hub id
+    return hub_id if area == "datasets" and is_hub_dataset_id(hub_id) else None
 
 
 def _gguf_py_id(repo_url: str, name: str | None) -> GgufPyId | None:
