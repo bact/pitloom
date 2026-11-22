@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-10
-Last-Modified: 2026-11-10
+Last-Modified: 2026-11-21
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -26,10 +26,12 @@ cache, with no size cap. They are now fetched by
 (`_http_fetch.fetch_capped`): a cap counted on the bytes received, a host
 allowlist checked on every hop, a deadline, chunked reads. Each file lands
 in its own folder of one temporary directory (`pitloom-hf-`, masked as
-`<download>` in messages) removed when the read ends. `model_info()`,
-`dataset_info()` and `list_repo_files()` remain `huggingface_hub` API
-requests: they download no file, and neither the cap nor `check_url`
-reaches them (documented).
+`<download>` in messages) removed when the read ends. `model_info()`
+and `dataset_info()` remain `huggingface_hub` API requests (each with a
+30 second socket `timeout=`, per connect or read, with no total deadline and
+no cap on the response size; the licence file names come from the `siblings` of
+`model_info()`, no `list_repo_files()` request is sent): they download
+no file, and neither the cap nor `check_url` reaches them (documented).
 
 ### Per-kind caps and the metadata deadline (review round A)
 
@@ -128,8 +130,8 @@ token to it. Pitloom does not: an endpoint whose scheme is not in
 `_http_fetch.ALLOWED_SCHEMES` (https), or holding user information, a query
 or a fragment, is refused with one `WARNING:` per read
 (`url-unsafe/hf-endpoint`, the credentials masked) and nothing is asked of
-the Hub (`HubFiles.asks_hub`): no file, and no `model_info()`,
-`list_repo_files()` or `dataset_info()`, which `huggingface_hub` would send
+the Hub (`HubFiles.asks_hub`): no file, and no `model_info()`
+or `dataset_info()`, which `huggingface_hub` would send
 to the same endpoint with the token (review round A reproduced that with a
 loopback http endpoint; a test now asserts it sees no request). The model
 keeps its id and URL only, and no other line is said (the "without a

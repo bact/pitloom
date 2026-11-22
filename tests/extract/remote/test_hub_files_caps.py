@@ -86,17 +86,13 @@ def _read_model_card(hub: HubFiles) -> object:
 
 
 def _read_licence(hub: HubFiles) -> object:
-    with (
-        patch(
-            "pitloom.extract.remote.huggingface_fetch._list_license_files_in_repo",
-            return_value=["LICENSE"],
-        ),
-        patch(
-            "pitloom.extract._license_text_match.detect_license_from_text",
-            side_effect=lambda text: "MIT" if text else None,
-        ),
+    with patch(
+        "pitloom.extract._license_text_match.detect_license_from_text",
+        side_effect=lambda text: "MIT" if text else None,
     ):
-        return _detect_license_from_hf_files(hub, "o/m", revision=_SHA)[0]
+        return _detect_license_from_hf_files(
+            hub, "o/m", revision=_SHA, license_files=["LICENSE"]
+        )[0]
 
 
 def _read_dataset_card(hub: HubFiles) -> object:

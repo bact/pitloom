@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-07
-Last-Modified: 2026-11-10
+Last-Modified: 2026-11-21
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -413,7 +413,7 @@ blocks it.
 - **Refusal printed twice**: a refused PyPI or Git URL logs a `WARNING:`
   echoing the error, then the coded `ERROR:`; the Git route did so first.
 - **Hub API calls outside the fetch policy**: `model_info()`,
-  `dataset_info()` and the file listing on the Hugging Face route are still
+  and `dataset_info()` on the Hugging Face route are still
   `huggingface_hub` requests, so `max-download-bytes` and `check_url` reach
   the metadata files but not these calls. See
   [remote-fetch-policy.md](remote-fetch-policy.md).

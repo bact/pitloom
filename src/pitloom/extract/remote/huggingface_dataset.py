@@ -55,6 +55,7 @@ from pitloom.extract.dataset.licence import (
     field_provenance,
 )
 from pitloom.extract.remote._card_description import card_description
+from pitloom.extract.remote._http_fetch import SOCKET_TIMEOUT_SECONDS
 from pitloom.extract.remote._hub_files import FileKind, HubFiles, local_reason
 from pitloom.logging_config import field_loss_suffix, loggable, one_line
 from pitloom.messages.files import (
@@ -95,7 +96,7 @@ def _load_dataset_info(dataset_id: str) -> dict[str, Any] | None:
         # pylint: disable=import-outside-toplevel
         from huggingface_hub import dataset_info
 
-        info = dataset_info(dataset_id)
+        info = dataset_info(dataset_id, timeout=SOCKET_TIMEOUT_SECONDS)
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
         msg = "Failed to load dataset_info() for %s: %s" + field_loss_suffix(
