@@ -56,8 +56,9 @@ from pitloom.extract.dataset.licence import (
 )
 from pitloom.extract.remote._card_description import card_description
 from pitloom.extract.remote._http_fetch import SOCKET_TIMEOUT_SECONDS
-from pitloom.extract.remote._hub_files import FileKind, HubFiles, local_reason
-from pitloom.logging_config import field_loss_suffix, loggable, one_line
+from pitloom.extract.remote._hub_api import repo_page_url, say_hub_failure
+from pitloom.extract.remote._hub_files import FileKind, HubFiles
+from pitloom.logging_config import field_loss_suffix
 from pitloom.messages.files import (
     Cap,
     warn_over_cap,
@@ -76,6 +77,12 @@ _SOURCE = "Hugging Face Hub"
 _CARD_FIELD = "dataset card "
 _FIELDS_SKIPPED = ("license", "description", "keywords")
 
+#: What a failed ``dataset_info()`` leaves unrecorded: the card is not read
+#: either, as its revision is not known.
+DATASET_INFO_OUTCOME = (
+    "licence, description, keywords, version and creator not recorded"
+)
+
 #: A Hub dataset card: the dataset repository's ``README.md``.
 HUB_DATASET_CARD = CardKind(
     ("README.md",),
@@ -90,8 +97,13 @@ _CARD_FILE = FileKind(HUB_DATASET_CARD.cap, "dataset card not read")
 
 def _load_dataset_info(dataset_id: str) -> dict[str, Any] | None:
     """The ``author`` and ``sha`` that ``dataset_info()`` states (``None``
-    when not given); ``None``, with one ``WARNING:``, when the request
-    fails."""
+    when not given); ``None``, with one ``WARNING:`` naming what is not
+    recorded, when the request fails
+    (:func:`~pitloom.extract.remote._hub_api.say_hub_failure`).
+
+    Raises:
+        InternalError: Raised by the request, unchanged.
+    """
     try:
         # pylint: disable=import-outside-toplevel
         from huggingface_hub import dataset_info
@@ -99,10 +111,13 @@ def _load_dataset_info(dataset_id: str) -> dict[str, Any] | None:
         info = dataset_info(dataset_id, timeout=SOCKET_TIMEOUT_SECONDS)
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
-        msg = "Failed to load dataset_info() for %s: %s" + field_loss_suffix(
-            "skipped", *_FIELDS_SKIPPED, "version", "creator"
+        say_hub_failure(
+            log,
+            exc,
+            url=repo_page_url(dataset_id, "dataset"),
+            outcome=DATASET_INFO_OUTCOME,
+            seconds=SOCKET_TIMEOUT_SECONDS,
         )
-        log.warning(msg, loggable(dataset_id), one_line(exc))
         return None
     # As the Hub sent them: the readers of each check its type.
     return {"author": info.author, "sha": info.sha}
@@ -114,7 +129,8 @@ def _load_dataset_card(
     """The card text and frontmatter of *dataset_id* at *revision*, the
     card downloaded and read within :data:`MODEL_CARD_MAX_BYTES`;
     ``(None, {})`` when the repository has no card (silently) or it cannot
-    be fetched or read (one ``WARNING:``)."""
+    be fetched or read (one ``WARNING:``, from :meth:`HubFiles.read` or
+    :func:`~pitloom.enrich.readme.read_card`)."""
     local_path = hub.read(
         dataset_id,
         "README.md",
@@ -124,15 +140,7 @@ def _load_dataset_card(
     )
     if local_path is None:
         return None, {}
-    try:
-        # A third party's card: whatever reading it raises fails only it.
-        read = read_card(Path(local_path), HUB_DATASET_CARD, name=dataset_id)
-    # pylint: disable-next=broad-exception-caught
-    except Exception as exc:
-        msg = "Failed to load dataset card for %s: %s" + HUB_DATASET_CARD.fields_skipped
-        # An OSError on a file quotes the temporary path: its reason only.
-        log.warning(msg, loggable(dataset_id), one_line(local_reason(exc)))
-        return None, {}
+    read = read_card(Path(local_path), HUB_DATASET_CARD, name=dataset_id)
     if read is None:
         return None, {}
     return read[0], read[1] or {}

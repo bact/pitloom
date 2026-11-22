@@ -26,10 +26,10 @@ and this project adheres to
 
 - Input, option, SBOM, target, ID registry file, id, key, save, file-set, lock
   file, dependency, configuration, licence, project metadata, file discovery,
-  Git URL, build, temporary directory and signal messages carry a message code,
-  and a configuration error names the file; see
+  Git URL, Hugging Face Hub, build, temporary directory and signal messages
+  carry a message code, and a configuration error names the file; see
   `docs/message-codes.md` ([#482], [#485], [#486], [#492], [#496], [#497],
-  [#498], [#501], [#503], [#506])
+  [#498], [#501], [#503], [#506], [#508])
 - A credential in an SBOM URL field is warned of; `url-credentials = "refuse"`
   or `--refuse-url-credentials` refuse the SBOM ([#489], [#490])
 - `embed-wheel --sbom` (every string) and `merge` check an SBOM for such
@@ -129,6 +129,9 @@ and this project adheres to
 - A token after a tab in git's own error text is masked ([#503])
 - Hugging Face `model_info()` and `dataset_info()` requests time out after 30 s;
   licence file names come from `model_info()`, not a separate listing ([#507])
+- A Hub revision warning is said once per model read, not per file; a refused
+  PyPI URL gives its `ERROR:` line without a `WARNING:` before it; an error text
+  in a `failure` value is cut to 500 characters ([#508])
 
 ### Security
 
@@ -158,6 +161,7 @@ and this project adheres to
 [#503]: https://github.com/bact/pitloom/pull/503
 [#506]: https://github.com/bact/pitloom/pull/506
 [#507]: https://github.com/bact/pitloom/pull/507
+[#508]: https://github.com/bact/pitloom/pull/508
 [#509]: https://github.com/bact/pitloom/pull/509
 
 ## [0.24.0] - 2026-11-11

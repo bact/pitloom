@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-29
-Last-Modified: 2026-11-17
+Last-Modified: 2026-11-22
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -247,7 +247,7 @@ recommendations"; SARIF and LicenseID codes get room only, no scheme):
   (`[tool.poetry.dependencies]`) never reads as a code.
 - **B. Subject first.** `[subject-]condition` (`file-unreadable`,
   `dir-unlistable`); the bare condition when it does not depend on the
-  subject (`over-cap`, `timeout`, `network-failed`, `lfs-pointer`,
+  subject (`over-cap`, `download-timeout`, `download-network-failed`, `lfs-pointer`,
   `not-a-model`, `interrupted`).
 - **C. Name by cause**, never by Pitloom's response (`skipped`, `ignored`,
   `new-id`, `left-out`) or by a module.

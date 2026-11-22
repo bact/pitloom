@@ -61,6 +61,12 @@ OVER_CAP = "over-cap"
 #: :data:`pitloom.messages.files.DIR_UNLISTABLE`).
 FILE_UNREADABLE = "file-unreadable"
 DIR_UNLISTABLE = "dir-unlistable"
+#: The reason codes of a fact whose download did not finish in time, or
+#: failed: the codes of the catalogue's messages too
+#: (:data:`pitloom.messages.network.DOWNLOAD_TIMEOUT`,
+#: :data:`pitloom.messages.network.DOWNLOAD_FAILED`). No writer yet.
+DOWNLOAD_TIMEOUT = "download-timeout"
+DOWNLOAD_FAILED = "download-network-failed"
 
 #: Provenance field names of the facts a ``not_measured`` entry stands in
 #: for: the hash (``verifiedUsing``) of a file, dataset or model, and a
@@ -75,8 +81,8 @@ BYTE_SIZE_FIELD = "byte_size"
 REASON_CODES: frozenset[str] = frozenset(
     {
         OVER_CAP,
-        "timeout",
-        "network-failed",
+        DOWNLOAD_TIMEOUT,
+        DOWNLOAD_FAILED,
         "lfs-pointer",
         FILE_UNREADABLE,
         DIR_UNLISTABLE,

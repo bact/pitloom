@@ -146,7 +146,7 @@ _GENERAL: Final[Mapping[str, Field]] = MappingProxyType(
             "<failure>",
             "what the operating system reported (`Permission denied`), never "
             "the path it names, or what the decoder, reader or build step "
-            "reported; on one "
+            "reported, cut to 500 characters (then `...`); on one "
             "line, in quotes, escaped, when it holds a control character",
             free=True,
         ),
@@ -369,9 +369,10 @@ _GENERAL: Final[Mapping[str, Field]] = MappingProxyType(
             r".+",
             free_text,
             "<target>",
-            "a URL a redirect or a file points to, or the repository a Git "
-            "page URL names, as given; in quotes, escaped, when it holds a "
-            "control character",
+            "a URL a redirect or a file points to, the repository a Git "
+            "page URL names, as given, or the Hugging Face model URL a Hub "
+            "URL is read as; in quotes, escaped, when it holds a control "
+            "character",
             free=True,
         ),
         "unit": Field(
@@ -385,8 +386,10 @@ _GENERAL: Final[Mapping[str, Field]] = MappingProxyType(
             free_text,
             "<url>",
             "a URL as given, or the repository URL read from it (a PyPI page "
-            "URL, a Git URL, a request URL, or huggingface_hub's HF_ENDPOINT); "
-            "in quotes, escaped, when it holds a control character",
+            "URL, a Git URL, a request URL, huggingface_hub's HF_ENDPOINT, or "
+            "the page of the Hugging Face model or dataset a Hub API request "
+            "asked about); in quotes, escaped, when it holds a control "
+            "character",
             free=True,
         ),
         "use": Field(

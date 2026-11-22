@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-11-21
+Last-Modified: 2026-11-22
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -169,6 +169,47 @@ counts are in [message-catalogue-migration-plan.md](message-catalogue-migration-
   `Bearer <jwt>` in a build's output is not masked; a signal test depends on
   the child's inherited SIGINT disposition (a backgrounded shell ignores it);
   `docs/git-urls.md` is over the 30 KB limit.
+- [ ] **Unexplained CI hang** (2026-11-21, PR #507's first 3.14 ubuntu run):
+  two xdist workers stopped for 23 minutes in `tests/core/models_wheel`
+  (`test_models_wheel_guard.py::test_a_link_loop_in_a_clone_is_stopped_by_the_cap[setuptools-find]`
+  and `test_models_wheel_build_timeout.py::test_allow_build_settings_reach_build_and_read_registered_backend`),
+  then passed on a re-run of the same commit; the diff touched neither. Not
+  reproduced on macOS 3.14 (full suite, coverage on, `-n 4`). A repeat is a
+  real Linux-only hang: suspect the link-loop guard's `sys.setprofile` hook
+  (`_models_wheel_guard.py`); first step, run `tests/core/models_wheel` under
+  `-n 4` on Linux.
+- [ ] **`pypi-url-unusable` is also logged bare before it is raised**
+  (`assemble/_model_generator.py:_refuse_pypi_url`, found in PR 14b): the same
+  duplicate that 14b dropped for `pypi-url-invalid` (Q15); `generate_model_sbom`
+  on a PyPI URL prints the line twice. A test pins it
+  (`test_generate_pypi_hosts.py`). Needs the same ruling, then drop it and the
+  pin.
+- [ ] **A repo id `huggingface_hub` refuses is said as `hub-response-invalid`**
+  (found in PR 14b round 1; the misroute is new in 14b, `main` said a neutral
+  "Failed to load model_info()"): `_HF_ID_RE` accepts `a/b--c`, `a/b..c`, `a/b.git`,
+  `a/b-`, `a/b.` and names over 96 characters, which `validate_repo_id`
+  rejects with `HFValidationError` before any request, so the line's advice
+  ("the Hub may not speak the Hugging Face API") points away from the typo.
+  Refuse these ids in `parse_hf_model_id` with `hf-url-invalid`, reusing the
+  dataset rule (`core/dataset_names.is_hub_dataset_id`), and test it.
+- [ ] **The `failure` cut is counted before memory addresses are dropped**
+  (`messages/_field_writers.py:failure_text`, new in 14b; `main` had no cut): a text over 500 characters with
+  an object repr before the cut can show a different tail per run. Drop the
+  addresses from the masked text, then cut.
+- [ ] **`docs/ai-model-formats.md` is over the 30 KB limit** (about 39 KB, over
+  already on `main`); split it, with `docs/git-urls.md`.
+- [ ] **Hub failure lines hold a per-run Request ID** (found in PR 14b round
+  2): `huggingface_hub`'s 4xx/5xx text carries `(Request ID: Root=...)`, so the
+  line differs on every real run (same on `main`). Drop it where the failure
+  is written, with the canonical-output follow-ups.
+- [ ] **A revision URL is read at the default branch with no signal**
+  (`https://huggingface.co/o/m/tree/<sha>`, found in PR 14b round 2): a
+  pre-existing silent deviation; say it (INFO) or honour the revision.
+- [ ] **Hub API calls bypass the fetch policy**: `model_info()` and
+  `dataset_info()` carry a 30 s socket timeout (#507) but no total deadline,
+  no response cap, and `huggingface_hub` follows redirects unchecked. Replace
+  them with `fetch_json` through `HubFiles`. See
+  [remote-fetch-policy.md](../implementation/remote-fetch-policy.md).
 - [ ] **Licence provenance mapping** (T14), after PR 18: per-operand
   `Resolution-<n>`, `License-List` and `Reason`, behind `--provenance`; waits
   for the flags item below and the provenance taxonomy. See

@@ -293,7 +293,6 @@ before the code.
 | `INFO:` | `URL=<url>: the query and fragment have no effect; cut` | the URL had a query or fragment ([`query-no-effect`](message-codes-network.md#query-no-effect)) |
 | `INFO:` | `PYPI=<name>: loom generate reads the wheel; 'loom project <url>' reads the sdist` | `loom generate` read the wheel ([`file-ambiguous`](message-codes-pypi.md#file-ambiguous)) |
 | `WARNING:` | `PYPI=<name> FILE=<file>: <why>; skipped` | a file of the release is not valid and left out ([`pypi-response-invalid`](message-codes-pypi.md#pypi-response-invalid)) |
-| `WARNING:` | the refusal's own `ERROR:` text, repeated | a refusal of the URL itself ([`pypi-url-invalid`](message-codes-pypi.md#pypi-url-invalid)), as well as its `ERROR:` |
 | `ERROR:` | `URL=<url>: not a PyPI project or release page; give https://pypi.org/project/<name>/ or .../<name>/<version>/` | another page of `pypi.org` ([`pypi-url-invalid`](message-codes-pypi.md#pypi-url-invalid)) |
 | `ERROR:` | `URL=<url>: PyPI is read over https only; give the https:// URL` | an `http` URL ([`pypi-url-invalid`](message-codes-pypi.md#pypi-url-invalid)) |
 | `ERROR:` | `URL=<url>: holds user information; a PyPI URL is read without credentials` | a user name or password in the URL ([`pypi-url-invalid`](message-codes-pypi.md#pypi-url-invalid)) |

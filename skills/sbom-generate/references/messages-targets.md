@@ -33,6 +33,7 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
 | [`sbom-wrong-format`](#sbom-wrong-format) | ERROR | An SBOM given to embed or to import into an ID registry is named as SPDX 3 JSON-LD (.spdx3.json) but holds another format (a CycloneDX document, say). | 0.25.0 |
 | [`target-ambiguous`](#target-ambiguous) | INFO | The path named for an SBOM is a folder, or a file in it whose name no AI model file has and that is not one, or is missing (a Git URL of README.md), so it does not say by itself what the SBOM describes; Pitloom decided by the rule: a project config makes it a project's, else the folder's one AI model file is read. | 0.23.4 |
 | [`target-ambiguous/git-page`](#target-ambiguousgit-page) | INFO | A Git URL names more than a repository, or names it in another spelling: a web page of a repository (with a branch, tag or commit, a folder or a file), a URL that is not itself a repository's, or a page of a file that is a folder (or of a folder that is a file). Pitloom decided by its rule what the URL names. | 0.25.0 |
+| [`target-ambiguous/hf-url`](#target-ambiguoushf-url) | INFO | A Hugging Face model URL spelt otherwise than https://huggingface.co/<owner>/<name> (hf.co, www.huggingface.co, http://, a scheme or host in another case). Pitloom decided by its rule which model it names. | 0.25.0 |
 | [`target-wrong-format`](#target-wrong-format) | ERROR | The target given is not of the kind the command reads: a Hugging Face model given to 'loom project', or a file not named .whl given as a wheel ('loom wheel', 'embed-wheel', 'verify-wheel', 'validate-wheel'). | 0.25.0 |
 
 ### `config-unsafe`
@@ -381,6 +382,24 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
   INFO: URL=<url>: not a repository; read as repository <target> [target-ambiguous/git-page]
   INFO: URL=<url>: '<path>' is a file, not a folder; read as the file named [target-ambiguous/git-page]
   INFO: URL=<url>: '<path>' is a folder, not a file; reading it [target-ambiguous/git-page]
+  ```
+
+### `target-ambiguous/hf-url`
+
+- **Level**: INFO.
+- **Means**: A Hugging Face model URL spelt otherwise than
+  https://huggingface.co/<owner>/<name> (hf.co, www.huggingface.co, http://, a
+  scheme or host in another case). Pitloom decided by its rule which model it
+  names.
+- **SBOM effect**: none: the SBOM states what the input holds.
+- **Pitloom did**: Read the model the line names, from the Hub the run asks
+  (https://huggingface.co unless HF_ENDPOINT names another).
+- **Nothing to do**: the SBOM describes the model the line names; to describe
+  another, give its URL.
+- **Lines**:
+
+  ```text
+  INFO: URL=<url>: read as Hugging Face model <target> [target-ambiguous/hf-url]
   ```
 
 ### `target-wrong-format`

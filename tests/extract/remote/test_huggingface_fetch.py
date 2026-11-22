@@ -8,9 +8,8 @@ helpers -- the raw HF Hub I/O functions.
 
 These bypass the full ``read_huggingface()`` pipeline (exercised by the
 sibling ``test_huggingface_*.py`` modules) to reach branches that the
-higher-level facade never exercises: a pinned revision short-circuiting the
-"no pinned revision" warning and the success paths of the raw fetch
-helpers.
+higher-level facade never exercises: the success paths of the raw fetch
+helpers and their failures.
 
 See also: tests/extract/remote/test_card_description.py (the card
 description), the topic-grouped hf_patches/_hf_patches_*.py submodules for the
@@ -32,6 +31,7 @@ from pitloom.enrich.readme import MODEL_CARD_CAP
 from pitloom.extract.remote._card_description import card_description
 from pitloom.extract.remote._hub_files import HUB_JSON_CAP, FileKind, HubFiles
 from pitloom.extract.remote.huggingface_fetch import (
+    MODEL_INFO_OUTCOME,
     _detect_license_from_hf_files,
     _fetch_all_hf_data,
     _license_files_in,
@@ -40,6 +40,8 @@ from pitloom.extract.remote.huggingface_fetch import (
     _resolve_license,
     _safe_load_json,
 )
+from pitloom.logging_config import CODE_ATTR
+from pitloom.messages.network import DOWNLOAD_FAILED
 
 _LOGGER_NAME = "pitloom.extract.remote.huggingface_fetch"
 
@@ -71,8 +73,8 @@ def _model_info(**api_json: Any) -> ModelInfo:
 def test_safe_load_json_with_pinned_revision_succeeds_without_warning(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """A pinned revision skips the "no pinned revision" warning and the
-    download+parse succeeds, returning the parsed JSON dict."""
+    """The download at a pinned revision and the parse succeed, returning
+    the parsed JSON dict, with no warning."""
     config_file = tmp_path / "config.json"
     config_file.write_text(json.dumps({"model_type": "mistral"}), encoding="utf-8")
 
@@ -87,14 +89,15 @@ def test_safe_load_json_with_pinned_revision_succeeds_without_warning(
     )
 
     assert result == {"model_type": "mistral"}
-    assert not any("pinned revision" in r.message for r in caplog.records)
+    assert not [r for r in caplog.records if r.levelno >= logging.WARNING]
 
 
-def test_safe_load_json_without_revision_warns_and_succeeds(
+def test_safe_load_json_without_revision_says_nothing_itself(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """No revision logs a reproducibility warning but still returns the
-    parsed JSON on success."""
+    """No revision: the file is read all the same, and the reader says
+    nothing of it (the unpinned model is said once, where the revision is
+    decided)."""
     config_file = tmp_path / "config.json"
     config_file.write_text(json.dumps({"a": 1}), encoding="utf-8")
 
@@ -102,7 +105,7 @@ def test_safe_load_json_without_revision_warns_and_succeeds(
         result = _safe_load_json(_hub(config_file), "org/model", "config.json")
 
     assert result == {"a": 1}
-    assert any("pinned revision" in r.message for r in caplog.records)
+    assert not [r for r in caplog.records if r.levelno >= logging.WARNING]
 
 
 # ---------------------------------------------------------------------------
@@ -317,8 +320,8 @@ def test_load_model_info_reads_the_licence_files_from_the_siblings(
 def test_detect_license_from_hf_files_pinned_revision_detects_license(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    # A pinned revision skips the reproducibility warning, and a matching
-    # licence file yields the detected SPDX ID plus provenance string.
+    # A matching licence file yields the detected SPDX ID plus provenance
+    # string, with no warning.
     license_file = tmp_path / "LICENSE"
     license_file.write_text("MIT License text...", encoding="utf-8")
 
@@ -338,7 +341,7 @@ def test_detect_license_from_hf_files_pinned_revision_detects_license(
     assert provenance == (
         "Source: Hugging Face Hub | File: LICENSE | Method: licenseid_detection"
     )
-    assert not any("pinned revision" in r.message for r in caplog.records)
+    assert not [r for r in caplog.records if r.levelno >= logging.WARNING]
 
 
 def test_detect_license_from_hf_files_undetected_continues_to_next_file(
@@ -370,8 +373,8 @@ def test_detect_license_from_hf_files_with_no_file_to_read_asks_and_says_nothing
     files: list[str] | None, caplog: pytest.LogCaptureFixture
 ) -> None:
     """No file name (the response had no file list, or no licence file in it):
-    nothing is downloaded, and no "without a pinned revision" warning is said
-    for a scan that does not happen."""
+    nothing is downloaded, and nothing is said for a scan that does not
+    happen."""
     hub = _hub(None)
     with caplog.at_level(logging.DEBUG, logger=_LOGGER_NAME):
         result = _detect_license_from_hf_files(hub, "org/model", license_files=files)
@@ -420,18 +423,18 @@ def test_load_model_card_failure_logs_and_returns_empty(
 def test_load_model_info_failure_logs_and_returns_empty(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
+    """One coded ``WARNING:`` naming the model's page and what is lost."""
     with patch("huggingface_hub.model_info", side_effect=OSError("info fetch failed")):
         with caplog.at_level(
             logging.DEBUG, logger="pitloom.extract.remote.huggingface_fetch"
         ):
             result = _load_model_info("org/model")
     assert not result
-    assert any("org/model" in r.message for r in caplog.records)
-    assert any(
-        "safetensors.total" in r.message and "gguf.total" in r.message
-        for r in caplog.records
-    )
-    assert any("license (file-based detection)" in r.message for r in caplog.records)
+    (record,) = [r for r in caplog.records if r.levelno >= logging.WARNING]
+    assert getattr(record, CODE_ATTR) == DOWNLOAD_FAILED.code
+    message = record.getMessage()
+    assert "URL=https://huggingface.co/org/model: info fetch failed" in message
+    assert message.endswith(MODEL_INFO_OUTCOME)
 
 
 _HOSTILE = OSError("404 for o/m\n::error::forged\u202e")
@@ -440,10 +443,6 @@ _HOSTILE = OSError("404 for o/m\n::error::forged\u202e")
 @pytest.mark.parametrize(
     ("patched", "call"),
     [
-        (
-            "pitloom.extract.remote.huggingface_fetch.read_card",
-            lambda: _load_model_card(_hub(Path("README.md")), "o/m"),
-        ),
         ("huggingface_hub.model_info", lambda: _load_model_info("o/m")),
         (
             "pathlib.Path.open",
@@ -452,7 +451,7 @@ _HOSTILE = OSError("404 for o/m\n::error::forged\u202e")
             ),
         ),
     ],
-    ids=["model-card", "model-info", "license-file"],
+    ids=["model-info", "license-file"],
 )
 def test_a_hub_error_is_logged_on_one_escaped_line(
     patched: str, call: Any, caplog: pytest.LogCaptureFixture

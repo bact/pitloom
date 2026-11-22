@@ -32,7 +32,7 @@ the table of prefixes.
 
 - [AI models](messages-models.md): 12 codes
 - [Model fields](messages-model-fields.md): 5 codes
-- [Targets](messages-targets.md): 15 codes
+- [Targets](messages-targets.md): 16 codes
 - [Options](messages-options.md): 4 codes
 - [Configuration](messages-config.md): 6 codes
 - [Project metadata](messages-metadata.md): 9 codes
@@ -42,7 +42,7 @@ the table of prefixes.
 - [Lock files](messages-lock-files.md): 7 codes
 - [Dependencies](messages-dependencies.md): 6 codes
 - [PyPI](messages-pypi.md): 13 codes
-- [Network](messages-network.md): 9 codes
+- [Network](messages-network.md): 11 codes
 - [Git URLs](messages-git.md): 8 codes
 - [URL credentials](messages-url-credentials.md): 8 codes
 - [ID registry](messages-id-registry.md): 5 codes
@@ -101,6 +101,8 @@ the table of prefixes.
 | [`git-repository-unusable/empty`](messages-git.md#git-repository-unusableempty) | ERROR | 0.25.0 |
 | [`git-url-invalid`](messages-git.md#git-url-invalid) | ERROR | 0.25.0 |
 | [`hf-url-invalid`](messages-targets.md#hf-url-invalid) | ERROR | 0.25.0 |
+| [`hub-response-invalid`](messages-network.md#hub-response-invalid) | WARNING | 0.25.0 |
+| [`hub-revision-unpinned`](messages-network.md#hub-revision-unpinned) | WARNING | 0.25.0 |
 | [`hyperparameter-conflict`](messages-model-fields.md#hyperparameter-conflict) | WARNING | 0.22.0 |
 | [`index-path-no-effect`](messages-id-registry-ids.md#index-path-no-effect) | WARNING | 0.25.0 |
 | [`input-not-found`](messages-targets.md#input-not-found) | ERROR, WARNING | 0.23.4 |
@@ -190,6 +192,7 @@ the table of prefixes.
 | [`source-date-epoch-invalid`](messages-config.md#source-date-epoch-invalid) | ERROR | 0.25.0 |
 | [`target-ambiguous`](messages-targets.md#target-ambiguous) | INFO | 0.23.4 |
 | [`target-ambiguous/git-page`](messages-targets.md#target-ambiguousgit-page) | INFO | 0.25.0 |
+| [`target-ambiguous/hf-url`](messages-targets.md#target-ambiguoushf-url) | INFO | 0.25.0 |
 | [`target-wrong-format`](messages-targets.md#target-wrong-format) | ERROR | 0.25.0 |
 | [`temp-dir-unusable`](messages-files.md#temp-dir-unusable) | ERROR, WARNING | 0.24.0 |
 | [`temp-dir-unwritable`](messages-build.md#temp-dir-unwritable) | WARNING | 0.25.0 |

@@ -37,13 +37,17 @@ from pitloom.enrich.readme import MODEL_CARD_CAP, CardKind, read_card
 from pitloom.extract._license_classify import is_vague_license_value
 from pitloom.extract._license_detect import LICENSE_FILE_CAP, read_license_file
 from pitloom.extract.remote._http_fetch import SOCKET_TIMEOUT_SECONDS
+from pitloom.extract.remote._hub_api import repo_page_url, say_hub_failure
 from pitloom.extract.remote._hub_files import (
     HUB_JSON_CAP,
     FileKind,
     HubFiles,
+    hub_offline,
     local_reason,
 )
-from pitloom.logging_config import field_loss_suffix, loggable, one_line
+from pitloom.logging_config import field_loss_suffix, one_line
+from pitloom.messages import emit
+from pitloom.messages.network import HUB_REVISION_UNPINNED
 
 log = logging.getLogger(__name__)
 
@@ -77,6 +81,13 @@ _CARD_FIELDS_SKIPPED = field_loss_suffix(
     "model-index",
 )
 
+#: What a failed ``model_info()`` leaves unrecorded: what it states, and the
+#: licence files, whose names only it gives.
+MODEL_INFO_OUTCOME = (
+    "author, sha, created_at, last_modified, downloads, tags, "
+    "safetensors.total and gguf.total not recorded; licence files not looked for"
+)
+
 #: A Hub model card: the model repository's ``README.md``, read as a local
 #: one is (within :data:`~pitloom.enrich.readme.MODEL_CARD_MAX_BYTES`).
 HUB_MODEL_CARD = CardKind(
@@ -96,13 +107,6 @@ def _safe_load_json(
     repository does not hold it (a model without ``generation_config.json``),
     with one ``WARNING:`` when the download fails or is over the cap
     (:meth:`HubFiles.read`), at ``DEBUG`` when it is not a JSON object."""
-    if revision is None:
-        log.warning(
-            "Downloading %s for %s without a pinned revision; "
-            "supply hub_info['sha'] to ensure reproducibility.",
-            quote_source(filename),
-            loggable(model_id),
-        )
     kind = FileKind(HUB_JSON_CAP, f"{filename} not read")
     local_path = hub.read(model_id, filename, revision=revision, kind=kind)
     if local_path is None:
@@ -131,19 +135,13 @@ def _load_model_card(
     its YAML frontmatter as a dict, as the file states it (``tags`` as a list
     without repeats, as ``huggingface_hub`` gives it); ``(None, {})``
     silently when the repository has no ``README.md``, with one ``WARNING:``
-    when it cannot be fetched or read."""
+    when it cannot be fetched or read (:func:`~pitloom.enrich.readme.read_card`
+    says each failure it meets itself)."""
     kind = FileKind(MODEL_CARD_CAP, "model card not read")
     local_path = hub.read(model_id, "README.md", revision=revision, kind=kind)
     if local_path is None:
         return None, {}
-    try:
-        # A third party's card: whatever reading it raises fails only it.
-        read = read_card(local_path, HUB_MODEL_CARD, name=model_id)
-    # pylint: disable-next=broad-exception-caught
-    except Exception as exc:
-        msg = "Failed to load model card for %s: %s" + _CARD_FIELDS_SKIPPED
-        log.warning(msg, loggable(model_id), one_line(local_reason(exc)))
-        return None, {}
+    read = read_card(local_path, HUB_MODEL_CARD, name=model_id)
     if read is None:
         return None, {}
     text, frontmatter = read
@@ -188,6 +186,12 @@ def _load_model_info(model_id: str) -> dict[str, Any]:
       (:data:`_HF_LICENSE_FILENAMES`), in priority order, read from the
       file list ``model_info()`` sends with the same ``sha``; absent when the
       response has no file list, ``[]`` when it lists none of them.
+
+    ``{}`` when the request fails, said as one ``WARNING:`` naming what is
+    not recorded (:func:`~pitloom.extract.remote._hub_api.say_hub_failure`).
+
+    Raises:
+        InternalError: Raised while reading the answer, unchanged.
     """
     try:
         # pylint: disable=import-outside-toplevel
@@ -222,19 +226,13 @@ def _load_model_info(model_id: str) -> dict[str, Any]:
         return result
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
-        msg = "Failed to load model_info() for %s: %s" + field_loss_suffix(
-            "skipped",
-            "author",
-            "sha",
-            "created_at",
-            "last_modified",
-            "downloads",
-            "tags",
-            "safetensors.total",
-            "gguf.total",
-            "license (file-based detection)",
+        say_hub_failure(
+            log,
+            exc,
+            url=repo_page_url(model_id),
+            outcome=MODEL_INFO_OUTCOME,
+            seconds=SOCKET_TIMEOUT_SECONDS,
         )
-        log.warning(msg, loggable(model_id), one_line(exc))
         return {}
 
 
@@ -271,12 +269,6 @@ def _detect_license_from_hf_files(
     """
     if not hub.asks_hub or not license_files:
         return None, None
-    if revision is None:
-        log.warning(
-            "Scanning license files for %s without a pinned revision; "
-            "supply hub_info['sha'] to ensure reproducibility.",
-            loggable(model_id),
-        )
     # pylint: disable-next=import-outside-toplevel
     from pitloom.extract._license_text_match import detect_license_from_text
 
@@ -305,7 +297,9 @@ def _detect_license_from_hf_files(
 
 def _fetch_all_hf_data(hub: HubFiles, model_id: str) -> dict[str, Any]:
     """Fetch all remote HF data sources and return them as a single dict;
-    each file at the revision ``model_info()`` states. With the Hub refused
+    each file at the revision ``model_info()`` states, else at the default
+    branch, said once per model (``hub-revision-unpinned``; not under
+    ``HF_HUB_OFFLINE``, which reads no file). With the Hub refused
     (:attr:`HubFiles.asks_hub`), nothing is asked of it: every source is
     absent, said by nothing more (the refusal was said once)."""
     if not hub.asks_hub:
@@ -320,6 +314,13 @@ def _fetch_all_hf_data(hub: HubFiles, model_id: str) -> dict[str, Any]:
     hub_info = _load_model_info(model_id)
     raw_revision = hub_info.get("sha")
     revision = str(raw_revision) if raw_revision else None
+    if revision is None and not hub_offline():
+        emit(
+            log,
+            HUB_REVISION_UNPINNED,
+            logging.WARNING,
+            url=repo_page_url(model_id),
+        )
     card_text, card_data = _load_model_card(hub, model_id, revision)
     return {
         "config": _safe_load_json(hub, model_id, "config.json", revision=revision),

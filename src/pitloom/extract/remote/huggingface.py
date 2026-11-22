@@ -97,7 +97,7 @@ from pitloom.extract.remote.huggingface_field import (
     hub_revision,
 )
 from pitloom.logging_config import loggable
-from pitloom.messages import CodedValueError
+from pitloom.messages import CodedValueError, emit
 from pitloom.messages.network import (
     OFFLINE_LINE,
     OFFLINE_UNUSABLE,
@@ -105,6 +105,7 @@ from pitloom.messages.network import (
 from pitloom.messages.targets import (
     HF_URL_INVALID,
     HUB_MODEL_NOT_PROJECT_LINE,
+    TARGET_AMBIGUOUS_HF_URL,
     TARGET_WRONG_FORMAT,
 )
 
@@ -146,11 +147,12 @@ def log_hf_url_rewrite(source: str, model_id: str) -> None:
     routes through :func:`read_huggingface`."""
     source = source.strip()
     if _HF_URL_RE.match(source) and not source.startswith(_CANONICAL_PREFIX):
-        log.info(
-            "Hugging Face URL %s is read as %s%s",
-            loggable(sanitize_url(source)),
-            _CANONICAL_PREFIX,
-            model_id,
+        emit(
+            log,
+            TARGET_AMBIGUOUS_HF_URL,
+            logging.INFO,
+            url=shown_url(source),
+            target=f"{_CANONICAL_PREFIX}{model_id}",
         )
 
 

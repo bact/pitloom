@@ -125,6 +125,8 @@ _MARKERS: dict[str, tuple[str, ...]] = {
         "a path part decodes to ",
     ),
     "hf-url-invalid": ("not a valid Hugging Face URL",),
+    "hub-response-invalid": ("the Hub's answer could not be read",),
+    "hub-revision-unpinned": ("the Hub stated no revision",),
     "hyperparameter-conflict": ("replaced by the parameter count",),
     "index-path-no-effect": ("skipped directory name",),
     "input-not-found": (
@@ -359,6 +361,7 @@ _MARKERS: dict[str, tuple[str, ...]] = {
         "not a repository; read as",
         ", not a folder; read as the file",
         ", not a file; reading it",
+        "read as Hugging Face model ",
     ),
     "target-wrong-format": (
         "a Hugging Face model, not a project",

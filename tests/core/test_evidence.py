@@ -102,8 +102,8 @@ def test_reason_codes_are_catalogue_style(code: str) -> None:
 def test_reason_codes_are_the_starting_set() -> None:
     assert REASON_CODES == {
         "over-cap",
-        "timeout",
-        "network-failed",
+        "download-timeout",
+        "download-network-failed",
         "lfs-pointer",
         "file-unreadable",
         "dir-unlistable",

@@ -63,6 +63,7 @@ from pitloom.messages._sbom_target import (
     GIT_PAGE_NOT_REPO_LINE,
     GIT_PAGE_REF_FOLDER_LINE,
     GIT_PAGE_REF_LINE,
+    HF_URL_REWRITE_LINE,
     MODEL_AMBIGUOUS,
     MODEL_AMBIGUOUS_OVER_CAP,
     MODEL_FILES_LINE,
@@ -79,6 +80,7 @@ from pitloom.messages._sbom_target import (
     PROJECT_NOT_FOUND_MODEL_FILES,
     TARGET_AMBIGUOUS,
     TARGET_AMBIGUOUS_GIT_PAGE,
+    TARGET_AMBIGUOUS_HF_URL,
 )
 from pitloom.messages._target_input import (
     HF_URL_INVALID,
@@ -106,6 +108,7 @@ __all__ = [
     "GIT_PAGE_REF_LINE",
     "HF_URL_INVALID",
     "HF_URL_LINE",
+    "HF_URL_REWRITE_LINE",
     "HUB_MODEL_NOT_PROJECT_LINE",
     "INPUT_LINE",
     "INPUT_NOT_DIR_LINE",
@@ -143,6 +146,7 @@ __all__ = [
     "SBOM_WRONG_FORMAT",
     "TARGET_AMBIGUOUS",
     "TARGET_AMBIGUOUS_GIT_PAGE",
+    "TARGET_AMBIGUOUS_HF_URL",
     "TARGET_WRONG_FORMAT",
     "WHEEL_PATTERN_TOO_DEEP_LINE",
     "input_exists",

@@ -184,9 +184,13 @@ def test_a_url_read_in_another_spelling_is_said_once(
     with _patch_hf_calls(), caplog.at_level(logging.INFO, logger="pitloom"):
         meta = read_huggingface(source)
     assert meta.name == "mdl"
-    infos = [m for m in caplog.messages if m.startswith("Hugging Face URL ")]
+    infos = [
+        r.getMessage()
+        for r in caplog.records
+        if getattr(r, "pitloom_code", None) == "target-ambiguous/hf-url"
+    ]
     assert infos == (
-        [f"Hugging Face URL {source} is read as https://huggingface.co/org/mdl"]
+        [f"URL={source}: read as Hugging Face model https://huggingface.co/org/mdl"]
         if said
         else []
     )
