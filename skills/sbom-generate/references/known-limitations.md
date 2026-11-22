@@ -163,7 +163,8 @@ from a scan and from `loom model FILE` (exit 0). Beyond that:
   (`safetensors.total`, else `gguf.total`, same method); for CRFsuite, its
   feature count (`Method: one_weight_per_feature`). It counts
   all stored tensors, so buffers (attention masks, shape constants) and tied
-  weights stored twice are in it, and packed or quantised weights (GPTQ, AWQ,
+  weights stored twice are in it (PT2 stores and counts a tied weight once),
+  and packed or quantised weights (GPTQ, AWQ,
   bitsandbytes, ONNX `MatMulNBits`) under-count: not the "trainable
   parameters" of a model-size figure, and a Hub total may cover only part of
   a multi-component repository. No count is normal for a GGUF split

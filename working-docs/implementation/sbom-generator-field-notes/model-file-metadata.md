@@ -272,5 +272,7 @@ fact-check of the LLMSC 2027 workshop paper draft against 0.24.0 (#483,
   sum over the config's names counts a tied weight twice. Names with one
   `path_name`, sizes, strides and offset are one weight. A CRFsuite model
   stores one weight per feature, so its `FEAT` count is its count (the
-  header's own `num_features` is always 0). Do: define a cross-format figure once, apply that definition
-  in each reader, and keep a narrower figure for its own field.
+  header's own `num_features` is always 0). Do: define a cross-format
+  figure once, apply that definition in each reader, and keep a narrower
+  figure for its own field; check what the format stores once that its index
+  lists twice.

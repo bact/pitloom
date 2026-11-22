@@ -366,7 +366,8 @@ parameters" of a size such as `bom:ai-model-size`. Do not filter by type:
 int8 weights are parameters.
 
 - It includes buffers stored as tensors (attention masks, shape constants)
-  and tied weights stored twice. The ONNX test model `gpt2-tiny-decoder`
+  and tied weights stored twice (a PT2 archive stores a tied weight once:
+  it counts once). The ONNX test model `gpt2-tiny-decoder`
   counts 404256, which includes a 262144-element uint8 causal mask
   (`transformer.h.0.attn.bias`, `[1, 1, 512, 512]`) and a 32000-element
   transposed copy of `wte.weight`; about 110112 are weights of their own. A

@@ -1,6 +1,6 @@
 ---
 Created: 2026-03-05
-Last-Modified: 2026-11-21
+Last-Modified: 2026-11-22
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -33,10 +33,13 @@ without executing model code.
 Found by the fact-check of the AI SBOM workshop paper (2026-11-14, 0.24.0
 code): data each format carries that its reader leaves unread. Built
 2026-11-21 (model-reader gaps PR): GGUF datasets (`general.datasets` and
-`general.dataset.<id>.*` as `trainedOn`), the PT2 parameter count and
+`general.dataset.<id>.*` as `trainedOn`; a numbered entry's Hub
+`repo_url` names it by its Hub id, located at its dataset page), the PT2
+parameter count (a weight several names share counted once) and
 `torch_version`, the CRFsuite parameter count (`FEAT.num`), the ONNX
 producer as the file's writing tool, Safetensors plain `license` and
-`model_version`. See [docs/ai-model-formats.md](../../docs/ai-model-formats.md).
+`model_version` (each Safetensors field's provenance names the key read).
+See [docs/ai-model-formats.md](../../docs/ai-model-formats.md).
 Still open:
 
 - **PT2 trainable-parameter count from `is_param`.** The PT2 count sums

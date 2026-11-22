@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-03
-Last-Modified: 2026-11-06
+Last-Modified: 2026-11-22
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -229,7 +229,8 @@ are in
   itself, once, in fixed wording, not only in the documentation.
 - **"Parameters" is a sum of stored tensor elements, not of weights.** A
   derived count sums the elements of every stored tensor, so buffers and tied
-  copies are in it: `gpt2-tiny-decoder.onnx` gives 404256, of which a
+  copies stored twice are in it (a PT2 archive stores a tied weight once, and
+  it counts once): `gpt2-tiny-decoder.onnx` gives 404256, of which a
   262144-element `uint8` mask is 65 %; the Hub's `safetensors.total` for
   `openai-community/gpt2` is 137022720, against about 124 million weights.
   Packed formats (GPTQ, AWQ, bitsandbytes, ONNX `MatMulNBits`) under-count
