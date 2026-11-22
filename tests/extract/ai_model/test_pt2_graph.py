@@ -145,6 +145,10 @@ def test_no_count_and_no_warning(
         (_weights([]), "parameter_count"),
         (_weights({"w": "x"}), "parameter_count"),
         (_weights({"w": {"is_param": True, "tensor_meta": {}}}), "parameter_count"),
+        (
+            _weights({"w": {"tensor_meta": {"sizes": [{"as_int": 4}]}}}),
+            "parameter_count",
+        ),
         (_weights({"w": _weight([{"as_expr": {"expr_str": "s0"}}])}), "not a"),
         (_weights({"w": _weight([{"as_int": 3, "x": 1}])}), "not a"),
     ],
@@ -153,6 +157,7 @@ def test_no_count_and_no_warning(
         "config-list",
         "weight-text",
         "no-sizes",
+        "no-path-name",
         "symbolic-size",
         "size-with-more",
     ],

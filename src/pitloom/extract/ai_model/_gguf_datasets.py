@@ -16,14 +16,18 @@ first; each becomes a ``trainedOn`` dataset, as a Hub model card's
 ``gguf-py`` turns a card's Hub id ``owner/name`` into ``name`` =
 ``id_to_title(name)``, ``organization`` = ``id_to_title(owner)``, a
 ``version`` guessed from the name, and the model-path URL
-``https://huggingface.co/owner/name`` as ``repo_url``. An entry whose
-``name`` is that title of its ``repo_url``'s name part was written so: it
-is named by the Hub id, located at the dataset's page, as the Hub route
-names and places a card's dataset, and the made-up organisation and version
-are not read. A ``repo_url`` (or ``general.datasets`` link) that is a Hub
-dataset page, ``https://huggingface.co/datasets/<id>``, names the dataset
-by that id too. Any other link stays as written; the stated values stay in
-``properties``.
+``https://huggingface.co/owner/name`` as ``repo_url``; a card's link
+``https://huggingface.co/<a>/<b>`` it splits the same way. An entry whose
+``repo_url`` matches gguf-py's pattern and whose ``name`` is that title of
+the name part was written so: the made-up organisation and version are not
+read, and it is named by the Hub id, located at the dataset's page, as the
+Hub route names and places a card's dataset (unless the first part is a
+site area such as ``papers``). A ``repo_url`` (or ``general.datasets``
+link) that is a Hub dataset page, ``https://huggingface.co/datasets/<id>``,
+names the dataset by that id too. Any other link stays as written; the
+stated values stay in ``properties``. A card's id with no owner gets no
+``repo_url``: its titled name and guessed version cannot be told from
+stated ones, and are read.
 
 ``quantize.imatrix.dataset`` (written by ``llama-quantize``) names the
 calibration text of an importance matrix, not training data: it is never a
@@ -96,79 +100,87 @@ def gguf_py_title(text: str) -> str:
     )
 
 
-class HubLink(NamedTuple):
-    """What a ``huggingface.co`` link names."""
+#: The ``repo_url`` ``gguf-py`` writes for a card's Hub id ``owner/name``,
+#: and the pattern it reads a card's Hub link by (``gguf/metadata.py``).
+_GGUF_PY_HUB_URL = re.compile(r"https?://huggingface\.co/([^/]+)/([^/]+)")
 
-    #: The Hub repository id: ``owner/name``, or a legacy ``name``.
-    hub_id: str
-    #: The link is the dataset's page, ``/datasets/<id>``; else it is the
-    #: model-path spelling ``/<owner>/<name>``.
-    page: bool
+#: First path segments of ``huggingface.co`` that are a site area, not a
+#: repository owner.
+_HUB_AREAS = frozenset({"api", "blog", "collections", "docs", "papers", "spaces"})
 
 
-def hub_link(url: str) -> HubLink | None:
-    """The Hub id an ``http(s)://huggingface.co`` *url* (as
-    :func:`~pitloom.extract.dataset.values.stated_url` accepts it) names in
-    its path, as a dataset page or as ``/<owner>/<name>``; ``None`` for any
-    other URL (another host or port, credentials, a query, a fragment, a
-    deeper path)."""
+class GgufPyId(NamedTuple):
+    """The two parts ``gguf-py`` split a card's Hub link or id into."""
+
+    owner: str
+    name: str
+
+
+def hub_dataset_page(url: str) -> str | None:
+    """The Hub id an ``http(s)://huggingface.co/datasets/<id>`` *url* (as
+    :func:`~pitloom.extract.dataset.values.stated_url` accepts it) names;
+    ``None`` for any other URL (another host or port, credentials, a query,
+    a fragment, a deeper path)."""
     parts = urlsplit(url)
     if (
-        parts.scheme.lower() not in ("http", "https")
+        parts.scheme not in ("http", "https")  # urlsplit lower-cases it
         or parts.netloc.lower() != _HUB_HOST
         or parts.query
         or parts.fragment
     ):
         return None
-    segments = parts.path.strip("/").split("/")
-    page = segments[0] == "datasets"
-    owner_name = segments[1:] if page else segments
-    hub_id = "/".join(owner_name)
-    if len(owner_name) > 2 or (not page and len(owner_name) < 2):
+    area, _, hub_id = parts.path.strip("/").partition("/")
+    if area != "datasets" or hub_id.count("/") > 1:
         return None
-    return HubLink(hub_id, page) if is_hub_dataset_id(hub_id) else None
+    return hub_id if is_hub_dataset_id(hub_id) else None
 
 
-def _written_by_gguf_py(link: HubLink, name: str | None) -> bool:
-    """Whether a model-path *link* and the stated *name* are what
-    ``gguf-py`` writes for a card's dataset id: *name* is the title of the
-    id's name part, so the link is a dataset id, not a model's page."""
-    return not link.page and name == gguf_py_title(link.hub_id.split("/")[1])
+def _gguf_py_id(repo_url: str, name: str | None) -> GgufPyId | None:
+    """The Hub id ``gguf-py`` split *repo_url* into when it wrote the entry:
+    its pattern matches and the stated *name* is its title of the name
+    part; ``None`` otherwise."""
+    match = _GGUF_PY_HUB_URL.fullmatch(repo_url)
+    if match is None or name != gguf_py_title(match[2]):
+        return None
+    return GgufPyId(match[1], match[2])
 
 
-def _hub_entry(link: HubLink, repo_url: str, url_field: str) -> DatasetMetadata:
-    """The dataset a Hub *link* (``repo_url``, cited as *url_field*) names:
-    the Hub id, located at the dataset's page."""
+def _hub_entry(hub_id: str, page: str | None, url_field: str) -> DatasetMetadata:
+    """The dataset Hub id *hub_id* names, from a ``repo_url`` cited as
+    *url_field*: located at its dataset *page* when that is the URL stated,
+    else at the page derived from the id."""
     derived = provenance_segment(url_field, "Method", HUB_DATASET_ID_METHOD)
     return DatasetMetadata(
-        name=link.hub_id,
-        download_url=repo_url if link.page else _HUB_DATASETS + link.hub_id,
-        provenance={
-            "name": derived,
-            "download_url": url_field if link.page else derived,
-        },
+        name=hub_id,
+        download_url=page or _HUB_DATASETS + hub_id,
+        provenance={"name": derived, "download_url": url_field if page else derived},
     )
 
 
 def _named_entry(
     fields: Mapping[str, Any], index: int, source: str, file_name: str
-) -> tuple[DatasetMetadata | None, HubLink | None]:
-    """Entry *index* named and placed, and the ``gguf-py`` link it was
-    named by (``None`` otherwise): by the Hub id of a dataset-page
-    ``repo_url`` or of one ``gguf-py`` wrote, else by its ``name`` (then
-    ``repo_url``, its download location); no dataset (silently) when it
-    states neither."""
+) -> tuple[DatasetMetadata | None, GgufPyId | None]:
+    """Entry *index* named and placed, and the Hub id ``gguf-py`` wrote it
+    from (``None`` otherwise): by the Hub id of a dataset-page ``repo_url``
+    or of one ``gguf-py`` wrote from an ``owner/name`` id, else by its
+    ``name`` (then ``repo_url``, its download location); no dataset
+    (silently) when it states neither."""
     url_key = _entry_key(index, "repo_url")
     repo_url = stated_url(fields.get(url_key), file_name, url_key)
     url_field = provenance_segment(source, "Field", url_key)
     name_key = _entry_key(index, "name")
     name = stated_text(fields.get(name_key))
-    link = hub_link(repo_url) if repo_url else None
-    if repo_url and link is not None:
-        if link.page:
-            return _hub_entry(link, repo_url, url_field), None
-        if _written_by_gguf_py(link, name):
-            return _hub_entry(link, repo_url, url_field), link
+    if repo_url is None:
+        written = None
+    else:
+        written = _gguf_py_id(repo_url, name)
+        page_id = hub_dataset_page(repo_url)
+        if page_id is not None:
+            return _hub_entry(page_id, repo_url, url_field), written
+        if written is not None and written.owner not in _HUB_AREAS:
+            hub_id = "/".join(written)
+            if is_hub_dataset_id(hub_id):
+                return _hub_entry(hub_id, None, url_field), written
     if name is not None:
         meta = DatasetMetadata(
             name=name,
@@ -181,20 +193,19 @@ def _named_entry(
     if repo_url:
         meta.download_url = repo_url
         meta.provenance["download_url"] = url_field
-    return meta, None
+    return meta, written
 
 
-def _made_up(key: str, text: str, link: HubLink | None) -> bool:
+def _made_up(key: str, text: str, written: GgufPyId | None) -> bool:
     """Whether entry field *key*'s *text* is what ``gguf-py`` derived from
-    the Hub id of *link*: the owner's title as ``organization``, or a word
-    of the name part as ``version``. *link* is a model-path one, always
-    ``owner/name``."""
-    if link is None:
+    the Hub id *written*: the owner's title as ``organization``, or words
+    of the name part, ``-``-joined in their order, as ``version``."""
+    if written is None:
         return False
-    owner, name = link.hub_id.split("/")
     if key == "organization":
-        return text == gguf_py_title(owner)
-    return key == "version" and text in name.split("-")
+        return text == gguf_py_title(written.owner)
+    words = iter(written.name.split("-"))
+    return key == "version" and all(word in words for word in text.split("-"))
 
 
 def _numbered_entry(
@@ -203,14 +214,14 @@ def _numbered_entry(
     """The dataset of entry *index*, its name and location as
     :func:`_named_entry` gives them and its other stated fields; ``None``
     (silently) when it names none."""
-    meta, link = _named_entry(fields, index, source, file_name)
+    meta, written = _named_entry(fields, index, source, file_name)
     if meta is None:
         return None
     for attr, keys in _ENTRY_FIELDS:
         for key in keys:
             value = fields.get(_entry_key(index, key))
             text = stated_text(value, scalar=attr == "version")
-            if text and not _made_up(key, text, link):
+            if text and not _made_up(key, text, written):
                 setattr(meta, attr, text)
                 meta.provenance[attr] = provenance_segment(
                     source, "Field", _entry_key(index, key)
@@ -247,11 +258,11 @@ def _listed_entry(text: str, source: str, file_name: str) -> DatasetMetadata:
     dataset by its Hub id."""
     entry = provenance_segment(source, "Field", DATASETS_KEY)
     url = None
-    if text.startswith(("https://", "http://")):
+    if text.lower().startswith(("https://", "http://")):
         url = stated_url(text, file_name, DATASETS_KEY)
-    link = hub_link(url) if url else None
-    if url and link is not None and link.page:
-        return _hub_entry(link, url, entry)
+    hub_id = hub_dataset_page(url) if url else None
+    if hub_id is not None:
+        return _hub_entry(hub_id, url, entry)
     meta = DatasetMetadata(name=text, provenance={"name": entry})
     if url:
         meta.download_url = url

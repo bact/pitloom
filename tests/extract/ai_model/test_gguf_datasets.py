@@ -173,7 +173,7 @@ def test_a_hub_dataset_page_names_the_dataset_by_its_hub_id(
     tmp_path: Path, repo_url: str
 ) -> None:
     """A dataset page is a dataset whatever the entry's name; its stated
-    fields are the writer's own, so all are read."""
+    fields are the writer's own (not gguf-py's), so all are read."""
     meta = _read(
         tmp_path,
         _number("general.dataset.count", 1),
@@ -209,6 +209,8 @@ def test_a_hub_dataset_page_names_the_dataset_by_its_hub_id(
         "https://huggingface.co/allenai/c4#x",
         "https://u@huggingface.co/allenai/c4",
         "https://hf.co/allenai/c4",
+        "https://HuggingFace.co/allenai/c4",  # gguf-py's pattern: exact case
+        "https://huggingface.co/allenai/c4/",
         "https://huggingface.co/datasets/a--b/c",  # no Hub id
     ],
 )
@@ -222,6 +224,69 @@ def test_any_other_repo_url_is_kept_as_written(tmp_path: Path, repo_url: str) ->
     )
     data = meta.datasets[0].metadata
     assert (data.name, data.download_url, data.creator) == ("C4", repo_url, "Allenai")
+
+
+def test_gguf_py_s_legacy_dataset_page_drops_what_it_made_up(
+    tmp_path: Path,
+) -> None:
+    """gguf-py's pattern splits a card's ``.../datasets/wikitext-103`` link
+    into the owner ``datasets`` and the name ``wikitext-103``."""
+    meta = _read(
+        tmp_path,
+        _number("general.dataset.count", 1),
+        _text("general.dataset.0.name", "Wikitext 103"),
+        _text("general.dataset.0.organization", "Datasets"),
+        _text("general.dataset.0.version", "103"),
+        _text(
+            "general.dataset.0.repo_url",
+            "https://huggingface.co/datasets/wikitext-103",
+        ),
+    )
+    data = meta.datasets[0].metadata
+    assert (data.name, data.creator, data.version) == ("wikitext-103", None, None)
+
+
+@pytest.mark.parametrize(
+    ("url", "name", "organization"),
+    [
+        ("https://huggingface.co/papers/2301.00001", "2301.00001", "Papers"),
+        ("https://huggingface.co/a--b/c", "C", "A B"),  # no Hub id
+    ],
+    ids=["site-area", "no-hub-id"],
+)
+def test_a_split_gguf_py_wrote_that_is_no_dataset_id_stays_as_written(
+    tmp_path: Path, url: str, name: str, organization: str
+) -> None:
+    """Without the organisation gguf-py made up."""
+    meta = _read(
+        tmp_path,
+        _number("general.dataset.count", 1),
+        _text("general.dataset.0.name", name),
+        _text("general.dataset.0.organization", organization),
+        _text("general.dataset.0.repo_url", url),
+    )
+    data = meta.datasets[0].metadata
+    assert (data.name, data.download_url, data.creator) == (name, url, None)
+
+
+@pytest.mark.parametrize(
+    ("version", "read"),
+    [("v1-2", None), ("instruct-2", None), ("2-v1", "2-v1"), ("v1-3", "v1-3")],
+)
+def test_a_version_gguf_py_joined_from_name_words_is_left_out(
+    tmp_path: Path, version: str, read: str | None
+) -> None:
+    meta = _read(
+        tmp_path,
+        _number("general.dataset.count", 1),
+        _text("general.dataset.0.name", "Foo Instruct v1 2"),
+        _text("general.dataset.0.version", version),
+        _text(
+            "general.dataset.0.repo_url",
+            "https://huggingface.co/o/foo-instruct-v1-2",
+        ),
+    )
+    assert meta.datasets[0].metadata.version == read
 
 
 @pytest.mark.parametrize(
@@ -245,9 +310,10 @@ def test_a_hub_repo_url_and_the_spec_array_give_one_dataset(
 
 def test_a_listed_dataset_page_is_named_by_its_hub_id(tmp_path: Path) -> None:
     page, model = "https://huggingface.co/datasets/o/d", "https://huggingface.co/o/d"
-    meta = _read(tmp_path, _listed(page, model))
-    assert _names(meta) == ["o/d", model]  # a model-path link is kept as written
-    hub, other = (ref.metadata for ref in meta.datasets)
+    meta = _read(tmp_path, _listed(page, model, "HTTP://huggingface.co/datasets/o/x"))
+    # a model-path link is kept as written; a scheme in any case is a link
+    assert _names(meta) == ["o/d", model, "o/x"]
+    hub, other, _ = (ref.metadata for ref in meta.datasets)
     assert (hub.download_url, other.download_url) == (page, model)
     assert hub.provenance == {
         "name": f"{_LISTED} | Method: hub_dataset_id",

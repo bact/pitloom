@@ -201,6 +201,8 @@ def _weight_shapes(raw: bytes) -> list[Sequence[object]]:
         sizes = meta.get("sizes")
         if not isinstance(sizes, list):
             raise ValueError("tensor_meta.sizes is not a list")
+        if not isinstance(weight.get("path_name"), str):
+            raise ValueError("path_name is not text")
         view = json.dumps(
             [
                 weight.get("path_name"),

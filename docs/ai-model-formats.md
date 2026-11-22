@@ -236,9 +236,13 @@ can hold it, Pitloom does not read it. **--**: the format has no such field.
     the name part (`OpenHermes 2.5`), `organization` = a title of the owner,
     a `version` guessed from the name, and the model page URL
     `https://huggingface.co/owner/name` (no dataset is there) as `repo_url`;
-    an entry with exactly that `name` and `repo_url` is named by the Hub id,
-    located at its dataset page, and its made-up organisation and version
-    are not read. Otherwise `name`, else `repo_url`, names the dataset;
+    a card's link `http(s)://huggingface.co/<a>/<b>` it splits the same
+    way. For an entry whose `repo_url` has that form and whose `name` is
+    that title of its name part, the made-up organisation and version are
+    not read, and it is named by the Hub id and located at its dataset page
+    (unless `<a>` is a site area such as `papers`). A card's id with no
+    owner gets no `repo_url`; its titled name and guessed version are read
+    as stated. Otherwise `name`, else `repo_url`, names the dataset;
     `repo_url` is its download location as written, `version` and
     `description` are read, `author`, else `organization`, is its creator.
     The numbered entries come first; a dataset named in both is one

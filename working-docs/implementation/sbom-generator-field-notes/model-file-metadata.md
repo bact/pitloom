@@ -239,11 +239,17 @@ fact-check of the LLMSC 2027 workshop paper draft against 0.24.0 (#483,
   `repo_url` `https://huggingface.co/allenai/c4`, a model URL path without
   `/datasets/` that does not resolve (401; the `/datasets/` page answers
   200). Read as stated, the same dataset is `C4` in the GGUF and
-  `allenai/c4` on the card beside it: two packages. Pitloom names a
-  numbered entry by the Hub id when its `name` is exactly gguf-py's title
-  of its `repo_url`'s name part (proof that gguf-py wrote it; a model page
-  link otherwise stays as written), locates it at the dataset page, as the
-  card route does, and drops the made-up organisation and version. Do: read every spelling the spec
+  `allenai/c4` on the card beside it: two packages. Pitloom treats an
+  entry as gguf-py's when its `repo_url` matches gguf-py's own pattern and
+  its `name` is exactly gguf-py's title of the name part (a model page
+  link otherwise stays as written). It drops the made-up organisation and
+  version (a version gguf-py joins from several words too), and names the
+  entry by the Hub id at the dataset page, as the card route does. The
+  converter's pattern also splits a legacy page `.../datasets/squad` into
+  the owner `datasets`, and a `papers/<id>` link alike: the made-up
+  `Datasets` organisation is dropped there too, and a site area is no
+  dataset id. A card's id with no owner gets no `repo_url`, so its made-up
+  values cannot be told apart. Do: read every spelling the spec
   and the reference writer use, the spec's first; map a key by what its
   writer means (calibration is not training); read the writer's source to
   see which stated values it made up, and recover the identity it lost.
