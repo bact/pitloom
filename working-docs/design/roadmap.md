@@ -150,6 +150,10 @@ counts are in [message-catalogue-migration-plan.md](message-catalogue-migration-
   0.24.1` names no release (0.24.0 is the last tag; skills document 0.25.0
   flags and codes): raise to 0.25.0 in every `SKILL.md`, example and install
   line at the cut, keeping "0.24.0 or later" on the PyPI-URL lines.
+- [ ] **LLMSC 2027 paper camera-ready** (user, 2026-11-23): the submitted
+  paper reports Pitloom 0.24.0. Once 0.25.0 is out and LicenseID is 0.9.x,
+  re-run its observations (Hub probe, embedded models, test files), then
+  update its versions, counts and the reader gaps fixed since (#483, #509).
 - [ ] **Review follow-ups** (the #492 and #480-#494 reviews): the open
   catalogue, code-shape, docs and size items are listed in
   [message-catalogue-review-rounds.md](../implementation/message-catalogue-review-rounds.md);
