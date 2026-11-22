@@ -78,10 +78,12 @@ def _make_onnx_mock(
     opset_versions: dict[str, int] | None = None,
     inputs: list[MagicMock] | None = None,
     outputs: list[MagicMock] | None = None,
+    producer: tuple[str, str] = ("", ""),
 ) -> MagicMock:
     """Build a minimal mock of an onnx.ModelProto."""
     model = MagicMock(spec=_MODEL_PROTO_FIELDS)
     model.ir_version = 8
+    model.producer_name, model.producer_version = producer
     model.graph.name = graph_name
     model.doc_string = doc_string
     model.model_version = model_version
@@ -399,7 +401,9 @@ def test_mocked_model_proto_fields_exist() -> None:
         assert set(fields) <= set(proto.DESCRIPTOR.fields_by_name), proto
 
 
-@pytest.mark.parametrize("key", ["domain", "opset.ai.onnx", "metadata_props.x"])
+@pytest.mark.parametrize(
+    "key", ["producer_name", "domain", "opset.ai.onnx", "metadata_props.x"]
+)
 @pytest.mark.parametrize("field_domain", ["org.example", ""])
 def test_onnx_metadata_props_never_collide_with_fields(
     tmp_path: Path, caplog: pytest.LogCaptureFixture, key: str, field_domain: str

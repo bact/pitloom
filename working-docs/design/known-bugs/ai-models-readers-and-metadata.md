@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-02
-Last-Modified: 2026-11-14
+Last-Modified: 2026-11-21
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -69,12 +69,6 @@ history.
   raise `CanonicalizationError`); `physical_path` should stay out of the walk.
   (f) `_license_classify._replace_surrogates` uses U+FFFD, the shared
   rule `\udXXX`.
-- [ ] **AI model `framework` provenance cites a value the SBOM never
-  shows (S).** Found in the #292 black-box round, same on `main`: ONNX
-  `producer_name`/`producer_version` land in `format_info.framework*` and
-  their provenance reaches the package comment and annotation, but nothing
-  in `assemble/` writes `framework` (nor `framework_version`). Either emit
-  it or drop its provenance (check the other readers).
 - [ ] **A model licence that is a name or URL becomes licence text (S).**
   Found in the #292 black-box round: ONNX `model_license` "Apache License
   2.0" gives a `SimpleLicensingText` holding the name, not `Apache-2.0`; a
@@ -115,8 +109,8 @@ history.
   longer in the capped `properties`. Harmless (the field name is a pointer
   into the file, not the SBOM); decide whether the cap keeps keys that
   other fields cite.
-- [ ] **PT2 / ExecuTorch reader never sets `type_of_model` (S).** No
-  `ai_typeOfModel` for a `.pt2`, though `framework="executorch"` is set.
+- [ ] **PT2 reader never sets `type_of_model` (S).** No
+  `ai_typeOfModel` for a `.pt2` (framework `pytorch`).
 - [ ] **GGUF licence comma lists (S, needs a decision).** `other` alone is
   fixed (see Fixed, below). Questions, moved to
   [canonical-output-followups.md](../canonical-output-followups.md#6-licence-identifiers-expressions-and-texts)
@@ -125,18 +119,6 @@ history.
   question, moved to
   [canonical-output-followups.md](../canonical-output-followups.md#c17-invisible-characters-at-the-edges-of-a-licence-value)
   (C17).
-- [ ] **PT2 lists lifted parameters as inputs; framework `executorch` (S).**
-  Inputs fixed 2026-10-17: only `signature.input_specs` `user_input` entries
-  are read. Open: the framework. (Original report:) `example-model.pt2` (`archive_format` `pt2`: a `torch.export` archive, not
-  an ExecuTorch `.pte`) gives inputs `p_line_weight`, `p_line_bias`, `x`;
-  `signature.input_specs` marks only `x` as `user_input`. Read user inputs
-  only, framework `pytorch` with `torch_version` (`2.11.0`, unread). The
-  fixture's `details/pytorch-pt2.md` claims `inputs` = `[x]`. Malformed
-  `model.json` shapes: see the fixed PT2 entry under Fixed, P3. The same
-  "ExecuTorch" naming is in the reader's docstrings (`pytorch_pt2.py`) and
-  the website (`docs/ai-model-formats.md`, `cli.md`, `g7-sbom-for-ai.md`,
-  `ai-model-scan-limits.md`: "PT2 / ExecuTorch"); the fixture page is
-  corrected (2026-11-14).
 - [ ] **Safetensors framework (S).** Framework is the raw `format` value
   `pt`, not `pytorch`. The name no longer falls back to
   `ss_base_model_version` (Fixed, below); kohya-ss `ss_output_name` (the
@@ -283,6 +265,19 @@ release ships.
 
 Found by the fact-check of the AI SBOM workshop paper against 0.24.0
 (2026-11-14).
+
+- [x] **ONNX `framework` provenance cited a value the SBOM never showed
+  (S).** Fixed (model-reader gaps PR, 2026-11-21): `producer_name`/
+  `producer_version` are the tool that wrote the file, now
+  `format_info.writing_tool*`, written as the package comment line `Model
+  file written by: <tool> <version>` (FG-16) and kept as properties; ONNX
+  sets no `framework`. Still open for the other readers: `framework`,
+  `framework_version` and `format_version` are cited in provenance only
+  (documented in `docs/ai-model-formats.md`).
+- [x] **PT2 framework `executorch` (S).** Fixed (same PR): framework
+  `pytorch`, `framework_version` from `models/model.json` `torch_version`;
+  "ExecuTorch" dropped from the reader's docstrings and the website. (The
+  lifted-parameter inputs were fixed 2026-10-17.)
 
 - [x] **A full PyTorch save's type of model was `OrderedDict` (S).** Fixed
   (PR #483): `_top_class` (`extract/ai_model/pytorch.py`) follows

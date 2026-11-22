@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-29
-Last-Modified: 2026-11-18
+Last-Modified: 2026-11-21
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -154,16 +154,18 @@ from a scan and from `loom model FILE` (exit 0). Beyond that:
   `ai_hyperparameter` entry `parameters`, a decimal integer, with a `comment`
   line saying it is not a hyperparameter (SPDX 3.0.1 has no model-size
   property): the sum of the elements of the tensors
-  (`Method: tensor_element_sum`) for GGUF, Safetensors and ONNX, or the Hub's
-  own sum (`safetensors.total`, else `gguf.total`, same method). It counts
+  (`Method: tensor_element_sum`) for GGUF, Safetensors, ONNX and PT2 (the
+  sizes its weights config states), or the Hub's own sum
+  (`safetensors.total`, else `gguf.total`, same method); for CRFsuite, its
+  feature count (`Method: one_weight_per_feature`). It counts
   all stored tensors, so buffers (attention masks, shape constants) and tied
   weights stored twice are in it, and packed or quantised weights (GPTQ, AWQ,
   bitsandbytes, ONNX `MatMulNBits`) under-count: not the "trainable
   parameters" of a model-size figure, and a Hub total may cover only part of
-  a multi-component repository. No count is normal for PT2, a GGUF split
+  a multi-component repository. No count is normal for a GGUF split
   over files (`split.count` above 1) and an empty model (a split GGUF keeps
   its producer); neither value is read from PyTorch classic, Keras, HDF5,
-  NumPy, fastText and CRFsuite; a Safetensors file
+  NumPy and fastText (CRFsuite has a count, no producer); a Safetensors file
   with no `modelspec.author` has no producer; a Safetensors shard counts its
   own file only. In a wheel or a Git URL's repository, a GGUF or ONNX
   model gets neither without `--trust-model-files` (the gate leaves it a stub); PT2 and Safetensors are

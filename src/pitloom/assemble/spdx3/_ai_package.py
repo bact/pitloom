@@ -18,6 +18,7 @@ from typing import Any
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
+from pitloom.assemble.spdx3._ai_package_comment import package_comment
 from pitloom.assemble.spdx3._display_text import (
     BASE_MODEL,
     BASE_MODEL_RELATIONSHIP,
@@ -42,7 +43,6 @@ from pitloom.core.model_parameters import (
     PARAMETER_COUNT_KEY,
     ParameterCountRejected,
     stated_parameter_count,
-    with_parameter_count_note,
 )
 from pitloom.core.models import build_relationship, generate_spdx_id
 from pitloom.core.purl import build_generic_purl, build_huggingface_purl
@@ -491,11 +491,8 @@ def _build_ai_package(
     _populate_ai_pkg_io_application(ai_pkg, ai_model)
     _add_external_identifiers_and_refs(ai_pkg, ai_model)
 
-    # The count note first, then the biases; provenance appends its own after.
-    biases = ai_model.usage.known_biases
-    comment = with_parameter_count_note(
-        "Known biases: " + "; ".join(biases) if biases else None, has_count
-    )
+    # Provenance appends its own lines after these.
+    comment = package_comment(ai_model, has_count)
     if comment:
         ai_pkg.comment = comment
 

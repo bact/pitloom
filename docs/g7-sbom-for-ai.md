@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-18
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-21
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -39,7 +39,7 @@ apart:
 | Elements | Four of the seven G7 clusters: Metadata (`MD`), System-level properties (`SLP`), Models (`MDL`) and Dataset properties (`DP`) |
 | SBOM format | SPDX 3.0 (3.0.1) |
 | Model sources, tier 1 | Safetensors, ONNX, GGUF, NumPy, fastText, and Hugging Face Hub models |
-| Model formats, tier 2 | Keras, HDF5, PyTorch classic, PT2 / ExecuTorch, CRFsuite: kept working; a bug fix may wait, and is written down |
+| Model formats, tier 2 | Keras, HDF5, PyTorch classic, PT2, CRFsuite: kept working; a bug fix may wait, and is written down |
 | Python build backends | Hatchling, setuptools, Poetry |
 
 Not covered: the Infrastructure, Security and Key Performance Indicators

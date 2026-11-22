@@ -301,6 +301,13 @@ class AiModelFormatInfo:
     # (e.g. "2.15.0" for Keras 2.15.0, "2.7.1" for PyTorch 2.7.1)
     framework_version: str | None = None
 
+    # The tool that wrote the file and its version, as the file names them
+    # (ONNX producer_name, producer_version): an exporter or converter, not
+    # the model's producer (originators). Maps to a line of the
+    # ai_AIPackage comment; SPDX 3.0.1 has no property for it
+    writing_tool: str | None = None
+    writing_tool_version: str | None = None
+
 
 @dataclass
 class AiModelUsage:

@@ -5,7 +5,8 @@
 
 """The model licence of a Safetensors file: ``modelspec.license`` of its
 ``__metadata__`` (ModelSpec, as stable-diffusion-xl-base-1.0 and
-stable-cascade write it: a licence name, not an SPDX expression).
+stable-cascade write it: a licence name, not an SPDX expression), else the
+plain ``license`` key (LTX-Video, LTX-2: a name or the licence text).
 
 See also: :mod:`tests.extract.ai_model.test_safetensors`.
 """
@@ -62,9 +63,10 @@ def test_modelspec_license_is_the_model_licence(
         {"format": "pt"},
         {"modelspec.license": ""},
         {"modelspec.license": "   "},
-        {"license": "MIT"},
+        {"licence": "MIT", "modelspec.licence": "MIT"},
+        {"modelspec.license": " ", "license": ""},
     ],
-    ids=["no-metadata", "no-key", "empty", "blank", "other-key-not-mapped"],
+    ids=["no-metadata", "no-key", "empty", "blank", "other-keys", "both-blank"],
 )
 def test_an_absent_or_blank_licence_stays_absent_and_quiet(
     tmp_path: Path, metadata: dict[str, object] | None, caplog: pytest.LogCaptureFixture
@@ -89,3 +91,46 @@ def test_a_licence_name_is_text_without_the_spdx_only_warning(
 
     assert meta.license == "Some Terms v2"
     assert not caplog.records
+
+
+@pytest.mark.parametrize(
+    ("metadata", "expected", "key"),
+    [
+        ({"license": " Apache License 2.0 "}, "Apache License 2.0", "license"),
+        (
+            {"license": "  LTX-2 Community License Agreement\n  terms\n"},
+            "LTX-2 Community License Agreement\n  terms",
+            "license",
+        ),
+        ({"modelspec.license": "MIT", "license": "BSD-3-Clause"}, "MIT", None),
+        ({"modelspec.license": "  ", "license": "MIT"}, "MIT", "license"),
+    ],
+    ids=["name", "text", "modelspec-first", "blank-gives-way"],
+)
+def test_the_plain_license_key_is_the_fallback(
+    tmp_path: Path, metadata: dict[str, object], expected: str, key: str | None
+) -> None:
+    meta = read_safetensors(_file(tmp_path / "m.safetensors", metadata))
+
+    assert meta.license == expected
+    field = key or "modelspec.license"
+    assert meta.provenance["license"].endswith(f"Field: __metadata__.{field}")
+
+
+@pytest.mark.parametrize(
+    ("metadata", "expected"),
+    [
+        ({"model_version": "2.3.0"}, "2.3.0"),
+        ({"version": "1", "model_version": "2.3.0"}, "1"),
+        ({"version": " ", "model_version": "2.3.rc1"}, "2.3.rc1"),
+    ],
+    ids=["model-version", "version-first", "blank-gives-way"],
+)
+def test_model_version_is_the_last_version_key(
+    tmp_path: Path, metadata: dict[str, object], expected: str
+) -> None:
+    """LTX-2 writes its version under ``model_version``, beside ``license``."""
+    meta = read_safetensors(_file(tmp_path / "m.safetensors", metadata))
+
+    assert meta.version == expected
+    assert meta.provenance["version"] == "Source: m.safetensors | Field: __metadata__"
