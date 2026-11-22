@@ -25,7 +25,7 @@ from pitloom.assemble import generate_project_sbom
 from pitloom.core.config import PitloomConfig
 from pitloom.core.creation import CreationMetadata
 from pitloom.messages import code_of
-from pitloom.plugins.hatch import _build_creation_metadata
+from pitloom.plugins._hatch_document import build_creation_metadata
 from tests.assemble.embed_surfaces_shared import demo_project
 
 _EXPECTED = "2026-01-01T00:00:00Z"
@@ -60,7 +60,7 @@ def test_built_time_is_utc_whole_seconds_with_z(pinned: str, tmp_path: Path) -> 
 def test_hook_pinned_datetime_reaches_built_time_as_z(tmp_path: Path) -> None:
     """The Hatchling hook passes the config's ``creation-datetime`` through
     as given; the one shared parse normalises it."""
-    creation = _build_creation_metadata(
+    creation = build_creation_metadata(
         PitloomConfig(creation_datetime="2026-01-01T07:00:00+07:00")
     )
     sbom = generate_project_sbom(

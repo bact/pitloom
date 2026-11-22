@@ -370,8 +370,9 @@ _GENERAL: Final[Mapping[str, Field]] = MappingProxyType(
             free_text,
             "<target>",
             "a URL a redirect or a file points to, the repository a Git "
-            "page URL names, as given, or the Hugging Face model URL a Hub "
-            "URL is read as; in quotes, escaped, when it holds a control "
+            "page URL names, as given, the Hugging Face model URL a Hub "
+            "URL is read as, or the Hatchling build target the build hook "
+            "ran for (`sdist`); in quotes, escaped, when it holds a control "
             "character",
             free=True,
         ),

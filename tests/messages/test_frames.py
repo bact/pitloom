@@ -46,6 +46,7 @@ from pitloom.messages import (
     GIT_FRAME,
     HF_FRAME,
     HOOK_FRAME,
+    HOOK_PREFIX,
     HOOK_STEP_FRAME,
     LOOM_COMMANDS,
     PYPI_FRAME,
@@ -152,10 +153,11 @@ def test_the_table_is_the_ten_frames() -> None:
         "a Hugging Face model fetch, its temporary directory",
         "a PyPI URL download, its temporary directory",
         "the AI model scan of a wheel, its temporary copy",
-        "the Hatchling build hook, its own warnings",
+        "the Hatchling build hook, its own warnings and notes",
     }
-    # The hook's warnings and its error share one text, at disjoint levels.
-    assert HOOK_STEP_FRAME.template == HOOK_FRAME.template
+    # The hook's warnings and notes and its error share one text, at disjoint
+    # levels, and the literal its summary and datetime-unpinned carry.
+    assert HOOK_STEP_FRAME.template == HOOK_FRAME.template == HOOK_PREFIX
     assert not HOOK_STEP_FRAME.levels & HOOK_FRAME.levels
 
 

@@ -106,10 +106,18 @@ TOP_FRAME: Final = Frame(
     surface="the command line, before a subcommand is known",
 )
 
+#: What each line the Hatchling build hook writes itself starts with: its
+#: ``ERROR:`` line and its warnings and notes (each after :data:`HOOK_FRAME` or
+#: :data:`HOOK_STEP_FRAME`), and a line that carries it as a literal
+#: (``datetime-unpinned``, the staged-SBOM summary), which neither frame
+#: comes before. A line of the work the hook runs (project metadata, a model
+#: scan, enrichment, an option that has no effect) keeps its own text.
+HOOK_PREFIX: Final = "Pitloom build hook: "
+
 #: What the Hatchling build hook puts before an ``ERROR:`` line.
 HOOK_FRAME: Final = Frame(
     levels=frozenset({"ERROR"}),
-    template="Pitloom build hook: ",
+    template=HOOK_PREFIX,
     surface="the Hatchling build hook",
 )
 
@@ -208,13 +216,14 @@ SCAN_FRAME: Final = Frame(
     codes=frozenset({"interrupted", "temp-dir-unwritable"}),
 )
 
-#: What the Hatchling build hook puts before its own warnings (the same text
-#: as :data:`HOOK_FRAME`, which comes before its ``ERROR`` line).
+#: What the Hatchling build hook puts before its own warnings and notes:
+#: its staging directory, and a build it makes no SBOM for (the same text as
+#: :data:`HOOK_FRAME`, which comes before its ``ERROR`` line).
 HOOK_STEP_FRAME: Final = Frame(
-    levels=frozenset({"WARNING"}),
-    template=HOOK_FRAME.template,
-    surface="the Hatchling build hook, its own warnings",
-    codes=frozenset({"temp-dir-unwritable"}),
+    levels=frozenset({"WARNING", "INFO"}),
+    template=HOOK_PREFIX,
+    surface="the Hatchling build hook, its own warnings and notes",
+    codes=frozenset({"hook-no-effect", "temp-dir-unwritable"}),
 )
 
 #: Every frame.

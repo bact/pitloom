@@ -27,6 +27,7 @@ from __future__ import annotations
 
 from typing import Final
 
+from pitloom.messages._frames import HOOK_PREFIX
 from pitloom.messages._types import ASK_FIRST, Line, Message, warning_twins
 
 _SINCE: Final = "0.25.0"
@@ -254,7 +255,7 @@ SOURCE_DATE_EPOCH_INVALID: Final = Message(
 #: The build hook dates its SBOM by the clock.
 CLOCK_LINE: Final = Line(
     level="INFO",
-    template="Pitloom build hook: created and builtTime come from the clock; "
+    template=f"{HOOK_PREFIX}created and builtTime come from the clock; "
     "set SOURCE_DATE_EPOCH or creation-datetime to pin them",
 )
 

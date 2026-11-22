@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-11-20
+Last-Modified: 2026-11-22
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -94,7 +94,11 @@ same grep-able `INFO:`/`WARNING:`/`ERROR:` stderr convention as the
 with an `ERROR: Pitloom build hook: <reason>` line (once, whatever the
 cause: an invalid setting, a missing `required = true` fragment, a malformed
 `SOURCE_DATE_EPOCH`), and a disabled hook logs `INFO: Pitloom build hook:
-disabled; skipping SBOM generation.`
+disabled; skipping SBOM generation [hook-no-effect]`.
+
+When the hook has staged the SBOM, it says so in one `INFO:` line that names
+the SBOM file and the number of fragments merged into it; that line is a
+summary, so it carries no `[code]`.
 
 The hook writes its SBOM into a temporary staging directory, removed when
 the build finishes, and also when Hatchling never calls the hook's
@@ -104,9 +108,17 @@ still held open on Windows, for example) is one `WARNING: Pitloom build hook:
 DIR=<dir>: could not be fully removed; left in the system temp directory
 [temp-dir-unwritable]` naming it, and the build still succeeds.
 
-The hook skips, with one `INFO:`, a build that is not a wheel (an sdist) and
-the `editable` variant of a wheel: an editable wheel holds a `.pth` file, not
-the project's files, so an SBOM would list files that are not in it.
+The hook skips, with one `INFO:` line, a build that is not a wheel (an
+sdist), and the `editable` variant of a wheel: an editable wheel holds a
+`.pth` file, not the project's files, so an SBOM would list files that are
+not in it. The three lines (disabled, not a wheel, editable) share the code
+[`hook-no-effect`](message-codes-build.md#hook-no-effect), which means the
+build is one the hook leaves alone and goes on, and are checked in that
+order: a disabled hook says only that it is disabled. For an sdist the line
+reads `INFO: Pitloom build hook: target <target> is not 'wheel'; skipping
+SBOM generation [hook-no-effect]`, and for an editable wheel `INFO: Pitloom
+build hook: build variant 'editable' skipped; its wheel does not hold the
+project's files [hook-no-effect]`.
 
 A `[tool.hatch.build.targets.wheel]` `sbom-files` entry with the same file
 name as the hook's SBOM, ignoring case (typically `loom project`'s default

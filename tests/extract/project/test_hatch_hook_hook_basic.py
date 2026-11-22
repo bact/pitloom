@@ -38,6 +38,7 @@ from pitloom.messages import (
     Frame,
     trusted_message,
 )
+from pitloom.messages.build import HOOK_SBOM_STAGED
 from pitloom.messages.models import (
     LFS_POINTER,
     LFS_PULL_ERROR_LINE,
@@ -209,7 +210,7 @@ def test_hook_initialize_cleans_up_staging_dir_on_late_failure(
         monkeypatch.setattr(hatch, "remove_temp_dir", _tracking_remove)
 
         def _raise_when_staged(msg: str, *_args: Any, **_kwargs: Any) -> None:
-            if msg.startswith("Pitloom: staged"):
+            if msg == HOOK_SBOM_STAGED.template:
                 raise RuntimeError("boom")
 
         monkeypatch.setattr("pitloom.plugins.hatch.log.info", _raise_when_staged)
@@ -290,8 +291,8 @@ def test_hook_sbom_files_appended_to_existing() -> None:
         hook.finalize("standard", build_data, "")
 
 
-def test_hook_with_pitloom_fragments() -> None:
-    """Fragments listed under [tool.pitloom] are merged."""
+def test_hook_with_pitloom_fragments(caplog: pytest.LogCaptureFixture) -> None:
+    """Fragments listed under [tool.pitloom] are merged, and counted."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         write_pyproject_with_pitloom_config(
@@ -322,7 +323,8 @@ def test_hook_with_pitloom_fragments() -> None:
 
         hook = make_hook(tmp, {})
         build_data: dict[str, Any] = {}
-        hook.initialize("standard", build_data)
+        with caplog.at_level(logging.INFO):
+            hook.initialize("standard", build_data)
 
         staged = staged_sbom(build_data)
 
@@ -330,6 +332,7 @@ def test_hook_with_pitloom_fragments() -> None:
         data = json.loads(staged.read_text(encoding="utf-8"))
         names = [e.get("name") for e in data["@graph"]]
         assert "fragment-lib" in names
+        assert [m for m in caplog.messages if "(1 fragment(s))" in m]
 
         hook.finalize("standard", build_data, "")
 
