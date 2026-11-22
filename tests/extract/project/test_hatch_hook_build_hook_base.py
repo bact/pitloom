@@ -25,7 +25,6 @@ import pytest
 
 import pitloom.plugins._hatch_base as base_module
 import pitloom.plugins.hatch as hatch_module
-from pitloom.plugins._hatch_base import HATCHLING_ERROR_PREFIX
 
 # pylint: disable=too-few-public-methods
 # (the fake *ParamFakeInterface classes below are intentionally-empty
@@ -112,5 +111,5 @@ def test_resolve_build_hook_base_unexpected_arity_raises(
     grep-able RuntimeError instead of guessing wrong."""
     monkeypatch.setattr(base_module, "BuildHookInterface", fake_interface)
 
-    with pytest.raises(RuntimeError, match=HATCHLING_ERROR_PREFIX):
+    with pytest.raises(RuntimeError, match=r"^Hatchling "):
         _resolve_build_hook_base()

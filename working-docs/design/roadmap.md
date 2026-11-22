@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-11-22
+Last-Modified: 2026-11-23
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -209,6 +209,11 @@ counts are in [message-catalogue-migration-plan.md](message-catalogue-migration-
   (found in PR 14c round 1): a `"` in `sbom-basename` passes
   `sbom_base_name`, then `write_text_lf` fails late with a bare `OSError` on
   Win32. Refuse it where the basename is read (`core/file_names.py`).
+- [ ] **The hook's `scan-model-usage` tri-state is unpinned** (found by PR 14c
+  mutation testing): `scan_model_usage is True` and the `usage_hint` condition
+  in `plugins/_hatch_document.py` (`build_document_model`) survive a change to
+  `is not False` or a negation; add a test per state (`True`, `False`, `None`
+  with the hint).
 - [ ] **`error_frame`'s docstring says the hook "runs where no frame is open"**
   (`logging_config.py`), but `plugins/hatch.py` opens `error_frame(HOOK_FRAME)`
   itself; correct the docstring.

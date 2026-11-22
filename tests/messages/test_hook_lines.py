@@ -24,6 +24,7 @@ import pytest
 
 from pitloom.__main__ import main
 from pitloom.assemble import generate_project_sbom
+from pitloom.core.config import read_pitloom_config
 from pitloom.core.creation import CreationMetadata
 from pitloom.logging_config import CODE_ATTR, configure_logging
 from pitloom.messages import (
@@ -329,3 +330,32 @@ def test_the_library_says_none_of_the_hook_lines(
         for r in caplog.records
         if r.levelno >= logging.INFO and HOOK_PREFIX in r.getMessage()
     ]
+
+
+# --- the hook's error frame and its DEBUG line --------------------------------
+
+
+def test_an_error_line_said_while_the_sbom_is_made_carries_the_hook_frame(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def noisy(*args: Any, **kwargs: Any) -> Any:
+        logging.getLogger("pitloom.probe").error("nested failure")
+        return read_pitloom_config(*args, **kwargs)
+
+    monkeypatch.setattr("pitloom.plugins.hatch.read_pitloom_config", noisy)
+    assert f"ERROR: {HOOK_PREFIX}nested failure" in _run(tmp_path, capsys)
+
+
+def test_the_debug_line_names_the_build_variant(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("PITLOOM_DEBUG", "1")
+    write_pyproject_with_pitloom_config(tmp_path, "")
+    hook = make_hook(str(tmp_path), {}, target_name="sdist")
+    with caplog.at_level(logging.DEBUG, logger="pitloom"):
+        hook.initialize("standard", {})
+    assert f"{HOOK_PREFIX}build variant 'standard'" in caplog.messages

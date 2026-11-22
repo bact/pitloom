@@ -8,7 +8,6 @@ the Pitloom Hatchling build hook."""
 
 from __future__ import annotations
 
-import re
 from datetime import datetime, timezone
 from importlib.metadata import PackageNotFoundError
 from unittest.mock import patch
@@ -16,7 +15,6 @@ from unittest.mock import patch
 import pytest
 
 from pitloom.core.config import PitloomConfig
-from pitloom.plugins._hatch_base import HATCHLING_ERROR_PREFIX
 from pitloom.plugins._hatch_document import resolve_build_datetime
 from pitloom.plugins.hatch import _check_hatchling_sbom_support
 
@@ -71,7 +69,7 @@ def test_check_hatchling_sbom_support_errors_share_filterable_prefix(
             return_value=bad_version_or_error,
         )
     with mock_patch:
-        with pytest.raises(RuntimeError, match=re.escape(HATCHLING_ERROR_PREFIX)):
+        with pytest.raises(RuntimeError, match=r"^Hatchling "):
             _check_hatchling_sbom_support()
 
 
@@ -88,3 +86,21 @@ def test_resolve_build_datetime_uses_source_date_epoch_when_unpinned() -> None:
         result = resolve_build_datetime(config)
 
     assert result == "2020-01-01T00:00:00+00:00"
+
+
+_PIN = "2026-01-01T00:00:00+00:00"
+
+
+def test_a_pinned_creation_datetime_beats_source_date_epoch(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("SOURCE_DATE_EPOCH", "1700000000")
+    assert resolve_build_datetime(PitloomConfig(creation_datetime=_PIN)) == _PIN
+
+
+def test_a_malformed_epoch_fails_even_when_a_date_is_pinned(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("SOURCE_DATE_EPOCH", "abc")
+    with pytest.raises(ValueError, match="SOURCE_DATE_EPOCH"):
+        resolve_build_datetime(PitloomConfig(creation_datetime=_PIN))
