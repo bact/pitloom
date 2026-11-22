@@ -45,10 +45,10 @@ and this project adheres to
 - A direct reference is said, as an `INFO:` line, not to be looked up on PyPI
   ([#496])
 - GGUF `general.datasets` and `general.dataset.<id>.*` are `trainedOn`
-  datasets (`quantize.imatrix.dataset` is not) ([#508])
+  datasets (`quantize.imatrix.dataset` is not) ([#509])
 - A parameter count for PT2 (stored weights) and CRFsuite (one weight per
   feature); ONNX `producer_name` is a `Model file written by:` comment line
-  ([#508])
+  ([#509])
 
 ### Changed
 
@@ -105,7 +105,7 @@ and this project adheres to
   masks a credential in its last output line; the hook's line says
   `Pitloom build hook: ` ([#506])
 - Safetensors reads a plain `license` and `model_version` after the ModelSpec
-  keys ([#508])
+  keys ([#509])
 
 ### Fixed
 
@@ -155,7 +155,7 @@ and this project adheres to
 [#502]: https://github.com/bact/pitloom/pull/502
 [#503]: https://github.com/bact/pitloom/pull/503
 [#506]: https://github.com/bact/pitloom/pull/506
-[#508]: https://github.com/bact/pitloom/pull/508
+[#509]: https://github.com/bact/pitloom/pull/509
 
 ## [0.24.0] - 2026-11-11
 
