@@ -205,6 +205,13 @@ counts are in [message-catalogue-migration-plan.md](message-catalogue-migration-
 - [ ] **A revision URL is read at the default branch with no signal**
   (`https://huggingface.co/o/m/tree/<sha>`, found in PR 14b round 2): a
   pre-existing silent deviation; say it (INFO) or honour the revision.
+- [ ] **The hook accepts an `sbom-basename` that cannot be a file on Windows**
+  (found in PR 14c round 1): a `"` in `sbom-basename` passes
+  `sbom_base_name`, then `write_text_lf` fails late with a bare `OSError` on
+  Win32. Refuse it where the basename is read (`core/file_names.py`).
+- [ ] **`error_frame`'s docstring says the hook "runs where no frame is open"**
+  (`logging_config.py`), but `plugins/hatch.py` opens `error_frame(HOOK_FRAME)`
+  itself; correct the docstring.
 - [ ] **Hub API calls bypass the fetch policy**: `model_info()` and
   `dataset_info()` carry a 30 s socket timeout (#507) but no total deadline,
   no response cap, and `huggingface_hub` follows redirects unchecked. Replace

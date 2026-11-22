@@ -51,4 +51,4 @@ pitloom.extract.env 2
 pitloom.extract.project._sdist_scan 1
 pitloom.extract.scanner 1
 pitloom.extract.wheel 1
-pitloom.plugins.hatch 7
+pitloom.plugins.hatch 3

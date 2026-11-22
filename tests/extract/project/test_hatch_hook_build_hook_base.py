@@ -3,8 +3,8 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Tests for pitloom.plugins.hatch's Hatchling-version-agnostic
-``BuildHookInterface`` base-class resolution (``_resolve_build_hook_base``).
+"""Tests for pitloom.plugins._hatch_base's Hatchling-version-agnostic
+``BuildHookInterface`` base-class resolution (``resolve_build_hook_base``).
 
 Hatchling changed ``BuildHookInterface`` from ``Generic[BuilderConfigBound]``
 (one type param) to ``Generic[BuilderConfigBound, PluginManagerBound]`` (two)
@@ -23,26 +23,25 @@ from typing import Any, Generic, TypeVar
 
 import pytest
 
+import pitloom.plugins._hatch_base as base_module
 import pitloom.plugins.hatch as hatch_module
+from pitloom.plugins._hatch_base import HATCHLING_ERROR_PREFIX
 
 # pylint: disable=too-few-public-methods
 # (the fake *ParamFakeInterface classes below are intentionally-empty
 # type-arity stand-ins, not real interfaces)
 
-# BuildHookInterface/BuilderConfig/PluginManager/_resolve_build_hook_base
+# BuildHookInterface/BuilderConfig/PluginManager/resolve_build_hook_base
 # exist as real module attributes at runtime, but the first three are
 # merely-imported names mypy's no_implicit_reexport won't let an outside
-# module read off ``hatch_module`` directly, and the last is defined only
-# in hatch.py's non-TYPE_CHECKING branch -- deliberately invisible to
-# static analysis (see hatch.py). getattr() sidesteps both, honestly.
-_BuildHookInterface: Any = getattr(hatch_module, "BuildHookInterface")  # noqa: B009
-_BuilderConfig: Any = getattr(hatch_module, "BuilderConfig")  # noqa: B009
-_PluginManager: Any = getattr(hatch_module, "PluginManager")  # noqa: B009
+# module read off ``base_module`` directly, and the last is defined only
+# in _hatch_base.py's non-TYPE_CHECKING branch -- deliberately invisible to
+# static analysis (see _hatch_base.py). getattr() sidesteps both, honestly.
+_BuildHookInterface: Any = getattr(base_module, "BuildHookInterface")  # noqa: B009
+_BuilderConfig: Any = getattr(base_module, "BuilderConfig")  # noqa: B009
+_PluginManager: Any = getattr(base_module, "PluginManager")  # noqa: B009
 _resolve_build_hook_base: Any = getattr(  # noqa: B009
-    hatch_module, "_resolve_build_hook_base"
-)
-_HATCHLING_ERROR_PREFIX: str = getattr(  # noqa: B009
-    hatch_module, "_HATCHLING_ERROR_PREFIX"
+    base_module, "resolve_build_hook_base"
 )
 
 _T = TypeVar("_T")
@@ -69,7 +68,7 @@ class _ZeroParamFakeInterface:
 
 
 def test_resolve_build_hook_base_imported() -> None:
-    """``_resolve_build_hook_base`` exists at runtime (only defined outside
+    """``resolve_build_hook_base`` exists at runtime (only defined outside
     the TYPE_CHECKING branch) -- if the module failed to import (the
     reported crash: a TypeError at class-definition time), this fails
     before any assertion even runs."""
@@ -79,7 +78,7 @@ def test_resolve_build_hook_base_imported() -> None:
 def test_resolve_build_hook_base_one_param(monkeypatch: pytest.MonkeyPatch) -> None:
     """A single-type-param BuildHookInterface (every Hatchling except
     1.32.3) resolves to a one-argument subscription."""
-    monkeypatch.setattr(hatch_module, "BuildHookInterface", _OneParamFakeInterface)
+    monkeypatch.setattr(base_module, "BuildHookInterface", _OneParamFakeInterface)
 
     base = _resolve_build_hook_base()
 
@@ -93,7 +92,7 @@ def test_resolve_build_hook_base_two_params(monkeypatch: pytest.MonkeyPatch) -> 
     """A two-type-param BuildHookInterface (Hatchling 1.32.3 only)
     resolves to a two-argument subscription, using the concrete
     PluginManager class as the 2nd arg."""
-    monkeypatch.setattr(hatch_module, "BuildHookInterface", _TwoParamFakeInterface)
+    monkeypatch.setattr(base_module, "BuildHookInterface", _TwoParamFakeInterface)
 
     base = _resolve_build_hook_base()
 
@@ -111,7 +110,7 @@ def test_resolve_build_hook_base_unexpected_arity_raises(
 ) -> None:
     """An arity Pitloom doesn't know how to handle raises a clear,
     grep-able RuntimeError instead of guessing wrong."""
-    monkeypatch.setattr(hatch_module, "BuildHookInterface", fake_interface)
+    monkeypatch.setattr(base_module, "BuildHookInterface", fake_interface)
 
-    with pytest.raises(RuntimeError, match=_HATCHLING_ERROR_PREFIX):
+    with pytest.raises(RuntimeError, match=HATCHLING_ERROR_PREFIX):
         _resolve_build_hook_base()

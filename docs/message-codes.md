@@ -33,7 +33,7 @@ the table of prefixes.
 - [Configuration](message-codes-config.md): 6 codes
 - [Project metadata](message-codes-metadata.md): 9 codes
 - [File discovery](message-codes-file-discovery.md): 3 codes
-- [Builds and temporary directories](message-codes-build.md): 6 codes
+- [Builds and temporary directories](message-codes-build.md): 7 codes
 - [Files and text](message-codes-files.md): 12 codes
 - [Lock files](message-codes-lock-files.md): 7 codes
 - [Dependencies](message-codes-dependencies.md): 6 codes
@@ -97,6 +97,7 @@ the table of prefixes.
 | [`git-repository-unusable/empty`](message-codes-git.md#git-repository-unusableempty) | ERROR | 0.25.0 |
 | [`git-url-invalid`](message-codes-git.md#git-url-invalid) | ERROR | 0.25.0 |
 | [`hf-url-invalid`](message-codes-targets.md#hf-url-invalid) | ERROR | 0.25.0 |
+| [`hook-no-effect`](message-codes-build.md#hook-no-effect) | INFO | 0.25.0 |
 | [`hub-response-invalid`](message-codes-network.md#hub-response-invalid) | WARNING | 0.25.0 |
 | [`hub-revision-unpinned`](message-codes-network.md#hub-revision-unpinned) | WARNING | 0.25.0 |
 | [`hyperparameter-conflict`](message-codes-model-fields.md#hyperparameter-conflict) | WARNING | 0.22.0 |
@@ -216,5 +217,5 @@ A line may start with one prefix before its text:
 | `Hugging Face source: <text>` | WARNING | a Hugging Face model fetch, its temporary directory |
 | `PyPI source: <text>` | WARNING | a PyPI URL download, its temporary directory |
 | `AI model scan: <text>` | WARNING | the AI model scan of a wheel, its temporary copy |
-| `Pitloom build hook: <text>` | WARNING | the Hatchling build hook, its own warnings |
+| `Pitloom build hook: <text>` | WARNING, INFO | the Hatchling build hook, its own warnings and notes |
 <!-- END GENERATED -->

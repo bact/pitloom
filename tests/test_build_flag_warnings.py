@@ -449,7 +449,7 @@ def test_hatchling_hook_is_silent(
         calls.append(kwargs)
         return get_wheel_files(*args, **kwargs)
 
-    monkeypatch.setattr("pitloom.plugins.hatch.get_wheel_files", _spy)
+    monkeypatch.setattr("pitloom.plugins._hatch_document.get_wheel_files", _spy)
     with tempfile.TemporaryDirectory() as tmp:
         write_pyproject(Path(tmp))
         hook = make_hook(tmp, {})

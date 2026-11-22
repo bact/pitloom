@@ -23,6 +23,7 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
 | [`build-failed`](#build-failed) | WARNING | The --allow-build build gave no wheel to read: no Python interpreter to run PyPA build with, the build exited with an error (its last line of output shown, a credential in it masked), it wrote no wheel or several, its wheel holds no file outside .dist-info, or the build could not start or its wheel could not be read (the reason shown). A build cut off by --build-timeout is build-timeout; PyPA build not installed is library-missing. | 0.25.0 |
 | [`build-processes-unsafe`](#build-processes-unsafe) | WARNING, INFO | The build ended and left processes it started still running in its process group (a backend's background helper): third-party code that would go on writing into the build's directory. POSIX only. | 0.25.0 |
 | [`build-timeout`](#build-timeout) | WARNING | The --allow-build build ran longer than --build-timeout allows (a slow build, or one waiting for the network or for input). Its process tree was stopped; on the second line Pitloom could not confirm every process of it ended. | 0.25.0 |
+| [`hook-no-effect`](#hook-no-effect) | INFO | The Hatchling build hook ran for a build it makes no SBOM for: its table [tool.hatch.build.hooks.pitloom] sets enabled = false, the build target is not the wheel (an sdist: PEP 770 places an SBOM in a wheel's .dist-info/sboms/ only), or the wheel is an editable one, which holds a .pth file, not the project's files the SBOM would list. | 0.25.0 |
 | [`interrupted`](#interrupted) | ERROR, WARNING | Pitloom was asked to stop. The WARNING: lines: a termination signal (SIGTERM, SIGHUP, or SIGBREAK for Ctrl-Break) came while a build or the copy of a model file out of a wheel ran, or after it while its temporary directories were in use; the process then ends by that signal (exit status 143 for SIGTERM). The ERROR: line: Ctrl-C (exit status 130). | 0.25.0 |
 | [`temp-dir-unwritable`](#temp-dir-unwritable) | WARNING | A temporary directory Pitloom made (a download, a Git checkout, a build, a copy of a model file, the build hook's staged SBOM) could not be fully removed: a file in it still open (Windows), or no permission to remove it. The line names the directory by its name, not its path: it is in the system temp directory. The prefix says which step made it. | 0.25.0 |
 
@@ -130,6 +131,31 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
   WARNING: DIR=<dir>: the build timed out after <seconds> seconds (--build-timeout); could not confirm its process tree stopped [build-timeout]
   ```
 
+### `hook-no-effect`
+
+- **Level**: INFO.
+- **Means**: The Hatchling build hook ran for a build it makes no SBOM for: its
+  table [tool.hatch.build.hooks.pitloom] sets enabled = false, the build target
+  is not the wheel (an sdist: PEP 770 places an SBOM in a wheel's
+  .dist-info/sboms/ only), or the wheel is an editable one, which holds a .pth
+  file, not the project's files the SBOM would list.
+- **SBOM effect**: none: the SBOM states what the input holds.
+- **Pitloom did**: Staged no SBOM for this build; the build goes on.
+- **Nothing to do**: Nothing to fix: the build is one the hook leaves alone. For
+  an SBOM in the wheel, the user builds a regular (not editable) wheel with the
+  hook enabled; mention it only when they ask why the wheel or sdist holds no
+  SBOM.
+- **Printed after**: `Pitloom build hook: <text>` (the Hatchling build hook, its
+  own warnings and notes), on its INFO lines; the prefix is not part of the
+  line.
+- **Lines**:
+
+  ```text
+  INFO: disabled; skipping SBOM generation [hook-no-effect]
+  INFO: target <target> is not 'wheel'; skipping SBOM generation [hook-no-effect]
+  INFO: build variant 'editable' skipped; its wheel does not hold the project's files [hook-no-effect]
+  ```
+
 ### `interrupted`
 
 - **Level**: ERROR, WARNING. As an ERROR (Ctrl-C), the command stops and writes
@@ -183,9 +209,24 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
 - **Printed after**: `AI model scan: <text>` (the AI model scan of a wheel, its
   temporary copy), on its WARNING lines; the prefix is not part of the line.
 - **Printed after**: `Pitloom build hook: <text>` (the Hatchling build hook, its
-  own warnings), on its WARNING lines; the prefix is not part of the line.
+  own warnings and notes), on its WARNING lines; the prefix is not part of the
+  line.
 - **Lines**:
 
   ```text
   WARNING: DIR=<dir>: could not be fully removed; left in the system temp directory [temp-dir-unwritable]
+  ```
+
+## Summaries
+
+A summary is an `INFO:` line that reports what a run did under its own rule (a
+count, the key it wrote), with no condition to name: it carries no code, and
+there is nothing to do.
+
+- The build hook made the wheel's SBOM and staged it under the file name shown,
+  with the number of [tool.pitloom.fragment] files merged into it; Hatchling
+  places it in the wheel's .dist-info/sboms/ (PEP 770).
+
+  ```text
+  INFO: Pitloom build hook: staged SBOM '<path>' (<number> fragment(s)); Hatchling will inject it into .dist-info/sboms/ in the wheel
   ```

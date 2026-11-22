@@ -125,6 +125,10 @@ _MARKERS: dict[str, tuple[str, ...]] = {
         "a path part decodes to ",
     ),
     "hf-url-invalid": ("not a valid Hugging Face URL",),
+    "hook-no-effect": (
+        "; skipping SBOM generation",
+        "build variant 'editable' skipped",
+    ),
     "hub-response-invalid": ("the Hub's answer could not be read",),
     "hub-revision-unpinned": ("the Hub stated no revision",),
     "hyperparameter-conflict": ("replaced by the parameter count",),

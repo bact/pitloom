@@ -28,9 +28,7 @@ from pitloom.extract.project.hatchling import (
     metadata_from_hatchling,
 )
 from pitloom.extract.project.pyproject import read_pyproject
-from pitloom.plugins.hatch import (
-    _check_hatchling_sbom_support,
-)
+from pitloom.plugins.hatch import _check_hatchling_sbom_support
 
 from ..conftest import (
     MISSING_LICENSE_FILE_PYPROJECT,

@@ -35,7 +35,7 @@ from pitloom.embed import (
     embed_sbom_in_wheel,
     embed_wheel_sbom,
 )
-from pitloom.plugins.hatch import _default_sbom_basename
+from pitloom.plugins._hatch_document import default_hook_sbom_basename
 
 from .conftest import _SAMPLE_SPDX3_JSON, _make_dummy_wheel, _spdx3_json_with_subject
 
@@ -241,7 +241,9 @@ def test_the_default_sbom_name_of_a_safe_name_is_the_hatchling_hooks(
 
     arcname = embed_sbom_in_wheel(wheel, b"{}", identity=("my-pkg", "1.0+local"))[1]
 
-    assert arcname.rsplit("/", 1)[1] == f"{_default_sbom_basename(hatch)}.spdx3.json"
+    assert (
+        arcname.rsplit("/", 1)[1] == f"{default_hook_sbom_basename(hatch)}.spdx3.json"
+    )
 
 
 @pytest.mark.parametrize(
@@ -450,7 +452,7 @@ def test_every_surface_derives_one_default_sbom_name(
     cli = _resolve_output_path(
         None, ProjectMetadata(name=name, version=version), config
     )
-    assert cli.name == f"{_default_sbom_basename(hatch)}.spdx3.json"
+    assert cli.name == f"{default_hook_sbom_basename(hatch)}.spdx3.json"
     assert cli.name == Path(cli.name).name  # never a path
     if version:
         wheel = _make_dummy_wheel(tmp_path, "pkg", "1.0")

@@ -25,6 +25,7 @@ from pitloom.messages import (
     _file_unwritable,
     _git,
     _git_decisions,
+    _hook,
     _hub,
     _input_not_found,
     _json_malformed,
@@ -124,6 +125,7 @@ MESSAGES: Final = _by_code(
         *_metadata_dynamic.ENTRIES,
         *_file_discovery.ENTRIES,
         *_build.ENTRIES,
+        *_hook.ENTRIES,
     )
 )
 
@@ -132,4 +134,5 @@ SUMMARIES: Final[tuple[Summary, ...]] = (
     *_registry_keys.SUMMARIES,
     *_registry_save.SUMMARIES,
     *_git.SUMMARIES,
+    *_hook.SUMMARIES,
 )

@@ -113,6 +113,7 @@ _TOPIC_FAMILIES: Final[Mapping[str, tuple[str, ...]]] = MappingProxyType(
             "build-failed",
             "build-processes-unsafe",
             "build-timeout",
+            "hook-no-effect",
             "interrupted",
             "temp-dir-unwritable",
         ),
