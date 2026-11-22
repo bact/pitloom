@@ -5,7 +5,8 @@
 
 """What a folder named for an SBOM is, or is not: ``target-ambiguous`` (a
 folder, or a file that is not a model, read for what it holds; with
-``/git-page``, what a Git URL names),
+``/git-page``, what a Git URL names; with ``/hf-url``, what a Hugging Face
+URL names),
 ``project-or-model-not-found`` (neither a Python project nor an AI model
 file), ``model-ambiguous`` (several AI model files, none named; with
 ``/over-cap``, too many files a model could be to look at) and
@@ -119,6 +120,28 @@ TARGET_AMBIGUOUS_GIT_PAGE: Final = Message(
     actor="none",
     advice="the SBOM describes what the line names; to describe another "
     "version or folder, give its URL.",
+    subject_key="URL",
+    since=_GIT_SINCE,
+)
+
+#: A Hugging Face model URL spelt otherwise than the Hub's own.
+HF_URL_REWRITE_LINE: Final = Line(
+    level="INFO", template="URL=%(url)s: read as Hugging Face model %(target)s"
+)
+TARGET_AMBIGUOUS_HF_URL: Final = Message(
+    code="target-ambiguous/hf-url",
+    condition="ambiguous",
+    lines=(HF_URL_REWRITE_LINE,),
+    summary="A Hugging Face model URL spelt otherwise than "
+    "https://huggingface.co/<owner>/<name> (hf.co, www.huggingface.co, "
+    "http://, a scheme or host in another case). Pitloom decided by its "
+    "rule which model it names.",
+    did="Read the model the line names, from the Hub the run asks "
+    "(https://huggingface.co unless HF_ENDPOINT names another).",
+    effect="none",
+    actor="none",
+    advice="the SBOM describes the model the line names; to describe "
+    "another, give its URL.",
     subject_key="URL",
     since=_GIT_SINCE,
 )
@@ -285,6 +308,7 @@ PROJECT_NOT_FOUND_MODEL_FILES: Final = Message(
 ENTRIES: Final = (
     TARGET_AMBIGUOUS,
     TARGET_AMBIGUOUS_GIT_PAGE,
+    TARGET_AMBIGUOUS_HF_URL,
     NO_SBOM_TARGET,
     MODEL_AMBIGUOUS,
     MODEL_AMBIGUOUS_OVER_CAP,

@@ -28,7 +28,7 @@ the table of prefixes.
 
 - [AI models](message-codes-models.md): 12 codes
 - [Model fields](message-codes-model-fields.md): 5 codes
-- [Targets](message-codes-targets.md): 15 codes
+- [Targets](message-codes-targets.md): 16 codes
 - [Options](message-codes-options.md): 4 codes
 - [Configuration](message-codes-config.md): 6 codes
 - [Project metadata](message-codes-metadata.md): 9 codes
@@ -38,7 +38,7 @@ the table of prefixes.
 - [Lock files](message-codes-lock-files.md): 7 codes
 - [Dependencies](message-codes-dependencies.md): 6 codes
 - [PyPI](message-codes-pypi.md): 13 codes
-- [Network](message-codes-network.md): 9 codes
+- [Network](message-codes-network.md): 11 codes
 - [Git URLs](message-codes-git.md): 8 codes
 - [URL credentials](message-codes-url-credentials.md): 8 codes
 - [ID registry](message-codes-id-registry.md): 5 codes
@@ -97,6 +97,8 @@ the table of prefixes.
 | [`git-repository-unusable/empty`](message-codes-git.md#git-repository-unusableempty) | ERROR | 0.25.0 |
 | [`git-url-invalid`](message-codes-git.md#git-url-invalid) | ERROR | 0.25.0 |
 | [`hf-url-invalid`](message-codes-targets.md#hf-url-invalid) | ERROR | 0.25.0 |
+| [`hub-response-invalid`](message-codes-network.md#hub-response-invalid) | WARNING | 0.25.0 |
+| [`hub-revision-unpinned`](message-codes-network.md#hub-revision-unpinned) | WARNING | 0.25.0 |
 | [`hyperparameter-conflict`](message-codes-model-fields.md#hyperparameter-conflict) | WARNING | 0.22.0 |
 | [`index-path-no-effect`](message-codes-id-registry-ids.md#index-path-no-effect) | WARNING | 0.25.0 |
 | [`input-not-found`](message-codes-targets.md#input-not-found) | ERROR, WARNING | 0.23.4 |
@@ -186,6 +188,7 @@ the table of prefixes.
 | [`source-date-epoch-invalid`](message-codes-config.md#source-date-epoch-invalid) | ERROR | 0.25.0 |
 | [`target-ambiguous`](message-codes-targets.md#target-ambiguous) | INFO | 0.23.4 |
 | [`target-ambiguous/git-page`](message-codes-targets.md#target-ambiguousgit-page) | INFO | 0.25.0 |
+| [`target-ambiguous/hf-url`](message-codes-targets.md#target-ambiguoushf-url) | INFO | 0.25.0 |
 | [`target-wrong-format`](message-codes-targets.md#target-wrong-format) | ERROR | 0.25.0 |
 | [`temp-dir-unusable`](message-codes-files.md#temp-dir-unusable) | ERROR, WARNING | 0.24.0 |
 | [`temp-dir-unwritable`](message-codes-build.md#temp-dir-unwritable) | WARNING | 0.25.0 |

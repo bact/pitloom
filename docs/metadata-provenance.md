@@ -150,11 +150,12 @@ adds no key.
 | `lower_bound` | A read stopped at its limit: "at least N". |
 | `not_measured` | Not read, and nothing declared; always with a `Reason`. |
 
-`Reason` is a short code, never free text: `over-cap`, `timeout`,
-`network-failed`, `lfs-pointer`, `file-unreadable` or `dir-unlistable`, the
-code of the `WARNING:` that said why. Today `over-cap`, `file-unreadable`
-and `dir-unlistable` are written, for a dataset in `loom` (a file or a
-directory; the [Python API](python-api.md#tracking-decorator)):
+`Reason` is a short code, never free text: `over-cap`,
+`download-timeout`, `download-network-failed`, `lfs-pointer`,
+`file-unreadable` or `dir-unlistable`, the code of the `WARNING:` that said
+why. Today `over-cap`, `file-unreadable` and `dir-unlistable` are written,
+for a dataset in `loom` (a file or a directory; the
+[Python API](python-api.md#tracking-decorator)):
 
 - A file over `max-dataset-hash-bytes` has no hash, and its
   `verified_using` entry reads `Source: data.csv | Evidence: not_measured

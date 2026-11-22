@@ -27,7 +27,6 @@ repository.
 
 from __future__ import annotations
 
-import logging
 import re
 import unicodedata
 from dataclasses import dataclass
@@ -54,8 +53,6 @@ from pitloom.messages.pypi import (
     PYPI_URL_SCHEME_LINE,
     PYPI_VERSION_INVALID_LINE,
 )
-
-log = logging.getLogger(__name__)
 
 __all__ = [
     "API_BASE",
@@ -182,13 +179,12 @@ def project_page_url(canonical: str, version: str | None) -> str:
 
 
 def _refuse(text: str, line: Line, **values: str) -> CodedValueError:
-    """The error for *text* refused with *line*, logged first (a rejected
-    input is said as well as raised)."""
-    error = CodedValueError(
+    """The error for *text* refused with *line*. It is raised, not logged:
+    the CLI prints it once as ``ERROR:`` and a library caller gets it as the
+    exception."""
+    return CodedValueError(
         PYPI_URL_INVALID, line=line, url=loggable(sanitize_url(text)), **values
     )
-    log.warning("%s", error)
-    return error
 
 
 def _segments(path: str) -> list[str] | None:
@@ -213,8 +209,8 @@ def parse_pypi_url(text: str) -> PypiTarget:
             ``pypi.python.org``, a file link on ``files.pythonhosted.org``)
             or any other host, a port other than 443, a
             path that is not a project or release page, a name that is not
-            a valid PEP 508 name or a version that is not PEP 440. The
-            refusal is logged as a ``WARNING:`` too.
+            a valid PEP 508 name or a version that is not PEP 440. Nothing
+            is logged: the CLI prints the error once as ``ERROR:``.
     """
     stripped = text.strip()
     try:

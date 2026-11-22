@@ -6,12 +6,14 @@
 """The conditions every remote route shares (a Git URL, a PyPI URL, a
 Hugging Face repository): a request that failed, timed out, was sent
 somewhere Pitloom does not fetch from or could not be saved, and offline
-mode, which forbids the fetch; and ``huggingface_hub``'s ``HF_ENDPOINT``,
-the Hub a Hugging Face file is asked of. One family per condition; each
-route keeps its own line where its subject or action differs. ``ERROR``
-stops the read (Git, PyPI); ``WARNING`` leaves one Hugging Face file out.
+mode, which forbids the fetch (a Hugging Face Hub API request too); and
+``huggingface_hub``'s ``HF_ENDPOINT``, the Hub a Hugging Face file is asked
+of. One family per condition; each route keeps its own line where its
+subject or action differs. ``ERROR`` stops the read (Git, PyPI); ``WARNING``
+leaves one Hugging Face file, or what one Hub API request states, out.
 
 See also: :mod:`pitloom.messages._pypi` (the PyPI route's own conditions),
+:mod:`pitloom.messages._hub` (the Hugging Face Hub's own),
 :mod:`pitloom.messages._over_cap` (``over-cap``, the download cap's family),
 :mod:`pitloom.extract.remote._http_errors` (the HTTP client's errors) and
 :mod:`pitloom.extract.remote._git_run` (git's).
@@ -152,16 +154,20 @@ DOWNLOAD_FAILED: Final = Message(
     code="download-network-failed",
     condition="network-failed",
     lines=(DOWNLOAD_FAILED_LINE, GIT_NETWORK_FAILED_LINE, DOWNLOAD_FAILED_WARNING_LINE),
-    summary="A request to a remote source failed. PyPI or Hugging Face: an "
-    "HTTP status other than 404 (a 401 or 403 for a private or gated "
+    summary="A request to a remote source failed. PyPI or a Hugging Face "
+    "file: an HTTP status other than 404 (a 401 or 403 for a private or gated "
     "repository read without access), a refused or reset connection, a name "
-    "that did not resolve, or an answer cut short. Git: git could not reach "
+    "that did not resolve, or an answer cut short. The Hugging Face Hub API "
+    "(model_info(), dataset_info()): any HTTP error status, a 404 for a "
+    "repository that does not exist or is private included, or a connection "
+    "that failed. Git: git could not reach "
     "the repository (a name that did not resolve, a refused, reset or "
     "timed-out connection, a TLS failure, an HTTP 5xx answer); a git failure "
     "with any other cause is git-repository-unusable.",
     did="Wrote no SBOM (the error: pypi.download-failed, git.clone-failed); "
-    "for a Hugging Face file, left that file out and read the rest (the "
-    "warning).",
+    "for a Hugging Face file, left that file out and read the rest; for a "
+    "Hub API request, recorded none of what it states, as the line's outcome "
+    "names, and read the rest (the warning).",
     effect="not-written",
     actor="user",
     advice="Tell the user the request failed, with the reason the line gives. "
@@ -195,11 +201,14 @@ DOWNLOAD_TIMEOUT: Final = Message(
     condition="timeout",
     lines=(DOWNLOAD_TIMEOUT_LINE, GIT_TIMEOUT_LINE, DOWNLOAD_TIMEOUT_WARNING_LINE),
     summary="A request to PyPI, to the host that serves a file or to the "
-    "Hugging Face Hub, or the git calls that fetch a repository, did not "
-    "finish within the time Pitloom allows.",
+    "Hugging Face Hub (a file, or the API's model_info() or dataset_info()), "
+    "or the git calls that fetch a repository, did not finish within the "
+    "time Pitloom allows.",
     did="Stopped the request and wrote no SBOM (the error: "
     "pypi.download-timeout, git.timeout); for a Hugging Face file, left that "
-    "file out and read the rest (the warning).",
+    "file out and read the rest; for a Hub API request, recorded none of "
+    "what it states, as the line's outcome names, and read the rest (the "
+    "warning).",
     effect="not-written",
     actor="user",
     advice="Tell the user the request timed out. They check the network and "
@@ -263,10 +272,12 @@ OFFLINE_UNUSABLE: Final = Message(
     summary="Offline mode is on and the target must be fetched: a Git URL, "
     "a PyPI URL or a Hugging Face repository. Offline mode is --offline, "
     "the offline key of --config, or offline=True; for a file of a Hugging "
-    "Face repository also huggingface_hub's own HF_HUB_OFFLINE.",
+    "Face repository, or the Hub API's model_info() and dataset_info(), also "
+    "huggingface_hub's own HF_HUB_OFFLINE.",
     did="Fetched nothing and wrote no SBOM (the error: git.offline, "
-    "pypi.offline, huggingface.offline); for a Hugging Face file under "
-    "HF_HUB_OFFLINE, left that file out and read the rest (the warning).",
+    "pypi.offline, huggingface.offline); for a Hugging Face file or Hub API "
+    "request under HF_HUB_OFFLINE, left it out, as the line's outcome names, "
+    "and read the rest (the warning).",
     effect="not-written",
     actor="user",
     advice="Tell the user the target must be fetched and offline mode forbids "

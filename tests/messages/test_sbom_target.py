@@ -50,16 +50,17 @@ def test_the_module_has_its_codes() -> None:
     assert [m.code for m in _sbom_target.ENTRIES] == [
         "target-ambiguous",
         "target-ambiguous/git-page",
+        "target-ambiguous/hf-url",
         "project-or-model-not-found",
         "model-ambiguous",
         "model-ambiguous/over-cap",
         "project-not-found",
         "project-not-found/model-files",
     ]
-    assert [m.since for m in _sbom_target.ENTRIES] == ["0.23.4", "0.25.0"] + [
+    assert [m.since for m in _sbom_target.ENTRIES] == ["0.23.4", "0.25.0", "0.25.0"] + [
         "0.23.4"
     ] * 5
-    assert [m.effect for m in _sbom_target.ENTRIES] == ["none"] * 2 + [
+    assert [m.effect for m in _sbom_target.ENTRIES] == ["none"] * 3 + [
         "not-written"
     ] * 5
 

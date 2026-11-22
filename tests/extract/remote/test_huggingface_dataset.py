@@ -35,6 +35,8 @@ from pitloom.extract.remote.huggingface_dataset import (
     _load_dataset_card,
     _load_dataset_info,
 )
+from pitloom.logging_config import CODE_ATTR
+from pitloom.messages.network import DOWNLOAD_FAILED
 from tests.conformance.g7ai_shared import without_licence_database
 from tests.extract.remote.hf_patches._hf_patches_base import (
     HubDataset,
@@ -201,8 +203,8 @@ def test_at_the_cap_nothing_is_skipped(caplog: pytest.LogCaptureFixture) -> None
 
 @pytest.mark.parametrize(
     ("failing", "prefix"),
-    [("info", "Failed to load dataset_info() for o/d: timed out | Field(s) "
-              "affected (skipped): "),
+    [("info", "URL=https://huggingface.co/datasets/o/d: timed out; "
+              "licence, description, keywords, version and creator not recorded"),
      ("card", f"URL=https://huggingface.co/datasets/o/d/resolve/{_SHA}/README.md"
               ": timed out; dataset card not read")],
     ids=["info", "card"],
@@ -234,6 +236,8 @@ def test_a_failed_request_warns_once_and_keeps_the_dataset(
         found = [r.metadata for r in read_huggingface("acme/model").datasets]
     (message,) = _warnings(caplog)
     assert message.startswith(prefix)
+    (record,) = [r for r in caplog.records if r.levelno >= logging.WARNING]
+    assert getattr(record, CODE_ATTR) == DOWNLOAD_FAILED.code
     assert found[0].download_url == "https://huggingface.co/datasets/o/d"
     assert found[0].license is None
     # No card request after a failed info request; the other dataset is read.
@@ -391,12 +395,11 @@ def test_a_card_yaml_cannot_load_fails_only_its_dataset(
     assert len(_warnings(caplog)) == (1 if licence is None else 0)
 
 
-def test_any_failure_reading_the_card_is_one_warning(
-    tmp_path: Path, caplog: pytest.LogCaptureFixture
-) -> None:
+def test_a_failure_of_the_card_reader_is_not_caught(tmp_path: Path) -> None:
+    """The card reader says each failure it meets itself: nothing around it
+    turns another error (a bug) into a warning."""
     card = tmp_path / "README.md"
     card.write_text("---\nlicense: mit\n---\n", "utf-8")
     with patch.object(hub_dataset, "read_card", side_effect=RuntimeError("boom")):
-        assert _load_dataset_card(fake_hub(card), "o/d", _SHA) == (None, {})
-    (message,) = _warnings(caplog)
-    assert message.startswith("Failed to load dataset card for o/d: boom")
+        with pytest.raises(RuntimeError, match="boom"):
+            _load_dataset_card(fake_hub(card), "o/d", _SHA)

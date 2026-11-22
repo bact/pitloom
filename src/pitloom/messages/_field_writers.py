@@ -20,6 +20,9 @@ from pitloom.core.given_path import given_spelling
 from pitloom.core.quote_source import given_path_text, quote_source
 from pitloom.logging_config import failure_reason, loggable, one_line
 
+#: The most characters of an exception's text a ``failure`` field shows.
+FAILURE_CHARACTERS: Final = 500
+
 #: A bracket, or `` at 0x...``: the address in an object's default repr
 #: (``<A object at 0x7f3a...>``, ``<cell at 0x10: int object>``) differs per run.
 _ADDRESS_OR_BRACKET: Final = re.compile(r"[<>]| at 0x[0-9a-fA-F]+\b")
@@ -129,7 +132,9 @@ def failure_text(value: object) -> str:
     exception's text, its class name when it has none, the credentials of a
     URL in it masked (:func:`~pitloom.logging_config.failure_reason`) and a
     memory address (`` at 0x...``, as in an object's default repr) dropped,
-    so the line is the same on every run. The text also reaches a library
+    so the line is the same on every run; cut to :data:`FAILURE_CHARACTERS`
+    characters (then ``...``): a server's error page can be as long as it
+    likes. The text also reaches a library
     caller in an exception, past the log sink.
 
     Raises:
@@ -138,8 +143,8 @@ def failure_text(value: object) -> str:
     if not isinstance(value, BaseException):
         raise ValueError(f"not an exception: {value!r}")
     if isinstance(value, OSError) and value.strerror:
-        return one_line(value.strerror)
-    return _without_addresses(failure_reason(value))
+        return one_line(value.strerror, FAILURE_CHARACTERS, ellipsis=True)
+    return _without_addresses(failure_reason(value, FAILURE_CHARACTERS, ellipsis=True))
 
 
 def joined(value: object) -> str:

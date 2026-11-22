@@ -305,12 +305,16 @@ def test_loom_model_says_a_url_it_rewrites_like_the_other_routes(
     monkeypatch.setattr(sys, "argv", ["loom", "model", source])
     with caplog.at_level(logging.INFO, logger="pitloom"):
         assert __main__.main() == 0
-    lines = [m for m in caplog.messages if m.startswith("Hugging Face URL ")]
+    lines = [
+        r.getMessage()
+        for r in caplog.records
+        if getattr(r, "pitloom_code", None) == "target-ambiguous/hf-url"
+    ]
     if said is False:
         assert lines == []
         return
     assert lines == [
-        f"Hugging Face URL {said or source.replace('SECRET', '***')} "
-        "is read as https://huggingface.co/org/mdl"
+        f"URL={said or source.replace('SECRET', '***')}: "
+        "read as Hugging Face model https://huggingface.co/org/mdl"
     ]
     assert "SECRET" not in "".join(lines)

@@ -4,8 +4,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Every refusal of :func:`pitloom.extract.remote.pypi.fetch_pypi_file`: its
-code, its catalogued line, a ``WARNING:`` too, and no file requested that
-must not be.
+code, its catalogued line and no file requested that must not be; none of
+them is logged as well as raised.
 
 See also: tests/extract/remote/test_pypi_fetch.py (what is read),
 tests/extract/remote/test_pypi_http_fetch.py (the client's own caps).
@@ -121,7 +121,7 @@ def test_an_invalid_url_requests_nothing(
         ):
             pass
     assert code_of(info.value) == PYPI_URL_INVALID.code
-    assert len(caplog.records) == 1 and not fake.seen
+    assert not caplog.records and not fake.seen
 
 
 @pytest.mark.parametrize(

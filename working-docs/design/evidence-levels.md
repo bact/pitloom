@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-29
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-22
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -60,8 +60,8 @@ artefact the bytes may never arrive:
 | - | - | - |
 | Read cap | a model over `max-model-extract-bytes` | `over-cap` |
 | Download cap | a clone stopped at the size limit | `over-cap` (the run aborts: stderr only) |
-| Wait too long | a network timeout, a slow server | `timeout` |
-| Not reachable | a refused or failed fetch | `network-failed` |
+| Wait too long | a network timeout, a slow server | `download-timeout` |
+| Not reachable | a refused or failed fetch | `download-network-failed` |
 | Not resolved | an unpulled Git LFS file (only the pointer arrived) | `lfs-pointer` |
 | Not readable | a permission error; a directory that cannot be listed (a vanished file is absent: no reason) | `file-unreadable`, `dir-unlistable` |
 
@@ -87,7 +87,7 @@ file's `oid` and size; a pointer states both; a server may send
    direction.)
 5. **Time and network limits are caps too:** a download size cap, a connect or
    read timeout, a total wait. A fetch that times out is `not_measured` with
-   the reason `timeout`, unless a declared value exists.
+   the reason `download-timeout`, unless a declared value exists.
 6. **A walk is bounded by entries only.** Summing the sizes of a directory with
    a million entries can hang on `stat()` alone. A time budget makes the output
    depend on the machine, and so does a partial sum (`os.walk` order depends on
@@ -128,7 +128,7 @@ so the SBOM does not fill with "this source had nothing".
   for the thousands of measured file hashes.
 - `filter_high_signal` keeps an entry that has a `method`, or a source outside
   the transparent list. A negative entry from a transparent source (for example
-  `Source: hugging face hub | Reason: network-failed`) is dropped in `minimal`,
+  `Source: hugging face hub | Reason: download-network-failed`) is dropped in `minimal`,
   which is the default. One line in `_is_high_signal`: keep any entry that has
   `evidence` (built, #386).
 - One helper (`core/evidence.py`, `evidence_segment(...)`) is the only writer:

@@ -138,7 +138,11 @@ from a scan and from `loom model FILE` (exit 0). Beyond that:
   information: no model file is opened, so a repository whose weights are a
   `.keras` file has no Keras-derived field, no format and no hash. Download
   the file and run `loom model <file>` for those, or give the file's Git URL
-  when the repository is on a Git host.
+  when the repository is on a Git host. A failed Hub information request is
+  one `WARNING:` that names what is lost (`[download-network-failed]`,
+  `[download-timeout]`, `[offline-unusable]` or `[hub-response-invalid]`); a
+  model read with no revision says `the Hub stated no revision`
+  (`[hub-revision-unpinned]`) once per read, and a later run can read other files.
 - Producer and parameter count (`ai_AIPackage`): `originatedBy` holds one
   generic `Agent` (name only) per name a structured field states (ONNX
   `model_author`, split on commas, so `Doe, Jane` becomes two; PT2

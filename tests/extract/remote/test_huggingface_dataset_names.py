@@ -106,9 +106,6 @@ def test_repeats_do_not_count_against_the_cap(
     assert not [r for r in caplog.records if "model-card-datasets" in r.getMessage()]
 
 
-_CACHE = "/cache/hf/datasets--o--d/snapshots/89abcdef/README.md"
-
-
 def _card_warnings(caplog: pytest.LogCaptureFixture) -> list[str]:
     return [r.getMessage() for r in caplog.records if r.levelno >= logging.WARNING]
 
@@ -173,24 +170,3 @@ def test_a_card_gone_from_the_download_is_absent_and_quiet(
     card = tmp_path / "snapshots" / "README.md"
     assert _load_dataset_card(fake_hub(card), "o/d", _SHA) == (None, {})
     assert not _card_warnings(caplog)
-
-
-def test_a_read_failure_quoting_the_temporary_path_is_given_by_reason() -> None:
-    error = PermissionError(13, "Permission denied", _CACHE)
-    with (
-        patch.object(hub_dataset, "read_card", side_effect=error),
-        patch.object(hub_dataset.log, "warning") as warn,
-    ):
-        assert _load_dataset_card(fake_hub(Path(_CACHE)), "o/d", _SHA) == (None, {})
-    (call,) = warn.call_args_list
-    assert call.args[1:] == ("o/d", "Permission denied")
-    assert _CACHE not in str(call)
-
-
-def test_a_failure_without_a_path_keeps_its_message() -> None:
-    with (
-        patch.object(hub_dataset, "read_card", side_effect=OSError("odd for o/d")),
-        patch.object(hub_dataset.log, "warning") as warn,
-    ):
-        _load_dataset_card(fake_hub(Path("README.md")), "o/d", _SHA)
-    assert warn.call_args.args[1:] == ("o/d", "odd for o/d")

@@ -13,6 +13,12 @@ See also: :mod:`pitloom.messages` (the mechanism) and
 
 from __future__ import annotations
 
+from pitloom.messages._hub import (
+    HUB_RESPONSE_INVALID,
+    HUB_RESPONSE_LINE,
+    HUB_REVISION_UNPINNED,
+    HUB_UNPINNED_LINE,
+)
 from pitloom.messages._pypi_info import (
     QUERY_LINE,
     QUERY_NO_EFFECT,
@@ -63,6 +69,10 @@ __all__ = [
     "GIT_NETWORK_FAILED_LINE",
     "GIT_REDIRECT_OUTCOME",
     "GIT_TIMEOUT_LINE",
+    "HUB_RESPONSE_INVALID",
+    "HUB_RESPONSE_LINE",
+    "HUB_REVISION_UNPINNED",
+    "HUB_UNPINNED_LINE",
     "OFFLINE_LINE",
     "OFFLINE_UNUSABLE",
     "OFFLINE_WARNING_LINE",

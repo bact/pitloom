@@ -34,7 +34,7 @@ from tests._message_drift import (
 
 #: Evidence reasons with no catalogued message yet. Shrink only: a reason
 #: moves to the catalogue (its code equals the reason), never back.
-PENDING = frozenset({"timeout", "network-failed"})
+PENDING: frozenset[str] = frozenset()
 
 #: Modules that hold a catalogued family's text but say nothing: module path
 #: under ``src/pitloom``, with why. Shrink only.
