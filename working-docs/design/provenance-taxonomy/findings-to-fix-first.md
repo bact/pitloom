@@ -30,62 +30,154 @@ in the hazards list.
   it; "no" means none was found by a search of `known-bugs`, the
   roadmap and the LicenseID handoff page, not that none exists.
 - LicenseID is not edited from here. Its entries end in a prompt to
-  hand over.
+  hand over; its table has no **Seen** column, since one sentence
+  above it holds for every row.
 
 ## LicenseID
 
-Versions: 0.9.0 and 0.9.1 give the same output on every input below that
-was run on both. SPDX License List 3.29.0, as packaged.
+Every row was run on 2026-11-23 with LicenseID 0.9.0 and 0.9.1 (SPDX
+License List 3.29.0, as packaged), by `detect --top 2 -v` on a licence
+file of a wheel from PyPI; the two versions give the same output. A
+count "of 197" is from the measurement of 2026-11-19 on 0.9.0
+([asserter-licence.md](asserter-licence.md)) and was not run again.
 
-| # | Finding | Seen | On `main` |
-| --- | --- | --- | --- |
-| LID-1 | **An optional part of a listed text is matched as if required.** An Apache 2.0 text without its appendix gives `Pixar` first (0.9963), `Apache-2.0` second (0.9921): bandit 1.9.4, `licenses/LICENSE`. Nine of 197 licence files of one environment | run 2026-11-23 on 0.9.1; measured 2026-11-19 on 0.9.0 | yes: the handoff page (`Pixar` over `Apache-2.0`, from #286, open) |
-| LID-2 | **The LGPL version 3 text alone gets no result.** fickling 0.1.12, `licenses/LICENSE` (165 lines, 1,234 words: the text FSF ships as `COPYING.LESSER`). With `--threshold 0` the first of twelve results is `copyleft-next-0.3.0` at 0.6384; no LGPL id is among them. The indexed text of `LGPL-3.0-only` has 6,888 words: the LGPL part and the whole GPL version 3 text (5,644 words in a plain copy). The same class as LID-1, with a worse end: nothing instead of a near id | run 2026-11-23 on 0.9.0 and 0.9.1; the word counts read from the packaged database | no |
-| LID-3 | **An empty result gives no reason.** For LID-2, `--json` prints every field as `null`; `resolve` has a `reason` for the like case | run 2026-11-23 on 0.9.1 | no |
-| LID-4 | **A copyright line in front hides the licence.** In 21 of 197 files Pitloom's second reading (the text without its copyright notice lines) names another id than LicenseID's first: `MIT-advertising`, `FSL-1.1-MIT`, `Xnet`, `X11-swapped`, where the file is MIT. A comment in LicenseID's own code says its `exact` is stricter than SPDX matching, which lets a copyright line differ | measured 2026-11-19 on 0.9.0; not run again | yes: the handoff page (PyYAML gives `Xnet`) |
-| LID-5 | **A file with several licence texts gets one id, and nothing says there are more.** mypy (the MIT text, then the Python licences: `Python-2.0.1`), NumPy (its BSD text and a list of bundled licences: `LGPL-2.1-or-later`), python-dateutil (an Apache notice, then the BSD text that applies to all code: `Apache-2.0` at 0.9187), PyMdown Extensions (`MIT`) | measured 2026-11-19 on 0.9.0, four files read | no |
-| LID-6 | **One text, two ids, both `exact`.** An MPL 2.0 text is exact for `MPL-2.0` and for `MPL-2.0-no-copyleft-exception`; no field says the text is shared (`variant_stated` is for `-only` and `-or-later`) | measured 2026-11-19 on 0.9.0 | partly: the handoff page asks it for URLs that map to several ids |
-| LID-7 | **A notice scores as the text.** CacheControl 0.14.4, `licenses/LICENSE.txt` (13 lines that name Apache 2.0): `Apache-2.0`, `method` `text`, score 1.0, coverage 0.0571. Nothing but the coverage tells a notice from the licence | run 2026-11-23 on 0.9.1 | no |
-| LID-8 | **`score` reads as a measure of fit and is a ranking key.** `Pixar` at 0.9963 is wrong, `MIT` at 0.9304 is right, a 13-line notice has 1.0. A caller that sets a threshold on it is misled | run and measured, as above | no |
+| # | Finding | On `main` |
+| --- | --- | --- |
+| LID-1 | **An optional part of a listed text is matched as if required: a wrong id first.** An Apache 2.0 text without its appendix gives `Pixar` (0.9963), then `Apache-2.0` (0.9921): bandit 1.9.4. Nine of 197 files | yes: the handoff page (`Pixar` over `Apache-2.0`, from #286, open) |
+| LID-2 | **The same cause: no result at all.** The LGPL version 3 text alone (fickling 0.1.12; 1,234 words, the text FSF ships as `COPYING.LESSER`) gets an empty result. With `--threshold 0` the first of twelve is `copyleft-next-0.3.0` at 0.6384, and no LGPL id is among them. The indexed text of `LGPL-3.0-only` has 6,888 words: the LGPL part and the whole GPL version 3 text (5,644 words in a plain copy) | no |
+| LID-3 | **An empty result gives no reason.** For LID-2, and for pydantic in LID-4, `--json` prints every field as `null`; `resolve` has a `reason` in the like case | no |
+| LID-4 | **A title line and a copyright line hide the licence.** Four plain MIT texts: attrs 26.1.0 gives `MIT-advertising` (0.8724), pytest 9.1.1 `FSL-1.1-MIT` (0.9151), PyYAML 6.0.3 `Xnet` (0.9023), and pydantic 2.14.3 an empty result. The first, second and fourth begin "The MIT License (MIT)" and a copyright line; PyYAML has no title and two copyright lines. tomli 2.5.0 begins "MIT License" and gives `MIT` at 1.0. In 21 of 197 files Pitloom's second reading (the text without its copyright lines) names another id than LicenseID's first. Only the first three lines of each file were read here | partly: the handoff page (PyYAML gives `Xnet`); the empty result is new |
+| LID-5 | **A file with several licence texts gets one id, and nothing says there are more.** mypy 2.4.1 (the MIT text, then the Python licences: `Python-2.0.1`, 0.9203), NumPy 2.2.6 (its BSD text and bundled licences: `LGPL-2.1-or-later`, 0.9472), python-dateutil 3.0.0 (an Apache notice, then the BSD text that applies to all code: `Apache-2.0`, 0.9187), PyMdown Extensions 12.3 (`MIT`, 0.9342) | no |
+| LID-6 | **One text, two ids, both `exact`.** The MPL 2.0 text of pathspec 1.1.1 is exact at 1.0 for `MPL-2.0` and for `MPL-2.0-no-copyleft-exception`; no field says the text is shared (`variant_stated` is for `-only` and `-or-later`) | partly: the handoff page asks it for URLs that map to several ids |
+| LID-7 | **A notice scores as the text.** CacheControl 0.14.4 (13 lines that name Apache 2.0): `Apache-2.0`, `method` `text`, score 1.0, coverage 0.0571. Nothing but the coverage tells a notice from the licence | no |
+| LID-8 | **`score` reads as a measure of fit and is a ranking key.** `Pixar` at 0.9963 is wrong, a 13-line notice has 1.0. A caller that sets a threshold on it is misled | no |
+| LID-9 | **`coverage` goes above 1, and no page says what it measures.** NumPy 2.2.6: 1.7164 for the first result and 34.5321 for `BSD-3-Clause`; mypy 2.4.1: 1.2882; PyMdown Extensions 12.3: 3.6882 | no |
 
-What would help Pitloom most, in order: LID-1 with LID-2 (read the
-optional marks of the list's templates), LID-4, LID-5 (a sign that more
-than one text was found, even with one id), LID-7 (a sign that the
-input is a notice), LID-3, LID-6, LID-8 (a line in the documentation).
-With LID-1, LID-2 and LID-4 fixed, Pitloom's second reading and most of
-its gate ([asserter-licence.md](asserter-licence.md)) could go.
+What would help Pitloom most, in order: LID-1, LID-2 and LID-4 (the
+SPDX matching guidelines let optional text be absent and a title or a
+copyright notice differ), then LID-3, LID-5 (a sign that more than one
+text was found), LID-7 (a sign that the input is a notice), LID-6,
+LID-8 and LID-9 (the documentation). With the first three fixed,
+Pitloom's second reading and most of its gate
+([asserter-licence.md](asserter-licence.md)) could go.
 
-### Prompt to hand over
+### Prompt for LicenseID (written 2026-11-23)
+
+The letters are the prompt's own: A1 is LID-1, A2 is LID-2, A3 is
+LID-4, B1 to B4 are LID-3, LID-5, LID-7 and LID-6, B5 is LID-8 with
+LID-9.
 
 ```text
-Pitloom found eight things in LicenseID 0.9.0 and 0.9.1 (SPDX License
-List 3.29.0 as packaged). For each: reproduce, fix or document, add a
-test and a changelog line. Report which you did, which you refused and
-why. Do not touch Pitloom.
+Handoff from Pitloom to LicenseID: text matching findings
 
-1. Optional text matched as required. `detect --top 2 -v` on the
-   LICENSE of bandit 1.9.4 (Apache 2.0 without its appendix) gives
-   Pixar 0.9963 before Apache-2.0 0.9921.
-2. Same cause, no result at all. `detect -v` on the LICENSE of
-   fickling 0.1.12 (the LGPL version 3 text alone, 1,234 words) gives
-   an empty result; with `--threshold 0 --top 12` no LGPL id appears.
-   The indexed text of LGPL-3.0-only has 6,888 words: it holds the GPL
-   version 3 text too. Check the list's XML for an optional mark there.
-3. The empty result of 2 has no reason: `--json` is all null.
-4. A leading copyright line makes an MIT text match MIT-advertising,
-   FSL-1.1-MIT, Xnet or X11-swapped first (21 of 197 licence files of
-   one environment, 0.9.0).
-5. A file with several licence texts gets one id and no sign of the
-   others: the licence files of mypy, NumPy, python-dateutil, PyMdown
-   Extensions.
-6. An MPL 2.0 text is exact for MPL-2.0 and for
-   MPL-2.0-no-copyleft-exception; no field says the text is shared.
-7. A 13-line notice that names Apache 2.0 (CacheControl 0.14.4,
-   LICENSE.txt) gives Apache-2.0, method text, score 1.0, coverage
-   0.0571. Give a way to tell a notice from the text.
-8. Say in the documentation that `score` ranks and does not measure
-   fit, or give a field that does.
+Context
+- Pitloom reads licence files with `licenseid detect` and declares the
+  matched id as the package's licence. A wrong first result becomes a
+  wrong declared licence in an SBOM.
+- Everything below was run on 2026-11-23 with LicenseID 0.9.0 and 0.9.1,
+  SPDX License List 3.29.0 as packaged
+  (`licenseid --db <new file> update --source packaged`). Both versions
+  give the same output on every input.
+- Command used: `licenseid --db <db> detect --top 2 -v <file>`.
+- Inputs are licence files of wheels on PyPI, named as
+  <project> <version>: <path inside the wheel's .dist-info>.
+- Do not touch Pitloom. Do not change results silently: a changelog line
+  for every result that changes for existing input.
+
+A. SPDX matching guidelines not applied to the input
+The guidelines let optional text be absent and let a title and a
+copyright notice differ. These inputs fail on exactly those points.
+
+A1. Optional text missing: wrong id first.
+    bandit 1.9.4: licenses/LICENSE (Apache 2.0, no appendix)
+    -> Pixar 0.9963 (similarity 0.9913), then Apache-2.0 0.9921
+       (similarity 0.9421, coverage 0.8859).
+    The indexed Apache-2.0 text holds the appendix; Pixar's has none.
+    Expected: Apache-2.0 first. Seen in 9 of 197 licence files of one
+    environment (0.9.0).
+
+A2. Optional text missing: no result at all.
+    fickling 0.1.12: licenses/LICENSE (the LGPL version 3 text alone,
+    1,234 words, as FSF ships COPYING.LESSER)
+    -> empty result. With `--threshold 0 --top 12` the first is
+       copyleft-next-0.3.0 at 0.6384 and no LGPL id is listed.
+    The indexed text of LGPL-3.0-only has 6,888 words: the LGPL part
+    plus the whole GPL version 3 text (5,644 words in a plain copy).
+    Check whether the list's XML marks that part optional.
+    Expected: LGPL-3.0-only (or -or-later, with variant_stated false).
+
+A3. Title line and copyright line: wrong id, or none.
+    All four are plain MIT texts.
+    attrs 26.1.0: licenses/LICENSE     -> MIT-advertising 0.8724
+    pytest 9.1.1: licenses/LICENSE     -> FSL-1.1-MIT 0.9151, then
+                                          MIT-advertising 0.8662
+    pydantic 2.14.3: licenses/LICENSE  -> empty result
+    pyyaml 6.0.3: licenses/LICENSE     -> Xnet 0.9023
+    The first three begin "The MIT License (MIT)" and one copyright
+    line; pyyaml has no title and two copyright lines.
+    Control: tomli 2.5.0: licenses/LICENSE begins "MIT License" and one
+    copyright line -> MIT 1.0000, then JSON 0.9954. Correct.
+    Expected: MIT for all four.
+    Pitloom works around this with a second detect call on the text
+    without its copyright lines; in 21 of 197 files that second reading
+    names another id than the first.
+
+B. Results that need a signal
+
+B1. An empty result has no reason. For A2 and for pydantic in A3,
+    `detect --json` prints every field as null. `resolve` gives a
+    reason in the like case. Ask: a reason, and the nearest candidate.
+
+B2. Several licence texts in one file: one id, no sign of the others.
+    mypy 2.4.1: licenses/LICENSE (MIT, then the Python licences)
+      -> Python-2.0.1 0.9203
+    numpy 2.2.6: LICENSE.txt (its BSD text, then bundled licences)
+      -> LGPL-2.1-or-later 0.9472, then BSD-3-Clause 0.9319
+    python-dateutil 3.0.0: licenses/LICENSE (a short Apache notice,
+      then the full BSD three-clause text that the file says applies
+      to all code) -> Apache-2.0 0.9187 (coverage 0.2639)
+    pymdown-extensions 12.3: licenses/LICENSE.md -> MIT 0.9342
+    Ask: a flag or a list that says more than one text was found.
+
+B3. A notice scores as the full text.
+    cachecontrol 0.14.4: licenses/LICENSE.txt (13 lines naming
+    Apache 2.0) -> Apache-2.0, method text, score 1.0000,
+    coverage 0.0571.
+    Ask: a way to tell a notice or a pointer from the licence text
+    (another method value, or a documented field to test).
+
+B4. One text, two ids, both exact.
+    pathspec 1.1.1: licenses/LICENSE (MPL 2.0)
+    -> MPL-2.0 exact 1.0000 and MPL-2.0-no-copyleft-exception exact
+       1.0000. No field says the two ids share one text
+       (variant_stated covers -only and -or-later).
+    Ask: a field for a shared text, as asked before for URLs that map
+    to several ids.
+
+B5. `score` and `coverage` are not what their names suggest.
+    score: Pixar 0.9963 is wrong (A1), a 13-line notice has 1.0000 (B3).
+    coverage: above 1 in B2 (numpy: 1.7164, and 34.5321 for
+    BSD-3-Clause; mypy: 1.2882; pymdown-extensions: 3.6882).
+    Ask: say in the documentation what each field measures and its
+    range, and that score ranks and does not measure fit; or add a
+    field a caller can set a threshold on.
+
+Priority for Pitloom: A1, A2, A3, then B1, B2, B3, B4, B5.
+With A fixed, Pitloom can drop its second reading and most of its own
+gate (score 0.85 or more, no other family within 0.01).
+
+Already asked before and still open on 0.9.1: Pixar over Apache-2.0
+(A1) and a leading copyright notice hiding MIT (A3, pyyaml).
+
+Deliver
+For each item: reproduce, fix or document, add a test with a minimal
+text sample, add a changelog line. Report which items you did, which
+you refused and why, any new or changed field of the detect result,
+and the release that holds it.
 ```
+
+Not read for this page: the list's XML for the optional marks (LID-1,
+LID-2), and the full text of the four MIT files of LID-4.
 
 ## Pitloom
 
