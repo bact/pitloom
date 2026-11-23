@@ -67,7 +67,7 @@ from pitloom.messages._field_tables import (
     REF_KINDS,
 )
 from pitloom.messages._field_type import Field
-from pitloom.messages._field_writers import size_text
+from pitloom.messages._field_writers import escaped_name, size_text, url_text
 from pitloom.messages._fields import FIELDS
 from pitloom.messages._frames import (
     BUILD_FRAME,
@@ -151,6 +151,7 @@ __all__ = [
     "code_extra_of",
     "code_of",
     "emit",
+    "escaped_name",
     "recoded",
     "relay_extra",
     "say_summary",
@@ -158,4 +159,5 @@ __all__ = [
     "size_text",
     "topic_of",
     "trusted_message",
+    "url_text",
 ]

@@ -167,19 +167,15 @@ counts are in [message-catalogue-migration-plan.md](message-catalogue-migration-
   [message-catalogue-review-rounds.md](../implementation/message-catalogue-review-rounds.md);
   also a NUL byte in a library registry path raises `InternalError`, and
   `test_each_view_is_linear` flaked twice on CI runners (bound now 64, retried).
-- [ ] **Log masker: a token after an escaped control character** (found in
-  PR 13 round 1): `TOKEN_RE` (`core/url_masking/_tokens.py`) lookbehind sees
-  the `t` of an escaped `\t` (or `n` of `\n`), so `ghp_...` after it prints
-  raw; pre-existing. PR 13 masks Git's text before `loggable`; the root fix
-  (allow a token after an escape sequence, as after `%XX`) and `shown_url`
-  (`_http_errors.py`, same order) are open. Also `pypi_url._refuse` still
-  relays its refusal as an uncoded `WARNING:` (dropped in PR 14b). See
-  [message-catalogue-review-rounds.md](../implementation/message-catalogue-review-rounds.md).
+- [x] **Log masker: a token after an escaped control character** (PR 13
+  round 1; fixed in #526, with `Bearer`/`Basic`). See
+  [log-masker-escaped-tokens.md](../implementation/log-masker-escaped-tokens.md),
+  which lists what is left (escape-first `loggable` call sites).
 - [ ] **PR 14a follow-ups** (round 5, see the review-rounds page): the PDM
   discoverer's `pitloom-unused-<uuid>` directory is created by pdm-backend and
   never removed (`_models_wheel_pdm.py:181`, `extract/project/pdm.py:160`);
-  `Bearer <jwt>` in a build's output is not masked; a signal test depends on
-  the child's inherited SIGINT disposition (a backgrounded shell ignores it);
+  a signal test depends on the child's inherited SIGINT disposition (a
+  backgrounded shell ignores it);
   `docs/git-urls.md` is over the 30 KB limit.
 - [ ] **Unexplained CI hang** (2026-11-21, PR #507's first 3.14 ubuntu run):
   two xdist workers stopped for 23 minutes in `tests/core/models_wheel`

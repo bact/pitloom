@@ -34,10 +34,10 @@ from pitloom.extract.remote._git_say import no_target_hint_error
 from pitloom.extract.remote.errors import RemoteSourceError
 from pitloom.extract.remote.git import GitCheckout
 from pitloom.extract.scanner import is_model_candidate_name
-from pitloom.logging_config import loggable
 from pitloom.messages import (
     CodedValueError,
     code_of,
+    escaped_name,
 )
 from pitloom.messages.targets import (
     GIT_FILE_IS_LINK_LINE,
@@ -113,7 +113,7 @@ def _refuse_model_only_folder(checkout: GitCheckout, subject: str) -> None:
     names = _model_like_names(checkout.folder)
     if not names or subproject_hint(checkout.folder)[0]:
         return
-    shown = ", ".join(loggable(name) for name in names[:_NAMES_SHOWN])
+    shown = ", ".join(escaped_name(name) for name in names[:_NAMES_SHOWN])
     more = len(names) - _NAMES_SHOWN
     if more > 0:
         shown += f" and {more} more"

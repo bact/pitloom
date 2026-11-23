@@ -18,7 +18,7 @@ from typing import Final
 
 from pitloom.core.given_path import given_spelling
 from pitloom.core.quote_source import given_path_text, quote_source
-from pitloom.core.url_masking import mask_checkout
+from pitloom.core.url_masking import mask_checkout, sanitize_url
 from pitloom.log_masking import masked_text
 from pitloom.logging_config import failure_reason, loggable, one_line
 
@@ -165,6 +165,26 @@ def cut_name(text: str) -> str:
     any other name. Masked before it is cut, so a cut never takes away the
     end of a URL's user information."""
     return cut_masked(masked(text), NAME_CHARACTERS)
+
+
+def escaped_name(text: str) -> str:
+    """*text*, a name a caller writes into a free field (a file or folder
+    name), masked and cut (:func:`cut_name`), then escaped
+    (:func:`~pitloom.logging_config.loggable`): masked before it is escaped,
+    so an escape (``\\t``, ``\\x1b``) cannot stand between a credential and
+    what the masker reads before it."""
+    return loggable(cut_name(text))
+
+
+def url_text(url: str) -> str:
+    """*url*, a URL a caller writes into a ``url`` or ``target`` field: its
+    credentials masked as one URL's
+    (:func:`~pitloom.core.url_masking.sanitize_url`: the user information
+    whole) and as a line's (:func:`masked`: an access token, an scp-style
+    password, a ``Bearer`` credential), then escaped
+    (:func:`~pitloom.logging_config.loggable`), as :func:`escaped_name`
+    orders them; not cut."""
+    return loggable(masked(sanitize_url(url)))
 
 
 def quoted_name_text(value: object) -> str:

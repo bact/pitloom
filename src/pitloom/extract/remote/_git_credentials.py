@@ -28,7 +28,7 @@ from urllib.parse import SplitResult, unquote, urlsplit, urlunsplit
 from pitloom.core.quote_source import quote_source
 from pitloom.core.url_masking import sanitize_url, split_userinfo
 from pitloom.extract.remote.errors import RemoteSourceError
-from pitloom.logging_config import loggable
+from pitloom.messages import url_text
 from pitloom.messages.network import GIT_HOST_SPELLING_LINE, URL_HOST_SPELLING
 from pitloom.messages.url_credentials import (
     CREDENTIALS_UNSAFE_GIT_USERINFO,
@@ -194,7 +194,7 @@ def _split(arg: str) -> tuple[str, GitCredentials | None]:
     if not host_is_plain(parts):
         raise RemoteSourceError(
             "git.url-invalid",
-            GIT_HOST_SPELLING_LINE.render({"url": loggable(shown)}),
+            GIT_HOST_SPELLING_LINE.render({"url": url_text(arg)}),
             pitloom_code=URL_HOST_SPELLING.code,
         )
     user, _, password = (unquote(part) for part in userinfo.partition(":"))

@@ -18,6 +18,8 @@ import re
 from collections.abc import Callable
 from urllib.parse import unquote
 
+from pitloom.core.url_masking._auth_schemes import mask_auth_schemes
+from pitloom.core.url_masking._boundary import word_start
 from pitloom.core.url_masking._hits import (
     PURL_DECODE_ROUNDS,
     purl_qualifiers,
@@ -33,8 +35,9 @@ from pitloom.core.url_masking._userinfo import mask_scp
 
 __all__ = ["masked_given_path"]
 
-#: A Package URL in a text, to white space.
-_PURL_WORD = re.compile(r"(?<![A-Za-z0-9+.-])(?i:pkg):\S+")
+#: A Package URL in a text, to white space, also right after an escape
+#: sequence (:func:`~pitloom.core.url_masking._boundary.word_start`).
+_PURL_WORD = re.compile(word_start("A-Za-z0-9+.-") + r"(?i:pkg):\S+")
 #: What ends a sentence, a quotation or an enclosing ``<>`` after a PURL in
 #: a text.
 _PURL_TAIL = ":.,;)]>'\""
@@ -130,7 +133,12 @@ def masked_given_path(
     (:func:`pitloom.core.url_masking.find_url_credentials`): an access
     token's shape (``ghp_***``), the password of an scp-style address, and
     the value of a PURL qualifier that holds a hit once percent-decoded
-    (``download_url=***``).
+    (``download_url=***``), and the credential after a ``Bearer`` or
+    ``Basic`` scheme (``Authorization: Bearer ***``,
+    :mod:`~pitloom.core.url_masking._auth_schemes`). A token, an scp-style
+    address, a PURL or a scheme may start right after an escape sequence
+    (``\\t``, ``\\x1b``: a text escaped before it is masked,
+    :mod:`~pitloom.core.url_masking._boundary`).
 
     A format character (Unicode ``Cf``: a byte order mark, a zero-width
     space) is dropped, as a reader drops it, when that shows a credential to
@@ -254,7 +262,7 @@ def _masked_formats(text: str, *, line: bool, free_params: bool) -> str:
 
 def _masked(text: str, *, line: bool, free_params: bool) -> str:
     """:func:`masked_given_path` of *text* as it is."""
-    text = mask_scp(mask_tokens(_masked_purls(text)))
+    text = mask_auth_schemes(mask_scp(mask_tokens(_masked_purls(text))))
     masked = masked_once(text, line=line)
     passes = 1
     while masked != text and passes < _MASK_PASSES:

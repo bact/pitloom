@@ -52,6 +52,8 @@ from __future__ import annotations
 
 import re
 
+from pitloom.core.url_masking._boundary import word_start
+
 __all__ = [
     "TOKEN_PREFIXES",
     "TOKEN_RE",
@@ -133,9 +135,15 @@ TOKEN_SHAPES: tuple[tuple[str, str], ...] = (
 #: The prefixes of those tokens.
 TOKEN_PREFIXES = tuple(prefix for prefix, _ in TOKEN_SHAPES)
 #: A token of a known shape, not inside a longer word, though right after a
-#: percent-encoded character (``Bearer%20ghp_...``). Each prefix is a group.
+#: percent-encoded character (``Bearer%20ghp_...``) or an escape sequence
+#: (``token:\\tghp_...``, :func:`~pitloom.core.url_masking._boundary.word_start`).
+#: Each prefix is a group. A position is tried only at the first character
+#: of a prefix, before the lookbehinds, so a search stays fast on a long run
+#: of escapes (``\\t\\t...``).
 TOKEN_RE = re.compile(
-    r"(?:(?<![A-Za-z0-9_-])|(?<=%[0-9A-Fa-f]{2}))(?:"
+    f"(?=[{''.join(sorted({prefix[0] for prefix, _ in TOKEN_SHAPES}))}])"
+    + word_start("A-Za-z0-9_-", "(?<=%[0-9A-Fa-f]{2})")
+    + "(?:"
     + "|".join(f"({re.escape(prefix)}){body}" for prefix, body in TOKEN_SHAPES)
     + ")"
 )

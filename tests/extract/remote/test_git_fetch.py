@@ -335,5 +335,7 @@ def test_the_monorepo_hint_names_projects_and_escapes_names(tmp_path: Path) -> N
     token = "ghp_" + "a" * 36
     hostile = folders_text([f"x\t{token}"], 0)  # masked before the escape
     assert token not in hostile and "ghp_***" in hostile
+    split = folders_text([f"x ghp_{'a' * 18}\u200b{'a' * 18}"], 0)
+    assert "a" * 18 not in split and "ghp_***" in split
     (tmp_path / "pyproject.toml").write_text("", encoding="utf-8")
     assert subproject_hint(str(tmp_path)) == ([], 0)
