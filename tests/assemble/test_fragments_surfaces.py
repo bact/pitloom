@@ -224,6 +224,26 @@ def test_fragment_list_flags_an_earlier_sbom(
     assert len([x for x in err.splitlines() if _SAME_DOCUMENT in x]) == int(same)
 
 
+def test_fragment_list_says_the_required_line_for_a_required_earlier_sbom(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """The list's line is the build's own: a required fragment says the
+    merge will fail."""
+    earlier = json.loads(
+        _lib(tmp_path / "a", _project(tmp_path / "a", None, False), monkeypatch)
+    )
+    project = _project(tmp_path / "b", earlier, True)
+    capsys.readouterr()
+    monkeypatch.setattr(
+        sys, "argv", ["loom", "fragment", "list", "--project-dir", str(project)]
+    )
+    assert __main__.main() == 1
+    (line,) = [x for x in capsys.readouterr().err.splitlines() if _SAME_DOCUMENT in x]
+    assert line.endswith("; required, so the merge will fail [fragment-unusable]")
+
+
 def test_fragment_list_goes_on_when_the_project_is_unreadable(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

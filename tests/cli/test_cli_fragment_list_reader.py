@@ -17,6 +17,7 @@ from pathlib import Path
 import pytest
 
 from pitloom import __main__
+from pitloom.cli.commands.fragment import _fragment_sha256_status
 from pitloom.core.config import read_pitloom_config
 
 pytestmark = pytest.mark.platform
@@ -69,7 +70,9 @@ def test_a_number_the_merge_refuses_is_refused_by_the_list(
 
 
 @pytest.mark.parametrize(
-    "digest", ["00", "z" * 64, "ab" * 31], ids=["short", "non-hex", "62"]
+    "digest",
+    ["00", "z" * 64, "ab" * 31, "a" * 65, "a" * 64 + "z"],
+    ids=["short", "non-hex", "62", "65", "trailing"],
 )
 def test_a_malformed_configured_digest_is_a_config_error(
     digest: str,
@@ -124,3 +127,70 @@ def test_the_configured_digest_is_kept_in_lower_case(tmp_path: Path) -> None:
     )
     (fragment,) = read_pitloom_config(tmp_path / "pyproject.toml").fragments
     assert fragment.sha256 == digest.lower() != digest
+
+
+def test_the_list_compares_a_digest_in_lower_case() -> None:
+    """The comparison lower-cases the digest itself, whoever built the
+    entry (the configuration reader already keeps it lower case)."""
+    digest = hashlib.sha256(b"x").hexdigest()
+    assert _fragment_sha256_status(b"x", digest.upper(), "f.json") == "match"
+
+
+def _list_one(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    content: bytes,
+) -> tuple[int, str, str]:
+    """``loom fragment list`` of a project with the one fragment *content*:
+    the exit code, standard output and standard error."""
+    (tmp_path / "f.json").write_bytes(content)
+    code = _list(tmp_path, monkeypatch, '[{ path = "f.json" }]')
+    out, err = capsys.readouterr()
+    return code, out, err
+
+
+def test_a_fragment_nested_past_the_parser_is_listed_without_a_count(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """The depth is far past the recursion limit of every supported Python,
+    so the reader refuses it, and the count (a second parse) must not crash."""
+    deep = b"[" * 100_000 + b"]" * 100_000
+    code, out, err = _list_one(tmp_path, monkeypatch, capsys, deep)
+    assert code == 0
+    assert "ELEMENTS=- " in out
+    assert err.rstrip().endswith("[fragment-invalid]")
+
+
+@pytest.mark.parametrize(
+    "content", [b"[]", b"[" + _BIG.encode() + b"]"], ids=["read", "refused"]
+)
+def test_a_top_level_array_has_no_element_count(
+    content: bytes,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Only an object has an ``@graph``: an array, read or refused, is no
+    zero-element fragment."""
+    _, out, _ = _list_one(tmp_path, monkeypatch, capsys, content)
+    assert "ELEMENTS=- " in out
+
+
+def test_a_fragment_with_no_document_does_not_resolve_the_projects_id(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """The id reads the project's metadata: only a fragment with an
+    ``SpdxDocument`` needs it, and one without is ``SAME_DOCUMENT=false``."""
+
+    def refuse(_project_dir: Path) -> str:
+        raise AssertionError("the project's own id was resolved")
+
+    monkeypatch.setattr("pitloom.cli.commands.fragment.project_document_id", refuse)
+    code, out, _ = _list_one(tmp_path, monkeypatch, capsys, _GRAPH)
+    assert code == 0
+    assert "SAME_DOCUMENT=false" in out

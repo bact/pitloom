@@ -188,7 +188,7 @@ Steps:
 7. **Pre-merge check (mandatory):** read every drafted fragment (step 2's and
    step 6's) with the JSON-LD deserialiser `merge_fragments()` uses, run with
    the interpreter Pitloom is installed in, not whichever `python3` is on
-   `PATH`; exit 0 is a pass (otherwise an unusable fragment is skipped with
+   `PATH`; exit 0 is a pass (otherwise a bad fragment is skipped with
    only a `WARNING:`). Before running it, read
    `references/pre-merge-check.md`: the one-liner, the `uvx`/`pipx` spellings
    and what it catches. Never `uv run --with` for it (in a project directory it

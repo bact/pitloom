@@ -103,7 +103,7 @@ holds the value there. The table lists every name a line or a prefix uses.
 | `<reason>` | what the bound check found: a count the file cannot hold, a malformed ZIP central directory, or a GGUF version or ZIP archive it cannot check |
 | `<ref>` | a branch, tag or commit as the URL names it; escaped when it holds a control character |
 | `<ref-kind>` | what the URL names: `branch`, `tag`, `commit` |
-| `<reference>` | the spdxId a property names, a URL's credentials masked; in quotes, escaped, when it holds a control character |
+| `<reference>` | the spdxId a property names (`-` for an empty one), a URL's credentials masked; in quotes, escaped, when it holds a control character |
 | `<refusal>` | argparse's reason for refusing the value, on one line (`invalid choice: ...`); never a missing value (`expected ...`) or a conflict (`not allowed with ...`); in quotes, escaped, when it holds a control character |
 | `<what>` | what of an element the ID registry cannot hold: `key`, `name`, `project_root`, `sha256`, `spdxId`, `type name` |
 | `<requirement>` | Pitloom with the extra that installs the library (`pitloom[gguf]`); `pitloom[ai]` installs every model reader |

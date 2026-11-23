@@ -28,13 +28,17 @@ from pathlib import Path
 import pytest
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
+from pitloom.assemble.spdx3 import _fragments_refs
 from pitloom.assemble.spdx3._fragments_refs import NAMED_INDIVIDUAL_IDS
 from pitloom.assemble.spdx3.fragments import (
     FragmentMergeError,
     _find_dangling_references,
     _raise_on_dangling_references,
+    merge_fragments,
 )
+from pitloom.core.config import FragmentConfig
 from pitloom.export.spdx3_json import Spdx3JsonExporter
+from pitloom.messages.fragments import warn_reference_not_found
 from tests._license_graph import merged_fragment
 
 
@@ -224,6 +228,52 @@ def test_dangling_references_are_said_sorted_whatever_the_order_added(
     assert {m.removeprefix("ELEMENT=") for m in said} == set(ids)
 
 
+def test_find_dangling_references_sorts_what_the_objects_yield(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The list is sorted by the function, not by the (set) order the
+    objects come in: an unsorted source gives a sorted result."""
+    ci = _creation_info()
+    exporter = Spdx3JsonExporter()
+    exporter.add_creation_info(ci)
+    exporter.add_relationship(
+        spdx3.Relationship(
+            spdxId="https://spdx.org/spdxdocs/x-1#Relationship-1",
+            from_="https://spdx.org/spdxdocs/x-1#Package-1",
+            to=["https://spdx.org/spdxdocs/x-0#Package-1"],
+            relationshipType=spdx3.RelationshipType.dependsOn,
+            creationInfo=ci,
+        )
+    )
+    unsorted = [(f"id-{n}", "to", "t") for n in (3, 1, 2, 0)]
+    calls: list[int] = []
+
+    def _yield_once(*_args: object) -> list[tuple[str, str, str]]:
+        calls.append(1)
+        return list(unsorted) if len(calls) == 1 else []
+
+    monkeypatch.setattr(_fragments_refs, "_dangling_refs_for_object", _yield_once)
+    monkeypatch.setattr(_fragments_refs, "_dangling_custom_ids", lambda *_a: [])
+    found = _find_dangling_references(exporter)
+    assert found != unsorted  # the input was unsorted
+    assert found == sorted(unsorted)
+
+
+def test_empty_reference_is_said_as_a_dash(caplog: pytest.LogCaptureFixture) -> None:
+    """A fragment's empty IRI has no spelling to show: one coded line with
+    ``-``, not a crash."""
+    with caplog.at_level(logging.WARNING, logger="pitloom"):
+        warn_reference_not_found(
+            logging.getLogger("pitloom"),
+            spdx_id="https://spdx.org/spdxdocs/x-1#Relationship-1",
+            prop="to",
+            reference="",
+        )
+    (record,) = caplog.records
+    assert " to names -, which is not in the merged document" in record.getMessage()
+    assert getattr(record, "pitloom_code", None) == "reference-not-found"
+
+
 def test_find_dangling_references_excludes_declared_external_imports() -> None:
     """A Relationship endpoint matching a declared ``ExternalMap`` in the
     main document's ``import_`` is a legitimate external reference, not a
@@ -369,3 +419,69 @@ def test_merging_a_fragment_with_a_truly_dangling_target_still_raises(
         match="1 reference\\(s\\) to elements not in the merged document",
     ):
         merged_fragment(tmp_path, f"{_TERMS}/Core/NoSuchIndividual")
+
+
+@pytest.mark.platform  # a path no file is at
+def test_a_merge_that_loads_no_fragment_does_not_check_the_base_graph(
+    tmp_path: Path,
+) -> None:
+    """With nothing new merged there is nothing new to dangle: a reference
+    the base already left open is not this merge's to raise."""
+    exporter = _one_package_exporter(to="https://spdx.org/spdxdocs/x-1#gone")
+    assert _find_dangling_references(exporter)  # the base is broken
+    configured = [FragmentConfig(path="missing.json")]
+    assert merge_fragments(tmp_path, configured, exporter) == 0
+
+
+def _licence_graph(target: str) -> Spdx3JsonExporter:
+    """A document whose ``LicenseExpression`` maps ``LicenseRef-x`` to
+    *target*, beside a second one it may point at."""
+    ns = "https://spdx.org/spdxdocs/x-1"
+    ci = _creation_info()
+    exporter = Spdx3JsonExporter()
+    exporter.add_creation_info(ci)
+    exporter.add_document(spdx3.SpdxDocument(spdxId=ns, creationInfo=ci))
+    exporter.object_set.add(
+        spdx3.simplelicensing_LicenseExpression(
+            spdxId=f"{ns}#known",
+            creationInfo=ci,
+            simplelicensing_licenseExpression="LicenseRef-known",
+        )
+    )
+    exporter.object_set.add(
+        spdx3.simplelicensing_LicenseExpression(
+            spdxId=f"{ns}#L",
+            creationInfo=ci,
+            simplelicensing_licenseExpression="LicenseRef-x",
+            simplelicensing_customIdToUri=[
+                spdx3.DictionaryEntry(key="LicenseRef-x", value=target)
+            ],
+        )
+    )
+    return exporter
+
+
+@pytest.mark.parametrize(
+    ("target", "dangling"),
+    [
+        ("https://spdx.org/spdxdocs/x-1#known", False),
+        ("https://spdx.org/spdxdocs/x-1#gone", True),
+        ("https://example.org/licenses/x", False),
+        ("https://spdx.org/spdxdocs/x-1other#L", False),
+    ],
+    ids=["own-known", "own-missing", "external", "prefix-lookalike"],
+)
+def test_a_custom_id_dangles_only_in_the_documents_own_namespace(
+    target: str, dangling: bool
+) -> None:
+    """A value elsewhere is an external licence URI, not checked; a prefix
+    the namespace merely starts with (no ``#``) is elsewhere too."""
+    found = _find_dangling_references(_licence_graph(target))
+    expected = [
+        (
+            "https://spdx.org/spdxdocs/x-1#L",
+            "simplelicensing_customIdToUri",
+            target,
+        )
+    ]
+    assert found == (expected if dangling else [])

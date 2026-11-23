@@ -309,3 +309,31 @@ def test_a_comment_of_the_old_name_alone_goes(
     model, _, _ = _merge(tmp_path, caplog, ["loomed"], base, {"comment": None})
     assert model["name"] == "loomed"
     assert "comment" not in model
+
+
+def test_renamed_base_models_are_said_in_id_order(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """The base models are held in no order: the lines come sorted by id
+    (eight, so a lucky arrangement is a 1 in 40320 chance)."""
+    base = _base("m", with_model=False)
+    document = base.object_set.find_by_id(_NS)
+    assert isinstance(document, spdx3.SpdxDocument)
+    ids = [f"{_NS}#M{n}" for n in range(8)]
+    for spdx_id in reversed(ids):
+        base.add_package(
+            spdx3.ai_AIPackage(
+                spdxId=spdx_id, name="old", creationInfo=document.creationInfo
+            )
+        )
+    elements = [{"type": "ai_AIPackage", "spdxId": i, "name": "new"} for i in ids]
+    write_fragment(tmp_path / "f.spdx3.json", fragment_graph(elements))
+    caplog.clear()
+    with caplog.at_level(logging.INFO):
+        merge_fragments(tmp_path, [FragmentConfig(path="f.spdx3.json")], base)
+    said = [
+        r.getMessage().split(" ")[1]
+        for r in caplog.records
+        if "name replaced" in r.getMessage()
+    ]
+    assert said == [f"ELEMENT={i}:" for i in ids]

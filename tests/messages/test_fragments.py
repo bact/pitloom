@@ -20,6 +20,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -42,12 +43,14 @@ from pitloom.messages import (
     topic_of,
     trusted_message,
 )
+from pitloom.messages._fields_fragments import datetime_text
 from pitloom.messages._types import template_problem
 from pitloom.messages.fragments import (
     FRAGMENT_MISSING,
     MERGE_WILL_FAIL,
     NOT_MERGED,
     READ_STAGES,
+    REFERENCE_NOT_FOUND,
     SHOWN_FILES,
     DescribedValue,
     FragmentReadError,
@@ -233,6 +236,16 @@ def test_missing_files_are_listed_in_order_up_to_the_cap() -> None:
         missing_files_text([])
 
 
+def test_the_missing_files_cap_is_ten_and_says_nothing_at_ten() -> None:
+    """The cap is the documented ten (not just ``SHOWN_FILES``), and ten
+    files are no ``and 0 more``."""
+    names = [f"m{i}.json" for i in range(11)]
+    ten = missing_files_text(names[:10])
+    assert ten.endswith("m9.json") and "more" not in ten
+    eleven = missing_files_text(names)
+    assert eleven.endswith("m9.json and 1 more") and "m10.json" not in eleven
+
+
 # -- the reader's stages ------------------------------------------------------
 
 
@@ -408,7 +421,7 @@ def test_loom_merge_of_only_bad_fragments_writes_nothing(
     assert str(raised.value).startswith("no SBOM fragment in ")
     assert not out.exists() and not counted
     assert not any("creation time" in m for m in caplog.messages)
-    shown = [r.getMessage().split(":")[0] for r in caplog.records]
+    shown = [r.getMessage().split(": ")[0] for r in caplog.records]
     assert shown == [f"FILE={frags / 'a.json'}", f"FILE={frags / 'b.json'}"]
 
 
@@ -451,3 +464,39 @@ def test_a_merge_with_no_creation_time_says_datetime_missing_once(
     assert ("1970-01-01T00:00:00Z" in sbom) is said
     if said:
         assert all(trusted_message(line) for line in _printed(caplog))
+
+
+def test_datetime_text_says_utc_to_the_second_and_refuses_a_naive_one() -> None:
+    """An aware time is shown in UTC to the second; anything else is refused."""
+    aware = datetime(2024, 1, 2, 3, 4, 5, 999, tzinfo=timezone(timedelta(hours=7)))
+    assert datetime_text(aware) == "2024-01-01T20:04:05Z"
+    for bad in (datetime(2024, 1, 2), "2024-01-02", None):
+        with pytest.raises(ValueError, match="not an aware datetime"):
+            datetime_text(bad)
+
+
+def test_a_fragment_with_an_empty_reference_fails_the_merge_coded(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """``"to": [""]`` is a dangling reference like any other: one coded
+    WARNING naming the element, then the coded ERROR (not a bare crash)."""
+    frag = _fragment()
+    graph = frag["@graph"]
+    assert isinstance(graph, list)
+    graph.append(
+        {
+            "type": "Relationship",
+            "spdxId": "https://ex.org/r",
+            "from": _AGENT,
+            "to": [""],
+            "relationshipType": "dependsOn",
+            "creationInfo": "_:c",
+        }
+    )
+    (tmp_path / "a.json").write_bytes(json.dumps(frag).encode())
+    with caplog.at_level(logging.WARNING, logger="pitloom"):
+        with pytest.raises(FragmentMergeError) as raised:
+            generate_merged_sbom(tmp_path, output_path=tmp_path / "out.json")
+    assert code_of(raised.value) == REFERENCE_NOT_FOUND.code
+    (record,) = caplog.records
+    assert "ELEMENT=https://ex.org/r: to names -," in record.getMessage()

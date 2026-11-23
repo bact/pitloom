@@ -22,6 +22,7 @@ from pathlib import Path
 import pytest
 
 from pitloom.assemble import project_document_id
+from pitloom.cli.commands import fragment as fragment_cmd
 from pitloom.core.internal_error import InternalError
 from pitloom.logging_config import CODE_ATTR, configure_logging
 from pitloom.messages import MESSAGES, code_of, trusted_message
@@ -119,3 +120,19 @@ def test_errors_fragment_list_cannot_meet_keep_no_twin(
     assert code_of(raised.value) in {"project-not-found", "config-invalid"}
     with pytest.raises(InternalError, match="no WARNING line relays it"):
         relay_coded_warning(logging.getLogger("pitloom.cli"), raised.value, quiet=True)
+
+
+@pytest.mark.parametrize("error", [InternalError("x"), MemoryError()], ids=["i", "m"])
+def test_own_document_id_does_not_swallow_a_defect(
+    error: BaseException, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A programming error or an out-of-memory in the metadata read ends the
+    listing; only an ordinary read failure leaves ``SAME_DOCUMENT=-``."""
+
+    def _boom(_project_dir: Path) -> str:
+        raise error
+
+    monkeypatch.setattr(fragment_cmd, "project_document_id", _boom)
+    with pytest.raises(type(error)) as raised:
+        fragment_cmd._own_document_id(tmp_path)  # pylint: disable=protected-access
+    assert raised.value is error  # re-raised as it was, not relayed

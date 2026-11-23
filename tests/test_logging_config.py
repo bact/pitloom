@@ -17,6 +17,7 @@ import pytest
 
 from pitloom import logging_config
 from pitloom.logging_config import (
+    EXCERPT_CHARS,
     PITLOOM_DEBUG_ENV_VAR,
     apply_debug_override,
     configure_logging,
@@ -265,6 +266,15 @@ def test_one_line(value: object, expected: str) -> None:
 def test_excerpt(value: object, expected: str) -> None:
     """One literal, escaped once, cut after :data:`EXCERPT_CHARS`."""
     assert excerpt(value) == expected
+
+
+def test_excerpt_masks_a_url_before_it_cuts() -> None:
+    """A cut inside a URL's user information would leave its start unmasked."""
+    # The cut lands inside the user information, whatever the cap is.
+    shown = excerpt(
+        "x" * (EXCERPT_CHARS - 15) + " https://user:secretpassword@host/path"
+    )
+    assert "secret" not in shown and "user:" not in shown
 
 
 @pytest.mark.parametrize(

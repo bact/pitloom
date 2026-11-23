@@ -86,8 +86,9 @@ def _graph_length(raw: bytes) -> int | None:
     reader refused still has its element count listed."""
     try:
         data = json.loads(raw)
-    except Exception:  # pylint: disable=broad-exception-caught
-        # The reader already said why this fragment failed.
+    except (ValueError, RecursionError):
+        # Not JSON (or nested too deep): the reader already said why this
+        # fragment failed.
         return None
     graph = data.get("@graph", []) if isinstance(data, dict) else None
     return len(graph) if isinstance(graph, list) else None

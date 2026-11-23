@@ -133,7 +133,7 @@ FRAGMENT_FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
             r".+",
             entity_text,
             "<reference>",
-            f"the spdxId a property names, {_MASKED}",
+            f"the spdxId a property names (`-` for an empty one), {_MASKED}",
             free=True,
         ),
         "digest": Field(

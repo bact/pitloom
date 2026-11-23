@@ -340,6 +340,53 @@ def test_a_name_two_digests_share_is_said_once_by_the_id_or_by_the_name(
     )
 
 
+def test_digests_of_one_algorithm_differing_only_in_case_are_one_artefact(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Without a SHA-256 to unify on, the id alone decides: ``sha512`` in
+    two spellings of one hex value is no conflict."""
+    elements, records = _fold(
+        tmp_path,
+        [_file(_SHARED, _digest("sha512", "c" * 128))],
+        [[_file(_SHARED, _digest("sha512", "C" * 128))]],
+        caplog,
+    )
+    assert _said(records) == []
+    assert [i for i, e in elements.items() if e["type"] == _FILE] == [_SHARED]
+
+
+def test_a_name_two_other_elements_digests_differ_from_is_said_once(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """One line for the element, not one per element it differs from."""
+    _, records = _fold(
+        tmp_path,
+        [
+            _file(_SHARED + "-1", _digest("sha256", _A)),
+            _file(_SHARED + "-2", _digest("sha256", _B)),
+        ],
+        [[_file(_SHARED + "-3", _digest("sha256", "c" * 64))]],
+        caplog,
+    )
+    assert [c for c, _ in _said(records)] == ["fragment-hash-conflict"]
+
+
+def test_a_name_another_type_holds_is_no_hash_conflict(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Only elements of one type and name are compared."""
+    package = {
+        "type": "software_Package",
+        "spdxId": _SHARED + "-1",
+        "name": "data",
+        _HASH: _digest("sha256", _A),
+    }
+    _, records = _fold(
+        tmp_path, [package], [[_file(_SHARED + "-2", _digest("sha256", _B))]], caplog
+    )
+    assert _said(records) == []
+
+
 @pytest.mark.parametrize(
     ("kept", "dropped"),
     [

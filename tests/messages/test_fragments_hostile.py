@@ -33,6 +33,8 @@ from pitloom.messages import MESSAGES, code_of, trusted_message
 from pitloom.messages.fragments import (
     FRAGMENT_CONFLICT,
     FRAGMENT_MISSING,
+    FragmentReadError,
+    warn_id_conflict,
     warn_property_conflict,
 )
 from tests._license_graph import fragment_graph
@@ -278,3 +280,30 @@ def test_a_value_is_cut_at_the_excerpt_limit_not_before(
     )
     (line,) = capsys.readouterr().err.splitlines()
     assert ("..." in line) is (length > EXCERPT_CHARS)
+
+
+# -- the text a caller reads ---------------------------------------------------
+
+
+def test_a_new_id_is_masked_and_escaped_in_the_id_conflict_line(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """The id a clash mints is attacker text: masked and on one line."""
+    configure_logging()
+    warn_id_conflict(
+        logging.getLogger("pitloom.assemble.x"),
+        spdx_id=f"{_NS}#P",
+        element_type="software_File",
+        holder_type="software_Package",
+        new_id=f"{_NS}#{_HOSTILE}",
+        hash_algorithm=None,
+    )
+    (line,) = capsys.readouterr().err.splitlines()
+    assert "s3cret" not in line and _TOKEN not in line and "\x1b" not in line
+
+
+def test_a_read_errors_text_is_masked_and_on_one_line() -> None:
+    """A library caller reads ``str()`` of the error, past the log sink."""
+    text = str(FragmentReadError("json", ValueError(_HOSTILE)))
+    assert "s3cret" not in text and _TOKEN not in text
+    assert "\n" not in text and "\x1b" not in text

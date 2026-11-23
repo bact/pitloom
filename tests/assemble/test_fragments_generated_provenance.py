@@ -132,6 +132,16 @@ def test_a_fragment_name_that_renames_nothing_loses_nothing(
     assert not annotations
 
 
+def test_a_replaced_generated_value_says_which_was_kept(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """The ``INFO:`` names the fragment's value as kept and the generated
+    one as dropped, not the other way round."""
+    base = _base({"description": "generated_from_labels"})
+    _, records, _ = _merge(tmp_path, caplog, base, [{"description": "curated"}])
+    assert records[0][1].endswith("kept 'curated', dropped 'generated'")
+
+
 def test_provenance_of_a_model_the_base_lacks_is_not_dropped() -> None:
     """Only a base model has base provenance to drop: a model a fragment
     introduced is left alone, and nothing is queued for it."""

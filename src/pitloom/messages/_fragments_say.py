@@ -157,7 +157,8 @@ def warn_reference_not_found(
 ) -> None:
     """The one ``WARNING:`` on *log* for the element *spdx_id* whose
     property *prop* names *reference*, which the merged document does not
-    hold (``reference-not-found``)."""
+    hold (``reference-not-found``). An empty *reference* (a fragment's
+    empty IRI) is shown as ``-``."""
     emit(
         log,
         REFERENCE_NOT_FOUND,
@@ -165,7 +166,7 @@ def warn_reference_not_found(
         line=REFERENCE_LINE,
         spdx_id=spdx_id,
         property=prop,
-        reference=reference,
+        reference=reference or "-",
     )
 
 

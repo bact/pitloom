@@ -294,3 +294,12 @@ def test_a_lone_surrogate_warns_once_after_a_successful_parse_only(
     with caplog.at_level(logging.WARNING, logger="pitloom"):
         assert _stage_of(failing.encode()).stage == "spdx"
     assert not caplog.records
+
+
+def test_a_lone_surrogate_is_text_in_the_objects_not_only_in_the_output() -> None:
+    """The SPDX 3 objects hold the escaped text, not a character no UTF-8
+    output can write (the exporter would otherwise be the only guard)."""
+    lone = json.dumps(_fragment()).replace('"x"', '"x\\ud800"')
+    objects = parse_fragment(lone.encode(), file="f.json").objects.objects
+    names = [o.name for o in objects if isinstance(o, spdx3.SoftwareAgent)]
+    assert names == ["x\\ud800"]
