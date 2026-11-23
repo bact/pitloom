@@ -55,7 +55,12 @@ from pitloom.messages._usage_unparseable import (
     USAGE_UNPARSEABLE,
     USAGE_UNPARSEABLE_MENTION,
 )
-from pitloom.messages._usage_unusable import USAGE_UNUSABLE
+from pitloom.messages._usage_unusable import (
+    USAGE_HINTS,
+    USAGE_SETTING_PROJECT,
+    USAGE_SETTING_WHEEL,
+    USAGE_UNUSABLE,
+)
 
 __all__ = [
     "EMPTY_LINE",
@@ -88,6 +93,9 @@ __all__ = [
     "READER_UNSAFE_PYPI_LINE",
     "READER_UNSAFE_REMOTE",
     "READER_UNSAFE_REMOTE_LINE",
+    "USAGE_HINTS",
+    "USAGE_SETTING_PROJECT",
+    "USAGE_SETTING_WHEEL",
     "USAGE_UNPARSEABLE",
     "USAGE_UNPARSEABLE_MENTION",
     "USAGE_UNUSABLE",

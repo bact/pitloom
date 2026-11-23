@@ -455,8 +455,9 @@ def test_a_symlinked_card_is_read(tmp_path: Path) -> None:
     assert model.license == "mit"
 
 
-def test_run_enrichers_failing_enricher_logged(tmp_path: Path) -> None:
-    """run_enrichers logs and continues when an enricher raises an exception."""
+def test_run_enrichers_lets_an_enricher_bug_fail_the_run(tmp_path: Path) -> None:
+    """An enricher says its own read problems; an exception that escapes it
+    is a bug, and fails the run rather than being swallowed."""
     failing_enricher = MagicMock()
     failing_enricher.name = "broken"
     failing_enricher.enrich.side_effect = RuntimeError("broken enricher")
@@ -467,9 +468,8 @@ def test_run_enrichers_failing_enricher_logged(tmp_path: Path) -> None:
     ):
         model = AiModelMetadata()
         cfg = EnrichConfig(local=True)
-        results = run_enrichers(model, cfg, tmp_path)
-        # pylint: disable-next=use-implicit-booleaness-not-comparison
-        assert results == []
+        with pytest.raises(RuntimeError, match="broken enricher"):
+            run_enrichers(model, cfg, tmp_path)
 
 
 def test_enricher_protocol_raises_not_implemented(tmp_path: Path) -> None:
@@ -483,9 +483,11 @@ def test_enricher_protocol_raises_not_implemented(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def _stderr_lines(capfd: pytest.CaptureFixture[str], argv: list[str]) -> list[str]:
+def _stderr_lines(
+    capfd: pytest.CaptureFixture[str], argv: list[str], status: int = 0
+) -> list[str]:
     with patch("sys.argv", ["loom", *argv]):
-        assert __main__.main() == 0
+        assert __main__.main() == status
     return capfd.readouterr().err.splitlines()
 
 
@@ -493,9 +495,10 @@ def _stderr_lines(capfd: pytest.CaptureFixture[str], argv: list[str]) -> list[st
 def test_an_exception_quoting_untrusted_text_is_one_tagged_line(
     failure: str, tmp_path: Path, capfd: pytest.CaptureFixture[str]
 ) -> None:
-    """A YAML error quotes the card's own line; an enricher's exception may
-    hold anything. Neither spills an untagged line, a forged ``::error::``
-    line or a raw bidi control onto stderr."""
+    """A YAML error quotes the card's own line (a ``WARNING:``); an
+    enricher's exception, a bug that fails the run (an ``ERROR:``), may hold
+    anything. Neither spills an untagged line, a forged ``::error::`` line
+    or a raw bidi control onto stderr."""
     model = tmp_path / "m.gguf"
     model.write_bytes(b"GGUF" + (3).to_bytes(4, "little") + bytes(16))
     hostile = "::error::evil\u202e: [x"
@@ -506,10 +509,11 @@ def test_an_exception_quoting_untrusted_text_is_one_tagged_line(
     if failure == "enricher":
         error = ValueError(f"line one\n{hostile}")
         with patch.object(ReadmeEnricher, "enrich", side_effect=error):
-            lines = _stderr_lines(capfd, argv)
+            lines = _stderr_lines(capfd, argv, status=1)
     else:
         lines = _stderr_lines(capfd, argv)
     failed = [line for line in lines if "evil" in line]
-    assert len(failed) == 1 and failed[0].startswith("WARNING: ")
+    tag = "ERROR: " if failure == "enricher" else "WARNING: "
+    assert len(failed) == 1 and failed[0].startswith(tag)
     assert all(line.startswith(("ERROR: ", "WARNING: ", "INFO: ")) for line in lines)
     assert "\u202e" not in "\n".join(lines)

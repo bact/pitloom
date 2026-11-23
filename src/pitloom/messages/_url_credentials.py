@@ -26,7 +26,7 @@ from __future__ import annotations
 
 from typing import Final
 
-from pitloom.core.iri import NAMESPACE_CREDENTIALS
+from pitloom.core.namespace_problems import NAMESPACE_CREDENTIALS
 from pitloom.messages._types import ASK_FIRST, Line, Message
 
 _SINCE: Final = "0.25.0"

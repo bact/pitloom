@@ -14,6 +14,7 @@ enrich, fragment settings).
 import pytest
 
 from pitloom._embed_wheel import _validate_sbom_filename
+from pitloom.core import provenance as core_provenance
 from pitloom.core.config import (
     VALID_CONTENT_TYPE_METHODS,
     FragmentConfig,
@@ -134,8 +135,11 @@ def test_valid_content_type_methods_is_public() -> None:
     assert VALID_CONTENT_TYPE_METHODS == frozenset({"auto", "magika", "extension"})
 
 
-def test_pitloom_config_helper_properties() -> None:
-    """Test PitloomConfig properties convert scalar fields to model objects."""
+def test_pitloom_config_helper_properties(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test PitloomConfig properties convert scalar fields to model objects
+    (a schema a later encoder may register taken as known)."""
+    known = core_provenance.KNOWN_PROVENANCE_SCHEMAS
+    monkeypatch.setattr(core_provenance, "KNOWN_PROVENANCE_SCHEMAS", known | {"spdx3"})
     cfg = PitloomConfig(
         provenance_format="annotation",
         provenance_schema="spdx3",

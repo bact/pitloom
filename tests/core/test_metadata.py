@@ -18,6 +18,7 @@ from pathlib import Path
 import pytest
 
 from pitloom.core.creation import Creator, Tool
+from pitloom.core.provenance import KNOWN_PROVENANCE_SCHEMAS
 from pitloom.extract.project.pyproject import read_pyproject
 from pitloom.messages import code_of
 
@@ -259,7 +260,15 @@ version = "1.0.0"
         assert config.provenance_max_source_metadata_bytes == 0
 
 
-def test_extract_pitloom_provenance_settings_explicit() -> None:
+def test_extract_pitloom_provenance_settings_explicit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Every key read as written (a schema a later encoder may register taken
+    as known: an unknown one is ``config-invalid``)."""
+    monkeypatch.setattr(
+        "pitloom.core._config_parse.KNOWN_PROVENANCE_SCHEMAS",
+        KNOWN_PROVENANCE_SCHEMAS | {"custom/1"},
+    )
     pyproject_content = """
 [project]
 name = "test-package"

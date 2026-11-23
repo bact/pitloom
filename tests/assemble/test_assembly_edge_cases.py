@@ -52,6 +52,7 @@ from pitloom.core.ai_metadata import AiModelFormatInfo, AiModelMetadata
 from pitloom.core.config import FragmentConfig
 from pitloom.core.model_usage import ModelUsage, UsageAccess
 from pitloom.export.spdx3_json import Spdx3JsonExporter
+from pitloom.extract._file_headers import guess_content_type
 from pitloom.extract.dependency_authors import dependency_author_pairs
 
 
@@ -332,6 +333,20 @@ def test_deps_originator_edge_branches() -> None:
         )
     assert loc2 == "https://github.com/foo/bar/blob/HEAD/AUTHORS"
     assert text2 is None
+
+    # A GitLab repository of another scheme (ssh://) has a locator but its
+    # raw URL is not http(s): not fetched, no error raised to be swallowed.
+    with patch("urllib.request.urlopen") as urlopen:
+        loc3, ctype3, text3 = _resolve_remote_authors_file(
+            "ssh://gitlab.com/foo/bar.git",
+            "AUTHORS.md",
+            offline=False,
+            content_type_method="auto",
+        )
+    urlopen.assert_not_called()
+    assert loc3 == "ssh://gitlab.com/foo/bar/-/blob/HEAD/AUTHORS.md"
+    assert ctype3 == guess_content_type(b"", "AUTHORS.md", method="extension")[0]
+    assert text3 is None
 
     # get_or_create_originator_agent with remote authors contentType
     exporter = Spdx3JsonExporter()

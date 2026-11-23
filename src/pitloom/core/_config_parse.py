@@ -55,6 +55,12 @@ from pitloom.core.file_names import (
     is_plain_file_name,
     sbom_base_name,
 )
+from pitloom.core.provenance import (
+    KNOWN_PROVENANCE_SCHEMAS,
+    VALID_PRESERVE_SOURCE_METADATA,
+    VALID_PROVENANCE_DETAIL,
+    VALID_PROVENANCE_FORMATS,
+)
 from pitloom.messages.config import MISSING, ConfigError, ConfigPlace, config_invalid
 from pitloom.messages.files import CONFIG_USE
 
@@ -64,9 +70,9 @@ _CREATION = ConfigPlace("tool.pitloom.creation")
 _CREATOR = ConfigPlace("tool.pitloom.creator")
 _PROVENANCE = ConfigPlace("tool.pitloom.provenance")
 
-_VALID_PROVENANCE_FORMATS: frozenset[str] = frozenset({"annotation", "comment", "both"})
-_VALID_PROVENANCE_DETAIL: frozenset[str] = frozenset({"minimal", "full"})
-_VALID_PRESERVE_SOURCE_METADATA: frozenset[str] = frozenset({"auto", "always", "never"})
+_VALID_PROVENANCE_FORMATS: frozenset[str] = VALID_PROVENANCE_FORMATS
+_VALID_PROVENANCE_DETAIL: frozenset[str] = VALID_PROVENANCE_DETAIL
+_VALID_PRESERVE_SOURCE_METADATA: frozenset[str] = VALID_PRESERVE_SOURCE_METADATA
 
 
 def _name_or_raise(entry: dict[str, Any], place: ConfigPlace) -> str:
@@ -148,6 +154,9 @@ def _read_provenance_settings(
     )
 
     schema = _provenance_str(raw, ("schema",), _DEFAULT_PROVENANCE_SCHEMA)
+    _require_choice(
+        schema, KNOWN_PROVENANCE_SCHEMAS, _PROVENANCE.at("schema"), "one-of-schema"
+    )
 
     detail = _provenance_str(raw, ("detail",), "minimal")
     _require_choice(

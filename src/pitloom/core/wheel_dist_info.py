@@ -41,8 +41,11 @@ from pitloom.core.archive_member_names import zip_file_members
 from pitloom.core.given_path import TypedPath
 from pitloom.core.path_probe import is_directory_error, is_missing_errno
 from pitloom.core.pep440 import parse_version
+from pitloom.messages import CodedOSError, code_of, recoded
 from pitloom.messages.files import (
+    SBOM_USE,
     Cap,
+    file_unreadable_error,
     warn_over_cap,
 )
 from pitloom.messages.targets import (
@@ -240,11 +243,23 @@ def open_wheel_zip(path: Path, *, name: Path | str | None = None) -> zipfile.Zip
 @contextlib.contextmanager
 def refuse_unreadable(archive: str, entry: str) -> Iterator[None]:
     """Turn a read failure of *entry* in the block into the wheel-refusing
-    error of :func:`pitloom.messages.wheels.refuse_unreadable_member`."""
+    error of :func:`pitloom.messages.wheels.refuse_unreadable_member`; an
+    :class:`OSError` the system raised reading the archive *archive* (an
+    I/O error) into ``file-unreadable`` for it, still an ``OSError``
+    (``input-not-found`` when it says the archive is gone). The block reads
+    only: a write failure is never said as a read."""
     try:
         yield
     except MEMBER_READ_ERRORS as exc:
         raise refuse_unreadable_member(archive, entry, exc) from exc
+    except OSError as exc:
+        if code_of(exc) is not None:
+            raise
+        if is_missing_errno(exc):
+            raise input_not_found("wheel file", archive) from exc
+        raise recoded(
+            CodedOSError, file_unreadable_error(exc, file=archive, use=SBOM_USE)
+        ) from exc
 
 
 # pylint: disable-next=too-few-public-methods

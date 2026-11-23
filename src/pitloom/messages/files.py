@@ -22,6 +22,7 @@ from pitloom.messages._field_tables import (
     SBOM_USE,
 )
 from pitloom.messages._file_unreadable import (
+    DIR_READ_LINE,
     DIR_UNLISTABLE,
     FILE_UNREADABLE,
     FILE_UNREADABLE_NOT_UTF8,
@@ -31,6 +32,8 @@ from pitloom.messages._file_unreadable import (
 from pitloom.messages._file_unreadable_warning import (
     dir_unlistable_error,
     file_unreadable_error,
+    file_unwritable_error,
+    system_failure,
     warn_dir_unlistable,
     warn_file_unreadable,
 )
@@ -84,6 +87,7 @@ __all__ = [
     "CLONE_LINE",
     "CONFIG_MEMBER_LINE",
     "Cap",
+    "DIR_READ_LINE",
     "DIR_UNLISTABLE",
     "DOWNLOAD_LINE",
     "FILE_UNREADABLE",
@@ -115,8 +119,10 @@ __all__ = [
     "WRITE_LINE",
     "dir_unlistable_error",
     "file_unreadable_error",
+    "file_unwritable_error",
     "over_cap_of",
     "registry_name_error",
+    "system_failure",
     "warn_archive_member_over_cap",
     "warn_dir_unlistable",
     "warn_file_unreadable",

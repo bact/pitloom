@@ -19,7 +19,7 @@ from pitloom.cli.commands.utils import (
     _collect_wheel_paths,
     _locate_and_detect,
     cli_error_handler,
-    report_error_line,
+    report_wheel_failure,
 )
 from pitloom.cli.kv_output import print_kv
 from pitloom.messages import say_summary
@@ -117,7 +117,7 @@ def _check_one_wheel(
             wheel_path, report=True
         )
     except (ValueError, OSError) as exc:
-        report_error_line(exc)
+        report_wheel_failure(exc, wheel_path)
         return False
 
     version_ok = _check_name_version(

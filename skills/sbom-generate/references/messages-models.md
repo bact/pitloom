@@ -334,3 +334,23 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
   ```text
   WARNING: FILE=<file>: not scanned for usage; only a .py extension is read as Python [usage-unusable]
   ```
+
+## Summaries
+
+A summary is an `INFO:` line that reports what a run did under its own rule (a
+count, the key it wrote), with no condition to name: it carries no code, and
+there is nothing to do.
+
+- Models were found and the usage scan is off: it reads every Python file for
+  references to them only on request. Said once per run.
+
+  ```text
+  INFO: Found <number> AI model file(s); pass --scan-model-usage (or set scan-model-usage = true in a --config file or pitloom_config) to also record which Python files reference them.
+  ```
+
+- Models were found and the usage scan is off: it reads every Python file for
+  references to them only on request. Said once per run.
+
+  ```text
+  INFO: Found <number> AI model file(s); pass --scan-model-usage (or set scan-model-usage = true) to also record which Python files reference them.
+  ```

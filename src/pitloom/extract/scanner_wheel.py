@@ -49,7 +49,6 @@ from pitloom.extract.ai_model.limits import (
     charging_reads,
 )
 from pitloom.extract.scanner import (
-    USAGE_SETTING_WHEEL,
     ModelCandidate,
     ReaderGate,
     UsageSource,
@@ -64,6 +63,7 @@ from pitloom.messages.files import (
 from pitloom.messages.models import (
     READER_UNSAFE,
     READER_UNSAFE_REMOTE,
+    USAGE_SETTING_WHEEL,
 )
 
 log = logging.getLogger(__name__)

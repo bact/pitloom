@@ -47,7 +47,8 @@ def exit_code_text(value: object) -> str:
 
 
 def output_text(value: object) -> str:
-    """A line a build printed, third-party text: its whitespace runs one
+    """A line a program run printed (the build, pipdeptree), third-party
+    text: its whitespace runs one
     space, the credentials in it masked, then cut to
     :data:`OUTPUT_CHARACTERS` (``...`` after a cut), then escaped
     (:func:`~pitloom.logging_config.one_line`): masked before the cut, so a
@@ -79,14 +80,16 @@ BUILD_FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
             r"-?(?:0|[1-9][0-9]*)",
             exit_code_text,
             "<exit-code>",
-            "the exit code of the build process: negative for a POSIX signal "
+            "the exit code of the program run (the build or pipdeptree): "
+            "negative for a POSIX signal "
             "(`-9`), a large number for a Windows status (`3221225786`)",
         ),
         "output": Field(
             r".+",
             output_text,
             "<output>",
-            "the last line the build printed that is not blank, each "
+            "the last line the program run (the build or pipdeptree) "
+            "printed that is not blank, each "
             "control character a space, a URL credential or a known token "
             f"masked, cut to {OUTPUT_CHARACTERS} characters (then `...`); "
             "escaped when it holds a "

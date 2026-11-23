@@ -150,6 +150,14 @@ URL_CREDENTIALS_MODE_ARGUMENT_LINE: Final = Line(
 VALUE_LINE: Final = Line(
     level="ERROR", template="%(option)s: must be %(expected)s, got %(got)s"
 )
+#: A document namespace given to the library (``IdRegistry(namespace=...)``)
+#: or as ``--namespace`` (the detail of :data:`ARGUMENT_LINE`) that cannot
+#: be one: the value last, a URL's credentials masked.
+NAMESPACE_INVALID_LINE: Final = Line(
+    level="ERROR", template="namespace %(namespace_problem)s: %(namespace)s"
+)
+#: The same, for an empty namespace.
+NAMESPACE_EMPTY_LINE: Final = Line(level="ERROR", template="namespace is empty")
 #: A ``CredentialPolicy(refuse=...)`` that is no ``bool``.
 REFUSE_ARGUMENT_LINE: Final = Line(
     level="ERROR",
@@ -170,6 +178,8 @@ OPTION_INVALID: Final = Message(
         URL_CREDENTIALS_MODE_ARGUMENT_LINE,
         REFUSE_ARGUMENT_LINE,
         VALUE_LINE,
+        NAMESPACE_INVALID_LINE,
+        NAMESPACE_EMPTY_LINE,
     ),
     summary="The command line holds an option or a value the command does not "
     "take: an unknown option, a value of the wrong form or out of range, an "
@@ -179,8 +189,11 @@ OPTION_INVALID: Final = Message(
     "IdRegistry.generate). Or a library caller gave a value of the wrong "
     "type or shape (the must-be line, as config-invalid says it of a "
     "setting: a byte cap of 0, a creation_datetime that is no ISO 8601 "
-    "date). Or a URL credential fingerprint given to the library is not "
-    "one; the line never shows the value, which may be a credential pasted "
+    "date, an empty SBOM given to embed_sbom_in_wheel). Or a document "
+    "namespace given as --namespace or to IdRegistry is not an absolute IRI "
+    "without a '#' (the namespace lines, also the detail of 'argument "
+    "--namespace:'). Or a URL credential fingerprint given to the library is "
+    "not one; the line never shows the value, which may be a credential pasted "
     "by mistake. Or PitloomConfig.url_credentials is neither warn nor "
     "refuse, or CredentialPolicy(refuse=...) is no bool. The same faults "
     "in [tool.pitloom] are config-invalid. An option given without its "
@@ -190,7 +203,9 @@ OPTION_INVALID: Final = Message(
     "PATH outside --project-dir; the library raises ValueError carrying the "
     "code for a build timeout out of range (BuildOptions), a path outside "
     "the project root (IdRegistry.generate), a value of the wrong type or "
-    "shape, a fingerprint that is none (CredentialPolicy) or a "
+    "shape (ProvenanceConfig and PitloomConfig refuse a bad provenance "
+    "format, schema or detail when built), a namespace that is none "
+    "(IdRegistry), a fingerprint that is none (CredentialPolicy) or a "
     "url-credentials that is no mode.",
     effect="not-written",
     actor="caller",

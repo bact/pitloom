@@ -36,7 +36,7 @@ the table of prefixes.
 - [Builds and temporary directories](message-codes-build.md): 7 codes
 - [Files and text](message-codes-files.md): 14 codes
 - [Lock files](message-codes-lock-files.md): 7 codes
-- [Dependencies](message-codes-dependencies.md): 6 codes
+- [Dependencies](message-codes-dependencies.md): 7 codes
 - [PyPI](message-codes-pypi.md): 13 codes
 - [Network](message-codes-network.md): 11 codes
 - [Git URLs](message-codes-git.md): 8 codes
@@ -87,6 +87,7 @@ the table of prefixes.
 | [`download-timeout`](message-codes-network.md#download-timeout) | ERROR, WARNING | 0.24.0 |
 | [`dynamic-field-needs-build`](message-codes-metadata.md#dynamic-field-needs-build) | WARNING | 0.25.0 |
 | [`dynamic-field-unusable`](message-codes-metadata.md#dynamic-field-unusable) | WARNING | 0.25.0 |
+| [`environment-unreadable`](message-codes-dependencies.md#environment-unreadable) | ERROR | 0.25.0 |
 | [`extra-gate-ambiguous`](message-codes-dependencies.md#extra-gate-ambiguous) | WARNING | 0.25.0 |
 | [`extra-gate-unusable`](message-codes-dependencies.md#extra-gate-unusable) | WARNING | 0.25.0 |
 | [`field-not-recordable`](message-codes-model-fields.md#field-not-recordable) | INFO | 0.23.0 |

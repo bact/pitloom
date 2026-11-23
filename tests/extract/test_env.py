@@ -16,6 +16,7 @@ from unittest.mock import patch
 import pytest
 
 from pitloom.extract.env import read_environment
+from pitloom.messages import code_of
 
 
 def _fake_pipdeptree_result(
@@ -103,7 +104,7 @@ def test_read_environment_rejects_real_json_tree_output() -> None:
     with patch(
         "subprocess.run", return_value=_result_of(_JSON_TREE_FIXTURE.read_bytes())
     ):
-        with pytest.raises(RuntimeError, match="Unexpected pipdeptree output"):
+        with pytest.raises(RuntimeError, match="pipdeptree output is not its"):
             read_environment()
 
 
@@ -125,9 +126,12 @@ _MALFORMED = {
 
 @pytest.mark.parametrize("stdout", _MALFORMED.values(), ids=_MALFORMED.keys())
 def test_read_environment_malformed_output_raises(stdout: bytes) -> None:
+    """``environment-unreadable``, a ``RuntimeError`` as before: not JSON, or
+    JSON that is not the flat list."""
     with patch("subprocess.run", return_value=_result_of(stdout)):
-        with pytest.raises(RuntimeError, match="Unexpected pipdeptree output"):
+        with pytest.raises(RuntimeError, match="^pipdeptree output is not") as caught:
             read_environment()
+    assert code_of(caught.value) == "environment-unreadable"
 
 
 def test_read_environment_empty_list_is_an_empty_environment() -> None:
@@ -155,7 +159,7 @@ def test_read_environment_accepts_utf8_bom() -> None:
 )
 def test_read_environment_run_failure_raises(error: Exception) -> None:
     with patch("subprocess.run", side_effect=error):
-        with pytest.raises(RuntimeError, match="Failed to run pipdeptree"):
+        with pytest.raises(RuntimeError, match="run pipdeptree|pipdeptree exited"):
             read_environment()
 
 

@@ -44,7 +44,7 @@ _NOT_EMITTERS = {
     # OutsideRootError's text; the outside-project line states it itself.
     "core/path_confine.py",
     # The namespace refusal's phrase, which the credentials-unsafe lines take.
-    "core/iri.py",
+    "core/namespace_problems.py",
 }
 
 _LOG_METHODS = frozenset({"warning", "info", "error", "critical", "exception", "log"})

@@ -13,10 +13,23 @@ import sys
 from typing import Any
 
 from pitloom.core.project import ProjectMetadata
+from pitloom.messages.dependencies import (
+    NO_DEPENDENCY_KEY,
+    NO_OUTPUT,
+    NO_PACKAGE_KEY,
+    NOT_A_LIST,
+    pipdeptree_exited,
+    pipdeptree_not_json,
+    pipdeptree_not_run,
+    pipdeptree_shape,
+)
 
 
-def _shape_error(detail: str) -> RuntimeError:
-    return RuntimeError(f"Unexpected pipdeptree output: {detail}")
+def _last_line(stderr: bytes | None) -> str:
+    """The last line of *stderr* that is not blank, stripped, or
+    :data:`~pitloom.messages.dependencies.NO_OUTPUT`."""
+    lines = (stderr or b"").decode("utf-8", "replace").strip().splitlines()
+    return lines[-1].strip() if lines else NO_OUTPUT
 
 
 def _validated_node_list(data: Any) -> list[dict[str, Any]]:
@@ -25,19 +38,23 @@ def _validated_node_list(data: Any) -> list[dict[str, Any]]:
     Each node is ``{"package": {"key": ..., ...}, "dependencies": [{"key":
     ...}, ...]}``. ``--json-tree`` output (nested, no ``package`` wrapper)
     fails here rather than degrading into packages named ``unknown``.
+
+    Raises:
+        pitloom.messages.CodedRuntimeError: It is not
+            (``environment-unreadable``).
     """
     if not isinstance(data, list):
-        raise _shape_error("expected a JSON list")
+        raise pipdeptree_shape(NOT_A_LIST)
     for node in data:
         package = node.get("package") if isinstance(node, dict) else None
         if not isinstance(package, dict) or not isinstance(package.get("key"), str):
-            raise _shape_error("expected 'package' with a string 'key' per node")
+            raise pipdeptree_shape(NO_PACKAGE_KEY)
         dependencies = node.get("dependencies", [])
         if not isinstance(dependencies, list) or not all(
             isinstance(dep, dict) and isinstance(dep.get("key"), str)
             for dep in dependencies
         ):
-            raise _shape_error("expected 'dependencies' entries with a string 'key'")
+            raise pipdeptree_shape(NO_DEPENDENCY_KEY)
     return data
 
 
@@ -76,8 +93,9 @@ def read_environment() -> tuple[ProjectMetadata, list[dict[str, Any]]]:
         sorted by ``key``).
 
     Raises:
-        RuntimeError: pipdeptree failed to run, or its output is not the
-            expected ``--json`` list.
+        pitloom.messages.CodedRuntimeError: pipdeptree failed to run, or its
+            output is not the expected ``--json`` list
+            (``environment-unreadable``, a :class:`RuntimeError`).
     """
     try:
         result = subprocess.run(
@@ -87,18 +105,14 @@ def read_environment() -> tuple[ProjectMetadata, list[dict[str, Any]]]:
         )  # nosec B603
     except subprocess.CalledProcessError as e:
         # The last stderr line names the cause (e.g. "No module named pipdeptree").
-        lines = (e.stderr or b"").decode("utf-8", "replace").strip().splitlines()
-        cause = f": {lines[-1].strip()}" if lines else ""
-        raise RuntimeError(
-            f"Failed to run pipdeptree (exit status {e.returncode}){cause}"
-        ) from e
+        raise pipdeptree_exited(e.returncode, _last_line(e.stderr)) from e
     except OSError as e:
-        raise RuntimeError(f"Failed to run pipdeptree: {e}") from e
+        raise pipdeptree_not_run(e) from e
     try:
         # Bytes in: json.loads detects the encoding and skips a UTF-8 BOM.
         raw = json.loads(result.stdout)
     except ValueError as e:  # JSONDecodeError, UnicodeDecodeError
-        raise _shape_error(f"not valid JSON ({e})") from e
+        raise pipdeptree_not_json(e) from e
     tree = _canonical_order(_validated_node_list(raw))
 
     # Create a synthetic root package representing the environment

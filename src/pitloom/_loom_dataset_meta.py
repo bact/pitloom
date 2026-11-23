@@ -48,13 +48,13 @@ from pitloom.enrich.readme import DATASET_CARD
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 from pitloom.extract.dataset import read_croissant, read_dataset_card
 from pitloom.extract.dataset.licence import dataset_licence
-from pitloom.logging_config import loggable, one_line
-from pitloom.messages.files import warn_over_cap
+from pitloom.logging_config import loggable
+from pitloom.messages import emit
+from pitloom.messages.files import DIR_READ_LINE, FILE_UNREADABLE, warn_over_cap
 
 log = logging.getLogger("pitloom.loom")
 
 __all__ = [
-    "CARD_SKIPPED_WARNING",
     "CONTROL_CHARACTERS_WARNING",
     "CROISSANT_URL_ERROR",
     "DECLARED_LICENSE_TYPE_ERROR",
@@ -72,10 +72,6 @@ CROISSANT_URL_ERROR = "loom: croissant=%r is a URL; only a local file is read"
 #: ``TypeError`` text for a ``declared_license=`` that is not a string.
 #: Argument: the value's type name.
 DECLARED_LICENSE_TYPE_ERROR = "loom: declared_license must be a str, not %s"
-
-#: ``log.warning()`` format for a dataset card that failed to be read.
-#: Arguments: the dataset's name, the error's type name and text.
-CARD_SKIPPED_WARNING = "loom: dataset %r: dataset card skipped: %s: %s"
 
 #: ``log.warning()`` format for display text escaped in a dataset's
 #: elements. Arguments: the dataset's name, the properties changed.
@@ -181,17 +177,26 @@ def read_sources(
 def _optional_card(name: str) -> DatasetMetadata | None:
     """What the card of the directory dataset *name* states. The caller did
     not name the card: any failure to read it skips it, with one
-    ``WARNING:``, and never fails the declaration."""
+    ``WARNING:``, and never fails the declaration. The reader says each
+    problem with the card itself; what reaches here names no file of it,
+    said as ``file-unreadable``'s directory line. A current directory gone
+    leaves the card its bare name as label, and it is still read."""
     try:
-        return read_dataset_card(Path(name), label=cwd_relative_label(name))
+        label = cwd_relative_label(name)
+    except OSError:
+        label = Path(name).name
+    try:
+        return read_dataset_card(Path(name), label=label)
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
-        msg = CARD_SKIPPED_WARNING + DATASET_CARD.fields_skipped
-        log.warning(
-            msg,
-            loggable(name),
-            type(exc).__name__,
-            one_line(exc),
+        emit(
+            log,
+            FILE_UNREADABLE,
+            logging.WARNING,
+            line=DIR_READ_LINE,
+            dir=name,
+            use=DATASET_CARD.use,
+            failure=exc,
         )
         return None
 

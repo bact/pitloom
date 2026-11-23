@@ -37,7 +37,14 @@ from ._baseline import (
 )
 from ._families import emitter_family
 from ._quotes import collect_skill_quotes, match_quotes
-from ._scope import READER_DISPATCH, READER_PACKAGE, in_scope, is_summary, reach
+from ._scope import (
+    READER_DISPATCH,
+    READER_PACKAGE,
+    in_scope,
+    is_os_error_rebuilt,
+    is_summary,
+    reach,
+)
 from ._walker import walk
 
 __all__ = [
@@ -50,6 +57,7 @@ __all__ = [
     "format_baseline",
     "in_scope",
     "inventory",
+    "is_os_error_rebuilt",
     "is_summary",
     "match_quotes",
     "parse_baseline",
