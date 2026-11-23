@@ -342,7 +342,7 @@ def test_every_bound_check_raises_a_reason_of_the_table() -> None:
     closed field, so a reader raises only the table's texts (``%`` one
     number): an off-table text would be refused at run time."""
     calls = _limit_calls()
-    assert len(calls) >= 12  # the scan finds them
+    assert len(calls) >= 11  # the scan finds them
     for where, call in calls:
         (arg,) = call.args
         head = arg.left if isinstance(arg, ast.BinOp) else arg

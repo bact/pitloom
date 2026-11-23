@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-14
-Last-Modified: 2026-11-22
+Last-Modified: 2026-11-23
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -48,7 +48,7 @@ file only); see
 | :----- | :--------------- | :----------- | :---- | :-------------- |
 | CRFsuite | `.crfsuite`, `.model` | magic `lCRF` | header and label strings | none |
 | fastText | `.ftz`, `.bin` | magic `BA 16 4F 2F` | whole model, in memory | `fasttext-community` (`fasttext`) |
-| GGUF | `.gguf` | magic `GGUF` | key-value header (memory-mapped) | `gguf` (`gguf`) |
+| GGUF | `.gguf` | magic `GGUF` | key-value header and tensor infos, by Pitloom's own reader (memory-mapped; arrays as length and type) | `gguf` (`gguf`), for quantisation names and tensor sizes |
 | HDF5, Keras v1-v2 | `.h5`, `.hdf5` | HDF5 magic, or any non-empty file (a userblock moves the signature) | root attributes | `h5py` (`hdf5`) |
 | Keras v3 | `.keras` | ZIP | `metadata.json`, `config.json` (architecture, compile settings) and the member list | none |
 | NumPy | `.npy`, `.npz` | `.npy`: magic `\x93NUMPY`; `.npz`: ZIP | array headers | `numpy` (`numpy`) |
@@ -157,8 +157,10 @@ can hold it, Pitloom does not read it. **--**: the format has no such field.
     file's shape and dtype are kept as `properties` `array_shape` (`2x2`,
     `scalar` for none) and `array_dtype`; an `.npz` archive's array count as
     `array_count`.
-14. `graph.name`, unless blank or an exporter default (`torch_jit`,
-    `main_graph`, `tf2onnx`, ...).
+14. `graph.name`, unless blank, a tool's default (`torch_jit`,
+    `main_graph`, `tf2onnx`, `merged`, `spox_graph`,
+    `mxnet_converted_model`, ...) or the writing tool's own name
+    (`producer_name`), alone or followed by `_` or `-` and more.
 15. `model_version`; a bit-packed SemVer value (any of its upper 32 bits
     set) as `MAJOR.MINOR.PATCH`
     ([ONNX versioning](https://onnx.ai/onnx/repo-docs/Versioning.html)).
@@ -434,7 +436,8 @@ the Hugging Face Hub, "card" a README or model card read with `--enrich`.
 | `base_model`, `base_model_relation` | HF | `Relationship` `descendantOf` to an `ai_AIPackage` for the base model (made if absent); the relation in its `comment` |
 | `datasets` | GGUF, HF, card | `dataset_DatasetPackage` plus `Relationship` `trainedOn` or `testedOn`; references to one dataset (a Hub id in any letter case, or one name with different spacing) give one package with one relationship per role, a later reference only filling what the first leaves unset; a licence the dataset's metadata states becomes a licence element and `hasDeclaredLicense` (or `hasConcludedLicense` for a third-party source), as for the model. A Hub card's dataset gets the licence, description, revision and owner of its own Hub dataset repository (see [Hugging Face Hub models](#hugging-face-hub-models)) |
 | `properties`, `raw_metadata`, `raw_metadata_types` | every format | `Annotation` of kind `artifact-metadata` (schema `https://pitloom.dev/provenance/artifact-metadata/2`): `metadata`, `valueTypes`, `format`; only when preserved, see below |
-| `raw_metadata_dropped` | any format, over the entry cap | that annotation's `truncatedKeyCount` |
+| `raw_metadata_dropped` | any format, over the entry cap | that annotation's `truncatedKeyCount` and `maxEntries` |
+| `raw_metadata_unread` | GGUF, the pairs a header read in part did not reach | that annotation's `truncatedKeyCount` |
 | `extra_data`, `extra_lists` | HF | that annotation, `format` `huggingface` |
 | `provenance` | every format | `ai_AIPackage.comment` (`Metadata provenance: ...`) and/or a provenance `Annotation`, by `[tool.pitloom.provenance] format` |
 | `format_info.model_format` | every format | the artifact-metadata annotation's `format` |

@@ -114,7 +114,15 @@ from a scan and from `loom model FILE` (exit 0). Beyond that:
 
 - A file-named entry with other properties was read: NumPy, fastText,
   CRFsuite and classic PyTorch carry no model name, nor does an ONNX file
-  whose `graph.name` is an exporter default.
+  whose `graph.name` is a tool's default (`main_graph`, `merged`, ...) or
+  its writing tool's name (`spox_graph` from `spox`).
+- A GGUF header over a bound is read in part, with one `WARNING: ... cap;
+  fields from <key> on and the tensor shapes not read [over-cap]` (`pair
+  <N>`, counted from 1, when the key is over a bound or empty; `pair <N>
+  length as declared` for an array of an empty key): the fields before it
+  are recorded, no parameter count, and the artifact-metadata annotation
+  is `truncated` when pairs are left unread. An array cut there
+  keeps its length as declared (`Evidence: declared`).
 - Keras v3 (`.keras`) gives the class (`ai_typeOfModel`), name,
   scalar config entries (`ai_hyperparameter`), input shape, the Keras version
   (provenance only) and, as properties in the artifact-metadata annotation,

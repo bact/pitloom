@@ -40,7 +40,7 @@ See also: :mod:`pitloom.extract.ai_model.gguf` (the reader) and
 from __future__ import annotations
 
 import re
-from collections.abc import Iterator, Mapping
+from collections.abc import Iterator, Mapping, Sequence
 from typing import Any, NamedTuple
 from urllib.parse import urlsplit
 
@@ -242,17 +242,11 @@ def _entry_count(fields: Mapping[str, Any]) -> int:
     return min(count, len(fields))
 
 
-def _listed_names(listed: Any) -> Iterator[str]:
-    """Each element of the ``general.datasets`` field *listed* (a
-    ``gguf.ReaderField``), decoded as the reader decodes a string; nothing
-    when it is no array of strings."""
-    if listed is None:
-        return
-    types = [str(getattr(t, "name", "")) for t in listed.types]
-    if types != ["ARRAY", "STRING"]:
-        return
-    for index in listed.data:
-        yield listed.parts[index].tobytes().decode("utf-8", errors="surrogateescape")
+def _listed_names(listed: Sequence[str] | None) -> Iterator[str]:
+    """Each element of the ``general.datasets`` array *listed*, as read
+    (decoded with ``surrogateescape``); nothing when there is none."""
+    if listed is not None:
+        yield from listed
 
 
 def _listed_entry(text: str, source: str, file_name: str) -> DatasetMetadata:
@@ -275,7 +269,7 @@ def _listed_entry(text: str, source: str, file_name: str) -> DatasetMetadata:
 
 def read_gguf_datasets(
     fields: Mapping[str, Any],
-    listed: Any,
+    listed: Sequence[str] | None,
     source: str,
     where: str,
     file_name: str,
@@ -293,13 +287,13 @@ def read_gguf_datasets(
     a ``WARNING:`` for each that both state differently
     (:func:`~pitloom.core.dataset_merge.merge_dataset_into`). At most
     :data:`GGUF_DATASETS_CAP` datasets, with one ``WARNING:`` naming *where*
-    when more are listed. Elements are decoded only as far as the cap needs.
+    when more are listed.
 
     Args:
         fields: The file's fields as
             :func:`~pitloom.extract.ai_model.gguf.read_gguf` reads them.
-        listed: The ``general.datasets`` ``gguf.ReaderField``, or ``None``;
-            read here, so before the reader releases the file.
+        listed: The elements of the ``general.datasets`` array of strings,
+            or ``None`` when the file has none.
         source: The ``Source: <file name>`` part of the provenance.
         where: The model's path, for the over-cap warning.
         file_name: The model's file name, naming it in a URL warning.

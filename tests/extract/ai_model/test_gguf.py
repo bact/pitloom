@@ -12,14 +12,15 @@
 from __future__ import annotations
 
 import logging
+import struct
 from pathlib import Path
-from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
 from pitloom.core.ai_metadata import AiModelFormat, AiModelMetadata
 from pitloom.extract.ai_model.gguf import _resolve_quantization, read_gguf
+from tests.extract.ai_model.gguf_builders import STRING, UINT32, gguf_file, kv, string
 
 # ---------------------------------------------------------------------------
 # GGUF extractor (mocked)
@@ -28,12 +29,16 @@ from pitloom.extract.ai_model.gguf import _resolve_quantization, read_gguf
 _GGUF = Path(__file__).parent.parent.parent / "fixtures" / "aimodels" / "gguf"
 
 
-def _make_gguf_field(value: int | str) -> SimpleNamespace:
-    """Create a GGUFReader-like scalar field: no type information (a bare
-    ``MagicMock``'s ``types[0]`` would be a mock, neither array nor string)."""
-    arr = MagicMock()
-    arr.tolist.return_value = [value]
-    return SimpleNamespace(parts=[arr], types=[])
+def _pairs_file(path: Path, pairs: dict[str, int | str]) -> Path:
+    """A GGUF file of *pairs*: a string as STRING, an int as UINT32."""
+    body = b"".join(
+        kv(k.encode(), STRING, string(v))
+        if isinstance(v, str)
+        else kv(k.encode(), UINT32, struct.pack("<I", v))
+        for k, v in pairs.items()
+    )
+    path.write_bytes(gguf_file(0, len(pairs), body))
+    return path
 
 
 def test_gguf_missing_library(tmp_path: Path) -> None:
@@ -45,29 +50,19 @@ def test_gguf_missing_library(tmp_path: Path) -> None:
 
 
 def test_gguf_basic_extraction(tmp_path: Path) -> None:
-    model_file = tmp_path / "llama.gguf"
-    model_file.write_bytes(b"fake")
-
-    mock_fields = {
-        "general.architecture": _make_gguf_field("llama"),
-        "general.name": _make_gguf_field("LLaMA-3-8B"),
-        "general.description": _make_gguf_field("Meta LLaMA 3 8B"),
-        "general.version": _make_gguf_field("3.0"),
-        "llama.context_length": _make_gguf_field(8192),
-        "llama.embedding_length": _make_gguf_field(4096),
-        "llama.attention.head_count": _make_gguf_field(32),
-        "llama.block_count": _make_gguf_field(32),
-        "tokenizer.ggml.model": _make_gguf_field("llama"),
+    pytest.importorskip("gguf")
+    pairs: dict[str, int | str] = {
+        "general.architecture": "llama",
+        "general.name": "LLaMA-3-8B",
+        "general.description": "Meta LLaMA 3 8B",
+        "general.version": "3.0",
+        "llama.context_length": 8192,
+        "llama.embedding_length": 4096,
+        "llama.attention.head_count": 32,
+        "llama.block_count": 32,
+        "tokenizer.ggml.model": "llama",
     }
-
-    mock_reader = MagicMock()
-    mock_reader.fields = mock_fields
-
-    mock_gguf = MagicMock()
-    mock_gguf.GGUFReader.return_value = mock_reader
-
-    with patch.dict("sys.modules", {"gguf": mock_gguf}):
-        meta = read_gguf(model_file)
+    meta = read_gguf(_pairs_file(tmp_path / "llama.gguf", pairs))
 
     assert meta.format_info.model_format == AiModelFormat.GGUF
     assert meta.name == "LLaMA-3-8B"
@@ -86,21 +81,9 @@ def test_gguf_basic_extraction(tmp_path: Path) -> None:
 
 def test_gguf_minimal_fields(tmp_path: Path) -> None:
     """Only architecture, no name or description."""
-    model_file = tmp_path / "model.gguf"
-    model_file.write_bytes(b"fake")
-
-    mock_fields = {
-        "general.architecture": _make_gguf_field("mistral"),
-    }
-
-    mock_reader = MagicMock()
-    mock_reader.fields = mock_fields
-
-    mock_gguf = MagicMock()
-    mock_gguf.GGUFReader.return_value = mock_reader
-
-    with patch.dict("sys.modules", {"gguf": mock_gguf}):
-        meta = read_gguf(model_file)
+    pytest.importorskip("gguf")
+    path = _pairs_file(tmp_path / "model.gguf", {"general.architecture": "mistral"})
+    meta = read_gguf(path)
 
     assert meta.architecture == "mistral"
     assert meta.name is None
@@ -113,22 +96,12 @@ def test_gguf_no_architecture_no_unresolvable_file_type(tmp_path: Path) -> None:
     (rather than an empty string), and a 'general.file_type' value that
     can't be resolved to a quantization name leaves quantization as None
     without adding quantization provenance."""
-    model_file = tmp_path / "model.gguf"
-    model_file.write_bytes(b"fake")
-
-    mock_fields = {
-        "general.name": _make_gguf_field("Nameless"),
-        "general.file_type": _make_gguf_field("not_a_number"),
+    pytest.importorskip("gguf")
+    pairs: dict[str, int | str] = {
+        "general.name": "Nameless",
+        "general.file_type": "not_a_number",
     }
-
-    mock_reader = MagicMock()
-    mock_reader.fields = mock_fields
-
-    mock_gguf = MagicMock()
-    mock_gguf.GGUFReader.return_value = mock_reader
-
-    with patch.dict("sys.modules", {"gguf": mock_gguf}):
-        meta = read_gguf(model_file)
+    meta = read_gguf(_pairs_file(tmp_path / "model.gguf", pairs))
 
     assert meta.architecture is None
     assert "architecture" not in meta.provenance
@@ -137,18 +110,13 @@ def test_gguf_no_architecture_no_unresolvable_file_type(tmp_path: Path) -> None:
 
 
 def test_gguf_load_failure(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    pytest.importorskip("gguf")
     model_file = tmp_path / "model.gguf"
     model_file.write_bytes(b"corrupt")
-
-    mock_gguf = MagicMock()
-    mock_gguf.GGUFReader.side_effect = ValueError("bad magic")
-
-    with patch.dict("sys.modules", {"gguf": mock_gguf}):
-        with caplog.at_level(logging.DEBUG, logger="pitloom.extract.ai_model.gguf"):
-            with pytest.raises(ValueError, match="Failed to read GGUF"):
-                read_gguf(model_file)
-
-    # Open failure is logged at debug level before being re-raised.
+    with caplog.at_level(logging.DEBUG, logger="pitloom.extract.ai_model.gguf"):
+        with pytest.raises(ValueError, match="Failed to read GGUF.*header"):
+            read_gguf(model_file)
+    # The failure is logged at debug level before being re-raised.
     assert any("model.gguf" in r.message for r in caplog.records)
 
 

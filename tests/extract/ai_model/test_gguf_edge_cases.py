@@ -11,20 +11,13 @@ See also:
 
 from __future__ import annotations
 
-import collections
 import struct
 from pathlib import Path
 from typing import Any
-from unittest.mock import MagicMock
 
 import pytest
 
-from pitloom.extract.ai_model.gguf import (
-    _categorize_gguf_fields,
-    _field_value,
-    _resolve_quantization,
-    read_gguf,
-)
+from pitloom.extract.ai_model.gguf import _resolve_quantization, read_gguf
 from tests.extract.ai_model.gguf_builders import (
     BOOL,
     FLOAT32,
@@ -132,43 +125,3 @@ def test_a_stated_value_is_read(
     meta = read_gguf(path)
     assert getattr(meta, field) == expected
     assert meta.provenance[field] == f"Source: m.gguf | Field: {key.decode()}"
-
-
-def test_field_value_empty_parts_and_raw_objects() -> None:
-    """_field_value handles empty parts and non-list / non-string parts."""
-    # 1. Empty parts
-    field_empty = MagicMock()
-    field_empty.parts = []
-    assert _field_value(field_empty) is None
-
-    # 2. String parts with STRING type name
-    type_tuple = collections.namedtuple("type_tuple", ["name"])
-    type_obj = type_tuple("STRING")
-    part_mock = MagicMock()
-    part_mock.tobytes.return_value = b"hello world"
-    field_str = MagicMock()
-    field_str.parts = [part_mock]
-    field_str.types = [type_obj]
-    assert _field_value(field_str) == "hello world"
-
-    # 3. Raw scalar object without tolist()
-    field_scalar = MagicMock()
-    field_scalar.parts = [42]
-    field_scalar.types = []
-    assert _field_value(field_scalar) == 42
-
-
-def test_categorize_gguf_fields_skips_none_values() -> None:
-    """_categorize_gguf_fields ignores fields where the value is None."""
-    fields = {
-        "llama.context_length": 4096,
-        "general.author": "Someone",
-        "general.empty_key": None,
-    }
-    prov: dict[str, str] = {}
-    hyperparams, properties = _categorize_gguf_fields(fields, "Source: test", prov, {})
-
-    assert "llama.context_length" in hyperparams
-    assert "general.author" in properties
-    assert "general.empty_key" not in properties
-    assert "general.empty_key" not in hyperparams

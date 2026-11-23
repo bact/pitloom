@@ -39,13 +39,16 @@ jobs:
           # Seed corpus, copied so libFuzzer's new inputs stay out of tests/
           - target: crfsuite_header
             seed: tests/fixtures/aimodels/crfsuite
+          - target: gguf_header
+            seed: tests/fixtures/aimodels/gguf
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 
       - uses: ./.github/actions/setup-python
         with:
-          python-version: "3.x"
+          # atheris has no wheel for newer CPython; raise the pin when it does.
+          python-version: "3.14"
 
       - name: Install project and fuzz dependencies
         uses: ./.github/actions/install-pitloom
@@ -61,6 +64,9 @@ jobs:
           if [ -n "${SEED}" ]; then
             mkdir -p fuzz-corpus
             find "${SEED}" -type f ! -name '*.py' -exec cp {} fuzz-corpus/ \;
+            if [ "${{ matrix.target }}" = "gguf_header" ]; then
+              python fuzz/gguf_seeds.py fuzz-corpus
+            fi
             set -- "$@" fuzz-corpus
           fi
           python "fuzz/fuzz_${{ matrix.target }}.py" "$@"

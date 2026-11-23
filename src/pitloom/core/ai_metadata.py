@@ -432,6 +432,10 @@ class AiModelMetadata:
     # out of raw_metadata; the annotation's truncatedKeyCount. 0: none.
     raw_metadata_dropped: int = 0
 
+    # How many of the file's metadata keys a read in part (a GGUF header
+    # past a bound) did not reach; also in truncatedKeyCount. 0: none.
+    raw_metadata_unread: int = 0
+
     # Input and output tensor specifications
     inputs: list[dict[str, Any]] = field(default_factory=list)
     outputs: list[dict[str, Any]] = field(default_factory=list)

@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-08
-Last-Modified: 2026-11-22
+Last-Modified: 2026-11-23
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -104,7 +104,7 @@ value, not just where it read it from:
 | `synthetic` | The element is Pitloom's own synthesised placeholder root package for an installed environment (`loom env`), not extracted from any source file. |
 | `magika_content_detection` | Per-file content type resolved by the [`magika`](https://pypi.org/project/magika/) content-detection library. |
 | `extension_guess` | Per-file content type resolved by a filename-extension fallback (no `magika`, or no confident result). |
-| `file_name_stem` | An AI model's name is its file name without the last extension: the file names no model (or only an exporter default). |
+| `file_name_stem` | An AI model's name is its file name without the last extension: the file names no model (or only a tool's default graph name). |
 | `semver_bit_packed` | An ONNX integer `model_version` decoded as bit-packed SemVer (`MAJOR.MINOR.PATCH`). |
 | `array_length` | A GGUF array field: only its element count is recorded (property `<key>.length`); the elements are not recorded. |
 | `crfsuite_model_type` | A CRFsuite model's type of model, `conditional random field`, derived from the header's model type (`FOMC`, a first-order Markov CRF, the only type CRFsuite writes). |

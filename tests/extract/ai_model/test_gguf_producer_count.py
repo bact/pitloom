@@ -16,8 +16,6 @@ from __future__ import annotations
 
 import struct
 from pathlib import Path
-from types import SimpleNamespace
-from unittest import mock
 
 import pytest
 
@@ -29,7 +27,6 @@ from tests.extract.ai_model.gguf_builders import (
     BOOL,
     STRING,
     UINT32,
-    gguf_file,
     gguf_with_tensors,
     kv,
     string,
@@ -120,15 +117,12 @@ def test_a_count_over_the_cap_is_one_warning(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
     pytest.importorskip("gguf")
-    # pylint: disable-next=import-outside-toplevel
-    import gguf
-
     path = tmp_path / "m.gguf"
-    path.write_bytes(gguf_file(0, 0))
-    huge = SimpleNamespace(shape=SimpleNamespace(tolist=lambda: [10**8, 10**8]))
-    reader = SimpleNamespace(fields={}, tensors=[huge])
-    with mock.patch.object(gguf, "GGUFReader", return_value=reader):
-        meta = read_gguf(path)
+    # A type the gguf package does not know is not sized, so its data need
+    # not be in the file.
+    huge = tensor_info("a", (10**8, 10**8), ggml_type=9999)
+    path.write_bytes(gguf_with_tensors([huge]))
+    meta = read_gguf(path)
     assert meta.parameter_count is None
     assert PARAMETER_COUNT_PROVENANCE_KEY not in meta.provenance
     (warning,) = logged_warnings(caplog)
