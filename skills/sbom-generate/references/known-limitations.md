@@ -118,8 +118,10 @@ from a scan and from `loom model FILE` (exit 0). Beyond that:
   its writing tool's name (`spox_graph` from `spox`).
 - A GGUF header over a bound is read in part, with one `WARNING: ... cap;
   fields from <key> on and the tensor shapes not read [over-cap]` (`pair
-  <N>`, counted from 1, when the key is over a bound or empty): the
-  fields before it are recorded, no parameter count. An array cut there
+  <N>`, counted from 1, when the key is over a bound or empty; `pair <N>
+  length as declared` for an array of an empty key): the fields before it
+  are recorded, no parameter count, and the artifact-metadata annotation
+  is `truncated` when pairs are left unread. An array cut there
   keeps its length as declared (`Evidence: declared`).
 - Keras v3 (`.keras`) gives the class (`ai_typeOfModel`), name,
   scalar config entries (`ai_hyperparameter`), input shape, the Keras version

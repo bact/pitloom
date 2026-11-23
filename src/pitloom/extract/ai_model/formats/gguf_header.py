@@ -24,7 +24,8 @@ array whose end the walk did not reach keeps its declared length and type
 (:attr:`GgufArray.complete` false).
 
 A declaration that cannot fit in the file, an unknown type code, a
-duplicate key or tensor name, a key that is no UTF-8, a bad
+duplicate key or tensor name, a tensor of more than :data:`MAX_DIMS`
+dimensions, a key that is no UTF-8, a bad
 ``general.alignment`` or a structure cut short raise :class:`Malformed`.
 
 See also: :mod:`pitloom.extract.ai_model._gguf_bounds` (Pitloom's adapter).
@@ -94,6 +95,10 @@ _MIN_STRING_BYTES = 8
 _MIN_ARRAY_BYTES = 12
 # Budget units a pair or a tensor info costs; an element, a dimension one.
 _RECORD_WEIGHT = 4
+#: Most dimensions a tensor has: ggml's ``GGML_MAX_DIMS``, past which
+#: llama.cpp refuses the file (``ggml/include/ggml.h`` l. 49 and
+#: ``ggml/src/gguf.cpp`` l. 661, llama.cpp a8f8294c, 2026-11-23).
+MAX_DIMS = 4
 
 
 class GgufArray(NamedTuple):
@@ -421,6 +426,10 @@ def _read_tensors(
         offset += 4
         if n_dims * 8 + 12 > walker.size - offset:
             raise Malformed(f"tensor {name!r} runs past the end")
+        if n_dims > MAX_DIMS:
+            raise Malformed(
+                f"tensor {name!r} has {n_dims} dimensions, more than {MAX_DIMS}"
+            )
         walker.charge_parsed(n_dims)
         shape = struct.unpack_from(f"{walker.endian}{n_dims}Q", walker.data, offset)
         offset += n_dims * 8

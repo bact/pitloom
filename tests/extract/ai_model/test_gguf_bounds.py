@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import logging
 import struct
+import timeit
 from pathlib import Path
 
 import pytest
@@ -42,6 +43,7 @@ pytestmark = pytest.mark.platform  # files, a memory map
 
 _GGUF_FIXTURES = Path(__file__).parents[2] / "fixtures" / "aimodels" / "gguf"
 _EMPTY = struct.pack("<Q", 0)
+_EMPTY_U8 = struct.pack("<IQ", UINT8, 0)
 
 
 @pytest.fixture(autouse=True)
@@ -128,6 +130,62 @@ def test_a_malformed_file_is_a_read_failure(
 ) -> None:
     with pytest.raises(ValueError, match=f"Failed to read GGUF file .*{reason}"):
         read_gguf(_write(tmp_path, data))
+
+
+_HUGE_DIM = 2**64 - 1
+
+
+@pytest.mark.parametrize(
+    ("tensor", "data_bytes", "fits"),
+    [
+        (tensor_info("f", (8,)), 32, True),
+        (tensor_info("f", (8,)), 31, False),
+        (tensor_info("q", (32,), ggml_type=2), 18, True),  # one Q4_0 block
+        (tensor_info("q", (32,), ggml_type=2), 17, False),
+        (tensor_info("h", (_HUGE_DIM,) * 4), 0, False),
+        (tensor_info("z", (_HUGE_DIM, 0, _HUGE_DIM)), 0, True),  # no elements
+        (tensor_info("o", (0,), offset=64), 0, False),  # starts past the end
+        (tensor_info("s", ()), 4, True),  # a scalar: one element
+        (tensor_info("s", ()), 3, False),
+        # One Q4_0 element sizes to 18 // 32 = 0 bytes, as gguf sizes it
+        (tensor_info("sq", (), ggml_type=2), 0, True),
+    ],
+    ids=[
+        "f32-fits",
+        "f32-cut",
+        "q4-fits",
+        "q4-cut",
+        "huge",
+        "zero-dim",
+        "offset",
+        "scalar-fits",
+        "scalar-cut",
+        "quant-scalar",
+    ],
+)
+def test_tensor_data_must_fit_in_the_file(
+    tmp_path: Path, tensor: bytes, data_bytes: int, fits: bool
+) -> None:
+    path = _write(tmp_path, gguf_with_tensors([tensor], data_bytes=data_bytes))
+    if fits:
+        read_gguf(path)
+    else:
+        with pytest.raises(ValueError, match="data runs past the end"):
+            read_gguf(path)
+
+
+def test_the_data_size_product_stops_once_past_the_file() -> None:
+    """A declared dimension is any 64-bit number: the product of many is
+    cut short, not computed. The zero scan is linear (32x for 32x the
+    dimensions); the full product grew quadratically (about 1000x)."""
+
+    def cost(n_dims: int) -> float:
+        shape = (_HUGE_DIM,) * n_dims
+        runs = timeit.repeat(lambda: _gguf_bounds.tensor_fits(shape, 10**9), number=20)
+        return min(runs)
+
+    assert not _gguf_bounds.tensor_fits((_HUGE_DIM,) * 2, 10**9)
+    assert cost(32_000) < 128 * cost(1_000) + 1e-3
 
 
 def test_a_tensor_type_the_gguf_package_does_not_know_is_read(tmp_path: Path) -> None:
@@ -254,15 +312,45 @@ def test_a_key_over_its_bound_names_the_pair(
     )
 
 
+_DEEP = struct.pack("<IQ", ARRAY, 1) * 4 + struct.pack("<IQ", UINT8, 1) + b"\0"
+
+
+@pytest.mark.parametrize(
+    ("value", "outcome", "length"),
+    [
+        (kv(b"", ARRAY, _DEEP), "pair 2 length as declared; later fields", True),
+        (kv(b"", STRING, string("x" * 9)), "fields from pair 2 on", False),
+    ],
+    ids=["array", "string"],
+)
 def test_an_empty_key_is_named_by_its_pair(
-    tmp_path: Path, caplog: pytest.LogCaptureFixture
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+    monkeypatch: pytest.MonkeyPatch,
+    value: bytes,
+    outcome: str,
+    length: bool,
 ) -> None:
-    deep = struct.pack("<IQ", ARRAY, 1) * 4 + struct.pack("<IQ", UINT8, 1) + b"\0"
-    read_gguf(_write(tmp_path, gguf_file(0, 1, kv(b"", ARRAY, deep))))
+    """The warning says what the properties hold: a cut array's length."""
+    monkeypatch.setattr(_gguf_bounds, "GGUF_LIMITS", Limits(max_gguf_string_bytes=8))
+    body = kv(b"a", UINT8, b"\0") + value
+    meta = read_gguf(_write(tmp_path, gguf_file(0, 2, body)))
     (warning,) = logged_warnings(caplog)
-    assert warning.endswith(
-        "GGUF-array-nesting cap; fields from pair 1 on and the tensor shapes not read"
-    )
+    assert warning.endswith(f"; {outcome} and the tensor shapes not read")
+    assert (".length" in meta.properties) is length
+
+
+@pytest.mark.parametrize(("n_kv", "unread"), [(3, 1), (2, 0)])
+def test_the_pairs_a_partial_read_did_not_reach_are_counted(
+    tmp_path: Path, n_kv: int, unread: int
+) -> None:
+    """Counted for the annotation's ``truncatedKeyCount``; a whole read
+    counts none."""
+    body = kv(b"a", UINT8, b"\0") + kv(b"b", ARRAY, _DEEP if unread else _EMPTY_U8)
+    body += kv(b"c", UINT8, b"\0") * unread
+    meta = read_gguf(_write(tmp_path, gguf_file(0, n_kv, body)))
+    assert meta.raw_metadata_unread == unread
+    assert meta.raw_metadata_dropped == 0
 
 
 def test_a_string_value_over_its_bound_names_its_key(

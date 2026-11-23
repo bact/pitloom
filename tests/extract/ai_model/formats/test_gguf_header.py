@@ -177,6 +177,21 @@ def test_a_malformed_header_is_refused(data: bytes, reason: str) -> None:
         _read(data)
 
 
+@pytest.mark.parametrize(("n_dims", "refused"), [(4, False), (5, True), (32_000, True)])
+def test_a_tensor_of_more_than_four_dimensions_is_malformed(
+    n_dims: int, refused: bool
+) -> None:
+    """ggml's GGML_MAX_DIMS, as llama.cpp refuses it."""
+    data = gguf_with_tensors([tensor_info("t", (2**64 - 1,) * n_dims)])
+    if refused:
+        with pytest.raises(Malformed, match=f"{n_dims} dimensions, more than 4"):
+            _read(data)
+    else:
+        header = _read(data)
+        assert header.tensors is not None
+        assert len(header.tensors[0].shape) == 4
+
+
 _HUGE = struct.pack("<Q", 1 << 40)
 
 

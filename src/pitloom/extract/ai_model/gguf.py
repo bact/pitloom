@@ -48,6 +48,7 @@ from pitloom.messages.files import warn_over_cap
 from pitloom.messages.model_fields import (
     GGUF_ARRAY_CUT,
     GGUF_FIELDS_NOT_READ,
+    GGUF_PAIR_ARRAY_CUT,
     GGUF_PAIR_NOT_READ,
     GGUF_TENSORS_NOT_READ,
 )
@@ -247,13 +248,15 @@ def _categorize_gguf_fields(
 class _Loaded(NamedTuple):
     """What :func:`_load_fields` reads of a GGUF file (see
     :class:`~pitloom.extract.ai_model._gguf_fields.GgufFields`); *shapes*
-    ``None`` when the tensor infos were not read."""
+    ``None`` when the tensor infos were not read, *unread* the pairs a
+    partial read did not reach."""
 
     fields: dict[str, Any]
     raw_metadata: dict[str, Any]
     derived: dict[str, str]
     declared: frozenset[str]
     shapes: list[list[int]] | None
+    unread: int
     datasets: list[DatasetReference]
     datasets_provenance: str | None
 
@@ -269,7 +272,8 @@ def _warn_partial(stop: GgufStop, where: str) -> None:
     if stop.pair is None:
         outcome = GGUF_TENSORS_NOT_READ
     elif not stop.key:  # over a bound itself, or empty: counted from 1
-        outcome = GGUF_PAIR_NOT_READ % {"pair": stop.pair + 1}
+        template = GGUF_PAIR_ARRAY_CUT if stop.in_array else GGUF_PAIR_NOT_READ
+        outcome = template % {"pair": stop.pair + 1}
     else:
         template = GGUF_ARRAY_CUT if stop.in_array else GGUF_FIELDS_NOT_READ
         outcome = template % {"key": loggable(stop.key)}
@@ -321,6 +325,7 @@ def _load_fields(model_path: Path, source: str) -> _Loaded:
         read.derived,
         read.declared,
         shapes,
+        header.kv_count - len(header.fields),
         datasets,
         datasets_provenance,
     )
@@ -379,6 +384,7 @@ def read_gguf(model_path: Path) -> AiModelMetadata:
         hyperparameters=hyperparameters,
         properties=properties,
         **source_metadata(loaded.raw_metadata),
+        raw_metadata_unread=loaded.unread,
         datasets=loaded.datasets,
         provenance=provenance,
     )

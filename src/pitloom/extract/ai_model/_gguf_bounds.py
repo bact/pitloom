@@ -21,7 +21,6 @@ See also: :mod:`pitloom.extract.ai_model.gguf`.
 
 from __future__ import annotations
 
-import math
 import mmap
 import os
 from pathlib import Path
@@ -97,9 +96,24 @@ def _check_tensor_data(tensors: tuple[GgufTensor, ...], start: int, size: int) -
                 f"tensor {tensor.name!r} row of {tensor.shape[0]} is no whole "
                 f"number of {block}-element blocks"
             )
-        n_bytes = math.prod(tensor.shape) * type_size // block
-        if start + tensor.offset + n_bytes > size:
+        room = size - start - tensor.offset
+        if room < 0 or not tensor_fits(
+            tensor.shape, ((room + 1) * block - 1) // type_size
+        ):
             raise ValueError(f"tensor {tensor.name!r} data runs past the end")
+
+
+def tensor_fits(shape: tuple[int, ...], most: int) -> bool:
+    """Whether a tensor of *shape* has at most *most* elements, the product
+    stopped once past it (a declared dimension is any 64-bit number)."""
+    if 0 in shape:
+        return True
+    elements = 1
+    for dim in shape:
+        elements *= dim
+        if elements > most:
+            return False
+    return elements <= most  # a scalar, ``()``: one element
 
 
 def _read(data: bytes | mmap.mmap, keep: dict[str, int]) -> GgufHeader:

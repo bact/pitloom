@@ -394,3 +394,21 @@ I/O).
 - Fresh-context review: a string length past the end and over a cap was an
   `over-cap` partial read; now malformed whatever the caps. A cut at an
   empty key or a key over a bound names the pair, counted from 1.
+
+## Second review round (2026-11-23, PR #517)
+
+An independent review of `086b180f` and a delta review of its fix:
+
+- Quadratic CPU: the tensor data check multiplied every declared
+  dimension (40,000 dims of `2**64-1`: 4 s). Now a tensor of more than 4
+  dimensions is malformed, as llama.cpp refuses it (`ggml/src/gguf.cpp`
+  l. 661, `GGML_MAX_DIMS` 4 in `ggml/include/ggml.h` l. 49, llama.cpp
+  a8f8294c of 2026-11-23); the size product stops once past what the file
+  can hold, exactly as the old check decides (a scalar `()` is one element).
+- A partial read looked complete in the SBOM: the pairs not reached are
+  `raw_metadata_unread`, counted in the artifact-metadata annotation's
+  `truncatedKeyCount` (`truncated`), with `maxEntries` only for the entry
+  cap. A project's own model files ship and keep no annotation, so there
+  the warning alone says it.
+- An array of an empty key cut by a bound warns `pair <N> length as
+  declared`, matching the recorded `.length`.

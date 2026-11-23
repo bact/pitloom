@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-15
-Last-Modified: 2026-10-15
+Last-Modified: 2026-11-23
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -183,6 +183,10 @@ out are counted, not named -- listing them would cost what the cap saves
 When the byte budget drops keys from the same annotation, `truncatedKeys`
 and `maxMetadataBytes` are added and `truncatedKeyCount` counts both: the
 keys named in `truncatedKeys` and those over `maxEntries`.
+
+A GGUF header read in part (a [bound](ai-model-scan-limits.md) reached)
+adds the pairs it did not reach to `truncatedKeyCount`, without
+`maxEntries`; its `over-cap` warning says where the read stopped.
 
 Every JSON text Pitloom writes -- each `Annotation.statement`,
 `ai_informationAboutApplication`, and the text of a model property holding

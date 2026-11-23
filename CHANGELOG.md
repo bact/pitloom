@@ -128,8 +128,8 @@ and this project adheres to
   `ERROR:` line ([#515])
 - A byte order mark in an SBOM is a coded `WARNING:` for `loom id import` too
   ([#515])
-- A GGUF header over a bound is read in part: fields before it kept, one
-  `[over-cap]` `WARNING:`; a cut array's length is `Evidence: declared` ([#517])
+- A GGUF header over a bound is read in part: one `[over-cap]` `WARNING:`,
+  annotation `truncated`, a cut array's length `Evidence: declared` ([#517])
 
 ### Fixed
 
@@ -161,6 +161,8 @@ and this project adheres to
 - GGUF headers are read by Pitloom's own reader: a 262,144-token tokeniser
   (Gemma 4) is read; ONNX `merged`, `spox_graph`, `mxnet_converted_model` are
   no model name ([#517])
+- A GGUF tensor of more than 4 dimensions is refused, as llama.cpp does: a
+  hostile file no longer costs minutes of CPU ([#517])
 
 ### Security
 

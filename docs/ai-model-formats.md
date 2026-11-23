@@ -436,7 +436,8 @@ the Hugging Face Hub, "card" a README or model card read with `--enrich`.
 | `base_model`, `base_model_relation` | HF | `Relationship` `descendantOf` to an `ai_AIPackage` for the base model (made if absent); the relation in its `comment` |
 | `datasets` | GGUF, HF, card | `dataset_DatasetPackage` plus `Relationship` `trainedOn` or `testedOn`; references to one dataset (a Hub id in any letter case, or one name with different spacing) give one package with one relationship per role, a later reference only filling what the first leaves unset; a licence the dataset's metadata states becomes a licence element and `hasDeclaredLicense` (or `hasConcludedLicense` for a third-party source), as for the model. A Hub card's dataset gets the licence, description, revision and owner of its own Hub dataset repository (see [Hugging Face Hub models](#hugging-face-hub-models)) |
 | `properties`, `raw_metadata`, `raw_metadata_types` | every format | `Annotation` of kind `artifact-metadata` (schema `https://pitloom.dev/provenance/artifact-metadata/2`): `metadata`, `valueTypes`, `format`; only when preserved, see below |
-| `raw_metadata_dropped` | any format, over the entry cap | that annotation's `truncatedKeyCount` |
+| `raw_metadata_dropped` | any format, over the entry cap | that annotation's `truncatedKeyCount` and `maxEntries` |
+| `raw_metadata_unread` | GGUF, the pairs a header read in part did not reach | that annotation's `truncatedKeyCount` |
 | `extra_data`, `extra_lists` | HF | that annotation, `format` `huggingface` |
 | `provenance` | every format | `ai_AIPackage.comment` (`Metadata provenance: ...`) and/or a provenance `Annotation`, by `[tool.pitloom.provenance] format` |
 | `format_info.model_format` | every format | the artifact-metadata annotation's `format` |

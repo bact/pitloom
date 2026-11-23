@@ -270,7 +270,8 @@ MODEL_WRONG_FORMAT: Final = Message(
 PARAMETER_COUNT_SKIPPED: Final = "parameter count not recorded"
 #: What a GGUF header read in part leaves out, as its ``over-cap`` warning
 #: ends: the walk stopped in the pair ``%(key)s`` (an array: its length is
-#: the declared one), in the pair at ``%(pair)d`` (its key unread), or in
+#: the declared one), in the pair ``%(pair)d`` counted from 1 (its key
+#: unread or empty; an array of an empty key: its length as declared), or in
 #: the tensor infos.
 GGUF_ARRAY_CUT: Final = (
     "%(key)s length as declared; later fields and the tensor shapes not read"
@@ -278,6 +279,9 @@ GGUF_ARRAY_CUT: Final = (
 GGUF_FIELDS_NOT_READ: Final = "fields from %(key)s on and the tensor shapes not read"
 GGUF_PAIR_NOT_READ: Final = (
     "fields from pair %(pair)d on and the tensor shapes not read"
+)
+GGUF_PAIR_ARRAY_CUT: Final = (
+    "pair %(pair)d length as declared; later fields and the tensor shapes not read"
 )
 GGUF_TENSORS_NOT_READ: Final = f"tensor shapes not read; {PARAMETER_COUNT_SKIPPED}"
 #: Why a tensor's dimension gives no count, ``%(value)s`` the dimension as

@@ -147,6 +147,7 @@ def _hook(base: Path, _mp: pytest.MonkeyPatch) -> list[str]:
     return [hook_sbom(_project(base))]
 
 
+_MODEL_ROUTES = frozenset({"cli-model", "lib-model"})
 _ROUTES = {
     "cli-project": _cli("project"),
     "cli-generate": _cli("generate"),
@@ -167,6 +168,26 @@ def _packages(sboms: list[str]) -> dict[str, dict[str, Any]]:
     return found
 
 
+def _truncated(sboms: list[str]) -> dict[str, bool]:
+    """Whether each GGUF package's artifact-metadata annotation is marked
+    ``truncated``, by package name."""
+    names: dict[str, str] = {}
+    marked: dict[str, bool] = {}
+    statements = []
+    for sbom in sboms:
+        for element in json.loads(sbom)["@graph"]:
+            if element["type"] == "ai_AIPackage":
+                names[element["spdxId"]] = element["name"]
+            elif element["type"] == "Annotation":
+                statements.append((element["subject"], element["statement"]))
+    for subject, text in statements:
+        statement = json.loads(text)
+        if statement.get("kind") == "artifact-metadata" and subject in names:
+            if statement.get("format") == "gguf":
+                marked[names[subject]] = statement.get("truncated", False)
+    return marked
+
+
 @pytest.mark.parametrize("route", _ROUTES)
 def test_issue_514_on_every_route(
     tmp_path: Path,
@@ -181,6 +202,10 @@ def test_issue_514_on_every_route(
         "Partly read",
         "decoder_model_merged",
     }
+    # The partial read says so in the SBOM too; the whole one does not. A
+    # project's own model files ship, so keep no artifact-metadata copy.
+    expected = {"Gemma shape": False, "Partly read": True}
+    assert _truncated(sboms) == (expected if route in _MODEL_ROUTES else {})
     warnings = stderr_warnings(capsys.readouterr().err)
     assert [w for w in warnings if "[over-cap]" in w] == [
         w for w in warnings if w.endswith(_PARTIAL_WARNING)
