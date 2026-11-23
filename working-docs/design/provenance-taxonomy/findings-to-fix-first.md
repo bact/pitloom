@@ -230,9 +230,22 @@ each, and marks every other item as read at the base or to check.
 
 ### Prompt for the Pitloom fixes (written 2026-11-23)
 
-The prompt orders the work in five pull requests and names four points
-that need the user's ruling before code (PIT-4, PIT-8, PIT-9, PIT-12).
-The release to target is open.
+The prompt orders the work in five pull requests. Ruled by the user on
+2026-11-23 (the recommendations taken as put):
+
+- **When.** PIT-20 goes now; the other fixes start after the 0.25.0 cut
+  and go into the release after it.
+- **PIT-8.** A directory whose name or version differs from the wheel's
+  gets a `WARNING:`; the run goes on (not refused).
+- **PIT-4.** The commit goes into the package's download location, as a
+  URL of the repository with the commit, and into a provenance entry.
+  Not read for this ruling: what `main` writes there today for a Git
+  URL target, and the form SPDX 3 expects.
+- **PIT-9, PIT-12.** No ruling yet: each has a default in the prompt
+  (never a concluded licence, and dropped with a `WARNING:` until the
+  origin is known; `complete` only where the source lists the whole
+  set), to confirm or change once the facts are in. Taking the two
+  defaults in with "the recommendations" is this page's reading.
 
 ```text
 Handoff: Pitloom fixes to land before the provenance-taxonomy code stage
@@ -254,13 +267,20 @@ Context
 
 Rules
 - Fresh worktree from current main; one PR per group below; the user
-  decides every merge. Ask the user which release the PRs target (0.25.0
-  is about to be cut).
+  decides every merge. Ruled 2026-11-23: PR 1 goes now; PR 2 to PR 5
+  start after the 0.25.0 cut and go into the release after it.
 - Every fix: a regression test that fails on the base tree. Gates A and
   B of AGENTS.md. Messages go through pitloom.messages (catalogue,
   generated reference and any SKILL.md that quotes them, in one change).
 - An item marked "ruling" needs the user's answer before code: put the
-  options with a recommendation, do not pick.
+  options with a recommendation, do not pick. An item marked "default"
+  has an answer to work from: come back only if the facts speak
+  against it.
+- Agents (the user, 2026-11-23): a cheaper model and lower effort for
+  simple, mechanical steps (searches, lint and test runs, a traced
+  value); the strongest model and higher effort for planning, complex
+  changes and any question with no answer known in advance. Run a
+  linter yourself before trusting a cheap agent's "pass".
 - Never edit LicenseID. PIT-13 is tracked elsewhere: leave it.
 
 PR 1. CI flake (do first, it blocks every other PR)
@@ -327,9 +347,10 @@ PIT-9 [main]. assemble/spdx3/_provenance_encoders.py:81-89
   hasConcludedLicense. Ruling of 2026-11-23: Pitloom alone writes no
   concluded licence.
   Do: first find which reader hands over a licence without a source
-  (that is the bug to fix at its origin). Ruling: what the encoder does
-  with a source-less value afterwards (declared, dropped with a
-  WARNING:, or InternalError). Run a probe corpus through main and the
+  (that is the bug to fix at its origin). Default: the encoder never
+  writes a source-less value as concluded; it drops it with a WARNING:
+  until the origin is known (not taken so far: declared, or
+  InternalError). Run a probe corpus through main and the
   tree and list every relationship that changes.
 
 PIT-8 [main]. `embed-wheel --project-dir`: src/pitloom/embed.py:131
@@ -338,7 +359,7 @@ PIT-8 [main]. `embed-wheel --project-dir`: src/pitloom/embed.py:131
   directory's metadata is taken.
   Do: compare name (PEP 503) and version (PEP 440) of the directory
   with the wheel's; on a mismatch a WARNING: through the catalogue.
-  Ruling: warn only, or refuse.
+  Ruled 2026-11-23: warn only, the run goes on.
 
 PIT-14 [base docs, spec read 2026-11-23]. docs/metadata-provenance-
   licences.md says PEP 639 forbids an SPDX `license` beside licence
@@ -351,8 +372,12 @@ PIT-4 [main]. extract/remote/git.py:116 `class GitCheckout` resolves
   the commit; no reader of it outside git.py (searched extract/remote,
   assemble, _generators.py, __main__.py). `loom project` on a Git URL
   gives an SBOM with no commit, ref or host.
-  Ruling: where the commit goes with today's means (the taxonomy's
-  Location key is not built). Then carry it from GitCheckout to the
+  Ruled 2026-11-23: the commit goes into the package's download
+  location (a URL of the repository with the commit) and into a
+  provenance entry; the taxonomy's Location key is not built. First
+  read what main writes there today for a Git URL target and the form
+  SPDX 3 expects (neither was read for the ruling); report if either
+  speaks against it. Then carry the commit from GitCheckout to the
   assembler; test through the CLI on a local repository.
 
 PIT-5 [base]. When Hub `model_info` fails or states no `sha`, the card,
@@ -395,9 +420,10 @@ PIT-10 [check]. A model whose header exceeds the read cap raises
 PIT-12 [main]. assemble/spdx3/_document_locked_deps.py:196-209
   `_locked_dependencies_completeness` does `del metadata; return None`;
   no relationship carries completeness.
-  Ruling before code: which relationships can honestly say `complete`
-  (a lock file read in full?) and which stay unset. Propose a table of
-  relationship kinds with evidence; no code until answered.
+  Default: `complete` only where the source lists the whole set (a
+  lock file read in full?); the rest stay unset. Still a ruling before
+  code: propose a table of relationship kinds with evidence; no code
+  until answered.
 
 Investigations (report findings, no fix asked)
 PIT-15 Hub parameter total differs from Pitloom's own sum (15 of 128
