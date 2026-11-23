@@ -177,6 +177,29 @@ def test_a_malformed_header_is_refused(data: bytes, reason: str) -> None:
         _read(data)
 
 
+_HUGE = struct.pack("<Q", 1 << 40)
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        _HUGE + b"k" * 8,
+        kv(b"k", STRING, _HUGE + b"v" * 8),
+        kv(b"d", ARRAY, struct.pack("<IQ", STRING, 1) + _HUGE + b"v" * 8),
+    ],
+    ids=["key", "value", "kept-element"],
+)
+def test_a_string_past_the_end_is_malformed_even_over_a_cap(body: bytes) -> None:
+    """A declared length never decides a cap: the file cannot hold it."""
+    with pytest.raises(Malformed, match="past the end"):
+        _read(
+            gguf_file(0, 1, body, tail=8),
+            {"d": 1},
+            max_gguf_string_bytes=4,
+            max_gguf_total_string_bytes=4,
+        )
+
+
 @pytest.mark.parametrize("version", [0, 1, 4, 99])
 def test_an_unknown_version_is_refused_with_its_number(version: int) -> None:
     with pytest.raises(UnknownVersion) as excinfo:
@@ -355,6 +378,17 @@ def test_a_string_over_its_bound_stops_the_walk(
         assert header.stop.bound == "max_gguf_string_bytes"
         assert header.stop[2:] == stop
         assert header.fields == ()
+
+
+def test_a_stop_after_an_array_is_not_inside_it() -> None:
+    """The array before is read whole; the stop names the scalar pair."""
+    body = kv(b"a", ARRAY, struct.pack("<IQ", UINT8, 2) + b"\0\0")
+    body += kv(b"k", STRING, string("abcde"))
+    header = _read(gguf_file(0, 2, body), max_gguf_string_bytes=4)
+    assert header.stop is not None
+    assert header.stop[2:] == ("k", 1, False)
+    assert [f.key for f in header.fields] == ["a"]
+    assert _array_field(header, "a").complete
 
 
 @pytest.mark.parametrize(("value", "stopped"), [("abcd", False), ("abcde", True)])

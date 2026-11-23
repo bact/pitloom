@@ -269,6 +269,8 @@ def test_onnx_exporter_default_graph_name_is_not_a_name(
         ("resnet50", "pytorch", "resnet50"),
         ("spox_graph2", "", "spox_graph2"),
         ("spox_graph2", "   ", "spox_graph2"),
+        ("_graph", "", "_graph"),  # a blank producer is no prefix
+        ("-graph", " ", "-graph"),
         ("a.b", "a", "a.b"),
     ],
 )

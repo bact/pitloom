@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-14
-Last-Modified: 2026-11-22
+Last-Modified: 2026-11-23
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -48,7 +48,7 @@ file only); see
 | :----- | :--------------- | :----------- | :---- | :-------------- |
 | CRFsuite | `.crfsuite`, `.model` | magic `lCRF` | header and label strings | none |
 | fastText | `.ftz`, `.bin` | magic `BA 16 4F 2F` | whole model, in memory | `fasttext-community` (`fasttext`) |
-| GGUF | `.gguf` | magic `GGUF` | key-value header (memory-mapped) | `gguf` (`gguf`) |
+| GGUF | `.gguf` | magic `GGUF` | key-value header and tensor infos, by Pitloom's own reader (memory-mapped; arrays as length and type) | `gguf` (`gguf`), for quantisation names and tensor sizes |
 | HDF5, Keras v1-v2 | `.h5`, `.hdf5` | HDF5 magic, or any non-empty file (a userblock moves the signature) | root attributes | `h5py` (`hdf5`) |
 | Keras v3 | `.keras` | ZIP | `metadata.json`, `config.json` (architecture, compile settings) and the member list | none |
 | NumPy | `.npy`, `.npz` | `.npy`: magic `\x93NUMPY`; `.npz`: ZIP | array headers | `numpy` (`numpy`) |
@@ -157,8 +157,10 @@ can hold it, Pitloom does not read it. **--**: the format has no such field.
     file's shape and dtype are kept as `properties` `array_shape` (`2x2`,
     `scalar` for none) and `array_dtype`; an `.npz` archive's array count as
     `array_count`.
-14. `graph.name`, unless blank or an exporter default (`torch_jit`,
-    `main_graph`, `tf2onnx`, ...).
+14. `graph.name`, unless blank, a tool's default (`torch_jit`,
+    `main_graph`, `tf2onnx`, `merged`, `spox_graph`,
+    `mxnet_converted_model`, ...) or the writing tool's own name
+    (`producer_name`), alone or followed by `_` or `-` and more.
 15. `model_version`; a bit-packed SemVer value (any of its upper 32 bits
     set) as `MAJOR.MINOR.PATCH`
     ([ONNX versioning](https://onnx.ai/onnx/repo-docs/Versioning.html)).

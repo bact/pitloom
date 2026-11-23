@@ -32,7 +32,7 @@ ARRAY_LENGTH_SUFFIX = ".length"
 
 # The header's own counts, recorded first as fields of these names, in the
 # file's byte order (the names the ``gguf`` package gives them).
-_VERSION_KEY = "GGUF.version"
+FORMAT_VERSION_KEY = "GGUF.version"
 _TENSOR_COUNT_KEY = "GGUF.tensor_count"
 _KV_COUNT_KEY = "GGUF.kv_count"
 _FLOAT32 = 6
@@ -98,7 +98,7 @@ def _all_fields(header: GgufHeader) -> list[GgufField]:
         ValueError: A pair repeats the name of a count.
     """
     counts = [
-        GgufField(_VERSION_KEY, 4, header.version),
+        GgufField(FORMAT_VERSION_KEY, 4, header.version),
         GgufField(_TENSOR_COUNT_KEY, 10, header.tensor_count),
         GgufField(_KV_COUNT_KEY, 10, header.kv_count),
     ]

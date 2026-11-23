@@ -33,7 +33,11 @@ from pitloom.extract.ai_model._gguf_datasets import (
     DATASETS_KEY,
     read_gguf_datasets,
 )
-from pitloom.extract.ai_model._gguf_fields import listed_strings, read_fields
+from pitloom.extract.ai_model._gguf_fields import (
+    FORMAT_VERSION_KEY,
+    listed_strings,
+    read_fields,
+)
 from pitloom.extract.ai_model._gguf_licence import read_gguf_license
 from pitloom.extract.ai_model._stated_text import stated_text
 from pitloom.extract.ai_model.formats.gguf_header import GgufStop
@@ -61,7 +65,6 @@ _GGUF_ORIGINATOR_KEYS = ("general.author", "general.organization")
 _GGUF_SPLIT_COUNT_KEY = "split.count"
 # The reader's own pseudo-field for the header version, read in the file's
 # byte order
-_GGUF_FORMAT_VERSION_KEY = "GGUF.version"
 # LlamaFileType.GUESSED: llama.cpp's "file type not stated", not a type
 _GGUF_FILE_TYPE_GUESSED = 1024
 
@@ -265,8 +268,8 @@ def _warn_partial(stop: GgufStop, where: str) -> None:
     """The one ``over-cap`` warning of a header read in part."""
     if stop.pair is None:
         outcome = GGUF_TENSORS_NOT_READ
-    elif stop.key is None:
-        outcome = GGUF_PAIR_NOT_READ % {"pair": stop.pair}
+    elif not stop.key:  # over a bound itself, or empty: counted from 1
+        outcome = GGUF_PAIR_NOT_READ % {"pair": stop.pair + 1}
     else:
         template = GGUF_ARRAY_CUT if stop.in_array else GGUF_FIELDS_NOT_READ
         outcome = template % {"key": loggable(stop.key)}
@@ -341,9 +344,9 @@ def read_gguf(model_path: Path) -> AiModelMetadata:
     provenance: dict[str, str] = {}
     if loaded.datasets_provenance:
         provenance["datasets"] = loaded.datasets_provenance
-    format_version = stated_text(fields.get(_GGUF_FORMAT_VERSION_KEY), scalar=True)
-    if format_version:
-        provenance["format_version"] = f"{source} | Field: {_GGUF_FORMAT_VERSION_KEY}"
+    # The header version is always read (2 or 3).
+    format_version = stated_text(fields.get(FORMAT_VERSION_KEY), scalar=True)
+    provenance["format_version"] = f"{source} | Field: {FORMAT_VERSION_KEY}"
 
     (
         name,

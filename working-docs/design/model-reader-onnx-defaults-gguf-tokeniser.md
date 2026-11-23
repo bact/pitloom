@@ -375,3 +375,22 @@ I/O).
 
 - Whether the probe's `_gguf_header_complete` (GGUFReader) is replaced in
   SBOM-MinBench before the recount (its repository, not this PR).
+
+- `general.datasets` is decoded whole (`_DATASETS_KEEP`), each element
+  charged to the parsed budget the tensor infos share: a huge datasets
+  array can cost the parameter count. Cutting it at a multiple of the
+  1,000-dataset cap would hide distinct entries after duplicates. Kept
+  whole; revisit if a real file trips it.
+- The producer rule drops a real name that starts with a short producer
+  name and a separator (`pytorch-ssd` from `pytorch`). Accepted as ruled
+  (Q3); no such file in the probe sweep.
+
+## Gate B notes (2026-11-23)
+
+- Hand mutation, 46 mutants over `gguf_header.py`, the adapter, the field
+  mapping, `gguf.py` and the ONNX rule: 44 killed; 2 survivors (array state
+  not reset after a pair; a blank producer read as an empty prefix) each
+  got a test.
+- Fresh-context review: a string length past the end and over a cap was an
+  `over-cap` partial read; now malformed whatever the caps. A cut at an
+  empty key or a key over a bound names the pair, counted from 1.

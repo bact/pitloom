@@ -26,6 +26,7 @@ from pitloom.extract.ai_model.formats import Limits
 from pitloom.extract.ai_model.gguf import read_gguf
 from pitloom.extract.ai_model.limits import ModelLimitExceeded
 from tests.extract.ai_model.gguf_builders import (
+    ARRAY,
     STRING,
     UINT8,
     array,
@@ -248,8 +249,19 @@ def test_a_key_over_its_bound_names_the_pair(
     assert meta.properties["abc"] == "0"
     (warning,) = logged_warnings(caplog)
     assert warning.endswith(
-        "larger than the 4-byte GGUF-string cap; fields from pair 1 on and the "
+        "larger than the 4-byte GGUF-string cap; fields from pair 2 on and the "
         "tensor shapes not read"
+    )
+
+
+def test_an_empty_key_is_named_by_its_pair(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    deep = struct.pack("<IQ", ARRAY, 1) * 4 + struct.pack("<IQ", UINT8, 1) + b"\0"
+    read_gguf(_write(tmp_path, gguf_file(0, 1, kv(b"", ARRAY, deep))))
+    (warning,) = logged_warnings(caplog)
+    assert warning.endswith(
+        "GGUF-array-nesting cap; fields from pair 1 on and the tensor shapes not read"
     )
 
 

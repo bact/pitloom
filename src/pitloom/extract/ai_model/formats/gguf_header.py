@@ -253,6 +253,11 @@ class _Walker:
         """The string at *offset* and the offset after it: a key or a tensor
         name decoded strictly, a value with ``surrogateescape``."""
         length = self.number(self.u64, offset)
+        start = offset + 8
+        end = start + length
+        # A length past the end is a malformed file, whatever the caps say.
+        if end > self.size:
+            raise Malformed(f"string at offset {offset} runs past the end")
         limits = self.limits
         if length > limits.max_gguf_string_bytes:
             raise _Stop("max_gguf_string_bytes", limits.max_gguf_string_bytes)
@@ -261,10 +266,6 @@ class _Walker:
             raise _Stop(
                 "max_gguf_total_string_bytes", limits.max_gguf_total_string_bytes
             )
-        start = offset + 8
-        end = start + length
-        if end > self.size:
-            raise Malformed(f"string at offset {offset} runs past the end")
         raw = bytes(self.data[start:end])
         if not key:
             return raw.decode("utf-8", errors="surrogateescape"), end
@@ -338,10 +339,8 @@ class _Walker:
         if not count:
             return offset
         if elem in _SCALAR_FORMATS:
-            end = offset + count * self.scalars[elem].size
-            if end > self.size:
-                raise Malformed(f"array at offset {offset} runs past the end")
-            return end
+            # Inside the file: array_head checked the count.
+            return offset + count * self.scalars[elem].size
         self.charge_skipped(count)
         if elem == STRING:
             return self.hop_strings(count, offset)
@@ -397,12 +396,11 @@ def _read_pairs(
             vtype = walker.number(walker.u32, offset)
             value, offset = walker.value(vtype, offset + 4, keep.get(key, 0))
         except _Stop as stop:
-            in_array = known is not None and walker.current_array is not None
-            if known is not None and walker.current_array is not None:
-                elem, count = walker.current_array
-                cut = GgufArray(elem, count, None, False)
+            current = walker.current_array if known is not None else None
+            if known is not None and current is not None:
+                cut = GgufArray(current[0], current[1], None, False)
                 fields.append(GgufField(known, ARRAY, cut))
-            found = GgufStop(stop.bound, stop.limit, known, index, in_array)
+            found = GgufStop(stop.bound, stop.limit, known, index, current is not None)
             return fields, offset, found
         fields.append(GgufField(key, vtype, value))
     return fields, offset, None

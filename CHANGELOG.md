@@ -128,6 +128,8 @@ and this project adheres to
   `ERROR:` line ([#515])
 - A byte order mark in an SBOM is a coded `WARNING:` for `loom id import` too
   ([#515])
+- A GGUF header over a bound is read in part: fields before it kept, one
+  `[over-cap]` `WARNING:`; a cut array's length is `Evidence: declared` ([#516])
 
 ### Fixed
 
@@ -156,6 +158,9 @@ and this project adheres to
   in a `failure` value is cut to 500 characters ([#508])
 - `embed-wheel --sbom-basename` with a path is refused before the SBOM is
   generated, not after ([#515])
+- GGUF headers are read by Pitloom's own reader: a 262,144-token tokeniser
+  (Gemma 4) is read; ONNX `merged`, `spox_graph`, `mxnet_converted_model` are
+  no model name ([#516])
 
 ### Security
 
@@ -190,6 +195,7 @@ and this project adheres to
 [#511]: https://github.com/bact/pitloom/pull/511
 [#513]: https://github.com/bact/pitloom/pull/513
 [#515]: https://github.com/bact/pitloom/pull/515
+[#516]: https://github.com/bact/pitloom/pull/516
 
 ## [0.24.0] - 2026-11-11
 
