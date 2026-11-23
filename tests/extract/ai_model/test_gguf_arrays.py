@@ -17,9 +17,7 @@ from __future__ import annotations
 import json
 import struct
 from pathlib import Path
-from types import SimpleNamespace
 from typing import Any
-from unittest import mock
 
 import pytest
 
@@ -223,19 +221,6 @@ def test_an_array_length_is_one_entry_cut_in_file_order(
     assert (last in meta.properties) is not bool(over)
     assert (f"properties.{last}" in meta.provenance) is not bool(over)
     assert len(logged_warnings(caplog)) == over
-
-
-def test_an_array_without_a_count_is_a_read_failure(tmp_path: Path) -> None:
-    """The ``ReaderField.parts`` layout is the gguf library's, not an API:
-    a field without one is refused, not guessed at."""
-    gguf = pytest.importorskip("gguf")
-    path = tmp_path / "m.gguf"
-    path.write_bytes(gguf_file(0, 0))
-    broken = SimpleNamespace(types=[gguf.GGUFValueType.ARRAY], parts=[0, 0, 0, 0])
-    reader = SimpleNamespace(fields={"k": broken})
-    with mock.patch.object(gguf, "GGUFReader", return_value=reader):
-        with pytest.raises(ValueError, match="Failed to read GGUF file .*count"):
-            read_gguf(path)
 
 
 def _model_view(sbom: str) -> tuple[str, dict[str, Any]]:

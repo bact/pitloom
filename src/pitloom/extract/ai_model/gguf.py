@@ -8,7 +8,6 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, NamedTuple
 
@@ -20,6 +19,7 @@ from pitloom.core.ai_metadata import (
     value_text,
 )
 from pitloom.core.dataset_metadata import DatasetReference
+from pitloom.core.evidence import DECLARED, evidence_segment
 from pitloom.core.model_originators import (
     ORIGINATORS_PROVENANCE_KEY,
     originator_names,
@@ -28,17 +28,24 @@ from pitloom.core.provenance import provenance_segment, provenance_source
 from pitloom.core.quote_source import quote_source
 from pitloom.core.scalar_text import scalar_text
 from pitloom.extract._extract_utils import record_dict_field_provenance
-from pitloom.extract.ai_model._gguf_bounds import check_gguf_header
-from pitloom.extract.ai_model._gguf_datasets import DATASETS_KEY, read_gguf_datasets
+from pitloom.extract.ai_model._gguf_bounds import load_gguf_header, stop_cap
+from pitloom.extract.ai_model._gguf_datasets import (
+    DATASETS_KEY,
+    read_gguf_datasets,
+)
+from pitloom.extract.ai_model._gguf_fields import listed_strings, read_fields
 from pitloom.extract.ai_model._gguf_licence import read_gguf_license
 from pitloom.extract.ai_model._stated_text import stated_text
+from pitloom.extract.ai_model.formats.gguf_header import GgufStop
 from pitloom.extract.ai_model.parameter_count import derived_parameter_count
 from pitloom.extract.ai_model.reader_requirements import missing_library
 from pitloom.logging_config import loggable
-from pitloom.messages import emit
+from pitloom.messages.files import warn_over_cap
 from pitloom.messages.model_fields import (
-    GGUF_LENGTH_LINE,
-    MODEL_FIELD_CONFLICT,
+    GGUF_ARRAY_CUT,
+    GGUF_FIELDS_NOT_READ,
+    GGUF_PAIR_NOT_READ,
+    GGUF_TENSORS_NOT_READ,
 )
 
 log = logging.getLogger(__name__)
@@ -76,10 +83,6 @@ _GGUF_HYPERPARAM_SUFFIXES = (
     ".rope.scaling.factor",
     ".rope.scaling.original_context_length",
 )
-
-# An array is recorded as its length, under its key plus this suffix, in
-# ``properties``; its element values are never used.
-_ARRAY_LENGTH_SUFFIX = ".length"
 
 
 def _resolve_quantization(file_type_value: Any) -> str | None:
@@ -125,128 +128,6 @@ def _resolve_quantization(file_type_value: Any) -> str | None:
     for prefix in ("MOSTLY_", "ALL_"):
         name = name.removeprefix(prefix)
     return name
-
-
-def _type_name(gguf_type: Any) -> str:
-    """The name of a ``gguf.GGUFValueType`` (``"STRING"``, ``"ARRAY"``)."""
-    return str(getattr(gguf_type, "name", ""))
-
-
-def _is_array(gguf_field: Any) -> bool:
-    """Whether a ``gguf.ReaderField`` holds an array."""
-    return bool(gguf_field.types) and _type_name(gguf_field.types[0]) == "ARRAY"
-
-
-def _array_length(gguf_field: Any) -> int:
-    """The declared top-level element count of an array field.
-
-    ``ReaderField.parts`` holds the key length, the key, the value type, the
-    element type, then the count; ``len(field.data)`` would count the leaves
-    of a nested array instead.
-
-    Raises:
-        ValueError: *gguf_field* does not have that layout.
-    """
-    parts = gguf_field.parts
-    if len(parts) < 5:
-        raise ValueError("GGUF array field without an element count")
-    return int(parts[4][0])
-
-
-def _array_summary(gguf_field: Any) -> dict[str, Any]:
-    """An array field as its length and declared element type name.
-
-    The type is read from the header (``parts[3]``), not ``types``, which
-    the reader fills from the first element and so lacks for an empty
-    array. A code that is no ``gguf.GGUFValueType`` (the reader checks it
-    only when there are elements) leaves the type absent.
-    """
-    summary: dict[str, Any] = {"length": _array_length(gguf_field)}
-    value_type = type(gguf_field.types[0])
-    try:
-        summary["type"] = _type_name(value_type(int(gguf_field.parts[3][0])))
-    except ValueError:
-        pass
-    return summary
-
-
-def _float32_double(value: Any) -> float:
-    """The double whose shortest decimal is the shortest decimal of
-    *value*, a ``numpy.float32``.
-
-    ``numpy.format_float_scientific(unique=True)`` gives that decimal
-    whatever the print options; ``str()`` follows them
-    (``legacy="1.13"`` prints ``1.0000001`` as ``1``).
-    """
-    # pylint: disable-next=import-outside-toplevel
-    import numpy  # a dependency of gguf, imported once a file is read
-
-    return float(numpy.format_float_scientific(value, unique=True))
-
-
-def _field_value(gguf_field: Any) -> Any:
-    """Resolve a scalar GGUF field to a plain Python value (arrays: see
-    :func:`_read_fields`).
-
-    A ``FLOAT32`` is the double whose shortest decimal is the float32's own
-    (:func:`_float32_double`), not the double it widens to, so the stored
-    ``1e-6`` is spelt ``0.000001``, not ``9.999999974752427e-7``. It
-    converts back to the same float32; a ``FLOAT64`` is kept as stored.
-    """
-    parts = gguf_field.parts
-    if not parts:
-        return None
-    last = parts[-1]
-    type_name = _type_name(gguf_field.types[0]) if gguf_field.types else ""
-    # String fields are stored as raw byte arrays; decode explicitly
-    if type_name == "STRING":
-        return last.tobytes().decode("utf-8", errors="surrogateescape")
-    if type_name == "FLOAT32" and len(last) == 1:
-        return _float32_double(last[0])
-    if hasattr(last, "tolist"):
-        val = last.tolist()
-        return val[0] if isinstance(val, list) and len(val) == 1 else val
-    return last
-
-
-def _read_fields(
-    reader_fields: Mapping[str, Any],
-) -> tuple[dict[str, Any], dict[str, Any], dict[str, str]]:
-    """Every field of a GGUF file, in file order.
-
-    Returns ``(fields, raw_metadata, derived)``. In *fields* a scalar keeps
-    its key and an array ``k`` becomes ``k.length``, its declared element
-    count, at ``k``'s position; *derived* maps each such length key back to
-    ``k``. *raw_metadata* keeps the file's keys: a scalar's value, an
-    array's :func:`_array_summary`. A real key ``k.length`` wins over an
-    array ``k``'s length, whatever their order in the file.
-
-    Raises:
-        ValueError: An array field without an element count.
-    """
-    scalar_keys = {key for key, f in reader_fields.items() if not _is_array(f)}
-    fields: dict[str, Any] = {}
-    raw_metadata: dict[str, Any] = {}
-    derived: dict[str, str] = {}
-    for key, gguf_field in reader_fields.items():
-        if not _is_array(gguf_field):
-            fields[key] = raw_metadata[key] = _field_value(gguf_field)
-            continue
-        raw_metadata[key] = _array_summary(gguf_field)
-        length_key = key + _ARRAY_LENGTH_SUFFIX
-        if length_key in scalar_keys:
-            emit(
-                log,
-                MODEL_FIELD_CONFLICT,
-                logging.WARNING,
-                line=GGUF_LENGTH_LINE,
-                entry=length_key,
-                name=key,
-            )
-            continue
-        fields[length_key] = raw_metadata[key]["length"]
-        derived[length_key] = key
-    return fields, raw_metadata, derived
 
 
 def _first_stated(
@@ -311,36 +192,35 @@ def _originators(
 
 
 def _parameter_count(
-    shapes: list[list[int]],
+    shapes: list[list[int]] | None,
     fields: dict[str, Any],
     source: str,
     provenance: dict[str, str],
     where: str,
 ) -> int | None:
-    """The sum of the tensor elements, ``None`` for a split file: it holds
-    its own shard of the tensors, so its sum would understate the model."""
+    """The sum of the tensor elements, ``None`` for a split file (it holds
+    its own shard of the tensors, so its sum would understate the model)
+    or with no tensor infos read (*shapes* ``None``)."""
     split_count = fields.get(_GGUF_SPLIT_COUNT_KEY)
-    if isinstance(split_count, int) and split_count > 1:
+    if shapes is None or (isinstance(split_count, int) and split_count > 1):
         return None
     return derived_parameter_count(shapes, "tensor_infos", source, provenance, where)
 
 
 def _categorize_gguf_fields(
-    fields: dict[str, Any],
-    source: str,
-    provenance: dict[str, str],
-    derived: Mapping[str, str],
+    loaded: _Loaded, source: str, provenance: dict[str, str]
 ) -> tuple[dict[str, Any], dict[str, str]]:
     """Separate hyperparameters from general properties and record provenance.
 
-    A *derived* key (an array's length, see :func:`_read_fields`) is always
-    a property, recorded as derived from the array's own key.
+    A derived key (an array's length, see
+    :func:`~pitloom.extract.ai_model._gguf_fields.read_fields`) is always a
+    property, recorded as derived from the array's own key, and as
+    ``Evidence: declared`` when the read did not reach the array's end.
     """
+    fields, derived = loaded.fields, loaded.derived
     hyperparameters: dict[str, Any] = {}
     properties: dict[str, str] = {}
     for key, value in fields.items():
-        if value is None:
-            continue
         if key not in derived and any(
             key.endswith(suffix) for suffix in _GGUF_HYPERPARAM_SUFFIXES
         ):
@@ -352,90 +232,95 @@ def _categorize_gguf_fields(
     record_dict_field_provenance(provenance, "properties", properties, source)
     # Overwritten in place, so the entries keep their sorted order.
     for length_key, array_key in derived.items():
-        provenance[f"properties.{length_key}"] = provenance_segment(
+        entry = provenance_segment(
             provenance_segment(source, "Field", array_key), "Method", "array_length"
         )
+        if length_key in loaded.declared:
+            entry = f"{entry} | {evidence_segment(DECLARED)}"
+        provenance[f"properties.{length_key}"] = entry
     return hyperparameters, properties
 
 
 class _Loaded(NamedTuple):
-    """What :func:`_load_fields` copies out of a GGUF file."""
+    """What :func:`_load_fields` reads of a GGUF file (see
+    :class:`~pitloom.extract.ai_model._gguf_fields.GgufFields`); *shapes*
+    ``None`` when the tensor infos were not read."""
 
     fields: dict[str, Any]
     raw_metadata: dict[str, Any]
     derived: dict[str, str]
-    shapes: list[list[int]]
+    declared: frozenset[str]
+    shapes: list[list[int]] | None
     datasets: list[DatasetReference]
     datasets_provenance: str | None
 
 
+# How many ``general.datasets`` elements to parse: all, within the header
+# read's own bounds (the datasets cap counts distinct datasets, not
+# elements).
+_DATASETS_KEEP = {DATASETS_KEY: 2**63}
+
+
+def _warn_partial(stop: GgufStop, where: str) -> None:
+    """The one ``over-cap`` warning of a header read in part."""
+    if stop.pair is None:
+        outcome = GGUF_TENSORS_NOT_READ
+    elif stop.key is None:
+        outcome = GGUF_PAIR_NOT_READ % {"pair": stop.pair}
+    else:
+        template = GGUF_ARRAY_CUT if stop.in_array else GGUF_FIELDS_NOT_READ
+        outcome = template % {"key": loggable(stop.key)}
+    warn_over_cap(log, stop_cap(stop), where, outcome)
+
+
 def _load_fields(model_path: Path, source: str) -> _Loaded:
-    """:func:`_read_fields` of the file at *model_path*, its header bounded
-    first, the shape of every tensor (already in memory, so no I/O) and the
-    datasets it names (:func:`read_gguf_datasets`, *source* their
-    provenance).
+    """The fields of the GGUF file at *model_path* (its header read by
+    :func:`~pitloom.extract.ai_model._gguf_bounds.load_gguf_header`), the
+    shape of every tensor and the datasets it names
+    (:func:`read_gguf_datasets`, *source* their provenance). A header read
+    in part is said once (``over-cap``).
 
     Raises:
         ImportError: If ``gguf`` is not installed.
         ValueError: If the file cannot be read.
-        pitloom.extract.ai_model.limits.ModelLimitExceeded: The header is over
-            a bound.
+        pitloom.extract.ai_model.limits.ModelLimitExceeded: The header
+            declares more than the file holds.
     """
     try:
-        # pylint: disable=import-outside-toplevel
-        from gguf import GGUFReader
+        # pylint: disable-next=import-outside-toplevel,unused-import
+        import gguf  # noqa: F401  # quantisation names, tensor type sizes
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:  # a broken install raises more than ImportError
         raise missing_library(AiModelFormat.GGUF, exc) from exc
 
+    failed = f"Failed to read GGUF file {quote_source(model_path)}"
     try:
-        check_gguf_header(model_path)
-    except OSError as exc:
-        raise ValueError(
-            f"Failed to read GGUF file {quote_source(model_path)}: {exc}"
-        ) from exc
-
-    try:
-        reader = GGUFReader(str(model_path), mode="r")
-    # pylint: disable-next=broad-exception-caught
-    except Exception as exc:
-        log.debug(
-            "Failed to open GGUF file %s: %s",
-            loggable(str(model_path)),
-            loggable(str(exc)),
-        )
-        raise ValueError(
-            f"Failed to read GGUF file {quote_source(model_path)}: {exc}"
-        ) from exc
-
-    try:
-        fields, raw_metadata, derived = _read_fields(reader.fields)
-        datasets, datasets_provenance = read_gguf_datasets(
-            fields,
-            reader.fields.get(DATASETS_KEY),
-            source,
-            str(model_path),
-            model_path.name,
-        )
-        return _Loaded(
-            fields,
-            raw_metadata,
-            derived,
-            [t.shape.tolist() for t in reader.tensors],
-            datasets,
-            datasets_provenance,
-        )
-    except ValueError as exc:
-        raise ValueError(
-            f"Failed to read GGUF file {quote_source(model_path)}: {exc}"
-        ) from exc
-    finally:
-        # GGUFReader (the gguf package) memory-maps the whole file and
-        # exposes no close()/context-manager protocol of its own -- drop the
-        # only reference to it as soon as every field we need is copied out,
-        # so the mapping is released deterministically here rather than
-        # implicitly whenever the interpreter next collects this frame.
-        del reader
+        header = load_gguf_header(model_path, _DATASETS_KEEP)
+        read = read_fields(header)
+    except (OSError, ValueError) as exc:
+        log.debug("%s: %s", loggable(failed), loggable(str(exc)))
+        raise ValueError(f"{failed}: {exc}") from exc
+    if header.stop is not None:
+        _warn_partial(header.stop, str(model_path))
+    datasets, datasets_provenance = read_gguf_datasets(
+        read.fields,
+        listed_strings(header, DATASETS_KEY),
+        source,
+        str(model_path),
+        model_path.name,
+    )
+    shapes = None
+    if header.tensors is not None:
+        shapes = [list(tensor.shape) for tensor in header.tensors]
+    return _Loaded(
+        read.fields,
+        read.raw_metadata,
+        read.derived,
+        read.declared,
+        shapes,
+        datasets,
+        datasets_provenance,
+    )
 
 
 def read_gguf(model_path: Path) -> AiModelMetadata:
@@ -446,8 +331,9 @@ def read_gguf(model_path: Path) -> AiModelMetadata:
     Raises:
         ImportError: If ``gguf`` is not installed.
         ValueError: If the file cannot be read.
-        pitloom.extract.ai_model.limits.ModelLimitExceeded: The header is over
-            a bound (:func:`~pitloom.extract.ai_model._gguf_bounds.check_gguf_header`).
+        pitloom.extract.ai_model.limits.ModelLimitExceeded: The header
+            declares more than the file holds
+            (:func:`~pitloom.extract.ai_model._gguf_bounds.load_gguf_header`).
     """
     source = provenance_source(model_path.name)
     loaded = _load_fields(model_path, source)
@@ -467,9 +353,7 @@ def read_gguf(model_path: Path) -> AiModelMetadata:
         quantization,
     ) = _extract_gguf_core_fields(fields, source, provenance)
 
-    hyperparameters, properties = _categorize_gguf_fields(
-        fields, source, provenance, loaded.derived
-    )
+    hyperparameters, properties = _categorize_gguf_fields(loaded, source, provenance)
     license_expr = read_gguf_license(fields, source, provenance)
 
     return AiModelMetadata(

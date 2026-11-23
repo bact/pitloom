@@ -231,8 +231,12 @@ def _read_mock(tmp_path: Path, **kwargs: Any) -> Any:
         ("torch_jit", None),
         ("main_graph", None),
         ("tf2onnx", None),
+        ("merged", None),  # optimum-onnx merge_decoders
+        ("spox_graph", None),  # spox, whatever the producer
+        ("mxnet_converted_model", None),  # MXNet mx2onnx
         # Exact match only: a real name that merely contains a default stays
         ("torch_jit_resnet", "torch_jit_resnet"),
+        ("merged_decoder", "merged_decoder"),
         ("Torch_JIT", "Torch_JIT"),
         # Blank is no name; padding is not part of one
         ("   ", None),
@@ -250,6 +254,30 @@ def test_onnx_exporter_default_graph_name_is_not_a_name(
         assert "name" not in meta.provenance
     else:
         assert meta.provenance["name"].endswith("Field: graph.name")
+
+
+@pytest.mark.parametrize(
+    ("graph_name", "producer_name", "expected"),
+    [
+        # The writing tool's own name, or it, a separator and more
+        ("tf2onnx", "tf2onnx", None),
+        ("Spox_Graph", "spox", None),
+        ("foo-bar", "foo", None),
+        ("my_tool", " My ", None),
+        # No separator, another tool, or no producer: a name
+        ("spoxnet", "spox", "spoxnet"),
+        ("resnet50", "pytorch", "resnet50"),
+        ("spox_graph2", "", "spox_graph2"),
+        ("spox_graph2", "   ", "spox_graph2"),
+        ("a.b", "a", "a.b"),
+    ],
+)
+def test_a_graph_named_after_its_writing_tool_is_not_a_name(
+    tmp_path: Path, graph_name: str, producer_name: str, expected: str | None
+) -> None:
+    meta = _read_mock(tmp_path, graph_name=graph_name, producer=(producer_name, ""))
+    assert meta.name == expected
+    assert ("name" in meta.provenance) is (expected is not None)
 
 
 @pytest.mark.parametrize(

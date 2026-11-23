@@ -39,6 +39,8 @@ jobs:
           # Seed corpus, copied so libFuzzer's new inputs stay out of tests/
           - target: crfsuite_header
             seed: tests/fixtures/aimodels/crfsuite
+          - target: gguf_header
+            seed: tests/fixtures/aimodels/gguf
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
@@ -61,6 +63,9 @@ jobs:
           if [ -n "${SEED}" ]; then
             mkdir -p fuzz-corpus
             find "${SEED}" -type f ! -name '*.py' -exec cp {} fuzz-corpus/ \;
+            if [ "${{ matrix.target }}" = "gguf_header" ]; then
+              python fuzz/gguf_seeds.py fuzz-corpus
+            fi
             set -- "$@" fuzz-corpus
           fi
           python "fuzz/fuzz_${{ matrix.target }}.py" "$@"

@@ -15,11 +15,14 @@ state.
 Modules:
 
 - :mod:`.crfsuite`: the header and label strings of a CRFsuite model.
+- :mod:`.gguf_header`: the key/value pairs and tensor infos of a GGUF file,
+  arrays passed over unless asked for.
 - :mod:`.pickle_walk`: the opcodes of a pickle, without converting its
   decimal numbers.
 
-See also: :mod:`pitloom.extract.ai_model._pickle_bounds` and
-:mod:`pitloom.extract.ai_model.crfsuite` (Pitloom's adapters).
+See also: :mod:`pitloom.extract.ai_model._pickle_bounds`,
+:mod:`pitloom.extract.ai_model.crfsuite` and
+:mod:`pitloom.extract.ai_model._gguf_bounds` (Pitloom's adapters).
 """
 
 from __future__ import annotations

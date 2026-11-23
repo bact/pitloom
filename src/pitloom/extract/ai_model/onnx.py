@@ -44,14 +44,28 @@ log = logging.getLogger(__name__)
 
 # graph.name values written by exporters when the user names nothing: they
 # identify the tool, not the model, so they are not read as its name.
+# Matched whole and case-sensitively, whatever producer_name says: a later
+# tool (onnx.quantize) rewrites the producer and keeps the graph name.
 _EXPORTER_DEFAULT_GRAPH_NAMES = frozenset(
     {
         "main_graph",  # torch.onnx, seen from PyTorch 2.6.0
+        # optimum-onnx merge_decoders(graph_name="merged"),
+        # optimum/onnx/graph_transformations.py, commit f1fe36b4e827
+        "merged",
+        # MXNet mx2onnx, hard-coded in helper.make_graph(),
+        # python/mxnet/onnx/mx2onnx/_export_onnx.py, tag 1.9.1
+        "mxnet_converted_model",
+        # spox Graph without with_name(), src/spox/_graph.py, commit fccdc4f6277e
+        "spox_graph",
         "tf2onnx",  # tf2onnx
         "torch-jit-export",  # torch.onnx, seen from PyTorch 1.8
         "torch_jit",  # torch.onnx, seen from PyTorch 1.12.0 and 1.13.1
     }
 )
+
+# A graph name that is the writing tool's name, or that name and one of
+# these then more, names the tool (spox writes "spox_graph"), not the model.
+_PRODUCER_NAME_SEPARATORS = ("_", "-")
 
 # metadata_props keys sit under this prefix in properties, so a free-form
 # key never collides with a field-derived one (domain, opset.<domain>)
@@ -181,16 +195,34 @@ def _warn_repeated_keys(keys: list[str]) -> None:
     )
 
 
+def _names_the_producer(name: str, producer_name: str) -> bool:
+    """Whether *name* is the writing tool's name *producer_name*, or that
+    name, a separator and more (casefolded, stripped); never for a blank
+    producer."""
+    tool = producer_name.strip().casefold()
+    if not tool:
+        return False
+    folded = name.casefold()
+    return folded == tool or folded.startswith(
+        tuple(tool + sep for sep in _PRODUCER_NAME_SEPARATORS)
+    )
+
+
 def _resolve_onnx_name(
-    graph_name: str, source: str, provenance: dict[str, str]
+    graph_name: str, producer_name: str, source: str, provenance: dict[str, str]
 ) -> str | None:
-    """Return ``graph.name``, stripped, unless blank or an exporter default.
+    """Return ``graph.name``, stripped, unless blank, an exporter default or
+    a name made from the writing tool's (:func:`_names_the_producer`).
 
     ``None`` leaves the shown name to
     :meth:`~pitloom.core.ai_metadata.AiModelMetadata.resolve_name`.
     """
     name = graph_name.strip()
-    if not name or name in _EXPORTER_DEFAULT_GRAPH_NAMES:
+    if (
+        not name
+        or name in _EXPORTER_DEFAULT_GRAPH_NAMES
+        or _names_the_producer(name, producer_name)
+    ):
         return None
     provenance["name"] = f"{source} | Field: graph.name"
     return name
@@ -294,8 +326,9 @@ def _initializer_shapes(model: Any, onnx: Any) -> Iterator[list[int]]:
 def read_onnx(model_path: Path) -> AiModelMetadata:
     """Extract metadata from an ONNX model file.
 
-    ``name`` is ``graph.name`` stripped, or ``None`` when it is blank or an
-    exporter default (``torch_jit``, ``tf2onnx``, ...).
+    ``name`` is ``graph.name`` stripped, or ``None`` when it is blank, an
+    exporter default (``torch_jit``, ``tf2onnx``, ``merged``, ...) or the
+    writing tool's name with a suffix (``spox_graph`` from ``spox``).
     ``license`` is the standard ``model_license`` metadata property.
     ``version`` is ``model_version``, decoded to ``MAJOR.MINOR.PATCH`` when
     its upper 32 bits are non-zero (bit-packed SemVer). ``type_of_model`` is
@@ -356,7 +389,7 @@ def read_onnx(model_path: Path) -> AiModelMetadata:
     if writing_tool_version:
         provenance["writing_tool_version"] = f"{source} | Field: producer_version"
 
-    name = _resolve_onnx_name(model.graph.name, source, provenance)
+    name = _resolve_onnx_name(model.graph.name, model.producer_name, source, provenance)
     description = stated_text(model.doc_string)
     if description:
         provenance["description"] = f"{source} | Field: doc_string"

@@ -268,6 +268,18 @@ MODEL_WRONG_FORMAT: Final = Message(
 
 #: What a rejected parameter count leaves out, as each of its warnings ends.
 PARAMETER_COUNT_SKIPPED: Final = "parameter count not recorded"
+#: What a GGUF header read in part leaves out, as its ``over-cap`` warning
+#: ends: the walk stopped in the pair ``%(key)s`` (an array: its length is
+#: the declared one), in the pair at ``%(pair)d`` (its key unread), or in
+#: the tensor infos.
+GGUF_ARRAY_CUT: Final = (
+    "%(key)s length as declared; later fields and the tensor shapes not read"
+)
+GGUF_FIELDS_NOT_READ: Final = "fields from %(key)s on and the tensor shapes not read"
+GGUF_PAIR_NOT_READ: Final = (
+    "fields from pair %(pair)d on and the tensor shapes not read"
+)
+GGUF_TENSORS_NOT_READ: Final = f"tensor shapes not read; {PARAMETER_COUNT_SKIPPED}"
 #: Why a tensor's dimension gives no count, ``%(value)s`` the dimension as
 #: the file states it (:class:`pitloom.core.model_parameters.ParameterCountRejected`).
 DIMENSION_REASON: Final = "tensor dimension %(value)s is not a non-negative integer"
