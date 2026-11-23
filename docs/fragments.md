@@ -180,9 +180,15 @@ Works on any SPDX 3 JSON document, not just Pitloom's own output. Passing
 more than one path also validates the graph formed by merging them, which
 catches type errors across `ExternalMap` references -- pass `--no-merge`
 to skip that and check each document only in isolation. Non-zero exit reports every
-finding to stderr with every line `ERROR:`-tagged -- a SHACL violation's
-Severity/Source Shape/Focus Node breakdown spans several `ERROR:` lines,
-not just one.
+finding to stderr, each line `ERROR: spdx3-validate: <line>` -- a SHACL
+violation's Severity/Source Shape/Focus Node breakdown spans several lines, not
+just one, and a finding given twice is said once. Each document then gets one
+coded `ERROR: FILE=<file>: not valid SPDX 3 (<number> finding(s) above)
+[sbom-invalid]` line (`ERROR: the SBOMs together are not valid SPDX 3 (<number>
+finding(s) above) [sbom-invalid]` for the merged graph), and no empty `ERROR:`
+line. A document the validator could not load says why the same way, then ends
+`could not be validated; spdx3-validate says why above`. See
+[Message codes: Targets](message-codes-targets.md#sbom-invalid).
 
 ## List configured fragments
 

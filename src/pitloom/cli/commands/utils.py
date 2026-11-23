@@ -29,7 +29,6 @@ from pitloom.core.optional_libraries import (
     missing,
     not_installed,
 )
-from pitloom.core.quote_source import quote_source
 from pitloom.core.url_masking import masked_given_path
 from pitloom.core.wheel_dist_info import (
     WheelRefused,
@@ -48,8 +47,12 @@ from pitloom.messages.targets import (
     NO_WHEEL_MATCH_LINE,
     WHEEL_PATTERN_TOO_DEEP_LINE,
     is_input_file,
+    relay_validator_text,
     say_input_not_found,
+    say_validation_findings,
+    say_validator_failure,
 )
+from pitloom.messages.wheel_sboms import wheel_sbom_missing
 
 
 def cli_error_handler(func: Callable[..., int]) -> Callable[..., int]:
@@ -256,10 +259,7 @@ def _locate_embedded_sbom_or_report(
         return None
 
     if location is None:
-        print_error(
-            f"no SBOM found under .dist-info/sboms/ in {quote_source(wheel_path.name)}"
-            + (f" matching {quote_source(sbom_filename)}" if sbom_filename else "")
-        )
+        report_error_line(wheel_sbom_missing(wheel_path.name, sbom_filename))
     return location
 
 
@@ -337,24 +337,22 @@ def _validate_spdx3_documents(
     *,
     check_merged: bool,
     names: Mapping[str, str] | None = None,
+    per_document: bool = True,
 ) -> int:
     """Validate SPDX 3 JSON document(s) against schema and SHACL rules.
 
     Shared by ``loom fragment validate`` and ``loom validate-wheel``
     -- same underlying `spdx3_validate.validate()` call, same install-hint
-    on missing dependency, same per-violation ``ERROR:`` line handling.
+    on missing dependency, same relay of the validator's own text
+    (:func:`~pitloom.messages.targets.say_validation_findings`: each line
+    after ``spdx3-validate: ``, then one ``sbom-invalid`` line per document).
     Returns the CLI exit code (0 valid, 1 otherwise); prints nothing on
-    success -- callers print their own success message. *names* maps a path to
-    the name shown in its place in the messages (a temporary copy of a wheel's
-    member is shown as that member).
+    success -- callers print their own success message. *names* maps a path
+    to the name shown in its place in the messages (a temporary copy of a
+    wheel's member is shown as that member), both raw. With *per_document*
+    off the ``sbom-invalid`` lines are left to the caller, which says the
+    document's own outcome.
     """
-    shown = names or {}
-
-    def show(text: str) -> str:
-        for path, name in shown.items():
-            text = text.replace(path, name)
-        return text
-
     spdx3_validate = _import_spdx3_validate()
     if spdx3_validate is None:
         return 1
@@ -367,21 +365,24 @@ def _validate_spdx3_documents(
         # ValidationResult carrying schema/SHACL findings below, but still
         # a validation failure the caller should report cleanly, not an
         # unhandled exception.
-        print_error(show(str(exc)))
+        if per_document:
+            say_validator_failure(
+                exc, file=paths[0] if len(paths) == 1 else None, names=names
+            )
+        else:
+            relay_validator_text(str(exc) or type(exc).__name__, names=names)
         return 1
 
     if not result:
         # The findings come back in hash order (they differ from run to run):
         # sorted, the same document gives the same lines.
-        for err in sorted(
-            result.errors,
-            key=lambda e: (str(e.source), str(e.kind), _stable_message(e.message)),
-        ):
-            # err.message can itself be multi-line (e.g. a SHACL violation's
-            # Severity/Source Shape/Focus Node breakdown) -- tag every line
-            # with ERROR: so no continuation line is left ungrep-able.
-            header = show(f"{err.source}: [{err.kind}] {_stable_message(err.message)}")
-            for line in header.splitlines():
-                print_error(line)
+        findings = [
+            (str(err.source), str(err.kind), _stable_message(err.message))
+            for err in sorted(
+                result.errors,
+                key=lambda e: (str(e.source), str(e.kind), _stable_message(e.message)),
+            )
+        ]
+        say_validation_findings(findings, names=names, per_document=per_document)
         return 1
     return 0

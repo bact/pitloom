@@ -1,6 +1,6 @@
 ---
 # Created: 2026-08-10
-# Last-Modified: 2026-11-19
+# Last-Modified: 2026-11-23
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -110,10 +110,12 @@ output.
 Exit code `0` means valid: stdout has one `FILE=<path> STATUS=valid` line
 per document and stderr `INFO: fragment validate: N document(s) valid`. A
 non-zero exit code means at least one schema or SHACL error (no stdout line),
-printed to stderr with every line `ERROR:`-tagged (a SHACL violation's
-Severity/Source Shape/Focus Node breakdown spans several `ERROR:` lines, and
-a merged-graph failure is labelled `(merged)`); a missing file or invalid
-JSON is one `ERROR:`.
+printed to stderr, each finding line `ERROR: spdx3-validate: <line>` (a SHACL
+violation's Severity/Source Shape/Focus Node breakdown spans several lines, and
+a merged-graph failure is labelled `(merged)`), then one coded `[sbom-invalid]`
+`ERROR:` line per document (`not valid SPDX 3 (<number> finding(s) above)`; a
+document that could not be loaded says why above and ends `could not be
+validated`); a missing file is one `ERROR:`.
 
 To validate several related documents (e.g. a base SBOM plus a fragment
 that declares an `ExternalMap` for the base ids it uses) and additionally
@@ -137,7 +139,8 @@ validate <merged-sbom-file>`.
 and uses the same exit code convention, if `pitloom[validate]` isn't the
 preferred install path in a given context -- but it writes its report to
 *stdout*, not stderr, and only each document's header line is
-`ERROR:`-tagged; the continuation lines are not.)
+`ERROR:`-tagged; the continuation lines are not, and it has no `[sbom-invalid]`
+line.)
 
 ## Validate a wheel's embedded SBOM
 
@@ -153,7 +156,8 @@ loom validate-wheel dist/mypackage-1.0.0-py3-none-any.whl   # schema/SHACL conte
 Each command prints one stdout line per wheel, `WHEEL=<name> STATUS=<status>`:
 `ok`/`failed` for `verify-wheel`, `valid`/`skipped`/`failed` for
 `validate-wheel` (a failure's reason is the `ERROR:` on stderr; its schema/SHACL
-lines name the SBOM inside the wheel as `<wheel>/<member>`, in a fixed order).
+findings, then the `[sbom-invalid]` line, name the SBOM inside the wheel as
+`<wheel>/<member>`, in a fixed order).
 **Exit 0 is not always a clean pass.** A name/version mismatch in `verify-wheel`
 is only a `WARNING:` (exit 0, still `STATUS=ok`) unless `--fail-on-mismatch` is
 given: report any `WARNING:`, and add `--fail-on-mismatch` in CI.
@@ -162,18 +166,19 @@ given: report any `WARNING:`, and add `--fail-on-mismatch` in CI.
 `.dist-info/sboms/` entries needs `--sbom-filename NAME` on either command, else
 `ERROR:`.
 
-A wheel Pitloom refuses gets one `ERROR: loom <command>: ARCHIVE=... -- wheel refused` and
-exit 1; the other wheels are still checked (an unexpected `validate-wheel`
-error, `ERROR: loom validate-wheel: ...`, stops the batch instead).
-`verify-wheel` reads only the member names, the own `.dist-info`'s
-`METADATA` and the embedded SBOM, and `validate-wheel` only the names and
-the embedded SBOM, so they refuse a file
-that is not a ZIP, and a wheel with one of those unreadable, two members
-with one name, a NUL in a name or no single own `.dist-info` (where a
-`WARNING: ... -- identity unknown` line comes before the `ERROR:`): a damaged
+A wheel Pitloom refuses gets one `ERROR:` ending `; wheel refused` and a
+`[code]` (`wheel-unreadable`, `wheel-invalid`, `dist-info-missing`,
+`dist-info-ambiguous`) and exit 1; the other wheels are still checked (an
+unexpected `validate-wheel` error, `ERROR: loom validate-wheel: ...`, stops the
+batch instead). `verify-wheel` reads only the member names, the own
+`.dist-info`'s `METADATA` and the embedded SBOM, and `validate-wheel` only the
+names and the embedded SBOM, so they refuse a file that is not a ZIP, and a
+wheel with one of those unreadable, two members with one name, a NUL in a name
+or no single own `.dist-info` (only the `ERROR:`: no `identity unknown`
+`WARNING:` comes first, as it does from `wheel` and `generate`): a damaged
 other member does not fail them. `WARNING: ... the file name names no
-top-level .dist-info; using ...` means the file name and the wheel's
-`.dist-info` disagree: report it.
+top-level .dist-info; using ...` (`[dist-info-conflict]`) means the file name
+and the wheel's `.dist-info` disagree: report it.
 
 ### Presence/location only -- ask before validating content
 

@@ -106,11 +106,11 @@ def test_read_wheel_warns_once_per_non_conforming_member(
     prefix = "ARCHIVE='demo-1.0.0-py3-none-any.whl' ENTRY="
     assert messages == sorted(
         [
-            prefix + "'demo\\mod.py': non-conforming name -- recorded as 'demo/mod.py'",
+            prefix + "'demo\\mod.py': non-conforming name; listed as 'demo/mod.py'",
             prefix + "'./demo/sub//deep.py': non-conforming name"
-            " -- recorded as 'demo/sub/deep.py'",
-            prefix + "'../evil.py': no safe install location -- skipped",
-            prefix + "'/abs/evil.py': no safe install location -- skipped",
+            "; listed as 'demo/sub/deep.py'",
+            prefix + "'../evil.py': no safe install location; not listed",
+            prefix + "'/abs/evil.py': no safe install location; not listed",
         ]
     )
 

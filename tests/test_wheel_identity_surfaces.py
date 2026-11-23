@@ -209,35 +209,38 @@ def _damaged_sbom_wheel(tmp_path: Path) -> Path:
 _CAUSES: dict[str, tuple[Callable[[Path], Path], str]] = {
     "unreadable-member": (
         lambda d: damaged_wheel(d, "deflate"),
-        f"ENTRY={'demo/bad.py'!r}: could not read (zlib.error) -- wheel refused",
+        f"ENTRY={'demo/bad.py'!r}: could not read (zlib.error); wheel refused",
     ),
     "duplicate-name": (
         _duplicate_wheel,
-        f"ENTRY={'demo-1.0.dist-info/METADATA'!r}: duplicate member name -- wheel",
+        f"ENTRY={'demo-1.0.dist-info/METADATA'!r}: duplicate member name; wheel",
     ),
     "bad-central-name": (
         central_name_damaged_wheel,
-        f"ARCHIVE={_WHEEL!r}: could not open (UnicodeDecodeError) -- wheel refused",
+        f"ARCHIVE={_WHEEL!r}: could not open as a ZIP archive (UnicodeDecodeError); "
+        "wheel refused",
     ),
     "damaged-metadata": (
         _damaged_metadata_wheel,
-        f"ENTRY={METADATA!r}: could not read (zlib.error) -- wheel refused",
+        f"ENTRY={METADATA!r}: could not read (zlib.error); wheel refused",
     ),
     "damaged-sbom": (
         _damaged_sbom_wheel,
-        "demo-1.0.spdx3.json': could not read (zlib.error) -- wheel refused",
+        "demo-1.0.spdx3.json': could not read (zlib.error); wheel refused",
     ),
     "nul-name": (
         _nul_wheel,
-        f"ENTRY={_NUL_NAME!r}: NUL in member name -- wheel refused",
+        f"ENTRY={_NUL_NAME!r}: NUL in member name; wheel refused",
     ),
     "not-a-zip": (
         _not_a_zip_wheel,
-        f"ARCHIVE={_WHEEL!r}: could not open (zipfile.BadZipFile) -- wheel refused",
+        f"ARCHIVE={_WHEEL!r}: could not open as a ZIP archive (zipfile.BadZipFile); "
+        "wheel refused",
     ),
     "zip-version": (
         zip_version_wheel,
-        f"ARCHIVE={_WHEEL!r}: could not open (NotImplementedError) -- wheel refused",
+        f"ARCHIVE={_WHEEL!r}: could not open as a ZIP archive (NotImplementedError); "
+        "wheel refused",
     ),
 }
 # The embed and generate surfaces read every member; verify and validate read
@@ -324,7 +327,9 @@ def test_a_refused_wheel_of_a_batch_fails_alone(
         assert len(errors) == 1, errors
         assert _embedded(other)
     else:
-        assert len(errors) == 2 and "no SBOM found" in errors[1], errors
+        assert len(errors) == 2 and "no SBOM under .dist-info/sboms/" in errors[1], (
+            errors
+        )
 
 
 def test_verify_wheel_says_when_the_file_name_names_another_dist_info(

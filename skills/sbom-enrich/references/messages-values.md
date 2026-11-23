@@ -20,6 +20,7 @@ holds the value there. The table lists every name a line or a prefix uses.
 | --- | --- |
 | `<activity>` | what was running when the signal came: `the build`, `the AI model file copy`, `a guarded activity` |
 | `<answered>` | the project name PyPI answered for, as its answer gives it; in quotes, escaped, when it holds a control character |
+| `'<archive>'` | a wheel or sdist by its file name as given, never its directory; in quotes, a URL's credentials masked, cut to 500 characters with `...` before the closing quote, escaped when it holds a control character |
 | `<arity>` | how many values argparse expected after the option (`one argument`, `2 arguments`, `at least one argument`) |
 | `<backend>` | the build backend a pyproject.toml declares in [build-system] build-backend, as written; escaped when it holds a control character |
 | `<card>` | the kind of card: `model card`, `dataset card`, `Hugging Face dataset card` |
@@ -47,9 +48,11 @@ holds the value there. The table lists every name a line or a prefix uses.
 | `<entry>` | an archive member, a metadata key, a path in a wheel or an installed-metadata directory (`demo-1.0.dist-info`), as the file names it; in quotes, escaped, when it holds a control character |
 | `<entry-key>` | the key of a dictionary entry (`DictionaryEntry`), on one line, a URL's credentials masked, cut to 120 characters (`...` after it when cut), in quotes, escaped when it holds a control character |
 | `<error>` | what the reader or the file system reported, or git's own `fatal:`, `error:` and `remote:` lines joined by semicolons (server text), on one line; in quotes, escaped, when it holds a control character |
+| `<exception-type>` | the type of the exception a read raised, never its text: bare for a builtin (`EOFError`), qualified otherwise (`zipfile.BadZipFile`) |
 | `<exit-code>` | the exit code of the build process: negative for a POSIX signal (`-9`), a large number for a Windows status (`3221225786`) |
 | `<expected>` | what the value must be: `true or false`; `an integer`; `an integer of at least 1`; `0 (no cap) or an integer of at least 8`; `a string`; `a non-empty string`; `a string or an inline table`; `a table`; `an array`; `an array of tables`; `an array of strings`; `a string or an array of strings`; `one of annotation, both, comment`; `one of full, minimal`; `one of always, auto, never`; `one of auto, extension, magika`; `one of agent, organization, person, software-agent`; `a media type type/subtype (image/png)`; `a file name, not a path`; `a plain file name (not a path, not only .spdx3.json)`; `an ISO 8601 date and time`; `a path to a configuration file, or a PitloomConfig`; `a fingerprint (sha256: and 16 to 64 lowercase hex digits)`; `an array of fingerprints`; `a SHA-256 in hex (64 characters)`; `"warn" or "refuse"` |
 | `<expression>` | the SPDX license expression recorded (`Apache-2.0 AND MIT`); escaped when it holds a control character |
+| `<extension>` | the file extension recommended for an SBOM's format (`.spdx3.json`) |
 | `<extra>` | an extra, or several sorted and comma-separated, each on one line, a URL's credentials masked, cut to 120 characters (`...` after it when cut), in quotes, escaped when it holds a control character |
 | `<failure>` | what the operating system reported (`Permission denied`), never the path it names, or what the decoder, reader or build step reported, cut to 500 characters (then `...`); on one line, in quotes, escaped, when it holds a control character |
 | `<field>` | the project setting that lists the file (`project.readme`, `tool.setuptools.dynamic.dependencies`, `setup.cfg metadata.long_description`), a licence value's field (`License-Expression`), or a project metadata key or table (`project.version`, `[tool.poetry] 'readme'`); in quotes, escaped, when it holds a control character |
@@ -65,11 +68,14 @@ holds the value there. The table lists every name a line or a prefix uses.
 | `<algorithm>` | a digest algorithm as the SPDX 3 vocabulary names it (`sha256`); escaped when it holds a control character |
 | `'<holder-type>'` | the SPDX 3 type of the element that already holds the id, in quotes (`'software_Package'`), escaped when it holds a control character |
 | `<hosts>` | the hosts Pitloom fetches PyPI files from, comma-separated (`files.pythonhosted.org`) |
+| `<part>` | the part of a wheel's identity: `name` or `version` |
 | `<input>` | what the path was named as: `config file`, `fragments directory`, `ID registry file`, `PATH`, `project directory`, `project path`, `pyproject.toml`, `SBOM file`, `sdist archive`, `setup.cfg`, `setup.py`, `wheel file` |
+| `'<install-name>'` | the name a member installs under, separators as `/`, empty and `.` segments dropped; in quotes, a URL's credentials masked, cut to 500 characters with `...` before the closing quote, escaped when it holds a control character |
 | `<kept>` | what a conflict kept (a lock file, a version, a value), on one line, a URL's credentials masked, cut to 120 characters (`...` after it when cut), in quotes, escaped when it holds a control character; a value merged from SBOM fragments that is not a text: an element (`ai_AIPackage <spdx-id> 'name'`), a structure (`Hash(algorithm=..., hashValue='...')`) or a number, not in quotes |
 | `<key>` | the key naming the input: `FILE`, `DIR`, `FIELD` (a metadata field or table), `DATASET`, `MARKER` or `REQUIREMENT` |
 | `<key-reason>` | why the element is keyed by its name, or files by their path as read: `not found`, `outside the project root`, `not a regular file`, `used only by a model with no file`, `not found: declare paths relative to the registry root (id import --project-dir) or run id import from the directory the script ran in`, `the project is outside the registry's root`, `their path is outside the registry's root`, `their path leads outside the archive's project` |
 | `<kwargs>` | the file-selection `setup()` keywords a setup.py passes, comma-separated (`packages, package_dir`); `**kwargs` for an unpacked mapping |
+| `'<later-member>'` | the later member of the same install name, as the archive stores it, in quotes, a URL's credentials masked, cut to 500 characters with `...` before the closing quote, escaped when it holds a control character |
 | `<license>` | a licence value as read, on one line, a URL's credentials masked, cut to 120 characters (`...` after it when cut), in quotes, escaped when it holds a control character |
 | `<license-reason>` | why the value is no SPDX license expression: LicenseID's reason (`parse failed: Unexpected 'OR'`, `not found: Acme-Terms`) or Pitloom's (`more than one line`); escaped when it holds a control character |
 | `<limit>` | the cap, in its unit |
@@ -77,7 +83,10 @@ holds the value there. The table lists every name a line or a prefix uses.
 | `<lock-key>` | the lock-file key the line is about: `_meta.pipfile-spec`, `category`, `created-by`, `default`, `default-groups`, `dependencies`, `extra`, `extras`, `groups`, `lock-version`, `marker`, `metadata.lock-version`, `metadata.lock_version`, `name`, `optional-dependencies`, `package`, `packages`, `version` |
 | `<lock-value>` | a value as the lock file or the line states it, on one line, a URL's credentials masked, cut to 120 characters (`...` after it when cut), in quotes, escaped when it holds a control character |
 | `<sha256>` | the SHA-256 of the bytes read, in hex |
+| `'<member>'` | an archive member's name as the archive stores it, in quotes, a URL's credentials masked, cut to 500 characters with `...` before the closing quote, escaped when it holds a control character |
+| `<members>` | archive member names, each shown as a member is, comma-separated, at most 10 then `and N more` |
 | `<metadata-fields>` | [project] keys, comma-separated (`version, dependencies`) |
+| `<minimum-version>` | the oldest release of a library that has what Pitloom needs (`1.29.0`) |
 | `<module>` | the Python module Pitloom imports for the step (`h5py`) |
 | `<name>` | the input as Pitloom names it (a path, a field, a dataset, the start of a requirement), a `setup()` keyword or a name a file declares; in quotes, escaped, when it holds a control character |
 | `<namespace>` | a document namespace IRI, as an ID registry file or an SBOM states it, a URL's credentials masked; in quotes, escaped, when it holds a control character |
@@ -95,6 +104,7 @@ holds the value there. The table lists every name a line or a prefix uses.
 | `'<path>'` | a path in quotes |
 | `<pointer>` | the field of the element that holds the value, as an RFC 6901 JSON pointer into it (`/software_downloadLocation`, `/externalRef/0/locator/0`); for a statement Pitloom writes, on into it (`/statement/metadata/<key>`, `/statement/fields/<field>/note`), or into the comment's provenance line (`/comment/<field>/note`), a part no JSON pointer resolves on the element; in quotes, escaped, when it holds a control character |
 | `<process-group>` | the process group of the build (POSIX), which its leftover processes share |
+| `<project-paths>` | project paths, each shown as a member is, comma-separated, at most 10 then `and N more` |
 | `<property>` | a property of an SPDX 3 element as the JSON-LD document names it (`description`, `software_downloadLocation`, `from`) |
 | `<provenance-field>` | the field a provenance entry is about, as Pitloom's provenance names it (`byte_size`, `verified_using`) |
 | `<cap>` | the cap's name; a setting's name when a setting sets it (`max-model-extract-bytes`) |
@@ -107,6 +117,8 @@ holds the value there. The table lists every name a line or a prefix uses.
 | `<what>` | what of an element the ID registry cannot hold: `key`, `name`, `project_root`, `sha256`, `spdxId`, `type name` |
 | `<requirement>` | Pitloom with the extra that installs the library (`pitloom[gguf]`); `pitloom[ai]` installs every model reader |
 | `'<root>'` | the directory a path is checked against (--project-dir, a project root), in quotes like the path beside it |
+| `'<sbom-filename>'` | the file name given as --sbom-filename, in quotes, a URL's credentials masked, cut to 500 characters with `...` before the closing quote, escaped when it holds a control character |
+| `<sbom-value>` | the value the SBOM states (its subject's name or version, or its type), exactly as stated (a value not text as sorted ASCII JSON), never collapsed, in quotes: masked whole (a URL's credentials, a secret-named parameter), cut to 120 characters with `...` before the closing quote, backslashes doubled, white space other than a plain space and control characters escaped; when the two sides would look alike (equal up to the cut, or either not ASCII), each also shows `(from character N: '<rest>')`, N counting characters of the masked value and the rest an ASCII literal. Raw text is compared, so a difference PEP 503 or PEP 440 ignores in the first characters can hide one past the cut |
 | `<seconds>` | the time allowed, in whole seconds |
 | `<setting>` | a configuration setting as the file names it (`accept-url-credentials`, `url-credentials`, the known key an unknown one is closest to) |
 | `<settings>` | the build settings left out, comma-separated, as the file names them (`tool.hatch.metadata.hooks`, `tool.setuptools.cmdclass`, `metadata.version`) |
@@ -125,7 +137,9 @@ holds the value there. The table lists every name a line or a prefix uses.
 | `<value>` | the value as the file states it (a tensor dimension: its Python repr, cut to 40 characters); in quotes, escaped, when it holds a control character |
 | `<type>` | the type of the value the file holds, as Python names it: `bool`, `date`, `datetime`, `dict`, `float`, `int`, `list`, `NoneType`, `str`, `time` |
 | `<version>` | a release version as the URL, PyPI or a lock file gives it; in quotes, escaped, when it holds a control character |
+| `<wheel-value>` | the value the wheel's METADATA states, exactly as stated (a value not text as sorted ASCII JSON), never collapsed, in quotes: masked whole (a URL's credentials, a secret-named parameter), cut to 120 characters with `...` before the closing quote, backslashes doubled, white space other than a plain space and control characters escaped; when the two sides would look alike (equal up to the cut, or either not ASCII), each also shows `(from character N: '<rest>')`, N counting characters of the masked value and the rest an ASCII literal. Raw text is compared, so a difference PEP 503 or PEP 440 ignores in the first characters can hide one past the cut |
 | `<when>` | the case the option has no effect in, or cannot be used in (`without --allow-build`, `for a remote repository (...)`, `when embedding multiple wheels`) |
 | `<why>` | why a redirect or an HF_ENDPOINT was refused, a file skipped, a release yanked (`no reason given` when PyPI gives none), or a Git URL could not be checked for a redirect (`HTTP 404`, `no answer in time`, an exception's class name); on one line, in quotes, escaped, when it holds a control character |
 | `<command-line>` | a git command line as run, the credentials of a URL in it taken out; escaped when it holds a control character |
+| `<skipped>` | how many wheels were skipped |
 | `<subcommand>` | the `loom` command that failed (`generate`, `fragment validate`) |

@@ -97,9 +97,10 @@ def test_wheel_command_nonexistent_and_verbose(
 
 def test_report_embed_result(capsys: pytest.CaptureFixture[str]) -> None:
     """report_embed_result prints one WHEEL=/SBOM= data line to stdout and
-    the two INFO: side-effect lines to stderr, matching every other
+    one coded INFO: line per side effect to stderr (a stale SBOM removed, a
+    signature removed, the entry date floored), matching every other
     INFO:/WARNING:/ERROR: line."""
-    # The two side-effect lines go through logging (see AGENTS.md's "CLI
+    # The side-effect lines go through logging (see AGENTS.md's "CLI
     # output" section), unlike the confirmation line above them -- calling
     # this function directly, without going through __main__.main(), skips
     # the configure_logging() call that normally wires INFO: up to stderr.
@@ -108,23 +109,38 @@ def test_report_embed_result(capsys: pytest.CaptureFixture[str]) -> None:
     report_embed_result(
         "sbom.spdx.json",
         "pkg.whl",
-        ("old_sbom.spdx.json",),
+        ("old_sbom.spdx.json", "pkg-1.0.dist-info/RECORD.jws"),
         timestamp_floored=True,
     )
     captured = capsys.readouterr()
     assert kv_stdout(captured.out) == [{"WHEEL": "pkg.whl", "SBOM": "sbom.spdx.json"}]
-    assert "removed stale SBOM old_sbom.spdx.json" in captured.err
-    assert "timestamp was before 1980" in captured.err
+    stale, signature, floored = captured.err.splitlines()
+    assert stale.startswith("INFO: ARCHIVE='pkg.whl' ENTRY='old_sbom.spdx.json': ")
+    assert stale.endswith("; removed [wheel-sbom-conflict/held]")
+    assert signature.startswith(
+        "INFO: ARCHIVE='pkg.whl' ENTRY='pkg-1.0.dist-info/RECORD.jws': "
+    )
+    assert signature.endswith("re-sign the wheel [wheel-unusable/signed]")
+    assert floored.startswith("INFO: ARCHIVE='pkg.whl': SBOM entry dated 1980-01-01")
+    assert floored.endswith("[datetime-not-recordable]")
 
 
 def test_report_embed_result_escapes_control_characters(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    report_embed_result("sboms/ev\x1b[31mil\n x.json", "p\x1bkg.whl", ())
+    configure_logging()
+    report_embed_result(
+        "sboms/ev\x1b[31mil\n x.json", "p\x1bkg.whl", ("o\x1bld.json",), True
+    )
 
-    out = capsys.readouterr().out
-    assert out.count("\n") == 1 and "\x1b" not in out
-    assert "\\x1b[31mil" in out
+    captured = capsys.readouterr()
+    assert captured.out.count("\n") == 1 and "\x1b" not in captured.out
+    assert "\\x1b[31mil" in captured.out
+    lines = captured.err.splitlines()
+    assert len(lines) == 2 and all(
+        line.startswith("INFO: ARCHIVE='p") for line in lines
+    )
+    assert "\x1b" not in captured.err and "\\x1b" in captured.err
 
 
 def test_embed_wheel_prints_one_clean_line_for_a_hostile_metadata_name(

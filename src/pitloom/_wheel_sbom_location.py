@@ -24,16 +24,15 @@ import os
 import zipfile
 from pathlib import Path
 
-from pitloom.core.quote_source import quote_source
 from pitloom.core.wheel_dist_info import (
-    PROBLEM_NONE,
     open_wheel_zip,
     read_metadata_headers,
-    refusal,
     refuse_unreadable,
     resolve_own_dist_info,
     wheel_members,
 )
+from pitloom.messages.wheel_sboms import wheel_sbom_ambiguous
+from pitloom.messages.wheels import DIST_INFO_NONE, refuse_dist_info, warn_dist_info
 
 log = logging.getLogger(__name__)
 
@@ -52,24 +51,27 @@ def _find_dist_info_prefix(
     cannot name different directories for one wheel.
 
     *report* logs one ``WARNING:`` where the file name names no
-    ``.dist-info`` of the wheel and another is used; a caller that has
+    ``.dist-info`` of the wheel and another is used
+    (``dist-info-conflict``); a caller that has
     already read the wheel (``read_wheel`` says so) leaves it off. *members*
     is the wheel's :func:`~pitloom.core.wheel_dist_info.wheel_members`, where
     the caller has them already.
 
     Raises:
-        ValueError: The wheel has no top-level ``.dist-info``, or several
-            and not exactly one named by its file name, or two members
-            share a name or one holds a NUL.
+        pitloom.messages.wheels.WheelRefused: The wheel has no top-level
+            ``.dist-info`` (``dist-info-missing``), or several and not
+            exactly one named by its file name (``dist-info-ambiguous``),
+            or two members share a name or one holds a NUL
+            (``wheel-invalid``).
     """
     if members is None:
         members = wheel_members(zf, wheel_path.name)
     choice = resolve_own_dist_info(wheel_path.name, [name for name, _ in members])
     if choice.prefix is not None:
         if report and choice.problem:
-            log.warning("ARCHIVE=%s: %s", quote_source(wheel_path.name), choice.problem)
+            warn_dist_info(log, wheel_path.name, choice.problem, chosen=choice.prefix)
         return choice.prefix
-    raise refusal(wheel_path.name, None, choice.problem or PROBLEM_NONE)
+    raise refuse_dist_info(wheel_path.name, choice.problem or DIST_INFO_NONE)
 
 
 def read_wheel_member(zf: zipfile.ZipFile, info: zipfile.ZipInfo) -> bytes:
@@ -170,8 +172,8 @@ def find_embedded_sbom(
             archive, a member that cannot be read, a duplicate or NUL name),
             missing/ambiguous ``.dist-info`` (see :func:`_find_dist_info_prefix`),
             or *sbom_filename* is unset and more than one file exists
-            under ``sboms/`` (ambiguous -- caller must disambiguate
-            explicitly).
+            under ``sboms/`` (``wheel-sbom-ambiguous``: the caller must
+            name one).
         OSError: An *environment* problem reading *wheel_path* (missing
             file, permission denied, a transient I/O error) -- kept as
             its own exception type rather than folded into ``ValueError``
@@ -204,12 +206,7 @@ def find_embedded_sbom(
         if not candidates:
             return None
         if len(candidates) > 1:
-            names = ", ".join(map(quote_source, sorted(candidates)))
-            raise ValueError(
-                f"Multiple SBOMs found under {quote_source(sboms_prefix)} in "
-                f"{quote_source(wheel_path.name)} "
-                f"({names}) -- pass --sbom-filename to disambiguate"
-            )
+            raise wheel_sbom_ambiguous(wheel_path.name, sorted(candidates))
         arcname = candidates[0]
         return EmbeddedSbomLocation(
             arcname=arcname, data=read_wheel_member(zf, members[arcname])

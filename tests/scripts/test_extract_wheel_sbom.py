@@ -149,7 +149,10 @@ def test_missing_dist_dir(module: ModuleType, tmp_path: Path) -> None:
     ("sboms", "pattern"),
     [
         ({}, "no SBOM"),
-        ({"a.spdx3.json": b"{}", "b.spdx3.json": b"{}"}, "Multiple SBOMs"),
+        (
+            {"a.spdx3.json": b"{}", "b.spdx3.json": b"{}"},
+            "SBOMs under .dist-info/sboms/",
+        ),
         ({"sub/a.spdx3.json": b"{}"}, "no SBOM"),
         ({"pkg-1.0.json": b"{}"}, "safe"),
         ({"a\nb.spdx3.json": b"{}"}, "safe"),

@@ -16,6 +16,7 @@ fields), :mod:`pitloom.messages._fields_credentials` (a URL credential's),
 discovery's), :mod:`pitloom.messages._fields_git` (the Git URL lines'),
 :mod:`pitloom.messages._fields_build` (the build lines'),
 :mod:`pitloom.messages._fields_fragments` (the SBOM fragment lines'),
+:mod:`pitloom.messages._fields_wheels` (the wheel and embedded-SBOM lines'),
 :mod:`pitloom.messages._field_type` (:class:`Field`),
 :mod:`pitloom.messages._field_tables` (the closed tables),
 :mod:`pitloom.messages._types` (the templates),
@@ -66,6 +67,7 @@ from pitloom.messages._fields_licence import LICENCE_FIELDS
 from pitloom.messages._fields_lock import LOCK_FIELDS
 from pitloom.messages._fields_metadata import METADATA_FIELDS
 from pitloom.messages._fields_registry import REGISTRY_FIELDS
+from pitloom.messages._fields_wheels import WHEEL_FIELDS
 
 #: The names of every family but the ID registry's.
 _GENERAL: Final[Mapping[str, Field]] = MappingProxyType(
@@ -470,4 +472,5 @@ FIELDS: Final[Mapping[str, Field]] = _merged(
     GIT_FIELDS,
     BUILD_FIELDS,
     FRAGMENT_FIELDS,
+    WHEEL_FIELDS,
 )

@@ -151,7 +151,8 @@ def test_cli_embed_wheel_verify_rereads_wheel_from_disk(
 
     captured = capsys.readouterr()
     assert records(captured.out, "SBOM")
-    assert "on-disk-value.txt doesn't use the recommended" in captured.err
+    assert "ENTRY='on-disk-value.txt': SBOM does not end in .spdx3.json" in captured.err
+    assert "[wheel-sbom-wrong-format]" in captured.err
 
 
 def test_cli_embed_wheel_verify_validate_share_one_disk_lookup(
@@ -326,7 +327,8 @@ def test_cli_embed_wheel_validate_flag_skips_unrecognized_format(
     captured = capsys.readouterr()
     assert records(captured.out, "SBOM")
     assert "WARNING:" in captured.err
-    assert "no validator registered" in captured.err
+    assert "no validator for the SBOM's format; not validated" in captured.err
+    assert "[wheel-sbom-unusable]" in captured.err
     assert "ERROR:" not in captured.err
 
 
@@ -347,7 +349,7 @@ def test_cli_embed_wheel_validates_a_given_sbom_before_writing(
     )
     monkeypatch.setattr(
         "pitloom.cli.commands.embed_wheel.validate_sbom_data",
-        lambda _data, _shown: valid,
+        lambda _data, _shown, **_keywords: valid,
     )
     monkeypatch.setattr(
         "pitloom.cli.commands.embed_wheel._run_post_embed_checks",

@@ -12,6 +12,10 @@ has a ``WARNING`` line for an SBOM namespace the registry does not take).
 An SBOM that is not UTF-8, not valid JSON or not a JSON object says
 ``file-unreadable/not-utf8`` and ``json-malformed``, read ``for the SBOM``.
 
+``spdx3-validate``'s own findings are relayed before the ``sbom-invalid``
+line of each document (``spdx3-validate: `` and its text, no code:
+:mod:`pitloom.messages._sbom_validation_say`).
+
 See also: :mod:`pitloom._sbom_format` and :mod:`pitloom._embed_generate`
 (the ``--sbom`` reader), :mod:`pitloom.id_registry._sbom_read`.
 """
@@ -85,6 +89,33 @@ SBOM_NAMESPACE_LINE: Final = Line(
     "registry keeps its own, not %(namespace)s",
 )
 
+#: The prefix of each line of ``spdx3-validate``'s own text relayed.
+VALIDATOR_PREFIX: Final = "spdx3-validate: "
+#: Where a validation line sends a reader for the validator's words.
+_VALIDATOR_ABOVE: Final = "spdx3-validate says why above"
+
+#: A document ``spdx3-validate`` found findings in, relayed before it.
+DOCUMENT_INVALID_LINE: Final = Line(
+    level="ERROR",
+    template="FILE=%(file)s: not valid SPDX 3 (%(number)s finding(s) above)",
+)
+#: Findings of the documents merged (``loom fragment validate`` of several).
+MERGED_INVALID_LINE: Final = Line(
+    level="ERROR",
+    template="the SBOMs together are not valid SPDX 3 (%(number)s finding(s) above)",
+)
+#: A document ``spdx3-validate`` could not load (bad JSON, an unknown
+#: ``@context``).
+NOT_VALIDATED_LINE: Final = Line(
+    level="ERROR",
+    template=f"FILE=%(file)s: could not be validated; {_VALIDATOR_ABOVE}",
+)
+#: Documents ``spdx3-validate`` could not load together (versions that differ).
+NONE_VALIDATED_LINE: Final = Line(
+    level="ERROR",
+    template=f"the SBOMs could not be validated; {_VALIDATOR_ABOVE}",
+)
+
 SBOM_INVALID: Final = Message(
     code="sbom-invalid",
     condition="invalid",
@@ -95,6 +126,10 @@ SBOM_INVALID: Final = Message(
         SBOM_DUPLICATE_KEY_LINE,
         SBOM_UNREADABLE_LINE,
         SBOM_NAMESPACE_LINE,
+        DOCUMENT_INVALID_LINE,
+        MERGED_INVALID_LINE,
+        NOT_VALIDATED_LINE,
+        NONE_VALIDATED_LINE,
     ),
     summary="An SBOM given to read is JSON but not a valid SPDX 3 document: "
     "its @graph is not a list of objects ('embed-wheel --sbom', 'loom id "
@@ -103,13 +138,17 @@ SBOM_INVALID: Final = Message(
     "counts, so what was checked may not be what is embedded), the SPDX 3 "
     "reader refuses it ('loom id import': an object with no type, a property "
     "of the wrong kind; the reader's text after the line's ';'), or "
-    "spdx3-validate refuses it ('embed-wheel --sbom --validate'; its own "
-    "lines before say why). As a WARNING: 'loom id import' into an empty "
+    "spdx3-validate refuses it ('embed-wheel --sbom --validate', 'loom "
+    "validate-wheel', 'loom fragment validate': its findings come before, "
+    "each line after spdx3-validate: , then one line per document, or for "
+    "the documents merged; a document it could not load says why the same "
+    "way). As a WARNING: 'loom id import' into an empty "
     "registry finds a document id that cannot be a namespace: not an "
     "absolute IRI, holding '#', or holding a character an IRI cannot hold "
     "(a space).",
     did="Wrote nothing: no wheel is changed, no ID is imported. The command "
-    "exits 1; the library (embed_wheel_sbom with sbom_path, "
+    "exits 1 ('loom validate-wheel' reports the wheel failed and goes on "
+    "with the next); the library (embed_wheel_sbom with sbom_path, "
     "IdRegistry.import_sbom) raises ValueError carrying the code for an "
     "@graph that is not a list of objects, a key given twice or an SBOM the "
     "SPDX 3 reader refuses. As a "

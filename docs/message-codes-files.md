@@ -27,7 +27,9 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
 | [`file-unreadable/outside-project`](#file-unreadableoutside-project) | WARNING | A file a project setting names, or a licence file, leads outside the project directory (a .. or absolute path, or a symbolic link out), and Pitloom reads no file outside it: its content is no part of the project. For an installed dependency, the directory is its .dist-info. | 0.22.0 |
 | [`file-unreadable/outside-repository`](#file-unreadableoutside-repository) | WARNING | The build configuration of a project fetched from a Git URL lists files outside the downloaded repository (an absolute or .. path, as in a Hatchling force-include, or its .git directory), and Pitloom reads no file outside it: the repository is untrusted, and such a file is the host's. A setting entry left out before the files are listed is named as the configuration writes it, one line each; files left out once listed are only counted, never named. | 0.23.4 |
 | [`file-unwritable`](#file-unwritable) | ERROR, WARNING | A file Pitloom writes could not be written: the operating system refused it (no write permission on the file or its directory, a read-only file system, a full disk, a directory where the file should be). Today the ID registry file, written 'for the ID registry'. | 0.25.0 |
+| [`file-unwritable/mode`](#file-unwritablemode) | WARNING | An embed wrote the wheel with its SBOM through a new file put in place of the old one, then could not give it the old file's mode (its permission bits): the operating system refused (a file system without POSIX modes, a file owned by another account). | 0.25.0 |
 | [`json-malformed`](#json-malformed) | ERROR, WARNING | A JSON document Pitloom was given to read does not parse, or its top level is not an object; the line says which document by what it was read for: a Croissant document, PyPI's release metadata, or an SBOM given to embed or to import into an ID registry, or an ID registry file. The lines print since 0.23.0 for a Croissant document, 0.24.0 for PyPI's release metadata and 0.25.0 for an SBOM and an ID registry file. | 0.23.0 |
+| [`json-malformed/bom`](#json-malformedbom) | WARNING | An SBOM given to read ('embed-wheel --sbom', 'loom id import') starts with a UTF-8 byte order mark (U+FEFF): RFC 8259 section 8.1 says JSON text must not, and a reader that does not drop it fails. | 0.25.0 |
 | [`over-cap`](#over-cap) | ERROR, WARNING | An input is larger than a cap Pitloom puts on what it reads or records, so that a crafted or unusually large input cannot exhaust time, memory or disk. | 0.22.0 |
 | [`temp-dir-unusable`](#temp-dir-unusable) | ERROR, WARNING | A file downloaded from PyPI or a Hugging Face repository could not be written to the temporary directory: the disk is full, the path is too long (Windows), or the directory cannot be written to. | 0.24.0 |
 | [`text-malformed`](#text-malformed) | WARNING | Text Pitloom read holds lone surrogates (U+D800 to U+DFFF), which UTF-8 cannot hold: a JSON or YAML \ud800 escape in a file (a model's metadata, a model or dataset card, a Croissant document, an SBOM fragment, a licence value), or a file name that is not UTF-8. For the SBOM itself, the line names the first element holding one, by its name; for a licence value, the value (LICENSE=). | 0.23.0 |
@@ -238,6 +240,26 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
   WARNING: FILE=<file>: could not write <use>; <failure> [file-unwritable]
   ```
 
+### `file-unwritable/mode`
+
+- **Level**: WARNING.
+- **Means**: An embed wrote the wheel with its SBOM through a new file put in
+  place of the old one, then could not give it the old file's mode (its
+  permission bits): the operating system refused (a file system without POSIX
+  modes, a file owned by another account).
+- **SBOM effect**: none: the SBOM states what the input holds.
+- **Pitloom did**: Kept the new wheel, SBOM embedded, with the mode a new file
+  gets (the umask's); the exit status does not change.
+- **Tell the user**: the wheel's permissions changed, as the line says, if they
+  rely on them (an executable bit, a group's access). They set the mode again.
+  Do not change permissions for them; ask first, and with nobody to ask, report
+  it only.
+- **Lines**:
+
+  ```text
+  WARNING: FILE=<file>: file mode not restored; <failure> [file-unwritable/mode]
+  ```
+
 ### `json-malformed`
 
 - **Level**: ERROR, WARNING. As an ERROR, the command stops for that input and
@@ -272,6 +294,25 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
   ERROR: FILE=<file>: not a JSON object <use> [json-malformed]
   WARNING: FILE=<file>: not valid JSON <use>; <failure> [json-malformed]
   WARNING: FILE=<file>: not a JSON object <use> [json-malformed]
+  ```
+
+### `json-malformed/bom`
+
+- **Level**: WARNING.
+- **Means**: An SBOM given to read ('embed-wheel --sbom', 'loom id import')
+  starts with a UTF-8 byte order mark (U+FEFF): RFC 8259 section 8.1 says JSON
+  text must not, and a reader that does not drop it fails.
+- **SBOM effect**: none: the SBOM states what the input holds.
+- **Pitloom did**: Read the SBOM without the mark; embed-wheel embeds it without
+  the mark. The exit status does not change.
+- **Tell the user**: the SBOM file starts with a byte order mark, as the line
+  says, only if they asked about it: Pitloom read it without one. They save the
+  file as UTF-8 without a byte order mark for other readers. Do not edit the
+  file for them; ask first, and with nobody to ask, report it only.
+- **Lines**:
+
+  ```text
+  WARNING: FILE=<file>: SBOM starts with a byte order mark, which JSON text must not have; dropped [json-malformed/bom]
   ```
 
 ### `over-cap`

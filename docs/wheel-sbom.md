@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-07
-Last-Modified: 2026-11-16
+Last-Modified: 2026-11-23
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -38,8 +38,10 @@ attach (no data for a file, never wrong data).
 Without `--project-dir` (and without `--sbom`), `embed-wheel` embeds a
 standalone-wheel SBOM built from the wheel's own contents: no project scan,
 so no AI-model enrichment and no `[tool.pitloom]` beyond an explicit
-`--config`. AI models inside the wheel are still found (see
-`--scan-model-usage`):
+`--config` (run in a directory holding a `pyproject.toml`, it says so with one
+`INFO:`,
+[`option-missing/project-dir`](message-codes-options.md#option-missingproject-dir)).
+AI models inside the wheel are still found (see `--scan-model-usage`):
 
 ```bash
 loom embed-wheel dist/mypackage-1.0.0-py3-none-any.whl
@@ -62,21 +64,24 @@ for byte (line endings included; `-o` writes the same bytes), and may list
 directory, FIFO or device is `[input-not-found]` and a larger file
 `[over-cap]`. It must be UTF-8: other bytes (UTF-16 and UTF-32 included)
 are an `ERROR:`, and a UTF-8 byte order mark is dropped with a `WARNING:`
-(RFC 8259 section 8.1). `loom id import` refuses these files with the same
-codes. A
-file that is not valid JSON (an empty one included) or not a JSON object
+(RFC 8259 section 8.1: `FILE=<file>: SBOM starts with a byte order mark,
+which JSON text must not have; dropped [json-malformed/bom]`).
+`loom id import` refuses these files with the same codes and drops a byte
+order mark with the same `WARNING:`. A file that is not valid JSON (an empty
+one included) or not a JSON object
 (`FILE=<file>: not valid JSON for the SBOM; <failure> [json-malformed]`), or
 named `.spdx3.json` but not SPDX 3 JSON-LD (a CycloneDX file, say:
 `FILE=<file>: named .spdx3.json but not SPDX 3 JSON-LD [sbom-wrong-format]`),
 or whose `@graph` is not a list of objects
 (`FILE=<file>: SBOM @graph is not a list [sbom-invalid]`, with or without
 `--validate`) is an `ERROR:` and exit 1, and no wheel is written. So is one
-that
-`spdx3-validate` refuses
-(`FILE=<file>: SBOM is not valid; no wheel was written [sbom-invalid]`). A JSON object in another format
-under another name is embedded, with a `WARNING:` that its name and version
-cannot be cross-checked. The file is stored as `<basename>.spdx3.json`
-whatever it is called or holds.
+that `spdx3-validate` refuses: each of its findings is one
+`ERROR: spdx3-validate: <line>` line, then one coded line ends the run
+(`FILE=<file>: SBOM is not valid; no wheel was written [sbom-invalid]`). A JSON
+object in another format under another name is embedded, with a `WARNING:`
+that its name and version cannot be cross-checked
+([`wheel-sbom-unusable`](message-codes-wheel-sboms.md#wheel-sbom-unusable)).
+The file is stored as `<basename>.spdx3.json` whatever it is called or holds.
 
 An external SBOM is also checked for a credential in a URL field: it is
 embedded unchanged, with a `WARNING:` per value, or, with
@@ -105,7 +110,10 @@ and `-o FILE` writes a copy of exactly what was embedded.
 Other flags:
 
 - `--sbom-basename NAME` sets the embedded file's basename. A trailing
-  `.spdx3.json` is optional and dropped with a `WARNING:`. The default is
+  `.spdx3.json` is optional and dropped with a `WARNING:`. A path (a `/`, `\`,
+  `:` or NUL) is an
+  [`option-invalid`](message-codes-options.md#option-invalid) `ERROR:`, raised
+  before the SBOM is generated (exit 1, nothing written). The default is
   `<name>-<version>.spdx3.json` from the wheel's own name/version, with a
   control character, whitespace, `/`, `\` or `:` becoming `_`; with no name or
   version in `METADATA`, or a name over 255 characters, the wheel's
@@ -176,9 +184,12 @@ and the optional edge](dependency-sources.md#extras-and-the-optional-edge).
 
 **SECURITY:** a wheel with a `RECORD` signature (`RECORD.jws`, `RECORD.p7s`)
 is refused, and left untouched, by `embed-wheel` and `wheel --embed`: the
-embed rewrites `RECORD`, so the signature would stop verifying.
-`--allow-signed-wheel` removes the signature files and embeds (one `INFO:` per
-file); re-sign afterwards. Like `--allow-build`, it has no `[tool.pitloom]`
+embed rewrites `RECORD`, so the signature would stop verifying
+([`wheel-unusable/signed`](message-codes-wheels.md#wheel-unusablesigned)).
+`--allow-signed-wheel` removes the signature files and embeds (one
+`INFO: ARCHIVE='<archive>' ENTRY='<member>': signature removed; re-sign the
+wheel [wheel-unusable/signed]` per file); re-sign afterwards. Like
+`--allow-build`, it has no `[tool.pitloom]`
 equivalent: it is a per-run decision.
 
 Pitloom sees only signatures inside the wheel. Any embed changes the wheel
@@ -191,11 +202,14 @@ first, then sign, attest, upload and hash.
 
 `loom wheel`, `generate`, `wheel --embed` and `embed-wheel` read every member.
 They refuse a file that is not a ZIP, and a wheel with a member that cannot be
-read (damaged, encrypted, a name that is not UTF-8), with one name twice (also
-as `a/M` and `a\M`), or with a NUL in a name (`zipfile` cuts it there, so an
-installer extracts it under another member's name). `wheel --embed` and
+read (damaged, encrypted, a name that is not UTF-8:
+[`wheel-unreadable`](message-codes-wheels.md#wheel-unreadable)), with one name
+twice (also as `a/M` and `a\M`), or with a NUL in a name (`zipfile` cuts it
+there, so an installer extracts it under another member's name:
+[`wheel-invalid`](message-codes-wheels.md#wheel-invalid)). `wheel --embed` and
 `embed-wheel` also refuse a wheel whose own `.dist-info` has a non-conforming
-member name.
+member name
+([`wheel-unusable`](message-codes-wheels.md#wheel-unusable)).
 
 `verify-wheel` reads only the member names, the own `.dist-info`'s `METADATA`
 and the embedded SBOM; `validate-wheel` only the names and the embedded SBOM.
@@ -203,8 +217,43 @@ A damaged other member does not fail them, but a damaged member they read, a
 duplicate or NUL name, or a file `zipfile` cannot open does.
 
 Each refusal is one `ERROR:` naming the archive and, where there is one, the
-member; exit 1, nothing written (not even the `-o` copy). With several wheels
-the others are still processed. The library raises `ValueError`.
+member, and ending `; wheel refused` and a `[code]`, for example
+`ERROR: ARCHIVE='demo-1.0-py3-none-any.whl' ENTRY='demo/a.py': duplicate
+member name; wheel refused [wheel-invalid]`
+(a command's own prefix, such as `ERROR: loom wheel: ARCHIVE=...`, comes
+before the `ARCHIVE=`). Exit
+1, nothing written (not even the `-o` copy). With several wheels the others are
+still processed. The library raises `WheelRefused`, a `ValueError` that carries
+the code.
+
+A wheel's name and version come from its own top-level `.dist-info`. Where
+there is none, or several and the file name picks none, `loom wheel` and
+`generate` go on and name the wheel `unknown`
+(`WARNING: ARCHIVE='<archive>': no top-level .dist-info directory; identity
+unknown [dist-info-missing]`),
+while `embed-wheel`, `wheel --embed`, `verify-wheel` and `validate-wheel` print
+only the `ERROR:` (`... wheel refused`; also
+[`dist-info-ambiguous`](message-codes-wheels.md#dist-info-ambiguous)). A file
+name that names no top-level `.dist-info`, where exactly one other exists, is
+read as that one, with a `WARNING:`
+([`dist-info-conflict`](message-codes-wheels.md#dist-info-conflict)).
+
+A member that does not install where its name says is not a refusal. Pitloom
+lists it under its install name
+(`WARNING: ARCHIVE='<archive>' ENTRY='<member>': non-conforming name; listed
+as '<install-name>' [archive-member-invalid]`),
+or leaves it out of a wheel or sdist read with `; not listed`
+(`WARNING: ARCHIVE='<archive>' ENTRY='<member>': no safe install location;
+not listed [archive-member-unsafe]`,
+or
+[`archive-member-conflict`](message-codes-wheels.md#archive-member-conflict)),
+and, on the `--allow-build` route, does not extract it from the built wheel:
+`; not copied` instead.
+
+Every wheel line ends with a `[code]` that a script or an agent can key on;
+[Message codes: Wheels](message-codes-wheels.md) and
+[Message codes: Embedded SBOMs](message-codes-wheel-sboms.md) list each line,
+what it means and what Pitloom did.
 
 ## Verify (`verify-wheel`)
 
@@ -218,14 +267,21 @@ loom verify-wheel dist/mypackage-1.0.0-py3-none-any.whl --sbom-filename mypackag
 loom verify-wheel dist/*.whl --fail-on-mismatch
 ```
 
-- A missing SBOM is an `ERROR:` (exit 1).
-- A non-conventional extension is a `WARNING:` only (exit 0).
-- Several `sboms/` entries need `--sbom-filename` to pick one, else `ERROR:`.
+- A missing SBOM is an `ERROR:` (exit 1,
+  [`wheel-sbom-missing`](message-codes-wheel-sboms.md#wheel-sbom-missing)).
+- A non-conventional extension is a `WARNING:` only (exit 0,
+  [`wheel-sbom-wrong-format`](message-codes-wheel-sboms.md#wheel-sbom-wrong-format)).
+- Several `sboms/` entries need `--sbom-filename` to pick one, else `ERROR:`
+  ([`wheel-sbom-ambiguous`](message-codes-wheel-sboms.md#wheel-sbom-ambiguous)).
 - A name/version mismatch is a `WARNING:` (exit 0); `--fail-on-mismatch` makes
-  it an `ERROR:` (exit 1).
+  it an `ERROR:` (exit 1,
+  [`wheel-sbom-conflict`](message-codes-wheel-sboms.md#wheel-sbom-conflict)).
 - If the subject name/version cannot be extracted at all (unsupported format,
   or SPDX 3 with an unexpected graph shape), the cross-check is skipped with a
-  `WARNING:` naming why, regardless of `--fail-on-mismatch`.
+  `WARNING:` naming why, regardless of `--fail-on-mismatch`
+  ([`wheel-sbom-unusable`](message-codes-wheel-sboms.md#wheel-sbom-unusable)).
+- A summary `INFO: verify-wheel: <number> wheel(s) OK` closes a run that
+  found every wheel's SBOM; it carries no code.
 
 ## Validate (`validate-wheel`)
 
@@ -239,7 +295,12 @@ loom validate-wheel dist/*.whl
 ```
 
 An embedded file in an unrecognised format prints a `WARNING:` and skips
-validation (exit 0): unsupported is not invalid.
+validation (exit 0, `STATUS=skipped`): unsupported is not invalid. An invalid
+SBOM prints each finding of `spdx3-validate` once, as
+`ERROR: spdx3-validate: <line>`, then one coded
+`ERROR: FILE=<file>: not valid SPDX 3 (<number> finding(s) above) [sbom-invalid]`
+line (`FILE=` names the SBOM as `<wheel>/<member>`), and the wheel is reported
+`STATUS=failed`; there is no empty `ERROR:` line.
 
 ## Package hash
 
@@ -270,9 +331,11 @@ To recompute the root of a built wheel:
    PEP 440 versions). Another `*.dist-info` deeper in the tree is payload.
    Directory entries are not members.
 2. Name each by its install-location path (POSIX, normalised). A member name
-   that is not one (`\`, `./`, `//`, `..`, an absolute path) is normalised or
-   skipped by Pitloom, each with a `WARNING:`; the snippet below reads names as
-   stored, so it reproduces the root of a conforming wheel only.
+   that is not one (`\`, `./`, `//`, `..`, an absolute path) is normalised
+   (`; listed as '<install-name>'`) or left out (`; not listed`) by Pitloom,
+   each with a `WARNING:` (see [Refused archives](#refused-archives)); the
+   snippet below reads names as stored, so it reproduces the root of a
+   conforming wheel only.
 3. Sort by that path (Python `sorted`, code-point order).
 4. A leaf is the raw 32-byte SHA-256 of the member's bytes.
 5. Combine adjacent pairs as `sha256(left || right)`; an odd last node is
@@ -281,7 +344,8 @@ To recompute the root of a built wheel:
    digest; an empty payload has no hash.
 
 A wheel with no single own `.dist-info` has none to leave out: `loom wheel`
-lists and hashes every member, and the embed commands refuse it. SBOM
+lists and hashes every member (with a `WARNING:`, `identity unknown`), and the
+embed commands refuse it. SBOM
 relationships and directory elements are not part of the root.
 
 ```python
@@ -354,26 +418,35 @@ With `sbom_path=` (form 2, the equivalent of the CLI's `embed-wheel --sbom`),
 the SBOM's declared subject name/version (PEP 503/440-normalised) is
 cross-checked against the wheel's own `.dist-info/METADATA` *before*
 anything is written: a mismatch raises `ValueError` and nothing is
-written, unless `allow_mismatch=True` downgrades it to a `WARNING:` log
-and lets the embed proceed. Form 1 (a Pitloom-generated SBOM) is never
-checked -- it's built from the same wheel metadata, so it can't diverge.
+written (a name and a version both differing log the first as an `ERROR:`
+and raise the last), unless `allow_mismatch=True` downgrades it to a
+`WARNING:` log and lets the embed proceed. Form 1 (a Pitloom-generated SBOM)
+is never checked -- it's built from the same wheel metadata, so it can't
+diverge.
 A Pitloom-generated SBOM lists the wheel's payload only (see
 [Wheel SBOMs](wheel-sbom.md#what-an-sbom-lists)). A wheel with a
-`RECORD` signature (`RECORD.jws`, `RECORD.p7s`) raises `ValueError` and is left
-untouched, unless `allow_signed_wheel=True` removes the signature the rewrite
-invalidates (the removed names are returned with any stale SBOMs). Embed before
+`RECORD` signature (`RECORD.jws`, `RECORD.p7s`) raises `WheelRefused` (a
+`ValueError`) and is left untouched, unless `allow_signed_wheel=True` removes
+the signature the rewrite invalidates (the removed names are returned with any
+stale SBOMs). Embed before
 signing, attesting, uploading or hashing the wheel file.
 A wheel's name and version come from its own top-level `.dist-info` (see
 [Wheel SBOMs](wheel-sbom.md#what-an-sbom-lists)). A wheel with one
-of the problems below raises `ValueError` (all but the fifth the subclass
-`pitloom.core.wheel_dist_info.WheelRefused`), naming the archive (and the
-member, where one is at fault), and nothing is written:
+of the problems below raises
+`pitloom.core.wheel_dist_info.WheelRefused`, a `ValueError` whose message is
+the `ERROR:` line without its tag and code, and whose `pitloom_code`
+attribute is that code ([`wheel-unreadable`](message-codes-wheels.md#wheel-unreadable),
+[`wheel-invalid`](message-codes-wheels.md#wheel-invalid),
+[`dist-info-missing`](message-codes-wheels.md#dist-info-missing),
+[`dist-info-ambiguous`](message-codes-wheels.md#dist-info-ambiguous),
+[`wheel-unusable`](message-codes-wheels.md#wheel-unusable)), naming the
+archive (and the member, where one is at fault), and nothing is written:
 
 - a member that cannot be read;
 - two members with one name;
 - a NUL in a member name;
 - a file that is not a ZIP archive, or that `zipfile` cannot open;
-- no single own `.dist-info` (plain `ValueError`);
+- no single own `.dist-info`;
 - (embed only) a member of its own `.dist-info` under a non-conforming name.
 
 A wheel that is not there raises `FileNotFoundError` (`input-not-found`);

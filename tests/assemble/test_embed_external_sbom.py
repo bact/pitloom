@@ -18,6 +18,7 @@ from pathlib import Path
 import pytest
 
 from pitloom.embed import embed_wheel_sbom
+from pitloom.logging_config import CODE_ATTR
 
 from .conftest import _make_dummy_wheel, _spdx3_json_with_subject
 
@@ -51,6 +52,7 @@ def test_a_byte_order_mark_is_dropped_with_one_warning(
     assert len(caplog.messages) == 1
     assert "given.spdx3.json" in caplog.messages[0]
     assert "byte order mark" in caplog.messages[0]
+    assert getattr(caplog.records[0], CODE_ATTR) == "json-malformed/bom"
 
 
 def test_invalid_utf8_is_refused(tmp_path: Path) -> None:

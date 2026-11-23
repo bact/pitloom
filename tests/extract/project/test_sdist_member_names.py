@@ -125,7 +125,7 @@ def test_duplicate_root_member_last_wins(
     assert contents.metadata.name == "second"
     assert [r.getMessage() for r in caplog.records] == [
         f"ARCHIVE='d.zip' ENTRY='{SDIST_ROOT}/PKG-INFO': overwritten by later"
-        f" entry '{SDIST_ROOT}/PKG-INFO' -- skipped"
+        f" entry '{SDIST_ROOT}/PKG-INFO'; not listed"
     ]
 
 
@@ -152,7 +152,7 @@ def test_trailing_backslash_is_a_directory_in_zip_and_tar(
     assert [f.distribution_path for f in contents.files] == [f"{SDIST_ROOT}/pkg/a.py"]
     assert [r.getMessage() for r in caplog.records] == [
         f"ARCHIVE={filename!r} ENTRY='{SDIST_ROOT}/pkg\\': directory entry"
-        " carries data -- skipped"
+        " carries data; not listed"
     ]
 
 

@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-11-22
+Last-Modified: 2026-11-23
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -41,7 +41,10 @@ add the `[tool.hatch.build.hooks.pitloom]` table to `pyproject.toml`
 (as shown above) -- both parts are required. Listing `pitloom` under
 `[build-system] requires` alone does not activate the hook: Hatchling
 only runs hooks whose name appears under `[tool.hatch.build.hooks]`, so
-the table itself is what turns it on, even left empty.
+the table itself is what turns it on, even left empty. A Hatchling older
+than that, or one whose version cannot be read, fails the build before the
+hook makes an SBOM
+([`library-unusable/hatchling`](message-codes-models.md#library-unusablehatchling)).
 
 No separate `pip install` step is needed beyond that -- the build
 front-end (`pip`, `build`, `hatch`) installs `pitloom` as a build-time
@@ -124,7 +127,11 @@ A `[tool.hatch.build.targets.wheel]` `sbom-files` entry with the same file
 name as the hook's SBOM, ignoring case (typically `loom project`'s default
 `<name>-<version>.spdx3.json`), is an `ERROR:`, as the wheel would hold the
 name twice, or two names that Windows and macOS extract onto one file: set
-`[tool.pitloom] sbom-basename` to another name, or drop the entry.
+`[tool.pitloom] sbom-basename` to another name, or drop the entry. The line
+reads `ERROR: FILE=<file>: also the name, ignoring case, of sbom-files entry
+'<path>'; set another sbom-basename in [tool.pitloom] or drop the entry
+[sbom-name-conflict]` (see [Message codes: Embedded
+SBOMs](message-codes-wheel-sboms.md#sbom-name-conflict)).
 
 ## Reproducible builds
 

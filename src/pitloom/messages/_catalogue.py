@@ -15,6 +15,7 @@ from types import MappingProxyType
 from typing import Final
 
 from pitloom.messages import (
+    _archive_members,
     _build,
     _card_malformed,
     _config,
@@ -58,6 +59,8 @@ from pitloom.messages import (
     _url_credentials_git,
     _usage_unparseable,
     _usage_unusable,
+    _wheel_sboms,
+    _wheels,
 )
 from pitloom.messages._summary import Summary
 from pitloom.messages._types import Message
@@ -130,6 +133,9 @@ MESSAGES: Final = _by_code(
         *_hook.ENTRIES,
         *_fragments.ENTRIES,
         *_fragments_merge.ENTRIES,
+        *_wheels.ENTRIES,
+        *_archive_members.ENTRIES,
+        *_wheel_sboms.ENTRIES,
     )
 )
 
@@ -140,4 +146,5 @@ SUMMARIES: Final[tuple[Summary, ...]] = (
     *_git.SUMMARIES,
     *_hook.SUMMARIES,
     *_fragments_merge.SUMMARIES,
+    *_wheel_sboms.SUMMARIES,
 )

@@ -55,7 +55,6 @@ from pitloom.core.archive_member_names import zip_file_members
 from pitloom.core.build_signals import BUILD_ACTIVITY, TerminationGuard
 from pitloom.core.internal_error import InternalError
 from pitloom.core.optional_libraries import BUILD
-from pitloom.core.quote_source import quote_source
 from pitloom.core.temp_dirs import (
     one_shot,
     registered_temp_dir,
@@ -72,6 +71,7 @@ from pitloom.messages.build import (
     timeout_line,
 )
 from pitloom.messages.models import LIBRARY_MISSING, LIBRARY_MISSING_WARNING_LINE
+from pitloom.messages.wheels import MEMBER_OUTSIDE, warn_archive_member
 
 log = logging.getLogger(__name__)
 
@@ -119,12 +119,12 @@ def _extract_wheel_to_included_files(
                 continue
             target = extract_dir / distribution_path
             if not target.resolve().is_relative_to(resolved_extract_dir):
-                log.warning(
-                    "%sARCHIVE=%s ENTRY=%s: resolves outside "
-                    "the extraction directory -- skipped, not written to disk",
-                    _PREFIX,
-                    quote_source(wheel_path.name),
-                    quote_source(info.orig_filename),
+                warn_archive_member(
+                    log,
+                    MEMBER_OUTSIDE,
+                    wheel_path.name,
+                    info.orig_filename,
+                    frame=BUILD_FRAME,
                 )
                 continue
             target.parent.mkdir(parents=True, exist_ok=True)

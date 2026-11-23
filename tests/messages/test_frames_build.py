@@ -55,6 +55,9 @@ from pitloom.messages import (
     emit,
     trusted_message,
 )
+from pitloom.messages._archive_members_say import (
+    _KINDS as MEMBER_KIND_ENTRIES,  # the entry each kind says
+)
 from pitloom.messages._options import (
     BUILD_NO_EFFECT_LINE,
     OPTION_NO_EFFECT,
@@ -89,6 +92,9 @@ _TABLE: dict[Frame, tuple[frozenset[str], frozenset[str]]] = {
     BUILD_FRAME: (
         frozenset(
             {
+                "archive-member-conflict",
+                "archive-member-invalid",
+                "archive-member-unsafe",
                 "build-code-unsafe",
                 "build-failed",
                 "build-processes-unsafe",
@@ -333,17 +339,50 @@ def _frame_of(node: ast.expr, rel: str) -> object:
     return _resolve(node, _module_of(rel))
 
 
-def _said_at(node: ast.Call, rel: str) -> tuple[object, str] | None:
-    """The frame a call says a code after, and the code: a
+#: The archive-member listers (pitloom.core.archive_member_names): a frame
+#: handed to one (fourth argument) frames every archive-member code.
+_MEMBER_LISTERS = frozenset({"archive_members", "file_members", "zip_file_members"})
+#: The codes a lister says.
+_MEMBER_CODES = frozenset(m.code for m, _, _ in MEMBER_KIND_ENTRIES.values())
+#: The lister module hands its own *frame* parameter on.
+_MEMBER_PASS_THROUGH = frozenset({("core/archive_member_names.py", "frame")})
+
+
+def _member_said_at(node: ast.Call, rel: str) -> list[tuple[object, str]] | None:
+    """The frame and codes of a call handing a frame to an archive-member
+    lister or to ``warn_archive_member`` (that kind's code); ``None`` for
+    any other call, or a frame handed on."""
+    callee = _callee(node)
+    if callee in _MEMBER_LISTERS:
+        frame = node.args[3] if len(node.args) > 3 else _keyword(node, "frame")
+    elif callee == "warn_archive_member":
+        frame = _keyword(node, "frame")
+    else:
+        return None
+    if frame is None or (rel, ast.unparse(frame)) in _MEMBER_PASS_THROUGH:
+        return None
+    codes = sorted(_MEMBER_CODES)
+    if callee == "warn_archive_member":
+        kind = _resolve(node.args[1], _module_of(rel))
+        assert isinstance(kind, str), f"{rel}:{node.lineno}"
+        codes = [MEMBER_KIND_ENTRIES[kind][0].code]
+    return [(_frame_of(frame, rel), code) for code in codes]
+
+
+def _said_at(node: ast.Call, rel: str) -> list[tuple[object, str]] | None:
+    """The frame a call says codes after, and the codes: a
     :class:`GuardedActivity` made with it (``interrupted``), an ``emit``
-    with it, or a temporary directory handed it (``temp-dir-unwritable``);
-    ``None`` for any other call, a frame handed on (:data:`PASS_THROUGH`)
-    or ``None``."""
+    with it, a temporary directory handed it (``temp-dir-unwritable``) or
+    an archive-member lister (:func:`_member_said_at`); ``None`` for any
+    other call, a frame handed on (:data:`PASS_THROUGH`) or ``None``."""
     where = f"{rel}:{node.lineno}"
     if _callee(node) == "GuardedActivity":
         name = node.args[1]
         assert isinstance(name, ast.Constant) and name.value in ACTIVITIES, where
-        return _frame_of(node.args[0], rel), INTERRUPTED.code
+        return [(_frame_of(node.args[0], rel), INTERRUPTED.code)]
+    members = _member_said_at(node, rel)
+    if members is not None:
+        return members
     frame = _keyword(node, "frame")
     emits = _callee(node) == "emit" and frame is not None
     if not (emits or _hands_temp_api(node)):
@@ -352,7 +391,7 @@ def _said_at(node: ast.Call, rel: str) -> tuple[object, str] | None:
     if (rel, ast.unparse(frame)) in PASS_THROUGH:
         return None
     code = _emitted(node, _module_of(rel))[0].code if emits else _TEMP
-    return _frame_of(frame, rel), code
+    return [(_frame_of(frame, rel), code)]
 
 
 def _said_after_each_frame() -> dict[Frame, set[str]]:
@@ -361,7 +400,8 @@ def _said_after_each_frame() -> dict[Frame, set[str]]:
     said: dict[Frame, set[str]] = defaultdict(set)
     for rel, tree in source_modules():
         calls = (n for n in ast.walk(tree) if isinstance(n, ast.Call))
-        for found, code in filter(None, (_said_at(n, rel) for n in calls)):
+        said_at = (_said_at(n, rel) or [] for n in calls)
+        for found, code in (pair for pairs in said_at for pair in pairs):
             if found is not None:
                 assert isinstance(found, Frame), (rel, code)
                 said[found].add(code)
