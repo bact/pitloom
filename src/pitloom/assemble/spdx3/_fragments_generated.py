@@ -13,7 +13,7 @@ from its type. Its provenance says so (``Method: generated_from_labels``,
 ``Method: derived_from_format``). A fragment's different value for that
 property replaces it, with one ``INFO:`` per property, and the property's
 provenance is dropped. Any other conflict is the plain field merge: the base's
-value is kept and the fragment's dropped with a ``Merge: conflicting``
+value is kept and the fragment's dropped with a ``fragment-conflict``
 warning.
 
 See also: :mod:`pitloom.assemble.spdx3._fragments_unify` (the caller),
@@ -30,7 +30,11 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.assemble.spdx3._fragments_equal import same_json
 from pitloom.assemble.spdx3._fragments_model_names import ModelNames
-from pitloom.assemble.spdx3._fragments_props import _differs, _is_empty
+from pitloom.assemble.spdx3._fragments_props import (
+    _differs,
+    _is_empty,
+    merge_value,
+)
 from pitloom.assemble.spdx3._fragments_refs import _endpoint_id
 from pitloom.assemble.spdx3.provenance import (
     annotation_fields_statement,
@@ -41,17 +45,10 @@ from pitloom.core.provenance import (
     PROVENANCE_PROPERTY_FIELDS,
     parse_provenance_value,
 )
-from pitloom.export.spdx3_describe import describe_element, describe_value
 from pitloom.export.spdx3_json import require_spdx_id
+from pitloom.messages.fragments import say_generated_value_replaced
 
 log = logging.getLogger(__name__)
-
-#: ``log.info()`` format for a generated value a fragment replaces. Arguments:
-#: the property, the model (type and id), the fragment's value, the replaced one.
-GENERATED_VALUE_REPLACED_INFO = (
-    "Merge: %r on %s: keeping the fragment's %s, replacing the value generated "
-    "from the model file, %s."
-)
 
 
 def _comment_methods(comment: str | None) -> dict[str, str | None]:
@@ -185,14 +182,12 @@ class GeneratedValues:
             setattr(canonical, pyname, new)
             properties.discard(pyname)
             if not _is_empty(old):  # nothing was generated for an empty value
-                log.info(
-                    GENERATED_VALUE_REPLACED_INFO,
-                    pyname,
-                    describe_element(
-                        type(canonical).__name__, require_spdx_id(canonical), None
-                    ),
-                    describe_value(new),
-                    describe_value(old),
+                say_generated_value_replaced(
+                    log,
+                    spdx_id=require_spdx_id(canonical),
+                    prop=pyname,
+                    kept=merge_value(new),
+                    dropped=merge_value(old),
                 )
             for name in sorted(PROVENANCE_PROPERTY_FIELDS[pyname]):
                 self._model_names.drop_provenance(canonical, name)

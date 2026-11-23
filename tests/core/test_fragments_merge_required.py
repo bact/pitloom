@@ -36,11 +36,15 @@ def test_required_fragment_missing_raises_and_warns(
     the raise are part of the contract."""
     exporter = Spdx3JsonExporter()
     frag = FragmentConfig(path="missing-required.spdx3.json", required=True)
-    expected_warning = REQUIRED_FRAGMENT_LINE.render({"path": tmp_path / frag.path})
+    expected_warning = REQUIRED_FRAGMENT_LINE.render({"file": frag.path})
 
     with caplog.at_level("WARNING", logger="pitloom.assemble.spdx3.fragments"):
-        with pytest.raises(FragmentMergeError, match="missing-required.spdx3.json"):
+        with pytest.raises(
+            FragmentMergeError, match="missing-required.spdx3.json"
+        ) as raised:
             merge_fragments(tmp_path, [frag], exporter)
+    assert raised.value.pitloom_code == "fragment-missing"
+    assert str(raised.value).startswith("1 required SBOM fragment(s) not merged: ")
 
     assert any(
         r.message == expected_warning
@@ -54,8 +58,8 @@ def test_required_fragment_unparseable_raises(
 ) -> None:
     """A required=True fragment that exists but fails to parse must also
     raise FragmentMergeError, via the read-failure path not the
-    missing-file path -- and log a WARNING built from
-    _fragment_read_failure_message(..., required=True)."""
+    missing-file path -- and log the ``fragment-invalid`` WARNING for a
+    required fragment, the file named as configured."""
     frag_path = tmp_path / "broken-required.spdx3.json"
     frag_path.write_text("not valid json{{{")
     exporter = Spdx3JsonExporter()
@@ -66,8 +70,11 @@ def test_required_fragment_unparseable_raises(
             merge_fragments(tmp_path, [frag], exporter)
 
     assert any(
-        r.message.startswith(f"Failed to read SBOM fragment '{frag_path}': ")
-        and r.message.endswith("-- merge will fail.")
+        r.message.startswith(
+            "FILE=broken-required.spdx3.json: SBOM fragment is not valid JSON ("
+        )
+        and r.message.endswith("); required, so the merge will fail")
+        and getattr(r, "pitloom_code", None) == "fragment-invalid"
         for r in caplog.records
     )
 

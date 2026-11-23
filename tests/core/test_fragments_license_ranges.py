@@ -130,7 +130,7 @@ def test_a_licence_relationship_out_of_range_is_rejected(
 
 
 def test_a_dangling_end_is_the_dangling_check_not_this_one(tmp_path: Path) -> None:
-    with pytest.raises(FragmentMergeError, match="dangling"):
+    with pytest.raises(FragmentMergeError, match="not in the merged document"):
         _merge(tmp_path, "hasDeclaredLicense", _PKG, f"{_NS}#Nowhere")
 
 

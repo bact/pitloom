@@ -133,10 +133,10 @@ def _merge(
     return dataset, messages, merged
 
 
-def _info(prop: str, field: str, name: str = "'d'") -> str:
+def _info(prop: str, field: str) -> str:
     return (
-        f"Merge: {prop!r} on dataset_DatasetPackage {_D} {name}: keeping the "
-        f"merged value, dropping the not_measured provenance of {field!r}."
+        f"Merge: ELEMENT={_D}: {prop} now holds a value; dropped its "
+        f"not_measured provenance of {field}"
     )
 
 
@@ -242,7 +242,7 @@ def test_a_newline_in_the_name_is_escaped(
     name = "d\nINFO: forged"
     fragments = [_absent(name), [_dataset(name, verifiedUsing=_HASH)]]
     _, messages, _ = _merge(tmp_path, caplog, fragments)
-    assert messages == [_info("verifiedUsing", "verified_using", repr(name))]
+    assert messages == [_info("verifiedUsing", "verified_using")]
     assert "\n" not in messages[0]
 
 

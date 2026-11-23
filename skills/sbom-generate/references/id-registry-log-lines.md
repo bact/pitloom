@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-14
-Last-Modified: 2026-11-17
+Last-Modified: 2026-11-23
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -116,17 +116,19 @@ create and choose one), [messages.md](messages.md) (every line's code).
 - `WARNING: loom: model X has no path=; not hashed, looked up by name only`
   (or `... is not a file at exit ...`) -- the model is matched by name and
   gets no hash; add `path=` to the `set_model()`/`use_model()` call.
-- `WARNING: Merge: <Type> '<name>' shares spdxId <id> with a <Type> of a
-  different SHA256 hash; keeping both, it gets new id <id>.` -- a merged
-  fragment reused an id for other content; both elements stay. For equal
-  content under two ids the one more sources share (the registry-pinned
-  id) survives the merge.
-- `INFO: Merge: 'name' on ai_AIPackage <id>: keeping the fragment's 'X',
-  dropping the project's 'Y'.` -- a project build merged a fragment whose
-  `set_model()`/`use_model()` named the model file otherwise: the model
-  takes the loom name and keeps the file key's id; expected on every run.
-  Two runs naming one file two ways keep the project's name, with a
-  `WARNING: Merge: conflicting 'name' ...` per other name.
+- `WARNING: Merge: ELEMENT=<spdx-id>: id held by two '<type>' elements of
+  different <algorithm> digests; both kept, the later is now <new-id>
+  [fragment-id-conflict]` -- a merged fragment reused an id for other content
+  (`id held by a '<holder-type>', also wanted by a '<type>'` when the holder is
+  of another type); both elements stay. For equal content under two ids the one
+  more sources share (the registry-pinned id) survives the merge.
+- `INFO: Merge: ELEMENT=<spdx-id>: name replaced by the one the fragments
+  agree on; kept <kept>, dropped <dropped> [generated-value-conflict]` -- a
+  project build merged a fragment whose `set_model()`/`use_model()` named the
+  model file otherwise: the model takes the loom name and keeps the file key's
+  id; expected on every run. Two runs naming one file two ways keep the
+  project's name, with a `WARNING: Merge: ELEMENT=<spdx-id>: name differs;
+  kept <kept>, dropped <dropped> [fragment-conflict]` per other name.
 - `INFO: ID registry: package identity unknown; not looked up or recorded` --
   a wheel with no usable `.dist-info` or `METADATA` name; the registry is not
   touched for its package.

@@ -30,6 +30,7 @@ from pitloom.messages.targets import (
     REQUIRED_FRAGMENT_LINE,
 )
 
+_DIGEST = "de" * 32
 _MINIMAL_PROJECT = '[project]\nname = "smoke"\nversion = "0.1.0"\n'
 
 
@@ -112,18 +113,22 @@ def test_fragment_list_sha256_mismatch_warns(
     _write_pyproject(
         tmp_path,
         '\n[tool.pitloom.fragment]\nfiles = [{ path = "model.spdx3.json", '
-        'sha256 = "deadbeef" }]\n',
+        f'sha256 = "{_DIGEST}" }}]\n',
     )
     monkeypatch.setattr(
         "sys.argv", ["loom", "fragment", "list", "--project-dir", str(tmp_path)]
     )
+    actual = hashlib.sha256(b'{"@graph": []}').hexdigest()
     with caplog.at_level("WARNING", logger="pitloom.cli.commands.fragment"):
         result = __main__.main()
     assert result == 0
-    assert any(
-        "SHA-256 mismatch" in r.message and "deadbeef" in r.message
-        for r in caplog.records
-    )
+    assert [(r.message, getattr(r, "pitloom_code", None)) for r in caplog.records] == [
+        (
+            f"FILE=model.spdx3.json: SHA-256 {actual} does not match the "
+            f"configured {_DIGEST}",
+            "fragment-digest-invalid",
+        )
+    ]
 
 
 def test_fragment_list_sha256_configured_but_file_missing(
@@ -137,7 +142,7 @@ def test_fragment_list_sha256_configured_but_file_missing(
     _write_pyproject(
         tmp_path,
         '\n[tool.pitloom.fragment]\nfiles = [{ path = "gone.spdx3.json", '
-        'sha256 = "deadbeef" }]\n',
+        f'sha256 = "{_DIGEST}" }}]\n',
     )
     monkeypatch.setattr(
         "sys.argv", ["loom", "fragment", "list", "--project-dir", str(tmp_path)]
@@ -148,8 +153,10 @@ def test_fragment_list_sha256_configured_but_file_missing(
     out = capsys.readouterr().out
     assert "SHA256=unknown" in out
     assert "EXISTS=false" in out
-    assert not any("mismatch" in r.message for r in caplog.records)
-    assert any("not found" in r.message for r in caplog.records)
+    assert not any("does not match" in r.message for r in caplog.records)
+    assert [r.message for r in caplog.records] == [
+        "FILE=gone.spdx3.json: SBOM fragment not found; not merged"
+    ]
 
 
 def test_fragment_list_required_missing_exits_1(
@@ -166,9 +173,7 @@ def test_fragment_list_required_missing_exits_1(
     monkeypatch.setattr(
         "sys.argv", ["loom", "fragment", "list", "--project-dir", str(tmp_path)]
     )
-    expected_warning = REQUIRED_FRAGMENT_LINE.render(
-        {"path": tmp_path / "gone.spdx3.json"}
-    )
+    expected_warning = REQUIRED_FRAGMENT_LINE.render({"file": "gone.spdx3.json"})
     with caplog.at_level("WARNING"):
         result = __main__.main()
     assert result == 1
@@ -188,7 +193,7 @@ def test_fragment_list_optional_missing_exits_0(
     monkeypatch.setattr(
         "sys.argv", ["loom", "fragment", "list", "--project-dir", str(tmp_path)]
     )
-    expected_warning = FRAGMENT_LINE.render({"path": tmp_path / "gone.spdx3.json"})
+    expected_warning = FRAGMENT_LINE.render({"file": "gone.spdx3.json"})
     with caplog.at_level("WARNING"):
         result = __main__.main()
     assert result == 0
@@ -217,10 +222,14 @@ def test_fragment_list_unparseable_file(
         result = __main__.main()
     assert result == 0
     assert "ELEMENTS=-" in capsys.readouterr().out
-    assert any(
-        r.message.startswith(f"Failed to read SBOM fragment '{frag_path}': ")
+    assert [
+        (
+            r.message.startswith("FILE=broken.spdx3.json: SBOM fragment is not valid"),
+            r.message.endswith("); not merged"),
+            getattr(r, "pitloom_code", None),
+        )
         for r in caplog.records
-    )
+    ] == [(True, True, "fragment-invalid")]
 
 
 def test_fragment_list_unparseable_file_with_sha256_still_hashes(
@@ -364,15 +373,23 @@ def test_fragment_read_status_os_error_on_read(
     monkeypatch.setattr(Path, "read_bytes", _raise_os_error)
 
     with caplog.at_level("WARNING"):
-        raw, read_ok, elements, _ = _fragment_read_status(frag_path, required=True)
+        raw, read_ok, elements, _ = _fragment_read_status(
+            frag_path, "unreadable.spdx3.json", required=True
+        )
 
     assert raw is None
     assert read_ok is False
     assert elements is None
-    assert any(
-        r.message.startswith(f"Failed to read SBOM fragment '{frag_path}': ")
+    assert [
+        (
+            r.message.startswith(
+                "FILE=unreadable.spdx3.json: SBOM fragment could not be read ("
+            ),
+            r.message.endswith("); required, so the merge will fail"),
+            getattr(r, "pitloom_code", None),
+        )
         for r in caplog.records
-    )
+    ] == [(True, True, "fragment-unreadable")]
 
 
 def test_fragment_read_status_preserves_raw_bytes_on_json_parse_failure(
@@ -385,7 +402,9 @@ def test_fragment_read_status_preserves_raw_bytes_on_json_parse_failure(
     content = b"not valid json{{{"
     frag_path.write_bytes(content)
 
-    raw, read_ok, elements, _ = _fragment_read_status(frag_path, required=False)
+    raw, read_ok, elements, _ = _fragment_read_status(
+        frag_path, frag_path.name, required=False
+    )
 
     assert raw == content
     assert read_ok is False
@@ -401,7 +420,9 @@ def test_fragment_read_status_tolerates_utf8_bom(tmp_path: Path) -> None:
     frag_path = tmp_path / "bom.spdx3.json"
     frag_path.write_bytes(b"\xef\xbb\xbf" + b'{"@graph": []}')
 
-    raw, read_ok, elements, _ = _fragment_read_status(frag_path, required=False)
+    raw, read_ok, elements, _ = _fragment_read_status(
+        frag_path, frag_path.name, required=False
+    )
 
     assert raw is not None
     assert elements == 0
@@ -416,7 +437,9 @@ def test_fragment_read_status_non_list_graph_does_not_crash(tmp_path: Path) -> N
     frag_path = tmp_path / "bad-graph.spdx3.json"
     frag_path.write_text('{"@graph": 5}')
 
-    raw, _read_ok, elements, _ = _fragment_read_status(frag_path, required=False)
+    raw, _read_ok, elements, _ = _fragment_read_status(
+        frag_path, frag_path.name, required=False
+    )
 
     assert raw is not None
     assert elements is None

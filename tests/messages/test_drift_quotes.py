@@ -68,6 +68,7 @@ _MARKERS: dict[str, tuple[str, ...]] = {
         "the ID registry stores the key as written",
         "the SBOM states it as written; remove it from the source",
     ),
+    "datetime-missing": ("no fragment states a creation time",),
     "datetime-unpinned": ("come from the clock; set ",),
     "dependency-name-ambiguous": ("a direct reference; not looked up",),
     "dependency-pin-conflict": (
@@ -110,6 +111,25 @@ _MARKERS: dict[str, tuple[str, ...]] = {
     ),
     "file-unreadable": ("could not read ", "outside the downloaded repository"),
     "file-unwritable": ("could not write ",),
+    "fragment-conflict": (" differs; kept ",),
+    "fragment-digest-invalid": ("does not match the configured ",),
+    "fragment-hash-conflict": ("another of that name ",),
+    "fragment-id-conflict": ("id held by a ", "id held by two "),
+    "fragment-invalid": (
+        "SBOM fragment is not valid JSON",
+        "is not SPDX 3 JSON-LD Pitloom",
+    ),
+    "fragment-missing": (
+        "required SBOM fragment(s) not merged",
+        "could be merged; fix each",
+    ),
+    "fragment-unreadable": ("SBOM fragment could not be read",),
+    "fragment-unusable": ("is the document being merged into",),
+    "generated-value-conflict": (
+        "generated from the model file replaced by",
+        "name replaced by the one the fragments agree on",
+        "dropped its not_measured provenance",
+    ),
     "git-filter-unusable": ("rejected the blob filter",),
     "git-link-unsafe": ("symbolic link(s) leading out of the repository",),
     "git-missing": ("git is not installed or not on PATH",),
@@ -273,6 +293,10 @@ _MARKERS: dict[str, tuple[str, ...]] = {
         "the version names no branch",
     ),
     "reader-unsafe": ("pass --trust-model-files", "run on a downloaded file"),
+    "reference-not-found": (
+        "which is not in the merged document",
+        "reference(s) to elements not in the merged document",
+    ),
     "registry-conflict": (
         "is registered for both",
         "another run saved",

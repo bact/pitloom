@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-02
-Last-Modified: 2026-11-06
+Last-Modified: 2026-11-23
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -110,6 +110,25 @@ the one list.
 
 ### Found in review rounds, not yet prioritised
 
+- [ ] **A fragment whose `CreationInfo` lacks `created` crashes late (V).**
+  It reads and merges, then the export raises `ERROR: loom merge: Property
+  'created' in CreationInfo (<address>) is required (currently None)`, exit
+  1, uncoded, with a memory address and no fragment named. Fix: check the
+  required properties at read, as a `fragment-invalid` line "misses a
+  required property" (catalogue PR 15, Q11: not in that PR).
+  *Found 2026-11-23, PR 15 plan (S3).*
+- [ ] **A hash-conflict line names `<other-digest>` by set order (low).**
+  `warn_if_same_name_different_hash` returns at the first conflicting element
+  it meets in `object_set.objects` (a set); with several earlier same-name
+  elements the digest shown is not chosen by a stable tie-break. The lines
+  and SBOM are otherwise deterministic. Sort the candidates by id.
+  *Found 2026-11-23, review of catalogue PR 15 (pre-existing).*
+- [ ] **`loom fragment validate` has an uncoded `ERROR:` for bad JSON (low).**
+  `ERROR: loom fragment validate: Invalid JSON in <file>: ...` carries no
+  `[code]`; `fragment-invalid` (stage `json`) fits. Also the merge's count
+  line is `INFO: merge: merged N fragment(s)` while its other lines say
+  `Merge: `: align in PR 16 or 17.
+  *Found 2026-11-23, stderr sweep of catalogue PR 15 (both pre-existing).*
 - [ ] **The Hatchling hook does not check `requires-python` for an overlong
   number (S).** `loom project` refuses it with an `ERROR:`; in a build,
   Hatchling itself reads the value first and ends with its own `ValueError:

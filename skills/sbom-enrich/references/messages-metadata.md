@@ -150,6 +150,8 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
   [project] with no name leaves setup.cfg and setup.py to name the project; a
   listed file not there gives no requirements; a [tool.poetry] relayed from a
   Poetry read skips Poetry's gap-fill, while poetry.lock's pins still apply.
+  'loom fragment list' says a refused [project] or too long a number as a
+  WARNING too, and lists the fragments with SAME_DOCUMENT=-.
 - **Tell the user**: which value is refused or ignored and what was expected, as
   the line says; a WARNING leaves the field out of the SBOM or takes it from
   another source. They fix the value in the file named and generate again. Do
@@ -163,6 +165,8 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
   WARNING: FILE=<file>: <field> is <got>, expected <expected>; ignored [metadata-invalid]
   ERROR: FILE=<file>: not valid [project] metadata; <failure> [metadata-invalid]
   ERROR: FILE=<file>: <field> has a number over <number> digits [metadata-invalid]
+  WARNING: FILE=<file>: not valid [project] metadata; <failure> [metadata-invalid]
+  WARNING: FILE=<file>: <field> has a number over <number> digits [metadata-invalid]
   WARNING: FILE=<file>: [project] has no name; read setup.cfg and setup.py instead [metadata-invalid]
   WARNING: FILE=<file>: setup() keyword <name> is not read; treated as undeclared [metadata-invalid]
   WARNING: FILE=<file>: setup() keyword <name> is not a literal; treated as undeclared [metadata-invalid]
@@ -237,7 +241,8 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
   step fails), the library raises ValueError carrying the code. The setuptools
   line raises FileNotFoundError, also carrying the code. As a WARNING, a Poetry
   read for poetry.lock's pins skipped Poetry's gap-fill and still applied the
-  pins.
+  pins; 'loom fragment list' says any of them and lists the fragments with
+  SAME_DOCUMENT=-.
 - **Tell the user**: that the project has no name Pitloom can read, and where it
   looked, as the line says. They declare name in [project] (or [tool.poetry],
   setup.cfg [metadata], or setup() as a string literal) and generate again. Do
@@ -251,4 +256,7 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
   ERROR: DIR=<dir>: no project name in setup.cfg [metadata] or a literal setup(name=...) [project-name-missing]
   ERROR: FILE=<file>: [metadata] has no project name [project-name-missing]
   ERROR: FILE=<file>: no project name: setup(name=...) is not a string literal [project-name-missing]
+  WARNING: DIR=<dir>: no project name in setup.cfg [metadata] or a literal setup(name=...) [project-name-missing]
+  WARNING: FILE=<file>: [metadata] has no project name [project-name-missing]
+  WARNING: FILE=<file>: no project name: setup(name=...) is not a string literal [project-name-missing]
   ```

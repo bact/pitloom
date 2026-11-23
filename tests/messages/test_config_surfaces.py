@@ -126,6 +126,10 @@ _CASES = {
         f'[tool.pitloom]\nurl-credentials = "{_SECRET}"',
         "[tool.pitloom] url-credentials",
     ),
+    "sha-256": (
+        '[tool.pitloom.fragment]\nfiles = [{path = "f.json", sha256 = "maybe"}]',
+        "[tool.pitloom.fragment] files entry 0 sha256",
+    ),
 }
 #: What each case's value is said as (the same value from ``setup.cfg``).
 _FOUND = {
@@ -151,6 +155,7 @@ _FOUND = {
     "fingerprint": "a string",
     "fingerprints": "a string",
     "url-credentials-mode": "a string",
+    "sha-256": "a string 'maybe'",
 }
 #: The same, from ``setup.cfg`` (a subset: INI has no arrays of tables).
 _CFG_CASES = {

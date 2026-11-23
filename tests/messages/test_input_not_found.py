@@ -191,9 +191,9 @@ def test_a_missing_fragment_is_one_coded_warning(
         warn_fragment_not_found(log, "f.json", required=True)
     said = [(r.getMessage(), getattr(r, CODE_ATTR)) for r in caplog.records]
     assert said == [
-        (FRAGMENT_LINE.render({"path": "f\n.json"}), "input-not-found/fragment"),
+        (FRAGMENT_LINE.render({"file": "f\n.json"}), "input-not-found/fragment"),
         (
-            "required SBOM fragment not found: 'f.json'; the merge will fail",
+            "FILE=f.json: SBOM fragment not found; required, so the merge will fail",
             "input-not-found/fragment",
         ),
     ]

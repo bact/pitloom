@@ -21,6 +21,7 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 from pitloom.assemble.spdx3._fragments_hashes import hash_conflict
 from pitloom.export.spdx3_json import require_spdx_id
 from pitloom.id_registry import type_id_prefix
+from pitloom.messages.fragments import warn_id_conflict
 
 log = logging.getLogger(__name__)
 
@@ -53,14 +54,13 @@ def rename_id_clash(
     type_name = type(obj).__name__
     new_id = mint_extra_id(namespace, type_id_prefix(type_name), *taken)
     algorithm = hash_conflict(obj, holder) if type(holder) is type(obj) else None
-    log.warning(
-        "Merge: %s %r shares spdxId %s with a %s%s; keeping both, it gets new id %s.",
-        type_name,
-        getattr(obj, "name", None),
-        old_id,
-        type(holder).__name__,
-        f" of a different {algorithm.upper()} hash" if algorithm else "",
-        new_id,
+    warn_id_conflict(
+        log,
+        spdx_id=old_id,
+        element_type=type_name,
+        holder_type=type(holder).__name__,
+        new_id=new_id,
+        hash_algorithm=algorithm,
     )
     obj.spdxId = new_id
     return new_id

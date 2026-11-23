@@ -73,6 +73,7 @@ DETAIL_EXC = frozenset(
         "NotAModel",
         "_shape_error",
         "MemberReadError",
+        "FragmentReadError",
         "_MarkersTypeError",
     }
 )

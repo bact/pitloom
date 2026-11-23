@@ -1,6 +1,6 @@
 ---
 # Created: 2026-07-05
-# Last-Modified: 2026-11-19
+# Last-Modified: 2026-11-23
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -188,7 +188,7 @@ Steps:
 7. **Pre-merge check (mandatory):** read every drafted fragment (step 2's and
    step 6's) with the JSON-LD deserialiser `merge_fragments()` uses, run with
    the interpreter Pitloom is installed in, not whichever `python3` is on
-   `PATH`; exit 0 is a pass (otherwise an unreadable fragment is skipped with
+   `PATH`; exit 0 is a pass (otherwise a bad fragment is skipped with
    only a `WARNING:`). Before running it, read
    `references/pre-merge-check.md`: the one-liner, the `uvx`/`pipx` spellings
    and what it catches. Never `uv run --with` for it (in a project directory it
@@ -224,9 +224,9 @@ Steps:
 
 Merging a fragment whose ids the base SBOM does not have makes
 `merge_fragments()` log a `WARNING:` per dangling reference, then fail (the CLI
-prints an `ERROR:` and exits non-zero). Regenerate the base SBOM, re-run
-enrichment and merge again; never retry the same merge. Never create or write
-an ID registry to fix it, and never pin ids from this skill: if the user asks to
+prints the `ERROR:`, exit 1; both end `[reference-not-found]`). Regenerate
+the base SBOM, re-run enrichment and merge again; never retry the same merge.
+Never create or write an ID registry to fix it, and never pin ids from this skill: if the user asks to
 pin ids or create a registry, hand off to `sbom-generate` ("Pinning element
 ids"); non-interactive: change nothing and report the `loom id generate`
 command. Before regenerating, read `references/dangling-references.md`:

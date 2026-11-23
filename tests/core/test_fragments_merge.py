@@ -416,7 +416,10 @@ def test_merge_fragments_raises_on_dangling_reference(tmp_path: Path) -> None:
     exporter = Spdx3JsonExporter()
     exporter.add_document(main_doc)
 
-    with pytest.raises(FragmentMergeError, match="dangling reference"):
+    with pytest.raises(
+        FragmentMergeError,
+        match="2 reference\\(s\\) to elements not in the merged document",
+    ):
         merge_fragments(
             tmp_path, [FragmentConfig(path="dangling-frag.spdx3.json")], exporter
         )

@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-05
-Last-Modified: 2026-11-17
+Last-Modified: 2026-11-23
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -239,28 +239,31 @@ this):
 - `originatedBy` is a union: the base's generic `Agent` named `Acme Labs`
   stays, and the `Organization` follows it. A fragment cannot remove or
   retype it. Giving the `Organization` the generic `Agent`'s `spdxId`
-  does not replace it either: `WARNING: Merge: Organization 'Acme Labs'
-  shares spdxId <id> with a Agent; keeping both, it gets new id <id>.`
-  Give the typed agent its own id, and say in the final report that both
-  are listed: the `Agent` is the name the file states, the typed one your
-  reading of the card. An ONNX `model_author` such as `Doe, Jane` is two
-  `Agent`s (the format's list is split on commas); add `Jane Doe` as a
-  `Person` the same way and report the split.
-- `name` on a restated package: the base's wins with a `WARNING: Merge:
-  conflicting 'name' ...`, except on the project's own model, which takes
-  the fragment's name (`INFO: Merge: 'name' on ...`). Restate the base's
-  name exactly unless renaming the model is the point.
+  does not replace it either: `WARNING: Merge: ELEMENT=<spdx-id>: id held by a
+  'Agent', also wanted by a 'Organization'; both kept, the later is
+  now <new-id> [fragment-id-conflict]`. Give the typed agent its own id, and
+  say in the final report that both are listed: the `Agent` is the name the file
+  states, the typed one your reading of the card. An ONNX `model_author` such
+  as `Doe, Jane` is two `Agent`s (the format's list is split on commas); add
+  `Jane Doe` as a `Person` the same way and report the split.
+- `name` on a restated package: the base's wins with `WARNING: Merge:
+  ELEMENT=<spdx-id>: name differs; kept <kept>, dropped <dropped>
+  [fragment-conflict]`, except on the project's own model, which takes the
+  fragment's name (`INFO: Merge: ELEMENT=<spdx-id>: name replaced by the one
+  the fragments agree on; kept <kept>, dropped <dropped>
+  [generated-value-conflict]`). Restate the base's name exactly unless
+  renaming the model is the point.
 - `suppliedBy` (one value) is taken from the fragment: Pitloom sets none on
   a model it read from a file, and a Hugging Face base is never merged
   into. Set it only for a distributor the card or the user names.
 - A `parameters` entry in the package's `ai_hyperparameter` (a count the card
   states) is added only where the base has none; a base entry with another value
-  wins, with `WARNING: Merge: conflicting 'ai_hyperparameter' key 'parameters'
-  on ai_AIPackage <id> '<name>': keeping '<base>', dropping '<yours>'.` (the
-  same for any `ai_hyperparameter`/`ai_metric` key). The merge adds Pitloom's
-  count note itself: do not type it into the `comment`; say in the package's own
-  provenance `comment` that the entry is the card's figure, not a sum of tensor
-  elements. A `comment` on a restated package is appended to the base's after
+  wins, with `WARNING: Merge: ELEMENT=<spdx-id>:
+  ai_hyperparameter key <entry-key> differs; kept <kept>, dropped <dropped>
+  [fragment-conflict]` (the same for any `ai_hyperparameter`/`ai_metric` key).
+  The merge adds Pitloom's count note itself: do not type it into the
+  `comment`; say in the package's own provenance `comment` that the entry is
+  the card's figure, not a sum of tensor elements. A `comment` on a restated package is appended to the base's after
   a `;` and a space, or on a new line when either side's adjoining line is a
   `Metadata provenance:` line.
 - A restated `spdxId` the base no longer has (the source changed after the
@@ -310,12 +313,15 @@ files = [
 ```
 
 `required = true` makes a missing or unparsable fragment fail the run
-instead of being skipped with a `WARNING:`. Check the registration from the
+(`ERROR: <number> required SBOM fragment(s) not merged: <files>; fix each as
+its WARNING says [fragment-missing]`) instead of being skipped with a
+`WARNING:` that ends `; not merged`. Check the registration from the
 project directory: `loom fragment list` prints one `PATH=... ROLE=...
 REQUIRED=... EXISTS=... ELEMENTS=... SHA256=... MODIFIED=... SAME_DOCUMENT=...`
 line per registered fragment
 (`EXISTS=false` is a wrong path; none registered is `INFO: fragment list: no
-fragments configured`).
+fragments configured`; a fragment the merge would leave out gets the merge's
+own `WARNING:`).
 
 ## 5. Re-generate the SBOM
 

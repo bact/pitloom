@@ -36,9 +36,8 @@ from pitloom.assemble.spdx3._fragments_model_names import (
 from pitloom.assemble.spdx3._fragments_props import _is_empty
 from pitloom.assemble.spdx3._fragments_refs import _endpoint_id
 from pitloom.core.evidence import BYTE_SIZE_FIELD, NOT_MEASURED, VERIFIED_USING_FIELD
-from pitloom.export.spdx3_describe import describe_element
 from pitloom.export.spdx3_json import Spdx3JsonExporter
-from pitloom.logging_config import loggable
+from pitloom.messages.fragments import say_not_measured_dropped
 
 log = logging.getLogger(__name__)
 
@@ -51,13 +50,6 @@ MEASURED_PROPERTIES: Final[dict[str, str]] = {
     # and by ``loom``'s ``record_size``.
     BYTE_SIZE_FIELD: "dataset_datasetSize",
 }
-
-#: ``log.info()`` format for a dropped entry. Arguments: the property, the
-#: element (type, id and name), the provenance field.
-NOT_MEASURED_DROPPED_INFO = (
-    "Merge: %r on %s: keeping the merged value, dropping the not_measured "
-    "provenance of %r."
-)
 
 
 def _candidate_annotations(
@@ -117,12 +109,10 @@ def drop_superseded_absences(
                 evidence=NOT_MEASURED,
             )
             if _drop_from_comment(element, field_name) or from_annotations:
-                log.info(
-                    NOT_MEASURED_DROPPED_INFO,
-                    pyname,
-                    describe_element(
-                        type(element).__name__, loggable(spdx_id), element.name
-                    ),
-                    field_name,
+                say_not_measured_dropped(
+                    log,
+                    spdx_id=spdx_id,
+                    prop=pyname,
+                    provenance_field=field_name,
                 )
     remove_annotations(exporter, emptied)

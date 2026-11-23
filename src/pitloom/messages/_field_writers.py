@@ -47,6 +47,15 @@ def _without_addresses(text: str) -> str:
     return "".join(out)
 
 
+class DescribedValue(str):
+    """A value a caller has already described as text for a message (an
+    SBOM element by type, id and name, a ``Hash`` by its fields, a number):
+    the ``kept`` and ``dropped`` fields write it on one line, masked and cut,
+    but not in quotes, which they put around a plain ``str`` value."""
+
+    __slots__ = ()
+
+
 def size_text(size: int) -> str:
     """*size* as every message and comment states it: ``1 byte``, ``N bytes``."""
     return f"{size} byte" if size == 1 else f"{size} bytes"

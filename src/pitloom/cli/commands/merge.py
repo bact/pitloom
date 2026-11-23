@@ -22,6 +22,8 @@ from pitloom.cli.commands.utils import _print_sbom_output_path, cli_error_handle
 from pitloom.core.given_path import TypedPath
 from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
 from pitloom.logging_config import print_error
+from pitloom.messages import say_summary
+from pitloom.messages.fragments import MERGE_MERGED
 from pitloom.messages.targets import (
     INPUT_NOT_FOUND,
     NO_FRAGMENT_FILE_LINE,
@@ -49,14 +51,17 @@ def _run_merge_command(args: argparse.Namespace) -> int:
         return 1
 
     output_path: Path = args.output
+    merged: list[int] = []
+    # The directory as typed (not resolved): a fragment is named by it.
     generate_merged_sbom(
-        fragments_dir,
+        args.fragments_dir,
         output_path=output_path,
         pretty=bool(args.pretty),
         credentials=credential_policy_from_args(args),
+        on_merged=merged.append,
     )
     _print_sbom_output_path(output_path)
-    log.info("merge: merged %d fragment(s)", len(files))
+    say_summary(log, MERGE_MERGED, number=merged[0])
     return 0
 
 

@@ -156,6 +156,7 @@ def test_merge_command_stdout(
 
 
 _NS = "https://spdx.org/spdxdocs/"
+_CREATED = "2026-01-01T00:00:00Z"
 
 
 def _document(name: str, created: str) -> dict[str, Any]:
@@ -258,8 +259,9 @@ def test_merge_fails_on_a_root_outside_the_output(
     )
     assert __main__.main() == 1
     err = capsys.readouterr().err
-    assert f"rootElement references {_NS}x#Q" in err
-    assert "1 dangling reference(s)" in err
+    assert f": rootElement names {_NS}x#Q, which is not in the merged document" in err
+    assert "1 reference(s) to elements not in the merged document;" in err
+    assert err.rstrip().endswith("[reference-not-found]")
     assert not out.exists()
 
 
@@ -300,3 +302,48 @@ def test_a_licence_relationship_of_the_wrong_type_fails_with_its_code(
     errors = [x for x in lines if x.startswith("ERROR: ")]
     assert len(errors) == 1 and errors[0].endswith(" [license-relationship-invalid]")
     assert not out.exists()
+
+
+def test_merge_counts_the_fragments_it_merged(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Three files, one unreadable: ``merged 2``, not 3; the unreadable one
+    is named by the directory as typed (a relative one, not resolved)."""
+    monkeypatch.chdir(tmp_path)
+    for name in ("a", "b"):
+        write_fragment(tmp_path / "frags" / f"{name}.json", _document(name, _CREATED))
+    (tmp_path / "frags" / "bad.json").write_bytes(b"{not json")
+    capsys.readouterr()
+    run_cli(["merge", "frags", "-o", str(tmp_path / "o.spdx3.json")], monkeypatch)
+    lines = capsys.readouterr().err.splitlines()
+    assert "INFO: merge: merged 2 fragment(s)" in lines
+    (warning,) = [x for x in lines if x.startswith("WARNING: ")]
+    assert warning.startswith(f"WARNING: FILE={Path('frags', 'bad.json')}: ")
+    assert warning.endswith("; not merged [fragment-invalid]")
+    assert str(tmp_path) not in warning
+
+
+def test_merge_of_only_unreadable_fragments_fails_and_writes_nothing(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """No fragment merged: exit 1, one ``fragment-missing`` ``ERROR:`` after
+    each fragment's ``WARNING:``, no SBOM, no summary."""
+    frags = tmp_path / "frags"
+    frags.mkdir()
+    (frags / "one.json").write_bytes(b"{not json")
+    (frags / "two.json").write_bytes(b'{"a": 1}')
+    out = tmp_path / "o.spdx3.json"
+    monkeypatch.setattr("sys.argv", ["loom", "merge", str(frags), "-o", str(out)])
+    assert __main__.main() == 1
+    lines = capsys.readouterr().err.splitlines()
+    assert [x.split(": ")[0] for x in lines] == ["WARNING", "WARNING", "ERROR"]
+    assert lines[-1].startswith("ERROR: loom merge: no SBOM fragment in ")
+    assert lines[-1].endswith(
+        " could be merged; fix each as its WARNING says [fragment-missing]"
+    )
+    assert not out.exists()
+    assert not [x for x in lines if "merged" in x and x.startswith("INFO")]

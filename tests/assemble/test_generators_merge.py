@@ -14,14 +14,20 @@ from __future__ import annotations
 
 import json
 import logging
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 import pytest
+from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.assemble import generate_merged_sbom, generate_project_sbom
-from pitloom.assemble.spdx3._fragments_envelope import _merged_doc_uuid
+from pitloom.assemble.spdx3._fragments_envelope import (
+    _latest_fragment_created,
+    _merged_doc_uuid,
+)
 from pitloom.core.file_hash import sha256_digest
+from pitloom.export.spdx3_json import Spdx3JsonExporter
 from tests._lfs import lfs_pointer_bytes
 from tests._license_graph import fragment_graph, write_fragment
 from tests.assemble.embed_surfaces_shared import demo_project
@@ -50,8 +56,8 @@ def test_input_errors(
 def test_no_creation_time_anywhere_is_the_epoch_start(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """``created`` is never the current time: with no fragment stating one,
-    it is 1970-01-01, said once."""
+    """``created`` is never the current time: with no fragment stating one
+    (an empty one still merges), it is 1970-01-01, said once."""
     write_fragment(
         tmp_path / "f.json",
         {"@context": "https://spdx.org/rdf/3.0.1/spdx-context.jsonld", "@graph": []},
@@ -60,10 +66,8 @@ def test_no_creation_time_anywhere_is_the_epoch_start(
         graph = json.loads(generate_merged_sbom(tmp_path))["@graph"]
     info = next(e for e in graph if e.get("@id") == _document(graph)["creationInfo"])
     assert info["created"] == "1970-01-01T00:00:00Z"
-    assert [
-        r
-        for r in caplog.records
-        if "no fragment states a creation time" in r.getMessage()
+    assert [getattr(r, "pitloom_code", None) for r in caplog.records] == [
+        "datetime-missing"
     ]
 
 
@@ -113,6 +117,49 @@ def test_file_names_count_in_the_id(tmp_path: Path) -> None:
         for d in "12"
     }
     assert len(ids) == 2
+
+
+def test_the_document_id_ignores_the_order_of_the_names(tmp_path: Path) -> None:
+    """The names are sorted before they count, so the same files named in
+    any order are one document; a missing name is another."""
+    write_fragment(tmp_path / "a.json", fragment_graph([], "https://e.org/x"))
+    write_fragment(tmp_path / "b.json", fragment_graph([], "https://e.org/y"))
+    both = _merged_doc_uuid(tmp_path, ["a.json", "b.json"])
+    assert both == _merged_doc_uuid(tmp_path, ["b.json", "a.json"])
+    assert both != _merged_doc_uuid(tmp_path, ["a.json"])
+
+
+def test_the_latest_created_reads_an_elements_own_creation_info() -> None:
+    """An element's ``creationInfo`` counts even when that object is not
+    itself in the merged graph."""
+    own = spdx3.CreationInfo(
+        specVersion="3.0.1", created=datetime(2020, 1, 1, tzinfo=timezone.utc)
+    )
+    theirs = spdx3.CreationInfo(
+        specVersion="3.0.1", created=datetime(2030, 1, 1, tzinfo=timezone.utc)
+    )
+    exporter = Spdx3JsonExporter()
+    exporter.object_set.add(
+        spdx3.software_Package(
+            spdxId="https://e.org/x#P", name="p", creationInfo=theirs
+        )
+    )
+    assert _latest_fragment_created(exporter, own) == datetime(
+        2030, 1, 1, tzinfo=timezone.utc
+    )
+
+
+def test_on_merged_is_called_after_the_sbom_is_written(tmp_path: Path) -> None:
+    """``loom merge`` says the count once the output is on disk."""
+    write_fragment(tmp_path / "f" / "a.json", fragment_graph([]))
+    out = tmp_path / "out.spdx3.json"
+    seen: list[tuple[int, bool]] = []
+    generate_merged_sbom(
+        tmp_path / "f",
+        output_path=out,
+        on_merged=lambda n: seen.append((n, out.is_file())),
+    )
+    assert seen == [(1, True)]
 
 
 def _declaring(profiles: list[str]) -> dict[str, Any]:

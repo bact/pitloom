@@ -23,6 +23,8 @@ from pitloom.messages import (
     _file_discovery,
     _file_unreadable,
     _file_unwritable,
+    _fragments,
+    _fragments_merge,
     _git,
     _git_decisions,
     _hook,
@@ -126,6 +128,8 @@ MESSAGES: Final = _by_code(
         *_file_discovery.ENTRIES,
         *_build.ENTRIES,
         *_hook.ENTRIES,
+        *_fragments.ENTRIES,
+        *_fragments_merge.ENTRIES,
     )
 )
 
@@ -135,4 +139,5 @@ SUMMARIES: Final[tuple[Summary, ...]] = (
     *_registry_save.SUMMARIES,
     *_git.SUMMARIES,
     *_hook.SUMMARIES,
+    *_fragments_merge.SUMMARIES,
 )

@@ -35,7 +35,7 @@ _MAIN = "https://spdx.org/spdxdocs/main"
 _FRAG = "https://spdx.org/spdxdocs/frag"
 # A foreign (pre-v3) id that both documents happen to use.
 _SHARED = "https://spdx.org/spdxdocs/shared#data"
-_CLASH = "shares spdxId"
+_CLASH = "id held by"
 _FILE = "software_File"
 _DATASET = "dataset_DatasetPackage"
 _SHA = "a" * 64
@@ -126,8 +126,8 @@ def test_id_held_by_another_type_keeps_both(
     assert dataset["dataset_dataPreprocessing"] == ["lowercased"]
     assert by_id[f"{_FRAG}#R"]["to"] == [new_id]
     assert warnings == [
-        f"Merge: {frag_type} 'data' shares spdxId {_SHARED} with a {base_type}; "
-        f"keeping both, it gets new id {new_id}."
+        f"Merge: ELEMENT={_SHARED}: id held by a '{base_type}', also wanted by "
+        f"a '{frag_type}'; both kept, the later is now {new_id}"
     ]
 
 
@@ -289,12 +289,13 @@ def test_every_merge_surface_keeps_both(
     with caplog.at_level(logging.WARNING):
         merged = json.loads(_SURFACES[surface](tmp_path, monkeypatch))
     (clash,) = [r.getMessage() for r in caplog.records if _CLASH in r.getMessage()]
-    assert clash.startswith(f"Merge: {_DATASET} 'data' shares spdxId ")
+    assert clash.startswith("Merge: ELEMENT=")
+    assert f": id held by a '{_FILE}', also wanted by a '{_DATASET}'; " in clash
     (document,) = [e for e in merged["@graph"] if e["type"] == "SpdxDocument"]
     by_id = {e["spdxId"]: e for e in merged["@graph"] if "spdxId" in e}
     (dataset_id,) = [i for i, e in by_id.items() if e["type"] == _DATASET]
     assert dataset_id == f"{document['spdxId']}#DatasetPackage-1"
     assert by_id[dataset_id]["dataset_datasetType"] == ["text"]
     assert by_id[f"{_FRAG}#R"]["to"] == [dataset_id]
-    shared = clash.split(" shares spdxId ")[1].split(" ")[0]
+    shared = clash.split("ELEMENT=")[1].split(": id held by")[0]
     assert by_id[shared]["type"] == _FILE

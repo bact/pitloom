@@ -19,6 +19,7 @@ import importlib
 import logging
 import re
 from collections.abc import Iterator
+from datetime import datetime, timezone
 from pathlib import Path
 
 from pitloom.logging_config import CODE_ATTR, CODE_PATTERN, escape_controls
@@ -54,8 +55,10 @@ SAMPLES: dict[str, object] = {
     "command_line": "git clone --depth 1 https://example.org/r.git",
     "config_key": ConfigPlace("tool.pitloom.fragment", "files", entry=2, sub="role"),
     "count": 2,
+    "datetime": datetime(1970, 1, 1, tzinfo=timezone.utc),
     "declared": "b" * 64,
     "declared_in": "optional-dependencies",
+    "digest": "d" * 64,
     "destination": "[tool.pitloom] id-registry",
     "dependency": "demo[dev]",
     "dropped": ("1.0", "2.0"),
@@ -76,6 +79,7 @@ SAMPLES: dict[str, object] = {
     "entities": ("software_File 'a.txt'", "src/a.txt"),
     "entries": ("prety", "fragments-dir"),
     "entity": "data/imdb",
+    "entry_key": "sbom.vendor",
     "entry": "archive/data.pkl",
     "error": "Error while deserializing header: invalid header length",
     "exit_code": -9,
@@ -88,6 +92,8 @@ SAMPLES: dict[str, object] = {
     "fingerprint": "sha256:0123456789abcdef",
     "format": "gguf",
     "formats": ["gguf", "onnx"],
+    "hash_algorithm": "sha256",
+    "holder_type": "software_Package",
     "hosts": "files.pythonhosted.org",
     "input": "wheel file",
     "key": "FIELD",
@@ -104,10 +110,12 @@ SAMPLES: dict[str, object] = {
     "name": "a.txt",
     "namespace": "https://example.org/ns",
     "namespace_problem": "must not contain '#'",
+    "new_id": "https://example.org/ns#File-2",
     "given_namespace": "https://example.org/other",
     "got": "maybe",
     "number": 2,
     "oid": "0f" * 32,
+    "other_digest": "c" * 64,
     "option": "--allow-build",
     "other": "--pretty",
     "outcome": "skipped",
@@ -116,12 +124,15 @@ SAMPLES: dict[str, object] = {
     "path": "m.gguf",
     "pointer": "software_downloadLocation",
     "process_group": 4242,
+    "property": "from_",
+    "provenance_field": "byte_size",
     "root": "proj",
     "purpose": "per-wheel model-scan budget",
     "python": "3.10",
     "reason": "GGUF header declares 1000000 tensors",
     "ref": "v1.0",
     "ref_kind": "tag",
+    "reference": "https://example.org/ns#Package-9",
     "refusal": "invalid choice: 'x'",
     "registry_part": "spdxId",
     "requirement": "pitloom[gguf]",

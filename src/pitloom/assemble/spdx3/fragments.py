@@ -22,6 +22,7 @@ document envelope.
 from __future__ import annotations
 
 import logging
+import os
 from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
@@ -69,13 +70,24 @@ from pitloom.assemble.spdx3._fragments_unify import (
 from pitloom.assemble.spdx3._licensing_profiles import apply_licensing_profiles
 from pitloom.assemble.spdx3.provenance import build_unification_annotation
 from pitloom.core.config import FragmentConfig
+from pitloom.core.given_path import given_spelling
 from pitloom.core.path_probe import is_missing_errno
-from pitloom.core.quote_source import quote_source
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 from pitloom.logging_config import configure_logging
 from pitloom.messages import (
     CodedValueError,
     emit,
+)
+from pitloom.messages.fragments import (
+    FRAGMENT_MISSING,
+    REFERENCE_NOT_FOUND,
+    REFERENCES_LINE,
+    REQUIRED_MISSING_LINE,
+    FragmentReadError,
+    missing_files_text,
+    warn_fragment_unread,
+    warn_reference_not_found,
+    warn_same_document,
 )
 from pitloom.messages.licences import (
     LICENSE_RELATIONSHIP_FROM_LINE,
@@ -107,7 +119,6 @@ __all__ = [
     "_find_fragment_document_id",
     "_find_main_document",
     "_fragment_is_missing",
-    "_fragment_read_failure_message",
     "_is_dangling",
     "_is_empty",
     "_merge_comment",
@@ -119,7 +130,6 @@ __all__ = [
     "_normalize_value",
     "_paths_suffix_match",
     "_raise_on_dangling_references",
-    "_same_document_message",
     "_record_unification",
     "_signature",
     "_canonical_merge_key",
@@ -131,15 +141,15 @@ __all__ = [
 ]
 
 
-class FragmentMergeError(ValueError):
-    """Raised when merging fragments would produce a referentially-broken
-    SBOM -- a ``Relationship``/``Annotation`` endpoint or a ``rootElement``
-    that resolves to neither an object in the merged graph nor a declared
-    external reference. Merging must not silently succeed in that case; see
-    :func:`_raise_on_dangling_references`."""
+class FragmentMergeError(CodedValueError):
+    """A merge of fragments that must not succeed, a :class:`ValueError`
+    carrying its code: a required fragment not merged, or none of ``loom
+    merge``'s (``fragment-missing``), or a merged graph left referentially
+    broken (``reference-not-found``: see
+    :func:`_raise_on_dangling_references`)."""
 
 
-class FragmentLicenseRangeError(CodedValueError, FragmentMergeError):
+class FragmentLicenseRangeError(FragmentMergeError):
     """A merged licence relationship has an end of the wrong type (the
     ``license-relationship-invalid`` message); a :class:`FragmentMergeError`,
     so a caller that catches one catches this too."""
@@ -180,28 +190,19 @@ def _dedupe_relationships(exporter: Spdx3JsonExporter) -> None:
 
 
 def _raise_on_dangling_references(exporter: Spdx3JsonExporter) -> None:
-    """Log one ``WARNING:`` per dangling reference found by
-    :func:`_find_dangling_references`, then raise :class:`FragmentMergeError`
-    if any were found -- a merge that leaves the graph referentially
+    """Log one ``reference-not-found`` ``WARNING:`` per dangling reference
+    found by :func:`_find_dangling_references`, in its order, then raise
+    :class:`FragmentMergeError` (``reference-not-found``) if any were found
+    -- a merge that leaves the graph referentially
     broken must not silently succeed (see the ``sbom-enrich`` skill's
     "Troubleshooting: dangling references" section for the causes this
     guards against, e.g. a stale ``doc_uuid``)."""
     dangling = _find_dangling_references(exporter)
     for obj_id, prop, target_id in dangling:
-        log.warning(
-            "%s's %s references %s, which isn't part of this document -- "
-            "likely a fragment merged against an outdated base SBOM "
-            "(regenerate the base SBOM, then re-run enrichment, before "
-            "merging again)",
-            obj_id,
-            prop,
-            target_id,
-        )
+        warn_reference_not_found(log, spdx_id=obj_id, prop=prop, reference=target_id)
     if dangling:
         raise FragmentMergeError(
-            f"{len(dangling)} dangling reference(s) after fragment merge -- "
-            "regenerate the base SBOM, then re-run enrichment, before "
-            "merging again"
+            REFERENCE_NOT_FOUND, line=REFERENCES_LINE, number=len(dangling)
         )
 
 
@@ -354,54 +355,29 @@ def fragment_files(fragments_dir: Path) -> list[str]:
     )
 
 
-def _fragment_read_failure_message(
-    fragment_path: Path, exc: Exception, *, required: bool
-) -> str:
-    """Wording for a fragment file that exists but couldn't be read/parsed
-    -- shared by the real merge and ``loom fragment list``'s diagnostic
-    pass. Says "read", not "ingest": accurate for both the real merge (which parses
-    the file as SPDX 3 JSON-LD) and ``fragment list`` (which only needs a
-    plain JSON parse for an element count) -- the file's problem is the
-    same regardless of which caller noticed it."""
-    suffix = " -- merge will fail." if required else ""
-    return f"Failed to read SBOM fragment {quote_source(fragment_path)}: {exc}{suffix}"
-
-
-def _same_document_message(fragment_path: Path, doc_id: str, *, required: bool) -> str:
-    """Wording for a fragment whose ``SpdxDocument`` is the document it would
-    merge into (an earlier SBOM of the same project): skipped, as a missing
-    one is."""
-    suffix = " -- merge will fail." if required else ""
-    return (
-        f"SBOM fragment {quote_source(fragment_path)} is the document being "
-        "merged into "
-        f"({doc_id}); skipped{suffix}"
-    )
-
-
 def _load_fragment(
-    fragment_path: Path, required: bool, main_doc_id: str | None
+    fragment_path: Path,
+    shown: str | os.PathLike[str],
+    required: bool,
+    main_doc_id: str | None,
 ) -> tuple[spdx3.SHACLObjectSet, str | None] | None:
     """The fragment's objects and its ``SpdxDocument`` id; ``None``, after
-    one ``WARNING:``, when it is missing, unreadable (not RFC 8785
-    serialisable included, see :func:`read_fragment_set`) or the document it
-    would merge into."""
+    one ``WARNING:`` naming it as *shown*, when it is missing
+    (``input-not-found/fragment``), unreadable or not one Pitloom can merge
+    (``fragment-unreadable``, ``fragment-invalid``: see
+    :func:`read_fragment_set`) or the document it would merge into
+    (``fragment-unusable``)."""
     if _fragment_is_missing(fragment_path):
-        warn_fragment_not_found(log, fragment_path, required=required)
+        warn_fragment_not_found(log, shown, required=required)
         return None
     try:
-        fragment_set = read_fragment_set(fragment_path)
-    # pylint: disable-next=broad-exception-caught
-    except Exception as exc:
-        log.warning(
-            _fragment_read_failure_message(fragment_path, exc, required=required)
-        )
+        fragment_set = read_fragment_set(fragment_path, file=shown)
+    except FragmentReadError as exc:
+        warn_fragment_unread(log, shown, exc, required=required)
         return None
     frag_doc_id = _find_fragment_document_id(fragment_set)
     if frag_doc_id is not None and frag_doc_id == main_doc_id:
-        log.warning(
-            _same_document_message(fragment_path, frag_doc_id, required=required)
-        )
+        warn_same_document(log, shown, frag_doc_id, required=required)
         return None
     return fragment_set, frag_doc_id
 
@@ -419,6 +395,17 @@ def _declared_profiles(fragment_set: spdx3.SHACLObjectSet) -> set[str]:
 def _fragment_file(project_dir: Path, frag: FragmentConfig) -> Path:
     """*frag*'s path on disk."""
     return Path(frag.base_dir or project_dir) / frag.path
+
+
+def _shown_fragment(
+    project_dir: Path | str, frag: FragmentConfig, *, of_directory: bool
+) -> str:
+    """How a line names *frag*: its path as configured, or, for a fragment
+    of a directory (*of_directory*: ``loom merge``), the directory as the
+    caller gave it joined with the file's name."""
+    if not of_directory:
+        return frag.path
+    return os.path.join(os.fspath(given_spelling(project_dir)), frag.path)
 
 
 def merge_fragments(
@@ -446,10 +433,16 @@ def merge_fragments(
     holds goes, with one ``INFO:`` each (see
     :mod:`pitloom.assemble.spdx3._fragments_evidence`).
 
-    Raises :class:`FragmentMergeError` if any ``required=True`` fragment
+    A fragment left out is said in one ``WARNING:`` naming it as
+    configured (with *adopt_fragment_roots*, the directory *project_dir* as
+    the caller spelt it joined with its name).
+
+    Raises :class:`FragmentMergeError` (``fragment-missing``, naming the
+    configured paths) if any ``required=True`` fragment
     (see :class:`~pitloom.core.config.FragmentConfig`) is missing, couldn't
     be read or is the document itself, or if the merge leaves the graph
-    referentially broken (see :func:`_raise_on_dangling_references`) or has a
+    referentially broken (``reference-not-found``, see
+    :func:`_raise_on_dangling_references`) or has a
     licence relationship end of the wrong type (see
     :func:`_raise_on_license_range_violations`) -- the
     latter two are skipped when *fragments* is empty or none of it could be
@@ -469,7 +462,10 @@ def merge_fragments(
     loaded_fragments: list[tuple[FragmentConfig, spdx3.SHACLObjectSet, str | None]] = []
     for frag in fragments:
         loaded = _load_fragment(
-            _fragment_file(project_dir, frag), frag.required, main_doc_id
+            _fragment_file(project_dir, frag),
+            _shown_fragment(project_dir, frag, of_directory=adopt_fragment_roots),
+            frag.required,
+            main_doc_id,
         )
         if loaded is None:
             if frag.required:
@@ -508,9 +504,10 @@ def merge_fragments(
     # so report it, not the symptom.
     if unmet_required:
         raise FragmentMergeError(
-            f"{len(unmet_required)} required fragment(s) could not be "
-            f"merged: {', '.join(unmet_required)} -- check the configured "
-            "path(s) under [tool.pitloom.fragment]"
+            FRAGMENT_MISSING,
+            line=REQUIRED_MISSING_LINE,
+            number=len(unmet_required),
+            files=missing_files_text(unmet_required),
         )
 
     if loaded_fragments:

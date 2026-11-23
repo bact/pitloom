@@ -17,14 +17,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from spdx_python_model.bindings import v3_0_1 as spdx3
-
 from pitloom.assemble import project_document_id
-from pitloom.assemble.spdx3.fragments import (
-    _find_fragment_document_id,
-    _fragment_read_failure_message,
-    _same_document_message,
+from pitloom.assemble.spdx3._fragments_read import (
+    parse_fragment,
+    read_fragment_bytes,
 )
+from pitloom.assemble.spdx3.fragments import _find_fragment_document_id
 from pitloom.cli.commands.utils import (
     _import_spdx3_validate,
     _validate_spdx3_documents,
@@ -34,9 +32,18 @@ from pitloom.cli.commands.utils import (
 from pitloom.cli.kv_output import print_kv
 from pitloom.core.config import FragmentConfig, read_pitloom_config
 from pitloom.core.given_path import TypedPath
+from pitloom.core.internal_error import InternalError
 from pitloom.core.path_probe import is_missing_errno
-from pitloom.core.quote_source import quote_source
-from pitloom.logging_config import loggable
+from pitloom.messages import emit, say_summary
+from pitloom.messages.fragments import (
+    FRAGMENT_DIGEST_INVALID,
+    FRAGMENT_LIST_NONE,
+    FRAGMENT_VALIDATE_VALID,
+    FragmentReadError,
+    warn_fragment_unread,
+    warn_same_document,
+)
+from pitloom.messages.metadata import relay_coded_warning
 from pitloom.messages.targets import (
     is_input_dir,
     say_input_not_found,
@@ -69,88 +76,74 @@ def _run_fragment_validate(args: argparse.Namespace) -> int:
     if exit_code == 0:
         for p in paths:
             print_kv(FILE=p, STATUS="valid")
-        log.info("fragment validate: %d document(s) valid", len(paths))
+        say_summary(log, FRAGMENT_VALIDATE_VALID, number=len(paths))
     return exit_code
 
 
+def _graph_length(raw: bytes) -> int | None:
+    """The length of the ``@graph`` array of the JSON *raw*, or ``None``
+    when it is not an object with one (or not JSON): a fragment the SPDX 3
+    reader refused still has its element count listed."""
+    try:
+        data = json.loads(raw)
+    except (ValueError, RecursionError):
+        # Not JSON (or nested too deep): the reader already said why this
+        # fragment failed.
+        return None
+    graph = data.get("@graph", []) if isinstance(data, dict) else None
+    return len(graph) if isinstance(graph, list) else None
+
+
 def _fragment_read_status(
-    fragment_path: Path, *, required: bool
+    fragment_path: Path, shown: str, *, required: bool
 ) -> tuple[bytes | None, bool, int | None, str | None]:
-    """Read *fragment_path* once, for the element count, the SPDX3-
-    validity check below, and the SHA-256 check in
-    :func:`_fragment_sha256_status` -- avoids reading the same fragment
-    file more than once. Returns
+    """Read *fragment_path* (named *shown*, as configured) once with the
+    reader the merge uses
+    (:func:`~pitloom.assemble.spdx3._fragments_read.parse_fragment`), for
+    the element count, the SPDX 3 validity check and the SHA-256 check in
+    :func:`_fragment_sha256_status`. Returns
     ``(raw_bytes, read_ok, element_count, document_id)``:
 
     - ``raw_bytes`` is the file's contents, or ``None`` only if the file
       itself couldn't be read (not on a JSON-parse failure) -- so a
       fragment with broken JSON can still have its hash verified by
       :func:`_fragment_sha256_status`.
-    - ``read_ok`` is False on a read/JSON-parse failure, or when the JSON
-      doesn't parse as a valid SPDX3 JSON-LD document -- the same two
-      conditions that make ``merge_fragments()`` treat a ``required=True``
-      fragment as unmet, so callers should key exit-code decisions on
-      this, not on ``element_count``. (Syntactically valid JSON that
-      isn't valid SPDX3 -- e.g. missing ``@context``, unrecognised
-      ``type`` values -- fails here too, not just outright unparseable
-      JSON.)
+    - ``read_ok`` is False on a read failure, or when the bytes are not an
+      SPDX 3 JSON-LD document the merge reads -- exactly the conditions
+      that make ``merge_fragments()`` treat a ``required=True`` fragment as
+      unmet (a number no RFC 8785 spelling holds, for one, fails here as it
+      does there), so callers key exit-code decisions on this, not on
+      ``element_count``.
     - ``element_count`` is the fragment's ``@graph`` length, or ``None``
       if the parsed JSON isn't an object (not itself a read failure).
     - ``document_id`` is the fragment's own ``SpdxDocument`` id, or
       ``None`` without one or when ``read_ok`` is False.
 
-    Logs a WARNING (shared wording with ``merge_fragments()``) on any
-    read, JSON-parse, or SPDX3-parse failure.
+    Logs one WARNING (``fragment-unreadable`` or ``fragment-invalid``, the
+    merge's own line) on any failure.
     """
     try:
-        raw = fragment_path.read_bytes()
-    except OSError as exc:
-        log.warning(
-            _fragment_read_failure_message(fragment_path, exc, required=required)
-        )
+        raw = read_fragment_bytes(fragment_path)
+    except FragmentReadError as exc:
+        warn_fragment_unread(log, shown, exc, required=required)
         return None, False, None, None
     try:
-        # json.loads(bytes) -- not raw.decode("utf-8") + json.loads(str) --
-        # to match the real merge path (json.load() on a binary handle):
-        # both auto-detect and strip a leading UTF-8 BOM, while
-        # json.loads(str) raises on one. Decoding first would make this
-        # command reject a fragment a real build would merge successfully.
-        data = json.loads(raw)
-    except Exception as exc:  # pylint: disable=broad-exception-caught
-        # Broad on purpose, matching the SPDX3-deserialise catch below --
-        # a narrower catch (e.g. just JSONDecodeError) still lets an
-        # unusual failure (e.g. RecursionError on deeply nested JSON)
-        # abort this entire command instead of degrading just this one
-        # fragment, the same hazard the broad catch below already guards.
-        log.warning(
-            _fragment_read_failure_message(fragment_path, exc, required=required)
-        )
-        return raw, False, None, None
-    graph = data.get("@graph", []) if isinstance(data, dict) else None
+        parsed = parse_fragment(raw, file=shown)
+    except FragmentReadError as exc:
+        warn_fragment_unread(log, shown, exc, required=required)
+        return raw, False, _graph_length(raw), None
+    graph = parsed.data.get("@graph", []) if isinstance(parsed.data, dict) else None
     elements = len(graph) if isinstance(graph, list) else None
-    try:
-        # deserialize_data(), not read() -- data is already parsed above,
-        # no need to hand the deserialiser raw bytes to re-parse as JSON.
-        object_set = spdx3.SHACLObjectSet()
-        spdx3.JSONLDDeserializer().deserialize_data(data, object_set)
-    except Exception as exc:  # pylint: disable=broad-exception-caught
-        # Matches merge_fragments()'s own broad catch (fragments.py) --
-        # the JSON-LD deserialiser can raise a wide variety of exception
-        # types for a malformed/non-SPDX3 document, none of them a stable
-        # public contract worth narrowing to.
-        log.warning(
-            _fragment_read_failure_message(fragment_path, exc, required=required)
-        )
-        return raw, False, elements, None
-    return raw, True, elements, _find_fragment_document_id(object_set)
+    return raw, True, elements, _find_fragment_document_id(parsed.objects)
 
 
 def _fragment_sha256_status(
-    raw: bytes | None, expected_sha256: str | None, fragment_path: Path
+    raw: bytes | None, expected_sha256: str | None, shown: str
 ) -> str:
     """Three-state SHA-256 display: ``-`` (not configured), ``unknown``
     (configured but the file couldn't be read), or ``match``/``mismatch``.
-    Logs a WARNING on mismatch. *raw* is checked independently of JSON
+    Logs a WARNING on mismatch (*shown*: the fragment as configured). *raw*
+    is checked independently of JSON
     validity: a fragment with broken JSON can still have its hash
     verified."""
     if expected_sha256 is None:
@@ -158,13 +151,16 @@ def _fragment_sha256_status(
     if raw is None:
         return "unknown"
     actual = hashlib.sha256(raw).hexdigest()
-    if actual.lower() == expected_sha256.lower():
+    declared = expected_sha256.lower()
+    if actual == declared:
         return "match"
-    log.warning(
-        "SBOM fragment %s SHA-256 mismatch: configured %s, actual %s",
-        quote_source(fragment_path),
-        expected_sha256,
-        actual,
+    emit(
+        log,
+        FRAGMENT_DIGEST_INVALID,
+        logging.WARNING,
+        file=shown,
+        measured=actual,
+        declared=declared,
     )
     return "mismatch"
 
@@ -234,11 +230,11 @@ def _report_fragment(
         exists = True
         mtime = stat_result.st_mtime
     if not exists:
-        warn_fragment_not_found(log, fragment_path, required=frag.required)
+        warn_fragment_not_found(log, frag.path, required=frag.required)
         raw, read_ok, elements, doc_id = None, False, None, None
     else:
         raw, read_ok, elements, doc_id = _fragment_read_status(
-            fragment_path, required=frag.required
+            fragment_path, frag.path, required=frag.required
         )
     # None (unknown) unless the fragment parsed, as for ELEMENTS, or when
     # the project's own id cannot be resolved.
@@ -247,11 +243,9 @@ def _report_fragment(
         own_id = own_document_id() if doc_id else ""
         same_document = None if own_id is None else bool(doc_id) and doc_id == own_id
     if same_document:
-        log.warning(
-            _same_document_message(fragment_path, str(doc_id), required=frag.required)
-        )
+        warn_same_document(log, frag.path, str(doc_id), required=frag.required)
 
-    sha_status = _fragment_sha256_status(raw, frag.sha256, fragment_path)
+    sha_status = _fragment_sha256_status(raw, frag.sha256, frag.path)
     modified = _fragment_modified(mtime) if mtime is not None else None
 
     _print_fragment_list_line(
@@ -271,14 +265,12 @@ def _own_document_id(project_dir: Path) -> str | None:
     goes on, with ``SAME_DOCUMENT=-``."""
     try:
         return project_document_id(project_dir)
-    # Any metadata-read failure (ValueError, OSError, a malformed field's
-    # TypeError/AttributeError) only leaves this one key unknown.
+    except (InternalError, MemoryError):
+        raise
+    # Any metadata-read failure only leaves this one key unknown.
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
-        log.warning(
-            "fragment list: project metadata unreadable, SAME_DOCUMENT unknown: %s",
-            loggable(str(exc)),
-        )
+        relay_coded_warning(log, exc, quiet=False)  # InternalError when uncoded
         return None
 
 
@@ -292,7 +284,7 @@ def _run_fragment_list(args: argparse.Namespace) -> int:
     pitloom_config = read_pitloom_config(project_dir / "pyproject.toml")
 
     if not pitloom_config.fragments:
-        log.info("fragment list: no fragments configured")
+        say_summary(log, FRAGMENT_LIST_NONE)
         return 0
 
     # Resolved once, and only for a fragment with an SpdxDocument: it reads
