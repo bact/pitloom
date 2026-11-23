@@ -92,7 +92,7 @@ def test_safetensors_blank_first_key_gives_way_to_the_next(
     path = _safetensors(tmp_path / "m.safetensors", {first: " ", second: " v "})
     meta = read_safetensors(path)
     assert getattr(meta, attr) == "v"
-    assert meta.provenance[attr].endswith("Field: __metadata__")
+    assert meta.provenance[attr].endswith(f"Field: __metadata__.{second}")
 
 
 def test_safetensors_base_model_version_is_no_name(tmp_path: Path) -> None:

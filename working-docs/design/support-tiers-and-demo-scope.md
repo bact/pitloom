@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-17
-Last-Modified: 2026-10-19
+Last-Modified: 2026-11-22
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -20,7 +20,7 @@ Decided 2026-10-17 (user) so that a demo can be finished by the weekend.
 | Tier | Formats | Policy |
 |---|---|---|
 | 1 | Safetensors, ONNX, GGUF, NumPy, fastText, and the Hugging Face Hub as a source | The most complete support. Every feature and every G7 increment is built and tested here first |
-| 2 | Keras, HDF5, PyTorch classic, PT2 / ExecuTorch, CRFsuite | Kept working. A bug fix may wait; it is written down, with a follow-up, and not silently dropped |
+| 2 | Keras, HDF5, PyTorch classic, PT2 (`torch.export`), CRFsuite | Kept working. A bug fix may wait; it is written down, with a follow-up, and not silently dropped |
 
 Rules:
 

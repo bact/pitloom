@@ -39,6 +39,8 @@ PARAMETER_COUNT_PROVENANCE_KEY = "parameter_count"
 
 #: The provenance suffix of a count summed from tensor shapes.
 TENSOR_ELEMENT_SUM_METHOD = " | Method: tensor_element_sum"
+#: The provenance suffix of a count of features, each storing one weight.
+ONE_WEIGHT_PER_FEATURE_METHOD = " | Method: one_weight_per_feature"
 
 #: The package comment line saying what the ``parameters`` entry is. No
 #: ``;``: a merge joins comments with ``"; "``, and

@@ -3,10 +3,18 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""PyTorch PT2 Archive metadata extractor (.pt2 / ExecuTorch).
+"""PyTorch PT2 Archive metadata extractor (``.pt2``).
+
+A PT2 Archive is what ``torch.export.save`` and the AOTInductor packager
+write: a ZIP of the exported program, its weights and extra files. It is not
+an ExecuTorch program (``.pte``, a FlatBuffer), which this reader does not
+read.
 
 References:
     - https://docs.pytorch.org/docs/stable/user_guide/torch_compiler/export.html
+
+See also: :mod:`pitloom.extract.ai_model._pt2_graph` (``models/model.json``
+and the weights config).
 """
 
 from __future__ import annotations
@@ -34,6 +42,11 @@ from pitloom.core.model_originators import (
 from pitloom.core.provenance import provenance_segment, provenance_source
 from pitloom.core.quote_source import quote_source
 from pitloom.core.untrusted_text import escape_lone_surrogates_in
+from pitloom.extract.ai_model._pt2_graph import (
+    read_pt2_graph,
+    read_pt2_parameter_count,
+    warn_pt2_unread,
+)
 from pitloom.extract.ai_model.archive_member import (
     open_model_zip,
     read_archive_member,
@@ -48,7 +61,6 @@ from pitloom.messages import (
 from pitloom.messages.model_fields import (
     MODEL_FIELD_UNREADABLE,
     PT2_EXTRA_LINE,
-    PT2_GRAPH_LINE,
     PT2_META_LINE,
     PT2_TAGS_LINE,
     PT2_VERSION_LINE,
@@ -112,15 +124,7 @@ def _resolve_pt2_version(
 def _warn_unread(line: Line, exc: Exception, lost: tuple[str, ...], entry: str) -> None:
     """The ``model-field-unreadable`` warning of *line* for the read of
     member *entry* that raised *exc*: the fields *lost*."""
-    emit(
-        log,
-        MODEL_FIELD_UNREADABLE,
-        logging.WARNING,
-        line=line,
-        entry=entry,
-        error=one_line(exc),
-        fields=lost,
-    )
+    warn_pt2_unread(log, line, exc, lost, entry)
 
 
 def _read_pt2_text(zf: ZipFile, full: str, field: str) -> str | None:
@@ -140,7 +144,7 @@ def _read_pt2_text(zf: ZipFile, full: str, field: str) -> str | None:
 def _detect_root_prefix(file_list: list[str]) -> str:
     """Detect a common root directory prefix from the ZIP file list.
 
-    ExecuTorch archives often nest all content under a single root directory
+    PT2 Archives often nest all content under a single root directory
     (the model name).  Returns that prefix with a trailing slash, or an
     empty string if the archive has no common root.
 
@@ -171,7 +175,7 @@ def _read_pt2_extra_files(
 ) -> tuple[str | None, str | None, str | None, str | None, list[object] | None]:
     """Read metadata from the ``extra/`` directory of a PT2 Archive.
 
-    ExecuTorch archives may include individual UTF-8 files under
+    PT2 Archives may include individual UTF-8 files under
     ``{prefix}extra/`` carrying human-readable metadata:
 
     - ``name``          -> :attr:`~AiModelMetadata.name`
@@ -277,105 +281,10 @@ def _parse_pt2_tags(tags_raw: str) -> tuple[str, list[object] | None]:
     return tags_raw, None
 
 
-def _spec_tensor_names(specs: object, kind: str) -> list[dict[str, object]]:
-    """The tensor names of the *kind* entries of a signature's *specs* list;
-    an entry that is not a one-key union with a named tensor is skipped."""
-    result: list[dict[str, object]] = []
-    for spec in specs if isinstance(specs, list) else []:
-        entry = spec.get(kind) if isinstance(spec, dict) else None
-        arg = entry.get("arg") if isinstance(entry, dict) else None
-        tensor = arg.get("as_tensor") if isinstance(arg, dict) else None
-        if isinstance(tensor, dict) and tensor.get("name"):
-            result.append({"name": tensor["name"]})
-    return result
-
-
-def _json_object(value: object, what: str) -> dict[str, object]:
-    """*value* as a mapping; ``{}`` for an absent one (``None``).
-
-    Raises:
-        ValueError: *value* is present but not a JSON object.
-    """
-    if value is None:
-        return {}
-    if not isinstance(value, dict):
-        raise ValueError(f"{what} is not a JSON object")
-    return value
-
-
-def _graph_signature(raw: bytes) -> dict[str, object]:
-    """The ``graph_module.signature`` object of a ``model.json`` text; ``{}``
-    when the file has no graph module or no signature.
-
-    Raises:
-        ValueError: The text is not JSON, or the file, its ``graph_module``
-            or its ``signature`` is present but not a JSON object.
-    """
-    graph = _json_object(json.loads(raw), "model.json")
-    module = _json_object(graph.get("graph_module"), "graph_module")
-    return _json_object(module.get("signature"), "signature")
-
-
-def _read_pt2_graph_io(
-    zf: ZipFile,
-    prefix: str,
-    source: str,
-    provenance: dict[str, str],
-) -> tuple[list[dict[str, object]], list[dict[str, object]]]:
-    """Extract the model's inputs and outputs from ``models/model.json``.
-
-    The exported graph lists every placeholder as an input: parameters,
-    buffers and constants as well as what a caller passes. Its
-    ``signature`` says which is which, so only the ``user_input`` entries of
-    ``input_specs`` are inputs and only the ``user_output`` entries of
-    ``output_specs`` are outputs. A file without a signature gives none:
-    the graph alone does not tell a weight from an input.
-
-    Each entry of the signature is a one-key union of the kind and its
-    ``arg``; the common ``arg`` is ``{"as_tensor": {"name": "<name>"}}``.
-
-    Args:
-        zf: Open ZipFile handle.
-        prefix: Common root prefix (e.g. ``"rich_model/"``), or ``""``.
-        source: Provenance source string (e.g. ``"Source: model.pt2"``).
-        provenance: Provenance dict updated in-place with field sources.
-
-    Returns:
-        Tuple of ``(inputs, outputs)``.
-        Each element of ``inputs`` / ``outputs`` is a dict with at least
-        ``{"name": str}``.  Returns empty lists if the file is absent or
-        unparseable.
-    """
-    model_json_path = f"{prefix}models/model.json"
-    if model_json_path not in zf.namelist():
-        return [], []
-
-    try:
-        signature = _graph_signature(read_archive_member(zf, model_json_path))
-    except ModelLimitExceeded:
-        raise
-    # pylint: disable-next=broad-exception-caught
-    except Exception as exc:
-        _warn_unread(PT2_GRAPH_LINE, exc, ("inputs", "outputs"), entry=model_json_path)
-        return [], []
-
-    inputs = _spec_tensor_names(signature.get("input_specs"), "user_input")
-    outputs = _spec_tensor_names(signature.get("output_specs"), "user_output")
-    if inputs:
-        provenance["inputs"] = (
-            f"{source} | Field: models/model.json signature.input_specs user_input"
-        )
-    if outputs:
-        provenance["outputs"] = (
-            f"{source} | Field: models/model.json signature.output_specs user_output"
-        )
-    return inputs, outputs
-
-
 def _read_pt2_format_version(
     zf: ZipFile, prefix: str, file_list: list[str], source: str
 ) -> tuple[str | None, str | None]:
-    """Read ExecuTorch archive format version if present."""
+    """Read the PT2 Archive's ``archive_version`` if present."""
     if f"{prefix}archive_version" in file_list:
         try:
             arch_ver = (
@@ -427,8 +336,10 @@ def _read_pt2_zip(
     list[dict[str, object]],
     list[dict[str, object]],
     SourceMetadata,
+    str | None,
 ]:
-    """Read metadata from a PT2 Archive ZIP."""
+    """Read metadata from a PT2 Archive ZIP; the last item is the PyTorch
+    version that exported it."""
     file_list = zf.namelist()
     description: str | None = None
     version: str | None = None
@@ -462,7 +373,7 @@ def _read_pt2_zip(
     if prov_name:
         provenance["name"] = prov_name
 
-    # ExecuTorch rich format: extra/ metadata directory (updates properties/provenance
+    # Rich format: extra/ metadata directory (updates properties/provenance
     # in-place; returns scalar fields that may override the above).
     extra_name, extra_desc, extra_ver, extra_license, tags = _read_pt2_extra_files(
         zf, prefix, source, properties, provenance
@@ -481,9 +392,9 @@ def _read_pt2_zip(
     if extra_license:
         license_expr = extra_license
 
-    # Signature inputs / outputs from models/model.json (updates provenance
-    # in place).
-    inputs, outputs = _read_pt2_graph_io(zf, prefix, source, provenance)
+    # Signature inputs / outputs and torch_version from models/model.json
+    # (updates provenance in place).
+    graph = read_pt2_graph(zf, prefix, source, provenance)
 
     return (
         name,
@@ -493,17 +404,18 @@ def _read_pt2_zip(
         format_version,
         properties,
         provenance,
-        inputs,
-        outputs,
+        graph.inputs,
+        graph.outputs,
         source_metadata(properties, natives),
+        graph.torch_version,
     )
 
 
 def read_pytorch_pt2(model_path: Path) -> AiModelMetadata:
     """Extract metadata from a PyTorch PT2 Archive file (``.pt2``).
 
-    PT2 Archive is the ExecuTorch on-device deployment format.  It is a ZIP
-    archive.  Two layout variants are supported:
+    A PT2 Archive is the ZIP ``torch.export.save`` writes (not an ExecuTorch
+    ``.pte``). Two layout variants are supported:
 
     **Simple format** -- a root-level ``version`` file (the export schema
     version: ``format_info.format_version`` when there is no
@@ -511,7 +423,7 @@ def read_pytorch_pt2(model_path: Path) -> AiModelMetadata:
     ``METADATA.json`` with ``name`` / ``model_name``.  No pickle inspection
     is performed.
 
-    **Rich ExecuTorch format** -- a single root directory
+    **Rich format** -- a single root directory
     (e.g. ``model_name/``) containing:
 
     - ``archive_version``      -> ``format_info.format_version``
@@ -522,7 +434,13 @@ def read_pytorch_pt2(model_path: Path) -> AiModelMetadata:
     - ``extra/author``         -> ``properties["author"]``
     - ``extra/tags``           -> ``properties["tags"]``
     - ``models/model.json``    -> :attr:`~AiModelMetadata.inputs` /
-      :attr:`~AiModelMetadata.outputs` (the signature's user inputs and outputs)
+      :attr:`~AiModelMetadata.outputs` (the signature's user inputs and
+      outputs), ``torch_version`` -> ``format_info.framework_version``
+    - ``data/weights/model_weights_config.json`` ->
+      :attr:`~AiModelMetadata.parameter_count` (the sizes of every stored
+      weight, parameters and buffers, a shared one once; no tensor is read)
+
+    ``format_info.framework`` is ``pytorch``.
 
     Args:
         model_path: Path to a ``.pt2`` file.
@@ -565,7 +483,15 @@ def read_pytorch_pt2(model_path: Path) -> AiModelMetadata:
             inputs,
             outputs,
             raw,
+            torch_version,
         ) = _read_pt2_zip(zf, source)
+        parameter_count = read_pt2_parameter_count(
+            zf,
+            _detect_root_prefix(zf.namelist()),
+            source,
+            provenance,
+            str(model_path),
+        )
 
     originators = originator_names(properties.get("author"))
     if originators:
@@ -576,7 +502,8 @@ def read_pytorch_pt2(model_path: Path) -> AiModelMetadata:
             file_name=model_path.name,
             model_format=AiModelFormat.PYTORCH_PT2,
             format_version=format_version,
-            framework="executorch",
+            framework="pytorch",
+            framework_version=torch_version,
         ),
         name=name,
         description=description,
@@ -588,4 +515,5 @@ def read_pytorch_pt2(model_path: Path) -> AiModelMetadata:
         provenance=provenance,
         inputs=inputs,
         outputs=outputs,
+        parameter_count=parameter_count,
     )

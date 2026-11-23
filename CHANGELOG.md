@@ -44,6 +44,12 @@ and this project adheres to
   `::add-mask::` for credential parts of URLs in source inputs ([#491])
 - A direct reference is said, as an `INFO:` line, not to be looked up on PyPI
   ([#496])
+- GGUF `general.datasets` and `general.dataset.<id>.*` are `trainedOn`
+  datasets, a Hub `repo_url` naming one by its Hub id
+  (`quantize.imatrix.dataset` is not) ([#509])
+- A parameter count for PT2 (stored weights) and CRFsuite (one weight per
+  feature); ONNX `producer_name` is a `Model file written by:` comment line
+  ([#509])
 
 ### Changed
 
@@ -99,6 +105,8 @@ and this project adheres to
 - Build, temporary directory and signal lines carry a code; a failed build
   masks a credential in its last output line; the hook's line says
   `Pitloom build hook: ` ([#506])
+- Safetensors reads a plain `license` and `model_version` after the ModelSpec
+  keys; each field's provenance names the key read ([#509])
 - The build hook's disabled, not-a-wheel and editable lines carry
   `[hook-no-effect]` and drop the trailing period and the quotes round the
   target; its staged-SBOM line starts `Pitloom build hook: ` ([#511])
@@ -167,6 +175,7 @@ and this project adheres to
 [#506]: https://github.com/bact/pitloom/pull/506
 [#507]: https://github.com/bact/pitloom/pull/507
 [#508]: https://github.com/bact/pitloom/pull/508
+[#509]: https://github.com/bact/pitloom/pull/509
 [#511]: https://github.com/bact/pitloom/pull/511
 [#512]: https://github.com/bact/pitloom/pull/512
 

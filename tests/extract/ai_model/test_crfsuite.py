@@ -94,6 +94,8 @@ def test_minimal_model_suffix_is_read_by_its_magic() -> None:
     assert meta.format_info.model_format is AiModelFormat.CRFSUITE
     assert meta.raw_metadata["labels"] == ["I", "E"]
     assert meta.properties["num_features"] == "4"
+    # one weight per feature (crf1d_model.c): the count of parameters
+    assert meta.parameter_count == 4
     assert meta.description == "CRFsuite model with 2 labels: I, E"
 
 
@@ -124,6 +126,7 @@ def test_provenance_cites_where_each_value_came_from(
         # the header's own num_features is always 0
         "properties.num_features": f"{src} | Field: FEAT.num",
         "properties.num_labels": f"{src} | Field: header.num_labels",
+        "parameter_count": f"{src} | Field: FEAT.num | Method: one_weight_per_feature",
     }
 
 
@@ -342,3 +345,20 @@ def test_a_label_over_the_cap_keeps_the_counts_and_drops_the_labels(
     assert "properties.labels" not in meta.provenance
     assert "description" not in meta.provenance
     assert "outputs" in meta.provenance
+
+
+@pytest.mark.parametrize(("features", "count"), [(0, None), (3, 3)])
+def test_the_parameter_count_is_the_feature_count(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, features: int, count: int | None
+) -> None:
+    model = CrfsuiteModel("FOMC", 100, features, 7, 1, ("l",))
+    monkeypatch.setattr(
+        crfsuite,
+        "read_crfsuite_header",
+        mock.create_autospec(read_crfsuite, return_value=model),
+    )
+    path = tmp_path / "m.crfsuite"
+    path.write_bytes(b"lCRF")
+    meta = crfsuite.read_crfsuite(path)
+    assert meta.parameter_count == count
+    assert ("parameter_count" in meta.provenance) is bool(count)

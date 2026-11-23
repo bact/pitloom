@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-01
-Last-Modified: 2026-11-13
+Last-Modified: 2026-11-21
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -135,7 +135,8 @@ Values are exact; "stub" is the format-only entry described above.
 | `.npy` header | 10000 bytes (NumPy's own limit) | `.npy`, and each array in an `.npz` | No | Stub: `... larger than the 10000-byte .npy-header cap; metadata not read` |
 | `.npz` members | Headers are read for the first 1001 arrays; every array is counted in `array_count` | `.npz` | No | No log line: the arrays are not listed, so nothing is cut |
 | Entries per list or map | 1000, the first ones: in file order, except Safetensors `__metadata__`, which has none and keeps its first 1000 keys in sorted order. Safetensors' well-known keys (`modelspec.title`, `name`, `format`, ...) are read from the whole `__metadata__`, so they set the model's name, version and so on even when they sort past the cut | `inputs`, `outputs`, `originators`, `hyperparameters`, `properties`, `raw_metadata` of every format; project and wheel scans, `loom model FILE` and `loom enrich FILE`. Not a Hugging Face model (`loom model <ID>` reads the Hub API, uncut) | No | Model kept, lists trimmed, provenance of dropped keys removed, the artifact-metadata annotation's `truncatedKeyCount` counting the `raw_metadata` keys left out ([marker](metadata-provenance-artifact-metadata.md#size-bounded-preservation)): `WARNING: FORMAT=<fmt> FILE=<path>: larger than the 1000-entry per-field cap; the first 1000 kept in <fields>` |
-| Parameter count | 10**15 (1000000000000000) elements: a tensor, the sum over a model's tensors, or a count the Hugging Face Hub states. | GGUF, Safetensors, ONNX (summed) and Hugging Face (stated) | No | No count recorded, never a partial sum: `WARNING: FORMAT=<fmt> FILE=<path>: larger than the 1000000000000000-element parameter-count cap; parameter count not recorded`. A malformed dimension (negative, not an integer) or stated count gets the same outcome with its own reason, e.g. `tensor dimension -1 is not a non-negative integer; parameter count not recorded`. A sum of 0 or no tensor is no count, silently |
+| Parameter count | 10**15 (1000000000000000) elements: a tensor, the sum over a model's tensors, or a count the Hugging Face Hub states. | GGUF, Safetensors, ONNX, PT2 (summed) and Hugging Face (stated) | No | No count recorded, never a partial sum: `WARNING: FORMAT=<fmt> FILE=<path>: larger than the 1000000000000000-element parameter-count cap; parameter count not recorded`. A malformed dimension (negative, not an integer) or stated count gets the same outcome with its own reason, e.g. `tensor dimension -1 is not a non-negative integer; parameter count not recorded`. A sum of 0 or no tensor is no count, silently |
+| GGUF datasets | 1000 datasets, the first ones: the numbered `general.dataset.<id>.*` entries, then `general.datasets` | GGUF | No | Model kept with the first 1000 datasets: `WARNING: FORMAT=gguf FILE=<path>: larger than the 1000-dataset GGUF-datasets cap; the first 1000 kept` |
 | Model-author parts | 16016 non-empty comma-separated parts (16 x (1000 + 1)) of one `model_author`; a whitespace-only part counts, an empty piece between commas does not | ONNX | No | Model kept with the names read before the bound, none of those after it: `WARNING: FORMAT=onnx FILE=<path>: larger than the 16016-part model-author cap; rest of model_author not read`. A bound met exactly at the end of the value is no cut |
 | Archive listing | First 20 names (`properties.archive_contents`, ending `, ... (<N> total)` when cut; an array of the same 20 names in the artifact-metadata annotation), with the member count in `archive_member_count` | PyTorch classic, PT2 | No | No log line, since nearly every checkpoint has a file per tensor; the count and the text say it is cut |
 | Artifact-metadata nesting | 32 levels of a collection; a deeper part is kept as its JSON text | The artifact-metadata annotation of every format (HDF5 `metrics`, PT2 `tags`) | No | No log line; the deeper part is text, `<nested over 32 levels>` where its JSON text nests too deeply to write |
@@ -307,7 +308,7 @@ are kept only in the verbatim artifact-metadata annotation.
 [What each format holds](ai-model-formats.md#what-each-format-holds). Beyond
 that table:
 
-- A PT2 / ExecuTorch archive gives description, licence, author and tags only
+- A PT2 archive gives description, licence, author and tags only
   in the "rich" layout.
 - HDF5 / Keras v1-v2 gives only what the `model_config` attribute holds.
 

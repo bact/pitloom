@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-14
-Last-Modified: 2026-11-21
+Last-Modified: 2026-11-22
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -54,7 +54,7 @@ file only); see
 | NumPy | `.npy`, `.npz` | `.npy`: magic `\x93NUMPY`; `.npz`: ZIP | array headers | `numpy` (`numpy`) |
 | ONNX | `.onnx` | none: any non-empty file | whole protobuf, in memory; external data files not loaded | `onnx` (`onnx`) |
 | PyTorch classic | `.pt`, `.pth` | ZIP, or pickle protocol 2-5 (a text `.pth` path file is not a model) | archive listing, top of `data.pkl` | `fickling` (`pytorch`), optional: without it, no type of model |
-| PT2 / ExecuTorch | `.pt2` | ZIP | archive listing, small text and JSON members | none |
+| PT2 (`torch.export`) | `.pt2` | ZIP | archive listing, small text and JSON members | none |
 | Safetensors | `.safetensors` | 8-byte little-endian header size, then `{` | JSON header | `safetensors` (`safetensors`) |
 | Hugging Face Hub | model ID or URL, not a file | -- | Hub API, model card, config files | `huggingface_hub` (`huggingface_hub`) |
 
@@ -76,13 +76,13 @@ can hold it, Pitloom does not read it. **--**: the format has no such field.
 | :----- | :--- | :---------- | :------ | :------ | :----------------- | :-------------- | :-------------- | :----- | :-------------- | :--------- |
 | CRFsuite | -- | Part [1] | -- | -- | Fixed | -- | Part [2] | Kept | -- | Kept |
 | fastText | -- | -- | -- | -- | Yes [3] | Part [4] | Part [2] | Kept | Kept (loss) | -- |
-| GGUF | Yes | Yes | Yes | Yes [5] | Yes | Part [6] | -- | Kept [7] | -- | Kept |
+| GGUF | Yes | Yes | Yes | Yes [5] | Yes | Part [6] | -- | Kept [7] | Part [29] | Kept |
 | HDF5, Keras v1-v2 | Yes | -- | -- | -- | Yes [8] | Part [9] | Part [10] | -- | Kept [11] | Kept |
 | Keras v3 | Yes | -- | -- | -- | Yes [8] | Part [9] | Part [10] | -- | Part [12] | Kept [27] |
 | NumPy | -- | -- | -- | -- | Fixed | -- | No [13] | -- | -- | Kept [13] |
 | ONNX | Part [14] | Yes | Yes [15] | Yes [16] | Part [17] | -- | Yes [17] | -- | -- | Kept [18] |
 | PyTorch classic | -- | -- | -- | -- | Part [19] | No | No | -- | No | Kept [20] |
-| PT2 / ExecuTorch | Yes | Yes | Yes | Yes | -- | -- | Part [21] | -- | -- | Kept [20] |
+| PT2 (`torch.export`) | Yes | Yes | Yes | Yes | -- | -- | Part [21] | -- | -- | Kept [20] |
 | Safetensors | Part [22] | Part [22] | Part [22] | Part [22] | Part [22] | -- | No [23] | -- | -- | Kept |
 | Hugging Face Hub | Yes | Yes | Yes [28] | Yes [24] | Yes | Part [25] | -- | No | Kept [26] | Kept |
 
@@ -173,7 +173,10 @@ can hold it, Pitloom does not read it. **--**: the format has no such field.
     rank or a non-tensor value (a sequence). An initializer (weight) that
     an IR version 3 graph also lists in `graph.input` is not an input; from
     IR version 4 on, a name in both is an input with a default, and kept.
-18. `domain`, `opset.<domain>` and every `metadata_props` entry as
+18. `producer_name`, `producer_version` (the tool that wrote the file, also
+    a line of the package `comment`; see
+    [Where each field goes](#where-each-field-goes)), `domain`,
+    `opset.<domain>` and every `metadata_props` entry as
     `metadata_props.<key>`; a repeated key keeps its last value, with one
     `WARNING: ... ONNX metadata_props: <N> key(s) appear more than once;
     kept the last value of each: <keys> [model-field-conflict]` per file.
@@ -191,17 +194,21 @@ can hold it, Pitloom does not read it. **--**: the format has no such field.
 21. Tensor names from `models/model.json`, no shapes: only the `user_input`
     entries of its `signature.input_specs` and the `user_output` entries of
     `output_specs`. Parameters, buffers and constants are placeholders of the
-    graph, not inputs; a file without a signature gives none.
+    graph, not inputs; a file without a signature gives none. Its
+    `torch_version` is the framework version (`framework` is `pytorch`). A
+    PT2 Archive is what `torch.export.save` writes, not an ExecuTorch `.pte`
+    program, which Pitloom does not read.
 22. Only from conventional `__metadata__` keys: name `modelspec.title`,
     or `name` (kohya-ss `ss_base_model_version` names the base model, so it
     is kept as a property only); description `modelspec.description`
-    or `description`; version `modelspec.version` or `version`;
-    architecture `modelspec.architecture` or `architecture`; quantisation
-    `modelspec.precision` or `precision`; producer `modelspec.author`;
-    licence `modelspec.license` (a name or an expression, trimmed). No other
-    licence key is read: none appeared in the 9 headers measured (SDXL base,
-    SDXL refiner, SDXL Turbo and Stable Cascade write `modelspec.license`;
-    GPT-2, Qwen2.5, Whisper, sd-vae-ft-mse and lcm-lora-sdxl do not).
+    or `description`; version `modelspec.version`, `version` or
+    `model_version` (LTX-2); architecture `modelspec.architecture` or
+    `architecture`; quantisation `modelspec.precision` or `precision`;
+    producer `modelspec.author`; licence `modelspec.license` (SDXL, Stable
+    Cascade, FLUX.1), else `license` (Lightricks LTX-Video and LTX-2), as
+    written, trimmed: a name, an expression or a whole licence text (LTX-2
+    writes its 21 KB licence agreement there). The format itself defines no
+    such key; the provenance names the key read.
 23. Tensor names are weights, not a model's inputs: not recorded.
 24. Model card `license`, or a licence file detected when the card has none
     or a vague one (`other`, `custom`, `proprietary`, `unlicensed`, `N/A`,
@@ -218,6 +225,37 @@ can hold it, Pitloom does not read it. **--**: the format has no such field.
     (`model.weights.h5`), which is not opened.
 28. The revision read: its 40-digit commit hash (`model_info` `sha`), not
     a release version.
+29. Training datasets, `trainedOn`: the spec's `general.datasets` (a string
+    array of names or links; a link is also the download location) and
+    llama.cpp's numbered `general.dataset.<id>.*` entries
+    (`general.dataset.count`). A Hub dataset page,
+    `https://huggingface.co/datasets/<id>`, as a numbered entry's
+    `repo_url` or an array element, names the dataset by its Hub id
+    (`Method: hub_dataset_id`), as a Hub model card's datasets are named.
+    llama.cpp writes a card's Hub id `owner/name` as `name` = a title of
+    the name part (`OpenHermes 2.5`), `organization` = a title of the owner,
+    a `version` guessed from the name, and the model page URL
+    `https://huggingface.co/owner/name` (no dataset is there) as `repo_url`;
+    a card's link `http(s)://huggingface.co/<a>/<b>` it splits the same
+    way. For an entry whose `repo_url` has that form and whose `name` is
+    that title of its name part, the made-up organisation and version are
+    not read, and it is named by the Hub id and located at its dataset page
+    (unless `<a>` is a site area such as `papers`). A card's id with no
+    owner gets no `repo_url`; its titled name and guessed version are read
+    as stated. Otherwise `name`, else `repo_url`, names the dataset;
+    `repo_url` is its download location as written, `version` and
+    `description` are read, `author`, else `organization`, is its creator.
+    The numbered entries come first; a dataset named in both is one
+    dataset, a Hub id in any case (an array element is the first numbered
+    entry of its name). Two numbered entries of one name and version are
+    one dataset, the first's values kept, with a `WARNING:` per field
+    they state differently; one name at two versions is two datasets,
+    which the SBOM still shows as one package, the first version kept,
+    with a `WARNING:`. At most
+    1000, with one `WARNING:` past them. `quantize.imatrix.dataset`
+    (written by `llama-quantize`) is the calibration text of an importance
+    matrix, not training data: it stays a property. `general.base_model.*`
+    and `general.source.*` stay properties.
 
 A `.keras` archive member that cannot be read (not valid JSON, its top level
 no object, nested too deeply) is one `WARNING:`
@@ -235,7 +273,8 @@ prose) is left to [the `sbom-enrich` Skill](agent-skills.md).
 | :----- | :----------------------- | :-------------------- | :---------------------------------- |
 | GGUF | `general.author`, then `general.organization`: one name each | -- | Sum over the shapes in `tensor_infos`; none when `split.count` is above 1 |
 | ONNX | `model_author` metadata property: a comma-separated list | -- | Sum over `graph.initializer` and `graph.sparse_initializer`, subgraphs included |
-| PT2 / ExecuTorch | `extra/author`: one name | -- | -- |
+| PT2 (`torch.export`) | `extra/author`: one name | -- | Sum over the sizes of every stored weight (parameters and buffers) in `data/weights/model_weights_config.json` |
+| CRFsuite | -- | -- | The feature count of the `FEAT` chunk: each feature stores one weight |
 | Safetensors | `modelspec.author` in `__metadata__` (ModelSpec): one name | -- | Sum over every tensor shape in the header (header only) |
 | Hugging Face Hub | The repository owner (`author`): one name | The same name | `safetensors.total`, else `gguf.total`, as the Hub states it |
 
@@ -244,8 +283,7 @@ In the provenance the values are keyed by their field names, `originators`,
 
 Every other format gives neither: PyTorch classic (no shapes without
 unpickling), Keras and HDF5 (the weights are not read), NumPy (a bare array
-is not a model), fastText (its matrix size follows the dictionary stream) and
-CRFsuite.
+is not a model) and fastText (its matrix size follows the dictionary stream).
 
 **Producer and supplier.** Each name becomes a generic SPDX `Agent` (name
 only, no email) in the `ai_AIPackage`'s `originatedBy`, one Agent per
@@ -317,6 +355,15 @@ it labels that too.
   `graph.sparse_initializer` and in subgraphs, a tensor stored in an
   external data file by its declared dimensions (the file is not read).
   `Constant` nodes and `model.functions` are not counted.
+- PT2 counts every weight its weights config lists, parameters and buffers
+  alike, by the sizes the config states (no tensor is read). Names sharing
+  one stored weight (tied weights: one blob, one view) count once; views
+  of one blob count each; lifted
+  constants, in their own config, are not counted. A symbolic size gives
+  none, with the malformed-dimension `WARNING:` below.
+- CRFsuite counts its features (`Method: one_weight_per_feature`): each
+  stores one weight, and CRFsuite keeps only the features whose weight is
+  not zero.
 - A Safetensors file that is one shard of a model gives that file's count,
   and the format has no sign that it is a shard. A GGUF file with
   `split.count` above 1 gives none, since its sum would understate the model.
@@ -334,7 +381,8 @@ parameters" of a size such as `bom:ai-model-size`. Do not filter by type:
 int8 weights are parameters.
 
 - It includes buffers stored as tensors (attention masks, shape constants)
-  and tied weights stored twice. The ONNX test model `gpt2-tiny-decoder`
+  and tied weights stored twice (a PT2 archive stores a tied weight once:
+  it counts once). The ONNX test model `gpt2-tiny-decoder`
   counts 404256, which includes a 262144-element uint8 causal mask
   (`transformer.h.0.attn.bias`, `[1, 1, 512, 512]`) and a 32000-element
   transposed copy of `wte.weight`; about 110112 are weights of their own. A
@@ -372,25 +420,26 @@ the Hugging Face Hub, "card" a README or model card read with `--enrich`.
 | `type_of_model` | CRFsuite, fastText, HDF5, Keras, NumPy, ONNX, PyTorch, HF | `ai_typeOfModel`, first entry |
 | `architecture` | GGUF, Safetensors, HF | `ai_typeOfModel`, after `type_of_model`; one `INFO:` line per model says it has no property of its own |
 | `quantization` | GGUF, Safetensors | `ai_hyperparameter`, key `quantization`, first |
-| `parameter_count` | GGUF, ONNX, Safetensors, HF | `ai_hyperparameter`, key `parameters`, decimal integer as text, among the entries sorted by key; with it a line in `ai_AIPackage.comment` saying it is not a hyperparameter (SPDX 3.0.1 has no model-size property); what it counts: [What the count counts](#what-the-count-counts) |
+| `parameter_count` | GGUF, ONNX, PT2, Safetensors, CRFsuite, HF | `ai_hyperparameter`, key `parameters`, decimal integer as text, among the entries sorted by key; with it a line in `ai_AIPackage.comment` saying it is not a hyperparameter (SPDX 3.0.1 has no model-size property); what it counts: [What the count counts](#what-the-count-counts) |
 | `hyperparameters` | GGUF, fastText, HDF5, Keras, HF | `ai_hyperparameter`, one `DictionaryEntry` per key, sorted by key, value as text |
 | `domain`, `usage.domains` | fastText, HF | `ai_domain` |
 | `inputs`, `outputs` | see the table above | `ai_informationAboutApplication`, JSON keys `inputs`, `outputs` |
 | `usage.intended_use`, `usage.unintended_use` | none | `ai_informationAboutApplication`, JSON keys `intended_use`, `unintended_use` |
 | `usage.limitations` | none | `ai_limitation`, joined with `; ` |
 | `usage.safety_risk_assessment` | none | `ai_safetyRiskAssessment` (`high`, `medium`, `low`, `serious`) |
-| `usage.known_biases` | none | `ai_AIPackage.comment`, `Known biases: ...`, after the parameter-count line when both are there |
+| `usage.known_biases` | none | `ai_AIPackage.comment`, `Known biases: ...`, after the parameter-count and writing-tool lines when they are there |
 | `doi` | HF | `externalIdentifier`, type `other`, comment `DOI` |
 | `arxiv_ids` | HF | `externalRef`, type `documentation` |
 | `url` | HF | `externalRef`, type `altWebPage` |
 | `base_model`, `base_model_relation` | HF | `Relationship` `descendantOf` to an `ai_AIPackage` for the base model (made if absent); the relation in its `comment` |
-| `datasets` | HF, card | `dataset_DatasetPackage` plus `Relationship` `trainedOn` or `testedOn`; references to one dataset (a Hub id in any letter case, or one name with different spacing) give one package with one relationship per role, a later reference only filling what the first leaves unset; a licence the dataset's metadata states becomes a licence element and `hasDeclaredLicense` (or `hasConcludedLicense` for a third-party source), as for the model. A Hub card's dataset gets the licence, description, revision and owner of its own Hub dataset repository (see [Hugging Face Hub models](#hugging-face-hub-models)) |
+| `datasets` | GGUF, HF, card | `dataset_DatasetPackage` plus `Relationship` `trainedOn` or `testedOn`; references to one dataset (a Hub id in any letter case, or one name with different spacing) give one package with one relationship per role, a later reference only filling what the first leaves unset; a licence the dataset's metadata states becomes a licence element and `hasDeclaredLicense` (or `hasConcludedLicense` for a third-party source), as for the model. A Hub card's dataset gets the licence, description, revision and owner of its own Hub dataset repository (see [Hugging Face Hub models](#hugging-face-hub-models)) |
 | `properties`, `raw_metadata`, `raw_metadata_types` | every format | `Annotation` of kind `artifact-metadata` (schema `https://pitloom.dev/provenance/artifact-metadata/2`): `metadata`, `valueTypes`, `format`; only when preserved, see below |
 | `raw_metadata_dropped` | any format, over the entry cap | that annotation's `truncatedKeyCount` |
 | `extra_data`, `extra_lists` | HF | that annotation, `format` `huggingface` |
 | `provenance` | every format | `ai_AIPackage.comment` (`Metadata provenance: ...`) and/or a provenance `Annotation`, by `[tool.pitloom.provenance] format` |
 | `format_info.model_format` | every format | the artifact-metadata annotation's `format` |
 | `format_info.format_version`, `framework`, `framework_version` | most formats | not written: cited in the provenance only |
+| `format_info.writing_tool`, `writing_tool_version` | ONNX (`producer_name`, `producer_version`) | a line of `ai_AIPackage.comment`, `Model file written by: <tool> <version>`, after the parameter-count line; the exporter or converter, not the model's producer |
 | `format_info.file_path_relative` | project and wheel scans | `Relationship` `contains` from the `ai_AIPackage` to the model's `software_File` (which has the SHA-256 and SHA-512) |
 | `usage_files` | `--scan-model-usage` | `LifecycleScopedRelationship` `hasDataFile`, scope `runtime`, `comment` `read access` / `write access` / `read and write access` / `unknown access`, from each `.py` `software_File` to the model's |
 
