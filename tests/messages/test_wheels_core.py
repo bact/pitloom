@@ -19,6 +19,7 @@ from __future__ import annotations
 import io
 import logging
 import pickle
+import warnings
 import zipfile
 from collections.abc import Callable
 from pathlib import Path
@@ -85,8 +86,15 @@ _NEW = frozenset(
 
 
 def _zip(path: Path, *names: str, data: bytes = b"x") -> Path:
-    """A ZIP archive at *path* holding *names*, each dated 1980 (no clock)."""
-    with zipfile.ZipFile(path, "w") as zf:
+    """A ZIP archive at *path* holding *names*, each dated 1980 (no clock).
+
+    ``ZipInfo`` turns a ``\\`` into ``/`` on Windows, so ``d/M`` and ``d\\M``
+    are one name there and ``zipfile`` warns of the duplicate: it is the
+    point of a test that writes both."""
+    with zipfile.ZipFile(path, "w") as zf, warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore", message="Duplicate name", category=UserWarning
+        )
         for name in names:
             zf.writestr(zipfile.ZipInfo(name), data)
     return path
