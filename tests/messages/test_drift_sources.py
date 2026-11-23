@@ -88,7 +88,7 @@ def test_every_catalogued_message_is_used_outside_the_catalogue() -> None:
     for _, tree in source_modules():
         called |= referenced_names(tree)
     used = (called & names) | _said_by_helpers(called, names)
-    assert used == names, f"unused: {sorted(names - used)}"
+    assert not names - used, f"unused: {sorted(names - used)}"
 
 
 def test_a_module_saying_a_family_text_uses_the_catalogue() -> None:
@@ -105,7 +105,7 @@ def test_a_module_saying_a_family_text_uses_the_catalogue() -> None:
                 for family in sorted(said)
                 if not used & set(names[family])
             ]
-    assert not found
+    assert not found, found
 
 
 def _says(node: ast.Call) -> bool:
@@ -129,8 +129,8 @@ def test_every_call_saying_a_family_text_carries_its_code() -> None:
             if (name in _LOG_METHODS or name == "print_error") and not any(
                 kw.arg == key for kw in node.keywords
             ):
-                bare.append(f"{path}:{node.lineno}: {name}")
-    assert not bare
+                bare.append(f"{path}: {name}")
+    assert not bare, bare
 
 
 def _trusted_after(head: str, text: str, message: Message, level: str) -> bool:

@@ -1,6 +1,6 @@
 ---
 # Created: 2026-07-05
-# Last-Modified: 2026-11-19
+# Last-Modified: 2026-11-23
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -205,7 +205,7 @@ prints `ERROR:` and exits 1 after the rewrite), read
 `references/embed-wheel.md`. Checking an embedded wheel later: `sbom-validate`.
 
 **Signed wheels.** A `RECORD.jws`/`RECORD.p7s` signature would stop verifying
-once `RECORD` is rewritten, so Pitloom refuses the wheel (`ERROR:`, exit 1,
+once `RECORD` changes, so Pitloom refuses the wheel (`ERROR:`,
 untouched). Check first: `unzip -l <wheel> | grep 'RECORD\.'` (no output and
 exit 1 means no signature). If found, **before** embedding read
 `references/known-limitations.md` ("Signed wheels: what to tell the user"),
@@ -213,10 +213,10 @@ explain it for their wheel, and ask before adding `--allow-signed-wheel`
 (non-interactive: don't; report the refusal and the command to re-run). No
 signature file: embed without asking.
 
-A non-ZIP or unreadable wheel is refused (`ERROR:`, nothing written); a
-missing `METADATA` only warns (`identity unknown`). If either line appears,
-report it and read `references/known-limitations.md` ("Refused wheels and
-unknown identity").
+A wheel Pitloom cannot read or place is refused (`ERROR:` ending
+`wheel refused`, nothing written); a missing `METADATA` only warns (`identity
+unknown`). Report either and read `references/known-limitations.md`
+("Refused wheels and unknown identity").
 
 ## Flags: what to add, what to leave out
 

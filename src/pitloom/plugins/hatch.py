@@ -33,7 +33,6 @@ from pitloom.assemble.spdx3.fragments import merge_fragments
 from pitloom.core.config import PitloomConfig, read_pitloom_config
 from pitloom.core.file_names import sbom_file_name
 from pitloom.core.inert_options import HOOK, configured_options, settle_inert
-from pitloom.core.quote_source import quote_source
 from pitloom.core.temp_dirs import check_frame, remove_temp_dir
 from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
 from pitloom.id_registry import resolve_registry
@@ -42,6 +41,7 @@ from pitloom.messages import (
     HOOK_FRAME,
     HOOK_PREFIX,
     HOOK_STEP_FRAME,
+    CodedValueError,
     code_extra_of,
     emit,
     say_summary,
@@ -52,8 +52,14 @@ from pitloom.messages.build import (
     HOOK_NO_EFFECT,
     HOOK_SBOM_STAGED,
 )
+from pitloom.messages.models import (
+    HATCHLING_TOO_OLD_LINE,
+    HATCHLING_VERSION_UNKNOWN_LINE,
+    LIBRARY_UNUSABLE_HATCHLING,
+)
 from pitloom.messages.url_credentials import ADVICE_CONFIG, credential_advice
-from pitloom.plugins._hatch_base import HATCHLING_ERROR_PREFIX, PitloomBuildHookBase
+from pitloom.messages.wheel_sboms import sbom_name_conflict
+from pitloom.plugins._hatch_base import PitloomBuildHookBase
 from pitloom.plugins._hatch_config import validate_config
 from pitloom.plugins._hatch_document import (
     build_document_model,
@@ -77,16 +83,18 @@ def _check_hatchling_sbom_support() -> None:
     """Raise if the running Hatchling can't embed the SBOM via build_data.
 
     Raises:
-        RuntimeError: If Hatchling's installed version can't be determined,
-            or predates :data:`_MIN_HATCHLING_SBOM_VERSION`.
+        pitloom.messages.CodedValueError: (a ``ValueError``)
+            ``library-unusable/hatchling``: Hatchling's installed version
+            can't be determined, or predates
+            :data:`_MIN_HATCHLING_SBOM_VERSION`.
     """
     try:
         installed = Version(_pkg_version("hatchling"))
     except PackageNotFoundError as exc:
-        raise RuntimeError(
-            f"{HATCHLING_ERROR_PREFIX} version unknown (no package metadata "
-            f"found); requires >= {_MIN_HATCHLING_SBOM_VERSION} for PEP 770 "
-            "SBOM embedding."
+        raise CodedValueError(
+            LIBRARY_UNUSABLE_HATCHLING,
+            line=HATCHLING_VERSION_UNKNOWN_LINE,
+            minimum_version=_MIN_HATCHLING_SBOM_VERSION,
         ) from exc
 
     minimum = Version(_MIN_HATCHLING_SBOM_VERSION)
@@ -94,10 +102,11 @@ def _check_hatchling_sbom_support() -> None:
     # so a pre-release or dev build of the minimum version -- which already
     # has the feature -- isn't rejected for sorting below the final release.
     if installed.release < minimum.release:
-        raise RuntimeError(
-            f"{HATCHLING_ERROR_PREFIX} {installed} too old for PEP 770 SBOM "
-            f"embedding (requires >= {_MIN_HATCHLING_SBOM_VERSION}); "
-            "upgrade Hatchling."
+        raise CodedValueError(
+            LIBRARY_UNUSABLE_HATCHLING,
+            line=HATCHLING_TOO_OLD_LINE,
+            version=str(installed),
+            minimum_version=_MIN_HATCHLING_SBOM_VERSION,
         )
 
 
@@ -192,9 +201,10 @@ class PitloomBuildHook(PitloomBuildHookBase):
                 :func:`pitloom.assemble.spdx3.fragments.merge_fragments`).
             FileNotFoundError: If ``pyproject.toml`` is absent from the
                 project root.
-            RuntimeError: If the installed Hatchling's version can't be
-                determined, or predates 1.29.0 and can't embed the SBOM
-                (see :func:`_check_hatchling_sbom_support`).
+            pitloom.messages.CodedValueError: (a ``ValueError``)
+                ``library-unusable/hatchling``: the installed Hatchling's
+                version can't be determined, or predates 1.29.0 and can't
+                embed the SBOM (see :func:`_check_hatchling_sbom_support`).
         """
         # Without this, this process logs with whatever logging config
         # pip/hatchling set up, and lines lack the "WARNING: " prefix.
@@ -345,8 +355,10 @@ class PitloomBuildHook(PitloomBuildHookBase):
         over the other.
 
         Raises:
-            ValueError: One is, typically a ``loom project`` output of the
-                same default name shipped through ``sbom-files``.
+            pitloom.messages.CodedValueError: (a ``ValueError``)
+                ``sbom-name-conflict``: One is, typically a ``loom project``
+                output of the same default name shipped through
+                ``sbom-files``.
         """
         placed = [
             *cast(WheelBuilderConfig, self.build_config).sbom_files,
@@ -357,12 +369,7 @@ class PitloomBuildHook(PitloomBuildHookBase):
             (p for p in placed if os.path.basename(p).casefold() == wanted), None
         )
         if clash is not None:
-            raise ValueError(
-                f"SBOM file name {quote_source(sbom_filename)} is also, ignoring "
-                f"case, the name of sbom-files entry {quote_source(clash)}; "
-                "set [tool.pitloom] sbom-basename to another name or drop "
-                "the entry."
-            )
+            raise sbom_name_conflict(sbom_filename, clash)
 
     def finalize(
         self,

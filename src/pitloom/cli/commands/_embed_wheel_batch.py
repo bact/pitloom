@@ -43,8 +43,9 @@ from pitloom.core.inert_options import (
 from pitloom.embed import RECORD_SIGNATURES, EmbedFileCache
 from pitloom.extract.project import read_project
 from pitloom.id_registry import IdRegistry, registry_base_dir, resolve_registry
-from pitloom.logging_config import loggable
 from pitloom.messages.targets import input_exists, say_input_not_found
+from pitloom.messages.wheel_sboms import say_entry_date_floored, say_held_sbom
+from pitloom.messages.wheels import say_signature_removed
 
 log = logging.getLogger(__name__)
 
@@ -68,25 +69,11 @@ def report_embed_result(
     report(WHEEL=wheel_name, SBOM=arcname)
     for stale_arcname in removed:
         if stale_arcname.endswith(RECORD_SIGNATURES):
-            log.info(
-                "removed %s from %s: it signed the RECORD the embed rewrote; "
-                "re-sign the wheel",
-                loggable(stale_arcname),
-                loggable(wheel_name),
-            )
+            say_signature_removed(log, wheel_name, stale_arcname)
             continue
-        log.info(
-            "removed stale SBOM %s from %s",
-            loggable(stale_arcname),
-            loggable(wheel_name),
-        )
+        say_held_sbom(log, wheel_name, stale_arcname, removed=True)
     if timestamp_floored:
-        log.info(
-            "%s's embedded SBOM entry timestamp was before 1980 and was "
-            "floored to 1980-01-01 (ZIP format limitation); the SBOM's own "
-            "'created' field keeps the true value",
-            loggable(wheel_name),
-        )
+        say_entry_date_floored(log, wheel_name)
 
 
 def resolve_project_dir_and_config(

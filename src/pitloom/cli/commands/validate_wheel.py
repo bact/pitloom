@@ -23,8 +23,12 @@ from pitloom.cli.commands.utils import (
     cli_error_handler,
 )
 from pitloom.cli.kv_output import print_kv
-from pitloom.core.quote_source import quote_source
-from pitloom.logging_config import loggable
+from pitloom.messages import say_summary
+from pitloom.messages.wheel_sboms import (
+    VALIDATE_WHEEL_SKIPPED,
+    VALIDATE_WHEEL_VALID,
+    warn_no_validator,
+)
 
 log = logging.getLogger(__name__)
 
@@ -46,21 +50,18 @@ def _validate_location(
     the wheel on disk, so ``--verify`` and ``--validate`` share one read.
     """
     if sbom_format not in VALIDATED_FORMATS:
-        log.warning(
-            "%s: no validator registered for %s's format (%s); "
-            "skipping content validation",
-            quote_source(wheel_path.name),
-            loggable(location.arcname),
-            sbom_format or "unrecognized",
-        )
+        warn_no_validator(log, wheel_path.name, location.arcname)
         return None
 
     return validate_sbom_data(location.data, f"{wheel_path.name}/{location.arcname}")
 
 
-def validate_sbom_data(data: bytes, shown: str) -> bool:
-    """Validate SPDX 3 JSON *data* (schema and SHACL), naming it *shown* in
-    the messages. Prints one ``ERROR:`` line per finding; ``True`` when valid."""
+def validate_sbom_data(data: bytes, shown: str, *, per_document: bool = True) -> bool:
+    """Validate SPDX 3 JSON *data* (schema and SHACL), naming it *shown* (a
+    raw name) in the messages. Prints the validator's findings, each as one
+    ``ERROR:`` line, then (*per_document*) one ``sbom-invalid`` line; a caller
+    that says the outcome itself passes ``per_document=False``. ``True`` when
+    valid."""
     # delete=False + manual cleanup: on Windows, spdx3_validate can't reopen
     # the file by path while our own handle still holds it open (see
     # _rewrite_wheel_archive in _embed_wheel.py for the same pattern).
@@ -70,7 +71,10 @@ def validate_sbom_data(data: bytes, shown: str) -> bool:
     try:
         return (
             _validate_spdx3_documents(
-                [tmp_path], check_merged=False, names={tmp_path: loggable(shown)}
+                [tmp_path],
+                check_merged=False,
+                names={tmp_path: shown},
+                per_document=per_document,
             )
             == 0
         )
@@ -115,14 +119,14 @@ def _run_validate_wheel_command(args: argparse.Namespace) -> int:
         return 1
     skipped = statuses.count("skipped")
     if skipped:
-        log.info(
-            "validate-wheel: %d wheel(s) valid, %d skipped "
-            "(no validator for their format)",
-            len(statuses) - skipped,
-            skipped,
+        say_summary(
+            log,
+            VALIDATE_WHEEL_SKIPPED,
+            number=len(statuses) - skipped,
+            skipped=skipped,
         )
     else:
-        log.info("validate-wheel: %d wheel(s) valid", len(statuses))
+        say_summary(log, VALIDATE_WHEEL_VALID, number=len(statuses))
     return 0
 
 

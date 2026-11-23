@@ -13,6 +13,11 @@ See also: :mod:`pitloom.messages` (the mechanism) and
 
 from __future__ import annotations
 
+from pitloom.messages._hook import (
+    HATCHLING_TOO_OLD_LINE,
+    HATCHLING_VERSION_UNKNOWN_LINE,
+    LIBRARY_UNUSABLE_HATCHLING,
+)
 from pitloom.messages._lfs_pointer import (
     LFS_CLONE_ERROR_LINE,
     LFS_CLONE_LINE,
@@ -65,6 +70,9 @@ __all__ = [
     "LIBRARY_MISSING_WARNING_LINE",
     "LIBRARY_API_LINE",
     "LIBRARY_UNUSABLE",
+    "LIBRARY_UNUSABLE_HATCHLING",
+    "HATCHLING_TOO_OLD_LINE",
+    "HATCHLING_VERSION_UNKNOWN_LINE",
     "LIBRARY_UNUSABLE_CONTENT_LINE",
     "LIMIT_GGUF_ARRAY",
     "LIMIT_GGUF_PAIRS",

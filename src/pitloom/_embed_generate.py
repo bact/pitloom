@@ -73,7 +73,8 @@ from pitloom.id_registry import (
     registry_copy,
     resolve_registry,
 )
-from pitloom.logging_config import loggable
+from pitloom.messages import emit
+from pitloom.messages.files import JSON_MALFORMED_BOM
 
 log = logging.getLogger(__name__)
 
@@ -105,10 +106,7 @@ def _read_external_sbom(sbom_path: Path | str, credentials: CredentialPolicy) ->
         graph = [*graph, rest]
     check_graph_credentials(graph, credentials, every_string=True)
     if given.dropped_bom:
-        log.warning(
-            "SBOM %s: byte order mark dropped (JSON text must not have one)",
-            loggable(str(sbom_path)),
-        )
+        emit(log, JSON_MALFORMED_BOM, logging.WARNING, file=sbom_path)
     return given.text
 
 

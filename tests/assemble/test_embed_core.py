@@ -28,7 +28,6 @@ import pytest
 from installer.sources import WheelFile
 
 from pitloom import __main__
-from pitloom.core.wheel_dist_info import PROBLEM_NONE
 from pitloom.embed import (
     _validate_sbom_filename,
     embed_sbom_in_wheel,
@@ -146,7 +145,7 @@ def test_embed_sbom_missing_dist_info_raises(tmp_path: Path) -> None:
     with zipfile.ZipFile(bad_wheel, "w") as zf:
         zf.writestr("pkg/__init__.py", b"")
 
-    with pytest.raises(ValueError, match=PROBLEM_NONE):
+    with pytest.raises(ValueError, match="no top-level .dist-info"):
         embed_sbom_in_wheel(bad_wheel, _SAMPLE_SPDX3_JSON)
 
 
@@ -361,7 +360,7 @@ def test_cli_wheel_embed_flag(
 def test_validate_sbom_filename_edge_cases() -> None:
     """Test _validate_sbom_filename rejects null bytes, traversal, and whitespace."""
     for bad in ("", "   ", "\x00", "a/b", "a\\b", "..", ".", "C:x", "a:b"):
-        with pytest.raises(ValueError, match="Invalid SBOM filename"):
+        with pytest.raises(ValueError, match="sbom_filename: must be a file name"):
             _validate_sbom_filename(bad)
 
 

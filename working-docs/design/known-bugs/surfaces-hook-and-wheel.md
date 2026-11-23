@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-02
-Last-Modified: 2026-11-16
+Last-Modified: 2026-11-23
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -49,6 +49,32 @@ entries come first; fixed entries stay in the last section for history.
 
 ### Found in review rounds, not yet prioritised
 
+- [ ] **A file name with a newline splits the relayed validator text (low).**
+  `validate-wheel` and `fragment validate` relay spdx3-validate's text line by
+  line, so a name `a\nERROR: x` inside a finding gives a second relayed line
+  holding `ERROR:`. The coded `FILE=` line stays escaped on one line. Same on
+  main (found with catalogue PR 16, stderr sweep).
+- [ ] **Relayed SHACL text loses its tab indentation (low).** The nested
+  "Source Shape" block is flattened to `spdx3-validate: sh:maxCount 1 ;`
+  (main showed a literal `\t`). Keep a leading-space count if it matters to
+  a reader.
+- [ ] **`--verify` repeats the mismatch lines `--allow-mismatch` just said
+  (low).** `embed-wheel --sbom X --allow-mismatch --verify` prints each part
+  twice (four lines for a name and version): skip what the embed said.
+- [ ] **A name like `https:u:secret@h` (no `//`) is shown unmasked (low).**
+  In `ARCHIVE=`, `ENTRY=` and `FILE=` values; names with `https://u:p@h/` are
+  masked. Same on main.
+- [ ] **Uncoded leftovers of the wheel family (final sweep).**
+  `--sbom-basename 'x.spdx3.json'` warning (`core/file_names.py`), raw
+  `[Errno 2]` for an unwritable `-o`, `report_error_line` (`utils.py`), and
+  `FILE=` values holding a space are not quoted.
+- [ ] **A byte order mark in a wheel's embedded SBOM or an ID registry file
+  loads silently (low).** `embed-wheel --sbom` and `loom id import` of an
+  SBOM say `json-malformed/bom`; `verify-wheel`, `validate-wheel`,
+  `fragment validate` and a registry file do not.
+- [ ] **`--sbom-basename .` and `..` are accepted (low).** They embed as
+  `..spdx3.json` and `...spdx3.json`, as on main; refuse them if a leading
+  dot name is unwanted.
 - [ ] **`embed-wheel --sbom FILE` stores another format under a `.spdx3.json`
   name (S).** A valid CycloneDX `bom.cdx.json` is embedded as
   `<basename>.spdx3.json` (with the cross-check `WARNING:`):

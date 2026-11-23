@@ -45,7 +45,11 @@ from pitloom.messages._input_not_found_say import (
     warn_fragment_not_found,
 )
 from pitloom.messages._sbom_input import (
+    DOCUMENT_INVALID_LINE,
+    MERGED_INVALID_LINE,
+    NONE_VALIDATED_LINE,
     NOT_SPDX3_LINE,
+    NOT_VALIDATED_LINE,
     SBOM_DUPLICATE_KEY_LINE,
     SBOM_GRAPH_ELEMENT_LINE,
     SBOM_GRAPH_NOT_LIST_LINE,
@@ -54,6 +58,7 @@ from pitloom.messages._sbom_input import (
     SBOM_NOT_VALID_LINE,
     SBOM_UNREADABLE_LINE,
     SBOM_WRONG_FORMAT,
+    VALIDATOR_PREFIX,
 )
 from pitloom.messages._sbom_target import (
     GIT_PAGE_DIR_LINE,
@@ -81,6 +86,13 @@ from pitloom.messages._sbom_target import (
     TARGET_AMBIGUOUS,
     TARGET_AMBIGUOUS_GIT_PAGE,
     TARGET_AMBIGUOUS_HF_URL,
+)
+from pitloom.messages._sbom_validation_say import (
+    MERGED_SOURCE,
+    VALIDATOR_LINE_CHARS,
+    relay_validator_text,
+    say_validation_findings,
+    say_validator_failure,
 )
 from pitloom.messages._target_input import (
     HF_URL_INVALID,
@@ -141,6 +153,16 @@ __all__ = [
     "SBOM_NAMESPACE_LINE",
     "SBOM_GRAPH_NOT_LIST_LINE",
     "SBOM_INVALID",
+    "DOCUMENT_INVALID_LINE",
+    "MERGED_INVALID_LINE",
+    "MERGED_SOURCE",
+    "NONE_VALIDATED_LINE",
+    "NOT_VALIDATED_LINE",
+    "VALIDATOR_LINE_CHARS",
+    "VALIDATOR_PREFIX",
+    "relay_validator_text",
+    "say_validation_findings",
+    "say_validator_failure",
     "SBOM_NOT_VALID_LINE",
     "SBOM_UNREADABLE_LINE",
     "SBOM_WRONG_FORMAT",

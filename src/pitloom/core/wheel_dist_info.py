@@ -41,9 +41,6 @@ from pitloom.core.archive_member_names import zip_file_members
 from pitloom.core.given_path import TypedPath
 from pitloom.core.path_probe import is_directory_error, is_missing_errno
 from pitloom.core.pep440 import parse_version
-from pitloom.core.quote_source import quote_source
-from pitloom.logging_config import loggable
-from pitloom.messages import CodedValueError
 from pitloom.messages.files import (
     Cap,
     warn_over_cap,
@@ -54,6 +51,22 @@ from pitloom.messages.targets import (
     input_not_found,
     is_input_file,
 )
+from pitloom.messages.wheels import (
+    DIST_INFO_NONE,
+    DIST_INFO_NOT_A_WHEEL_NAME,
+    DIST_INFO_OTHER,
+    DIST_INFO_SEVERAL_MATCH,
+    DIST_INFO_SEVERAL_NONE_MATCH,
+    refuse_duplicate_name,
+    refuse_nul_name,
+    refuse_unopenable,
+    refuse_unreadable_member,
+    warn_metadata_missing,
+)
+
+# Re-exported (``as``): every wheel reader's caller imports it from here.
+# pylint: disable-next=useless-import-alias
+from pitloom.messages.wheels import WheelRefused as WheelRefused
 
 log = logging.getLogger(__name__)
 
@@ -101,11 +114,7 @@ MEMBER_READ_ERRORS: tuple[type[Exception], ...] = (
 )
 
 
-class WheelRefused(ValueError):
-    """A wheel Pitloom refuses as a whole, with one clean line."""
-
-
-class NotAWheelError(WheelRefused, CodedValueError):
+class NotAWheelError(WheelRefused):
     """A file given as a wheel that is not named ``.whl``
     (``target-wrong-format``)."""
 
@@ -165,36 +174,6 @@ def require_wheel_file(path: Path | str) -> None:
         raise input_not_found("wheel file", typed)
 
 
-def refusal(archive: str, entry: str | None, reason: str) -> WheelRefused:
-    """The one shape of every wheel refusal:
-    ``ARCHIVE='a.whl' ENTRY='m': <reason> -- wheel refused`` (no ``ENTRY=``
-    where no member is to blame).
-
-    Archive and member go through :func:`quote_source`, so a hostile name
-    cannot forge a line.
-    """
-    where = f"ARCHIVE={quote_source(archive)}" + (
-        f" ENTRY={quote_source(entry)}" if entry is not None else ""
-    )
-    return WheelRefused(f"{where}: {reason} -- wheel refused")
-
-
-def exception_label(exc: BaseException) -> str:
-    """The type of *exc* for a message, never its text: bare for a builtin
-    (``EOFError``), qualified otherwise (``zlib.error``)."""
-    cls = type(exc)
-    if cls.__module__ == "builtins":
-        return cls.__name__
-    return f"{cls.__module__}.{cls.__qualname__}"
-
-
-def unreadable_member_error(
-    archive: str, entry: str | None, exc: BaseException
-) -> WheelRefused:
-    """The error that refuses a wheel one of whose members cannot be read."""
-    return refusal(archive, entry, f"could not read ({exception_label(exc)})")
-
-
 def wheel_members(
     zf: zipfile.ZipFile, archive: str, logger: logging.Logger | None = None
 ) -> list[tuple[str, zipfile.ZipInfo]]:
@@ -214,12 +193,12 @@ def wheel_members(
     """
     for info in zf.infolist():
         if "\0" in info.orig_filename:
-            raise refusal(archive, info.orig_filename, "NUL in member name")
+            raise refuse_nul_name(archive, info.orig_filename)
     return zip_file_members(
         zf,
         archive,
         logger,
-        on_duplicate=lambda raw: refusal(archive, raw, "duplicate member name"),
+        on_duplicate=lambda raw: refuse_duplicate_name(archive, raw),
     )
 
 
@@ -255,26 +234,24 @@ def open_wheel_zip(path: Path, *, name: Path | str | None = None) -> zipfile.Zip
         raise
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
-        raise refusal(
-            given.name, None, f"could not open ({exception_label(exc)})"
-        ) from exc
+        raise refuse_unopenable(given.name, exc) from exc
 
 
 @contextlib.contextmanager
 def refuse_unreadable(archive: str, entry: str) -> Iterator[None]:
     """Turn a read failure of *entry* in the block into the wheel-refusing
-    error of :func:`unreadable_member_error`."""
+    error of :func:`pitloom.messages.wheels.refuse_unreadable_member`."""
     try:
         yield
     except MEMBER_READ_ERRORS as exc:
-        raise unreadable_member_error(archive, entry, exc) from exc
+        raise refuse_unreadable_member(archive, entry, exc) from exc
 
 
 # pylint: disable-next=too-few-public-methods
 class RefusingReader:
     """A member stream whose ``read()`` raises the error of
-    :func:`unreadable_member_error`, so a copy loop reports a failure of the
-    source only, never of its destination."""
+    :func:`pitloom.messages.wheels.refuse_unreadable_member`, so a copy loop
+    reports a failure of the source only, never of its destination."""
 
     def __init__(self, stream: IO[bytes], archive: str, entry: str) -> None:
         self._stream = stream
@@ -291,8 +268,12 @@ class DistInfoChoice(NamedTuple):
     """The wheel's own ``.dist-info`` directory.
 
     ``prefix`` is ``"<dir>/"``, or ``None`` when there is none. ``problem``
-    is a ``WARNING:`` tail to log when the choice is not the plain match, or
-    ``None``.
+    is ``None`` for the plain match, else one of
+    :data:`pitloom.messages.wheels.DIST_INFO_PROBLEMS`: the caller says it
+    with :func:`~pitloom.messages.wheels.warn_dist_info` (the package is
+    only named) or raises
+    :func:`~pitloom.messages.wheels.refuse_dist_info` where ``prefix`` is
+    ``None`` and it needs the directory.
     """
 
     prefix: str | None
@@ -374,20 +355,6 @@ def matching_dist_infos(
     )
 
 
-#: What :func:`resolve_own_dist_info` says where it chooses nothing, or not the
-#: plain match. One definition each, shared by every reader's warning/error.
-PROBLEM_NONE = "no top-level .dist-info directory"
-PROBLEM_SEVERAL_MATCH = "several top-level .dist-info directories match the file name"
-PROBLEM_NOT_A_WHEEL_NAME = (
-    "the file name is not a wheel name and several top-level .dist-info "
-    "directories exist"
-)
-PROBLEM_SEVERAL_NONE_MATCH = (
-    "several top-level .dist-info directories, none the one the file name names"
-)
-_PROBLEM_OTHER = "the file name names no top-level .dist-info; using %s"
-
-
 def resolve_own_dist_info(
     wheel_name: str, member_names: Iterable[str]
 ) -> DistInfoChoice:
@@ -395,9 +362,11 @@ def resolve_own_dist_info(
     plain match.
 
     - Exactly one top-level directory matches the file name: it.
-    - Otherwise exactly one top-level ``.dist-info``: it, with a problem
-      when the file name is a wheel file name that names another directory.
-    - Otherwise none, with a problem: ``PROBLEM_NONE``, or one of the three
+    - Otherwise exactly one top-level ``.dist-info``: it, with the problem
+      :data:`~pitloom.messages.wheels.DIST_INFO_OTHER` when the file name
+      is a wheel file name that names another directory.
+    - Otherwise none, with a problem:
+      :data:`~pitloom.messages.wheels.DIST_INFO_NONE`, or one of the three
       reasons several cannot be told apart.
     """
     names = list(member_names)
@@ -407,15 +376,14 @@ def resolve_own_dist_info(
     present = top_level_dist_infos(names)
     is_wheel_name = wheel_name_version(wheel_name) is not None
     if len(present) == 1:
-        problem = _PROBLEM_OTHER % loggable(present[0]) if is_wheel_name else None
-        return DistInfoChoice(present[0], problem)
+        return DistInfoChoice(present[0], DIST_INFO_OTHER if is_wheel_name else None)
     if not present:
-        return DistInfoChoice(None, PROBLEM_NONE)
+        return DistInfoChoice(None, DIST_INFO_NONE)
     if matching:
-        return DistInfoChoice(None, PROBLEM_SEVERAL_MATCH)
+        return DistInfoChoice(None, DIST_INFO_SEVERAL_MATCH)
     if not is_wheel_name:
-        return DistInfoChoice(None, PROBLEM_NOT_A_WHEEL_NAME)
-    return DistInfoChoice(None, PROBLEM_SEVERAL_NONE_MATCH)
+        return DistInfoChoice(None, DIST_INFO_NOT_A_WHEEL_NAME)
+    return DistInfoChoice(None, DIST_INFO_SEVERAL_NONE_MATCH)
 
 
 class HeaderBlockOverCap(Exception):
@@ -518,9 +486,7 @@ def read_metadata_headers(
     info = next((i for name, i in members if name == target), None)
     if info is None:
         if report:
-            log.warning(
-                "ARCHIVE=%s: no %s -- identity unknown", quote_source(archive), target
-            )
+            warn_metadata_missing(log, archive, target)
         return None
     try:
         with refuse_unreadable(archive, info.orig_filename), zf.open(info) as member:

@@ -20,7 +20,8 @@ from _fixtures import build_wheel, write_project
 from _harness import Context, check, embedded_sboms, expect, run_loom, run_ok
 
 _BAD = "bad-1.0-py3-none-any.whl"
-_REFUSED = " -- wheel refused"
+#: The suffix of a wheel's refusal line, and the code it carries.
+_REFUSED = "; wheel refused [wheel-invalid]"
 
 
 def _duplicate_member_wheel(path: Path) -> Path:
@@ -39,7 +40,7 @@ def check_refused_wheel_parity(ctx: Context) -> None:
     ``generate``, ``wheel --embed -o``, ``embed-wheel`` (in a batch with a
     good wheel, which is still embedded), ``verify-wheel`` and
     ``validate-wheel``: exit 1, exactly one ``ERROR:`` line ending
-    ``-- wheel refused``, the wheel unchanged, no ``-o`` file, and an
+    ``; wheel refused [wheel-invalid]``, the wheel unchanged, no ``-o`` file, and an
     ``--id-registry`` file (where the command takes one) unchanged."""
     project = write_project(ctx.work / "proj")
     good = build_wheel(project, ctx.work / "dist")

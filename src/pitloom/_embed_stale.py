@@ -18,7 +18,7 @@ import zipfile
 from pitloom._sbom_format import check_spdx3_name_version, detect_sbom_format
 from pitloom._wheel_sbom_location import read_wheel_member, read_wheel_name_version
 from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
-from pitloom.logging_config import loggable
+from pitloom.messages.wheel_sboms import say_held_sbom
 
 log = logging.getLogger(__name__)
 
@@ -72,10 +72,14 @@ def stale_sboms(
     dist_info: str,
     keep: str,
     identity: tuple[str | None, str | None] | None,
+    *,
+    archive: str,
 ) -> frozenset[str]:
     """The Pitloom SBOMs under ``<dist_info>sboms/`` (other than *keep*) a
     new embed removes: those :func:`_is_replaceable_sbom` accepts. Any other
-    Pitloom SBOM stays, with one ``WARNING:`` each."""
+    Pitloom SBOM stays, with one ``WARNING:`` each
+    (``wheel-sbom-conflict/held``), naming the wheel by *archive*, its file
+    name as the caller was given it."""
     candidates = [
         (name, info)
         for name, info in members.items()
@@ -96,9 +100,5 @@ def stale_sboms(
         if _is_replaceable_sbom(content, *wheel_id):
             stale.add(name)
         else:
-            log.warning(
-                "%s: kept, not a build or analyzed SBOM of this wheel's "
-                "name and version",
-                loggable(name),
-            )
+            say_held_sbom(log, archive, name, removed=False)
     return frozenset(stale)

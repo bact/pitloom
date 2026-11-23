@@ -17,6 +17,8 @@ from pathlib import Path
 import pytest
 
 from pitloom.extract.project.sdist import read_sdist
+from pitloom.logging_config import CODE_ATTR
+from pitloom.messages.wheels import SHOWN_NAMES
 from tests._raw_archive import write_raw_tar, write_raw_zip
 
 _INFO = b"Metadata-Version: 2.1\nName: demo\nVersion: 1.0.0\n"
@@ -74,18 +76,18 @@ def test_physical_path_drops_top_directory(
         (
             {
                 "a-1/PKG-INFO": _INFO,
-                **{f"a-1/f{n}.py": b"x" for n in range(7)},
-                **{f"f{n}.py": b"s" for n in range(7)},
+                **{f"a-1/f{n}.py": b"x" for n in range(SHOWN_NAMES + 2)},
+                **{f"f{n}.py": b"s" for n in range(SHOWN_NAMES + 2)},
             },
-            ["'f0.py', 'f1.py', 'f2.py', 'f3.py', 'f4.py', ..."],
+            [", ".join(f"'f{n}.py'" for n in range(SHOWN_NAMES)) + " and 2 more)"],
         ),
         (
             {
                 "a-1/PKG-INFO": _INFO,
-                **{f"a-1/f{n}.py": b"x" for n in range(5)},
-                **{f"f{n}.py": b"s" for n in range(5)},
+                **{f"a-1/f{n}.py": b"x" for n in range(SHOWN_NAMES)},
+                **{f"f{n}.py": b"s" for n in range(SHOWN_NAMES)},
             },
-            ["'f0.py', 'f1.py', 'f2.py', 'f3.py', 'f4.py')"],
+            [", ".join(f"'f{n}.py'" for n in range(SHOWN_NAMES)) + ")"],
         ),
         ({"a-1/PKG-INFO": _INFO, "a-1/x.py": b"x", "y.py": b"s"}, []),
         ({"a-1/PKG-INFO": _INFO, "a-1/x.py": b"x", "./x.py": b"s"}, ["'x.py'"]),
@@ -93,7 +95,7 @@ def test_physical_path_drops_top_directory(
     ids=[
         "one-clash",
         "many-clashes-cut",
-        "five-clashes-whole",
+        "shown-clashes-whole",
         "stray-without-clash",
         "dot-prefixed-stray",
     ],
@@ -111,6 +113,11 @@ def test_members_sharing_a_project_path_are_warned_of_once(
         read_sdist(sdist, read_config=False)
     said = [m for m in caplog.messages if "share a project path" in m]
     assert len(said) == len(shown)
+    assert all(
+        getattr(r, CODE_ATTR) == "archive-member-conflict"
+        for r in caplog.records
+        if "share a project path" in r.getMessage()
+    )
     assert not shown or said[0].startswith(
         f"ARCHIVE='a-1.tar.gz': members share a project path ({shown[0]}"
     )

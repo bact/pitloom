@@ -30,7 +30,7 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
 | [`project-not-found`](#project-not-found) | ERROR | A folder read as a Python project holds no project config (pyproject.toml, setup.cfg or setup.py). | 0.23.4 |
 | [`project-not-found/model-files`](#project-not-foundmodel-files) | ERROR | A project SBOM was asked for a folder of a Git URL that holds no Python project (pyproject.toml, setup.cfg or setup.py) but files whose names could be AI models. | 0.23.4 |
 | [`project-or-model-not-found`](#project-or-model-not-found) | ERROR | A folder named for an SBOM holds neither a Python project (pyproject.toml, setup.cfg or setup.py) nor, directly in it, an AI model file of a supported format. | 0.23.4 |
-| [`sbom-invalid`](#sbom-invalid) | ERROR, WARNING | An SBOM given to read is JSON but not a valid SPDX 3 document: its @graph is not a list of objects ('embed-wheel --sbom', 'loom id import'; checked before the format, whatever the file is named), an object of it names one key twice (JSON readers disagree on which value counts, so what was checked may not be what is embedded), the SPDX 3 reader refuses it ('loom id import': an object with no type, a property of the wrong kind; the reader's text after the line's ';'), or spdx3-validate refuses it ('embed-wheel --sbom --validate'; its own lines before say why). As a WARNING: 'loom id import' into an empty registry finds a document id that cannot be a namespace: not an absolute IRI, holding '#', or holding a character an IRI cannot hold (a space). | 0.25.0 |
+| [`sbom-invalid`](#sbom-invalid) | ERROR, WARNING | An SBOM given to read is JSON but not a valid SPDX 3 document: its @graph is not a list of objects ('embed-wheel --sbom', 'loom id import'; checked before the format, whatever the file is named), an object of it names one key twice (JSON readers disagree on which value counts, so what was checked may not be what is embedded), the SPDX 3 reader refuses it ('loom id import': an object with no type, a property of the wrong kind; the reader's text after the line's ';'), or spdx3-validate refuses it ('embed-wheel --sbom --validate', 'loom validate-wheel', 'loom fragment validate': its findings come before, each line after spdx3-validate: , then one line per document, or for the documents merged; a document it could not load says why the same way). As a WARNING: 'loom id import' into an empty registry finds a document id that cannot be a namespace: not an absolute IRI, holding '#', or holding a character an IRI cannot hold (a space). | 0.25.0 |
 | [`sbom-wrong-format`](#sbom-wrong-format) | ERROR | An SBOM given to embed or to import into an ID registry is named as SPDX 3 JSON-LD (.spdx3.json) but holds another format (a CycloneDX document, say). | 0.25.0 |
 | [`target-ambiguous`](#target-ambiguous) | INFO | The path named for an SBOM is a folder, or a file in it whose name no AI model file has and that is not one, or is missing (a Git URL of README.md), so it does not say by itself what the SBOM describes; Pitloom decided by the rule: a project config makes it a project's, else the folder's one AI model file is read. | 0.23.4 |
 | [`target-ambiguous/git-page`](#target-ambiguousgit-page) | INFO | A Git URL names more than a repository, or names it in another spelling: a web page of a repository (with a branch, tag or commit, a folder or a file), a URL that is not itself a repository's, or a page of a file that is a folder (or of a folder that is a file). Pitloom decided by its rule what the URL names. | 0.25.0 |
@@ -292,13 +292,16 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
   checked may not be what is embedded), the SPDX 3 reader refuses it ('loom id
   import': an object with no type, a property of the wrong kind; the reader's
   text after the line's ';'), or spdx3-validate refuses it ('embed-wheel --sbom
-  --validate'; its own lines before say why). As a WARNING: 'loom id import'
-  into an empty registry finds a document id that cannot be a namespace: not an
-  absolute IRI, holding '#', or holding a character an IRI cannot hold (a
-  space).
+  --validate', 'loom validate-wheel', 'loom fragment validate': its findings
+  come before, each line after spdx3-validate: , then one line per document, or
+  for the documents merged; a document it could not load says why the same way).
+  As a WARNING: 'loom id import' into an empty registry finds a document id that
+  cannot be a namespace: not an absolute IRI, holding '#', or holding a
+  character an IRI cannot hold (a space).
 - **SBOM effect**: not-written: no SBOM is written for the input.
 - **Pitloom did**: Wrote nothing: no wheel is changed, no ID is imported. The
-  command exits 1; the library (embed_wheel_sbom with sbom_path,
+  command exits 1 ('loom validate-wheel' reports the wheel failed and goes on
+  with the next); the library (embed_wheel_sbom with sbom_path,
   IdRegistry.import_sbom) raises ValueError carrying the code for an @graph that
   is not a list of objects, a key given twice or an SBOM the SPDX 3 reader
   refuses. As a WARNING, the import goes on and the registry keeps the namespace
@@ -315,6 +318,10 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
   ERROR: FILE=<file>: SBOM holds an object with a key given twice [sbom-invalid]
   ERROR: FILE=<file>: SBOM cannot be read as SPDX 3; <failure> [sbom-invalid]
   WARNING: FILE=<file>: SBOM namespace <why>; the ID registry keeps its own, not <namespace> [sbom-invalid]
+  ERROR: FILE=<file>: not valid SPDX 3 (<number> finding(s) above) [sbom-invalid]
+  ERROR: the SBOMs together are not valid SPDX 3 (<number> finding(s) above) [sbom-invalid]
+  ERROR: FILE=<file>: could not be validated; spdx3-validate says why above [sbom-invalid]
+  ERROR: the SBOMs could not be validated; spdx3-validate says why above [sbom-invalid]
   ```
 
 ### `sbom-wrong-format`

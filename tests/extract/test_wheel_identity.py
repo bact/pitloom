@@ -28,13 +28,7 @@ from pitloom.core import wheel_dist_info
 from pitloom.core.wheel_dist_info import (
     MAX_METADATA_BYTES,
     MAX_METADATA_HEADERS,
-    PROBLEM_NONE,
-    PROBLEM_SEVERAL_MATCH,
-    PROBLEM_SEVERAL_NONE_MATCH,
     resolve_own_dist_info,
-)
-from pitloom.core.wheel_dist_info import (
-    PROBLEM_NOT_A_WHEEL_NAME as PROBLEM_NOT_A_WHEEL,
 )
 from pitloom.extract.scanner_wheel import scan_wheel_for_ai_models
 from pitloom.extract.wheel import read_wheel
@@ -142,20 +136,25 @@ def test_a_foreign_dist_info_is_not_the_wheels_identity(
     ("filename", "dirs", "name", "problem"),
     [
         ("pkg.whl", ["demo-1.0.dist-info"], "demo", None),
-        (_WHEEL, ["evil-9.9.dist-info"], "evil", "names no top-level"),
-        (_WHEEL, [], "unknown", PROBLEM_NONE),
+        (_WHEEL, ["evil-9.9.dist-info"], "evil", "names no top-level .dist-info"),
+        (_WHEEL, [], "unknown", "no top-level .dist-info directory"),
         (
             _WHEEL,
             ["a-1.dist-info", "b-1.dist-info"],
             "unknown",
-            PROBLEM_SEVERAL_NONE_MATCH,
+            "several top-level .dist-info directories, none the one the file name",
         ),
-        ("pkg.whl", ["a-1.dist-info", "b-1.dist-info"], "unknown", PROBLEM_NOT_A_WHEEL),
+        (
+            "pkg.whl",
+            ["a-1.dist-info", "b-1.dist-info"],
+            "unknown",
+            "the file name is not a wheel name and several top-level",
+        ),
         (
             _WHEEL,
             ["demo-1.0.dist-info", "Demo-1.0.dist-info"],
             "unknown",
-            PROBLEM_SEVERAL_MATCH,
+            "several top-level .dist-info directories match the file name",
         ),
     ],
     ids=["renamed", "disagreement", "none", "several", "renamed-several", "twice"],
@@ -260,8 +259,8 @@ def test_an_own_dist_info_without_metadata_says_so(
 
     assert metadata.name == "unknown"
     (warning,) = _warnings(caplog)
-    assert "no demo-1.0.dist-info/METADATA" in warning
-    assert warning.endswith("identity unknown")
+    assert "ENTRY='demo-1.0.dist-info/METADATA': not in the wheel" in warning
+    assert warning.endswith("; identity unknown")
 
 
 def test_sixteen_mebibytes_of_short_headers_do_not_cost_hundreds_of_megabytes(
