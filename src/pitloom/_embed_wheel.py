@@ -30,7 +30,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from pitloom._embed_stale import stale_sboms
-from pitloom._sbom_io import write_sbom_output
+from pitloom._sbom_io import is_stdout, write_sbom_output, write_stdout_lf
 from pitloom._wheel_sbom_location import (
     _find_dist_info_prefix,
     read_wheel_member,
@@ -395,7 +395,9 @@ def _rewrite_wheel_archive(
 def _coded_write(file: str | os.PathLike[str]) -> Iterator[None]:
     """Say a write of *file* (as the line names it) the system refuses as
     ``file-unwritable`` for the SBOM: an :class:`OSError` that carries a
-    code of ours (a refused read of the wheel) passes as it is."""
+    code of ours (a refused read of the wheel, coded where it is read by
+    :func:`~pitloom.core.wheel_dist_info.refuse_unreadable`) passes as it
+    is."""
     try:
         yield
     except OSError as exc:
@@ -407,12 +409,16 @@ def _coded_write(file: str | os.PathLike[str]) -> Iterator[None]:
 def write_sbom_copy(sbom_json: str, output_path: Path | str | None) -> None:
     """Write the copy of an embedded SBOM that ``-o`` asks for
     (:func:`~pitloom._sbom_io.write_sbom_output`): a write the system refuses
-    is ``file-unwritable`` for *output_path* as given.
+    is ``file-unwritable`` for *output_path* as given. Standard output
+    (``-``) is no file: a write to it fails as every command's does.
 
     Raises:
         pitloom.messages.CodedOSError: The system refused the write.
     """
     if output_path is None:
+        return
+    if is_stdout(output_path):
+        write_stdout_lf(sbom_json)
         return
     with _coded_write(output_path):
         write_sbom_output(sbom_json, output_path)
@@ -459,8 +465,9 @@ def embed_sbom_in_wheel(
             (``file-unreadable``: a directory on its way refuses search).
         pitloom.messages.CodedOSError: The system refused the write of the
             new wheel (no write permission on its directory, a full disk):
-            ``file-unwritable``, the wheel named by its file name. The wheel
-            is left as it was.
+            ``file-unwritable``, the wheel named by its file name; or a read
+            of a member (an I/O error): ``file-unreadable``. The wheel is
+            left as it was.
         OSError: An environment problem opening the file itself (its own
             permissions, a transient I/O error) -- kept as its own
             exception type, not folded into ``ValueError``.

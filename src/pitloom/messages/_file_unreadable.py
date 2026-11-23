@@ -83,8 +83,7 @@ FILE_UNREADABLE: Final = Message(
     f"{_SINCE_SBOM}. A wheel given to verify-wheel, validate-wheel or "
     "embed-wheel that the system refuses is said 'for the SBOM'. The DIR= "
     "line is a loom dataset directory whose dataset card could not be read "
-    "for a reason that names no file of it (the current directory removed "
-    "while the run lasts).",
+    "for a reason that names no file of it.",
     did="Read nothing more of it and went on without what it holds, as the "
     "line says what it was read for: a file scan leaves the file out of the "
     "SBOM (loom embed-wheel keeps it, with the wheel's own hash); a hash "

@@ -169,16 +169,15 @@ def test_an_os_error_rebuilt_from_the_systems_words_is_detail(
     """The two ``PermissionError`` raises of the atomic SBOM writer rebuild
     the system's own errno and description (rule R-a): the detail of the
     ``file-unwritable`` line its caller says, out of scope; the only such
-    raises of the tree."""
+    raises of the tree, of any ``OSError`` class, so a new one (perhaps
+    with a text of its own the rule misses) is looked at."""
     rebuilt = [
-        (r["file"], r["line"])
-        for r in records
-        if r["emitter"] == "raise"
-        and load().reach(r) == "detail"
-        and r.get("exc_class") == "PermissionError"
+        (r["file"], r["exc_class"]) for r in records if load().is_os_error_rebuilt(r)
     ]
-    assert len(rebuilt) == 2
-    assert {file for file, _ in rebuilt} == {"src/pitloom/_sbom_io.py"}
+    assert sorted(rebuilt) == [("src/pitloom/_sbom_io.py", "PermissionError")] * 2
+    assert all(
+        load().reach(r) == "detail" for r in records if load().is_os_error_rebuilt(r)
+    )
 
 
 def _calls_of(name: str) -> set[str]:

@@ -247,6 +247,12 @@ def embed_wheel_sbom(
             the SBOM at *sbom_path* is
             checked as given, by ``overrides.credentials``
             alone, and never rewritten). The wheel is left as it was.
+        pitloom.messages.CodedOSError: The system refused a write
+            (``file-unwritable``): the new wheel (named by its file name;
+            the wheel is left as it was) or the ``-o`` copy at
+            *output_path* (as given), written after the wheel, which then
+            holds the SBOM; or a read of a member of the wheel
+            (``file-unreadable``, an I/O error).
         OSError: The file itself cannot be opened (its own permissions, a
             transient I/O error).
     """

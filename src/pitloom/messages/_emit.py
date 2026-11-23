@@ -220,8 +220,10 @@ class CodedImportError(_CodedError, ImportError):
 
 class CodedOSError(_CodedError, OSError):
     """An :class:`OSError` that says a catalogued *message*: a file the
-    system would not let Pitloom write (``file-unwritable``). Its ``errno``,
-    ``strerror`` and ``filename`` are ``None``: the text says them.
+    system would not let Pitloom write (``file-unwritable``) or read
+    (``file-unreadable``, where an ``OSError`` was documented). Its
+    ``errno``, ``strerror`` and ``filename`` are ``None``: the text says
+    them.
 
     Raises:
         ValueError: (a plain one) No ``ERROR`` line of *message* names

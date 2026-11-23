@@ -104,6 +104,27 @@ and 44, plus H1 and H2. The uncoded ratchet goes from 44 to 27.
 - H1: `_shape_error` removed from `DETAIL_EXC`; the
   `Unknown provenance schema` internal pattern removed.
 
+## Review round 2
+
+- An embed's I/O error is said by its direction: `refuse_unreadable`
+  (`core/wheel_dist_info.py`, also behind `RefusingReader.read`) turns an
+  uncoded `OSError` of a member read into `file-unreadable` for the wheel,
+  still an `OSError` (`recoded` as `CodedOSError`; `input-not-found` for a
+  missing errno), so `_coded_write` passes it through and says only the
+  writes as `file-unwritable`. This also codes a read error for
+  `verify-wheel`, `validate-wheel` and every `METADATA` reader.
+- `write_sbom_copy` writes `-o -` through the shared stdout writer, not
+  wrapped: a closed pipe is never `FILE=-`.
+- `embed_wheel_sbom()` documents `CodedOSError`.
+- The dataset card's DIR line drops main's `| Field(s) affected
+  (skipped): ...` suffix: the rule for card lines (H8 in
+  `implementation/message-catalogue-families.md`, item 4; Q13 of
+  `message-catalogue-pr14-rulings.md` for the Hub lines) is that the
+  entry's `did` says what is lost; `file-unreadable`'s `did` says a model
+  or dataset card, the DIR line too, sets none of the fields it states.
+  The summary no longer names the removed current directory as its cause
+  (round 1 fixed that path).
+
 ## Behaviour changes for the CHANGELOG
 
 - Q4 (API): `ProvenanceConfig(format=..., schema=..., detail=...,
