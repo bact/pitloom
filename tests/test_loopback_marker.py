@@ -65,11 +65,37 @@ def test_a_loopback_test_reaches_a_server_on_ipv6_loopback() -> None:
 @pytest.mark.parametrize("host", ["192.0.2.1", "127.0.0.2.example", "8.8.8.8"])
 def test_a_loopback_test_cannot_reach_another_host(connect: str, host: str) -> None:
     """Refused before any packet leaves (192.0.2.1 is a documentation address);
-    the timeout bounds the test if the guard were gone."""
+    the timeout bounds the test if the guard were gone. The guard closes the
+    socket it refuses."""
     with socket.socket() as sock:
         sock.settimeout(2)
         with pytest.raises(RuntimeError, match="loopback test reached"):
             getattr(sock, connect)((host, 9))
+        assert sock.fileno() == -1
+
+
+@pytest.mark.loopback
+def test_a_refused_connection_leaves_no_open_socket(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """``socket.create_connection`` (what an HTTP client calls) closes its
+    socket on an ``OSError`` only, and the guard's error is not one: a
+    library that reaches for a real host from a loopback test, as
+    ``huggingface_hub`` does for its agent registry, would leave a socket
+    open, reported as a ``ResourceWarning`` in whichever test frees it."""
+    made: list[socket.socket] = []
+
+    class Recorded(socket.socket):
+        """A socket that says it was made."""
+
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
+            super().__init__(*args, **kwargs)
+            made.append(self)
+
+    monkeypatch.setattr(socket, "socket", Recorded)
+    with pytest.raises(RuntimeError, match="loopback test reached"):
+        socket.create_connection(("192.0.2.1", 9), timeout=2)
+    assert [sock.fileno() for sock in made] == [-1]  # one socket, closed
 
 
 def test_an_unmarked_test_cannot_open_a_socket() -> None:
