@@ -1,0 +1,130 @@
+#curie_map:
+#  loom: https://pitloom.dev/provenance/terms/
+#  skos: http://www.w3.org/2004/02/skos/core#
+#  semapv: https://w3id.org/semapv/vocab/
+#  sssom: https://w3id.org/sssom/
+#  prov: http://www.w3.org/ns/prov#
+#  pav: http://purl.org/pav/
+#  ECO: http://purl.obolibrary.org/obo/ECO_
+#  dqv: http://www.w3.org/ns/dqv#
+#  wikidata: http://www.wikidata.org/entity/
+#  wikibase: http://wikiba.se/ontology#
+#  spdxrel: https://spdx.org/rdf/3.0.1/terms/Core/RelationshipType/
+#  spdxcomp: https://spdx.org/rdf/3.0.1/terms/Core/RelationshipCompleteness/
+#  spdxlic: https://spdx.org/rdf/3.0.1/terms/ExpandedLicensing/
+#  spdxcore: https://spdx.org/rdf/3.0.1/terms/Core/
+#  sosa: http://www.w3.org/ns/sosa/
+#  ssn: http://www.w3.org/ns/ssn/
+#  SIO: http://semanticscience.org/resource/SIO_
+#  odrl: http://www.w3.org/ns/odrl/2/
+#  bsi: https://pitloom.dev/provenance/terms/placeholder/bsi-tr-03183-2-v2.1.0/
+#  cdx: https://pitloom.dev/provenance/terms/placeholder/cyclonedx-1.7/
+#  cisa2026: https://pitloom.dev/provenance/terms/placeholder/cisa-2026/
+#mapping_set_id: https://pitloom.dev/provenance/terms/mappings/draft
+#mapping_set_title: Pitloom provenance taxonomy to external schemas (draft)
+#mapping_set_description: "Draft, a starting set and not complete; see ../README.md. Terms on the left are provisional. The bsi, cdx and cisa2026 CURIEs are placeholders: those sources publish no IRI for the term."
+#creator_label:
+#  - Arthit Suriyawongkul
+#license: https://creativecommons.org/publicdomain/zero/1.0/
+#mapping_date: 2026-11-16
+#comment: "SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul; SPDX-FileType: DOCUMENTATION; SPDX-License-Identifier: CC0-1.0; Created: 2026-11-14; Last-Modified: 2026-11-16"
+subject_id	subject_label	predicate_id	object_id	object_label	mapping_justification	comment
+loom:asserter/originator	originator	skos:relatedMatch	pav:authoredBy	authored by	semapv:ManualMappingCuration	the party that originated the content
+loom:asserter/originator	originator	skos:relatedMatch	spdxcore:originatedBy	originatedBy	semapv:ManualMappingCuration	SPDX names the party by a property of the artefact
+loom:asserter/originator	originator	skos:relatedMatch	spdxrel:hasDeclaredLicense	hasDeclaredLicense	semapv:ManualMappingCuration	licence fields only; SPDX 3.0.1 wording names no author
+loom:asserter/originator	originator	skos:relatedMatch	bsi:originalLicence	Original licences	semapv:ManualMappingCuration	TR-03183-2 v2.1.0; licence only
+loom:asserter/originator	originator	skos:relatedMatch	cisa2026:componentProducer	Component Producer	semapv:ManualMappingCuration	v2.1: the entity that created the component
+loom:asserter/sbom-tool	sbom-tool	skos:relatedMatch	cisa2026:sbomToolName	SBOM Tool Name	semapv:ManualMappingCuration	v2.1: the tool the SBOM author used
+loom:asserter/sbom-author	sbom-author	skos:relatedMatch	cisa2026:sbomAuthor	SBOM Author	semapv:ManualMappingCuration	v2.1: the entity operating the tool, not the tool
+loom:asserter/sbom-tool	sbom-tool	skos:relatedMatch	pav:createdBy	created by	semapv:ManualMappingCuration	PAV: autonomous software uses createdBy
+loom:asserter/sbom-tool	sbom-tool	skos:relatedMatch	ECO:0000203	automatic assertion	semapv:ManualMappingCuration	
+loom:asserter/sbom-tool	sbom-tool	skos:relatedMatch	spdxcore:createdUsing	createdUsing	semapv:ManualMappingCuration	
+loom:asserter/sbom-tool	sbom-tool	skos:relatedMatch	sosa:Platform	Platform	semapv:ManualMappingCuration	Pitloom hosts the sensors (the tools it runs)
+loom:asserter/sbom-tool	sbom-tool	skos:relatedMatch	spdxrel:hasConcludedLicense	hasConcludedLicense	semapv:ManualMappingCuration	licence fields only; the SPDX data creator's tool
+loom:asserter/other-party	other-party	skos:relatedMatch	pav:providedBy	provided by	semapv:ManualMappingCuration	
+loom:asserter/other-party	other-party	skos:relatedMatch	ECO:0000311	imported information	semapv:ManualMappingCuration	
+loom:asserter/ai-agent	ai-agent	skos:relatedMatch	ECO:0000203	automatic assertion	semapv:ManualMappingCuration	not reviewed by a person
+loom:asserter/ai-agent	ai-agent	skos:relatedMatch	semapv:AgentBasedMatching	agent-based matching process	semapv:ManualMappingCuration	
+loom:asserter/sbom-author	sbom-author	skos:relatedMatch	pav:curatedBy	curated by	semapv:ManualMappingCuration	
+loom:asserter/sbom-author	sbom-author	skos:relatedMatch	ECO:0000218	manual assertion	semapv:ManualMappingCuration	
+loom:asserter/sbom-author	sbom-author	skos:relatedMatch	spdxcore:createdBy	createdBy	semapv:ManualMappingCuration	
+loom:asserter/sbom-author	sbom-author	skos:relatedMatch	spdxrel:hasConcludedLicense	hasConcludedLicense	semapv:ManualMappingCuration	licence fields only
+loom:method/read	read	skos:closeMatch	pav:retrievedFrom	retrieved from	semapv:ManualMappingCuration	same representation as the original
+loom:method/read	read	skos:relatedMatch	wikidata:P248	stated in	semapv:ManualMappingCuration	
+loom:method/read	read	skos:relatedMatch	cdx:technique/manifest-analysis	manifest-analysis	semapv:ManualMappingCuration	CycloneDX 1.7; identity fields only
+loom:method/parsed	parsed	skos:closeMatch	pav:importedFrom	imported from	semapv:ManualMappingCuration	preserved but transcribed
+loom:method/derived	derived	skos:closeMatch	pav:derivedFrom	derived from	semapv:ManualMappingCuration	content refined or modified
+loom:method/derived	derived	skos:relatedMatch	wikidata:P459	determination method or standard	semapv:ManualMappingCuration	
+loom:method/derived	derived	skos:relatedMatch	ECO:0007669	computational evidence used in automatic assertion	semapv:ManualMappingCuration	
+loom:method/matched	matched	skos:relatedMatch	semapv:LexicalSimilarityThresholdMatching	lexical similarity threshold-based matching process	semapv:ManualMappingCuration	content matching
+loom:method/matched	matched	skos:relatedMatch	ECO:0000041	similarity evidence	semapv:ManualMappingCuration	
+loom:method/synthesized	synthesized	skos:relatedMatch	wikidata:P887	based on heuristic	semapv:ManualMappingCuration	
+loom:method	method class with technique	skos:broadMatch	sosa:Procedure	Procedure	semapv:ManualMappingCuration	SSN/SOSA Recommendation 2017
+loom:basis/declared	declared	skos:relatedMatch	ECO:0000204	author statement	semapv:ManualMappingCuration	
+loom:basis/measured	measured	skos:relatedMatch	sosa:Observation	Observation	semapv:ManualMappingCuration	the asserter's act is an observation; SOSA has one class for every observation
+loom:basis/measured	measured	skos:relatedMatch	spdxcomp:complete	complete	semapv:ManualMappingCuration	on the relationship carrying the fact
+loom:basis/detected	detected	skos:relatedMatch	sosa:Observation	Observation	semapv:ManualMappingCuration	the asserter's act is an observation
+loom:basis/detected	detected	skos:relatedMatch	ECO:0000041	similarity evidence	semapv:ManualMappingCuration	the best-match case
+loom:basis/inferred	inferred	skos:closeMatch	wikidata:P3452	inferred from	semapv:ManualMappingCuration	
+loom:basis/inferred	inferred	skos:relatedMatch	ssn:isProxyFor	is proxy for	semapv:ManualMappingCuration	loose: in SSN every stimulus is a proxy for its property, so the term does not mark inferred
+loom:basis/inferred	inferred	skos:relatedMatch	ECO:0000363	computational inference used in automatic assertion	semapv:ManualMappingCuration	
+loom:basis/inferred	inferred	skos:relatedMatch	semapv:LLMBasedMatching	LLM-based matching process	semapv:ManualMappingCuration	with asserter ai-agent
+loom:basis/measured	measured	skos:relatedMatch	dqv:QualityMeasurement	Quality Measurement	semapv:ManualMappingCuration	DQV is a W3C Working Group Note
+loom:basis/declared	declared	skos:relatedMatch	cdx:technique/attestation	attestation	semapv:ManualMappingCuration	CycloneDX 1.7
+loom:basis/declared	declared	skos:relatedMatch	dqv:QualityAnnotation	Quality Annotation	semapv:ManualMappingCuration	DQV is a W3C Working Group Note
+loom:basis/lower-bound	lower-bound	skos:relatedMatch	spdxcomp:incomplete	incomplete	semapv:ManualMappingCuration	
+loom:basis/not-measured	not-measured	skos:relatedMatch	spdxcomp:noAssertion	noAssertion	semapv:ManualMappingCuration	SPDX carries no reason
+loom:basis/not-measured	not-measured	skos:broadMatch	cisa2026:unknownInformation	Explicitly Identifying Unknown Information	semapv:ManualMappingCuration	v2.1 2026-07-29, a practice and not a data field; broader: any information the author lacks
+loom:change/form	form	skos:broadMatch	semapv:Normalization	normalization	semapv:ManualMappingCuration	SEMAPV's term is broader
+loom:change/respelled	respelled	skos:relatedMatch	semapv:LexicalMatching	lexical matching process	semapv:ManualMappingCuration	
+loom:change/expanded	expanded	skos:relatedMatch	semapv:BackgroundKnowledgeBasedMatching	background knowledge-based matching process	semapv:ManualMappingCuration	
+loom:status/selected	selected	skos:relatedMatch	wikibase:PreferredRank	PreferredRank	semapv:ManualMappingCuration	Wikibase ontology individual
+loom:status/selected	selected	skos:relatedMatch	cdx:evidence/identity/concludedValue	concludedValue	semapv:ManualMappingCuration	CycloneDX 1.7; identity fields only
+loom:status/coexisting	coexisting	skos:relatedMatch	wikibase:NormalRank	NormalRank	semapv:ManualMappingCuration	
+loom:status/passed-over	passed-over	skos:relatedMatch	wikibase:NormalRank	NormalRank	semapv:ManualMappingCuration	not deprecated: the value is not called wrong
+loom:conflict/rule	rule	skos:closeMatch	wikidata:P7452	reason for preferred rank	semapv:ManualMappingCuration	
+loom:conflict/rule	rule	skos:relatedMatch	sssom:curation_rule	curation_rule	semapv:ManualMappingCuration	
+loom:stage/original	original (reserved)	skos:closeMatch	bsi:originalLicence	Original licences	semapv:ManualMappingCuration	deferred facet
+loom:stage/distribution	distribution (reserved)	skos:closeMatch	bsi:distributionLicence	Distribution licences	semapv:ManualMappingCuration	deferred facet
+loom:stage/effective	effective (reserved)	skos:closeMatch	bsi:effectiveLicence	Effective licence	semapv:ManualMappingCuration	deferred facet
+loom:source	source	skos:relatedMatch	prov:wasDerivedFrom	wasDerivedFrom	semapv:ManualMappingCuration	short form: the source is what Pitloom's act prov:used, and holds the statement the value derives from; not hadPrimarySource: a source may be a relay
+loom:source	source	skos:relatedMatch	wikidata:P248	stated in	semapv:ManualMappingCuration	
+loom:source/kind/registry	registry	skos:relatedMatch	pav:importedFrom	imported from	semapv:ManualMappingCuration	when the registry relays the originator's own metadata
+loom:strength/placeholder	placeholder	skos:relatedMatch	spdxlic:NoAssertionLicense	NoAssertionLicense	semapv:ManualMappingCuration	licence
+loom:strength/none	none	skos:relatedMatch	spdxlic:NoneLicense	NoneLicense	semapv:ManualMappingCuration	licence
+loom:claim	claim	skos:broadMatch	prov:Entity	Entity	semapv:ManualMappingCuration	the recorded value; the statement it derives from is another entity
+loom:claim	claim	skos:relatedMatch	sosa:Result	Result	semapv:ManualMappingCuration	when the value was observed; sosa:Result is a subclass of prov:Entity in the SOSA alignment module
+loom:claim	claim	skos:relatedMatch	SIO:000256	proposition	semapv:ManualMappingCuration	
+loom:asserter	Asserter	skos:relatedMatch	prov:wasAttributedTo	wasAttributedTo	semapv:ManualMappingCuration	attribution of the statement behind the recorded value
+loom:asserter/sbom-tool	sbom-tool	skos:broadMatch	prov:SoftwareAgent	SoftwareAgent	semapv:ManualMappingCuration	
+loom:asserter/ai-agent	ai-agent	skos:broadMatch	prov:SoftwareAgent	SoftwareAgent	semapv:ManualMappingCuration	
+loom:method	method class with technique	skos:broadMatch	prov:Plan	Plan	semapv:ManualMappingCuration	sosa:Procedure is a subclass of prov:Plan in the SOSA alignment, which is not normative
+loom:method	method class with technique	skos:relatedMatch	SIO:000076	plan	semapv:ManualMappingCuration	a kind of SIO action specification
+loom:method/act	Pitloom's act	skos:broadMatch	prov:Activity	Activity	semapv:ManualMappingCuration	the recorded value is prov:wasGeneratedBy it; no key
+loom:method/act	Pitloom's act	skos:relatedMatch	sosa:Observation	Observation	semapv:ManualMappingCuration	when it examined the element
+loom:tool	Tool	skos:relatedMatch	sosa:Sensor	Sensor	semapv:ManualMappingCuration	by sosa:madeBySensor, a sub-property of prov:wasAssociatedWith
+loom:tool	Tool	skos:broadMatch	prov:SoftwareAgent	SoftwareAgent	semapv:ManualMappingCuration	
+loom:basis/declared	declared	skos:relatedMatch	SIO:001183	statement	semapv:ManualMappingCuration	
+loom:basis/measured	measured	skos:relatedMatch	SIO:000070	measurement value	semapv:ManualMappingCuration	a quantity only
+loom:basis/inferred	inferred	skos:relatedMatch	SIO:000262	conclusion	semapv:ManualMappingCuration	
+loom:source	source	skos:relatedMatch	SIO:000253	has source	semapv:ManualMappingCuration	
+loom:source/kind/registry	registry	skos:relatedMatch	prov:wasQuotedFrom	wasQuotedFrom	semapv:ManualMappingCuration	the registry's record quotes the originator's own metadata
+loom:change	Change	skos:relatedMatch	prov:wasRevisionOf	wasRevisionOf	semapv:ManualMappingCuration	the recorded value revises the value as written
+loom:conflict/agreement	agreement (equal after normalisation)	skos:relatedMatch	SIO:000206	is supported by	semapv:ManualMappingCuration	SIO relates a proposition to anything that bears on it
+loom:grade/compatible	compatible	skos:relatedMatch	SIO:000207	is disputed by	semapv:ManualMappingCuration	
+loom:grade/incompatible	incompatible	skos:relatedMatch	SIO:000774	is refuted by	semapv:ManualMappingCuration	
+loom:conflict	conflict	skos:relatedMatch	SIO:000967	disagreement	semapv:ManualMappingCuration	loose: a subclass of SIO agreement quality, about consensus in a group
+loom:conflict/concluded-licence	a licence Pitloom picked or combined	skos:relatedMatch	SIO:000262	conclusion	semapv:ManualMappingCuration	not the same concept as the inferred row
+loom:conflict/note	rationale in note	skos:relatedMatch	SIO:000683	justification	semapv:ManualMappingCuration	
+loom:asserter/originator	originator	skos:relatedMatch	odrl:Offer	Offer	semapv:ManualMappingCuration	licence only: a policy proposed from an assigner
+loom:asserter/originator	originator	skos:relatedMatch	odrl:assigner	Assigner	semapv:ManualMappingCuration	licence only: the issuer of the rule
+loom:asserter/sbom-tool	sbom-tool	skos:relatedMatch	odrl:Assertion	Assertion	semapv:ManualMappingCuration	licence only: claims and proposes nothing; ODRL common vocabulary, not normative
+loom:asserter/sbom-author	sbom-author	skos:relatedMatch	odrl:Assertion	Assertion	semapv:ManualMappingCuration	licence only: claims and proposes nothing; ODRL common vocabulary, not normative
+loom:asserter/other-party	other-party	skos:relatedMatch	odrl:Assertion	Assertion	semapv:ManualMappingCuration	licence only; a stretch: the ODRL note speaks of an assigner or assignee; not normative
+loom:asserter/ai-agent	ai-agent	skos:relatedMatch	odrl:Assertion	Assertion	semapv:ManualMappingCuration	licence only; a stretch: the ODRL note speaks of an assigner or assignee; not normative
+loom:conflict/rule	rule	skos:relatedMatch	odrl:conflict	Handle Policy Conflicts	semapv:ManualMappingCuration	ODRL: a strategy set by the policy's author, for a permission against a prohibition; three core values, which a profile may extend
+loom:conflict/rule/no-rule	no-rule	skos:relatedMatch	odrl:invalid	Void Policy	semapv:ManualMappingCuration	ODRL: the policy is void; here the slot is left empty
+loom:source/location	Location	skos:relatedMatch	prov:atLocation	atLocation	semapv:ManualMappingCuration	PROV-O: a location may be a directory, row or column
+loom:conflict/candidates	the candidates of one field	skos:relatedMatch	prov:alternateOf	alternateOf	semapv:ManualMappingCuration	relates the candidates without grading them
+loom:conflict/candidates	the candidates of one field	skos:relatedMatch	SIO:001098	is alternate of	semapv:ManualMappingCuration	SIO annotates it as equivalent to prov:alternateOf
+loom:change	Change	skos:relatedMatch	SIO:000286	is subsequent version of	semapv:ManualMappingCuration	

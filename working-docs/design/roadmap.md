@@ -399,7 +399,9 @@ unless the linked doc says so.
   reading, never reporting. Built: unit fix #382, merge drop #386, sizes under
   a cap #387. See [evidence-levels.md](evidence-levels.md).
 - [ ] **Provenance and enrichment vocabulary** (Method vs Role, source and role
-  taxonomy; parked draft). See
+  taxonomy; parked draft). Redesign drafted from 2026-11-14, taxonomies
+  agreed 2026-11-23, not built (the code stage is not started): see
+  [provenance-taxonomy/](provenance-taxonomy/README.md). Earlier notes:
   [provenance-enrichment-vocabulary.md](provenance-enrichment-vocabulary.md),
   [docs/metadata-provenance.md](../../docs/metadata-provenance.md); issues
   [#154](https://github.com/bact/pitloom/issues/154),
