@@ -111,6 +111,19 @@ _MARKERS: dict[str, tuple[str, ...]] = {
         "could not run pipdeptree",
         "pipdeptree output is not",
     ),
+    "author-ambiguous": (
+        "a name field is never cut between names",
+        "an address field cannot tell a list",
+        "read as one author; it may list several",
+    ),
+    "author-invalid": ("not an email address; ",),
+    "caller-info-unreadable": (
+        "caller info not determined",
+        "caller script path not determined",
+    ),
+    "model-file-missing": ("is not a file at exit; not hashed",),
+    "project-unreadable": ("project metadata not read; authors from",),
+    "sbom-name-invalid": ("is not a bare file name",),
     "dynamic-field-unusable": (
         "dynamic version not resolved",
         "dynamic metadata not resolved",
@@ -239,6 +252,7 @@ _MARKERS: dict[str, tuple[str, ...]] = {
     "metadata-conflict": (
         "setup.py and setup.cfg disagree",
         "declared and installed metadata",
+        "authors from the wheel METADATA",
     ),
     "metadata-invalid": (
         "not valid [project] metadata",
@@ -285,12 +299,14 @@ _MARKERS: dict[str, tuple[str, ...]] = {
         "build timeout must be",
         "is outside --project-dir",
         "not inside the project root",
+        "must be a local file, not a URL",
     ),
     "option-missing": (
         "the following arguments are required",
         "no ID registry declared",
         "-o/--output is required",
         "--project-dir not given",
+        "no model set; call set_model()",
     ),
     "option-no-effect": ("has no effect", "matches no URL of th"),
     "over-cap": (" cap;",),
@@ -477,14 +493,17 @@ _MARKERS: dict[str, tuple[str, ...]] = {
 }
 
 #: Families whose lines no doc or skill quotes yet (the docs name their codes
-#: and link the generated pages): each leaves this set when one does. Shrink
-#: only.
+#: and link the generated pages): each leaves this set when one does. A new
+#: family may start here; an existing family never joins.
 _NOT_QUOTED: frozenset[str] = frozenset(
     {
         "archive-member-conflict",
+        "caller-info-unreadable",
         "datetime-not-recordable",
         "dist-info-ambiguous",
         "environment-unreadable",
+        "project-unreadable",
+        "sbom-name-invalid",
         "wheel-sbom-ambiguous",
         "wheel-sbom-conflict",
         "wheel-sbom-missing",

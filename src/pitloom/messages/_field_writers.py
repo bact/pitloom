@@ -178,6 +178,13 @@ def free_text(value: object) -> str:
     return loggable(plain_text(value))
 
 
+def free_name_text(value: object) -> str:
+    """A name as free text (:func:`free_text`), masked and cut first
+    (:func:`cut_name`): a package name read from a file can be as long as
+    the file."""
+    return loggable(cut_name(plain_text(value)))
+
+
 def failure_text(value: object) -> str:
     """What stopped a read, from the exception *value*, on one line: an
     :class:`OSError`'s own description (``strerror``, ``Permission
@@ -222,6 +229,20 @@ def entity_text(value: object) -> str:
         ValueError: It is not a ``str``.
     """
     return loggable(given_path_text(plain_text(value)))
+
+
+def cut_entity_text(value: object) -> str:
+    """An element's name or registry key as :func:`entity_text` writes it,
+    cut to :data:`NAME_CHARACTERS` characters (then :data:`NAME_CUT_MARK`)
+    after masking and before escaping: a caller's model or dataset name can
+    be as long as it likes. :func:`entity_text` stays uncut, as a
+    comparison of two written values needs.
+
+    Raises:
+        ValueError: It is not a ``str``.
+    """
+    masked_value = given_path_text(plain_text(value))
+    return loggable(cut_masked(masked_value, NAME_CHARACTERS))
 
 
 def entities_text(value: object) -> str:

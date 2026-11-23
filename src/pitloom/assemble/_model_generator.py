@@ -39,7 +39,6 @@ from pitloom.core.models import compute_doc_uuid, generate_spdx_id, get_wheel_fi
 from pitloom.core.path_probe import is_missing_errno
 from pitloom.core.project import ProjectMetadata, is_sdist_archive
 from pitloom.core.provenance import ProvenanceConfig
-from pitloom.core.quote_source import quote_source
 from pitloom.core.url_masking import sanitize_url
 from pitloom.enrich import run_enrichers
 from pitloom.enrich.base import EnrichmentResult
@@ -59,6 +58,7 @@ from pitloom.id_registry import (
 from pitloom.id_registry.import_keys import name_key_reason
 from pitloom.logging_config import configure_logging, loggable
 from pitloom.messages import CodedValueError
+from pitloom.messages.config import Parameter, invalid_value
 from pitloom.messages.files import warn_file_unreadable
 from pitloom.messages.id_registry_ids import info_name_key
 from pitloom.messages.pypi import (
@@ -396,11 +396,7 @@ def enrich_model(
     configure_logging()
     source_str = str(source)
     if is_huggingface_source(source_str):
-        raise ValueError(
-            f"{quote_source(source_str)} is a Hugging Face source; local enrichment "
-            "does not apply there -- Hugging Face model cards are already "
-            "parsed natively when generating the SBOM."
-        )
+        raise invalid_value(Parameter("source"), "local-model", got=source_str)
     # The CLI passes use_lockfile through, so this is the one layer that
     # settles it, before any work (an sdist project target as a project).
     if project_target is None:

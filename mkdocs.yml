@@ -56,9 +56,11 @@ nav:
           - Options: message-codes-options.md
           - Configuration: message-codes-config.md
           - Project metadata: message-codes-metadata.md
+          - Authors: message-codes-authors.md
           - File discovery: message-codes-file-discovery.md
           - Builds and temporary directories: message-codes-build.md
-          - Files and text: message-codes-files.md
+          - Files and size caps: message-codes-files.md
+          - Text and documents: message-codes-text.md
           - Lock files: message-codes-lock-files.md
           - Dependencies: message-codes-dependencies.md
           - PyPI: message-codes-pypi.md
@@ -71,6 +73,7 @@ nav:
           - SBOM fragments: message-codes-fragments.md
           - Wheels: message-codes-wheels.md
           - Embedded SBOMs: message-codes-wheel-sboms.md
+          - Datasets and loom runs: message-codes-datasets.md
           - Values: message-codes-values.md
       - Resources: resources.md
 

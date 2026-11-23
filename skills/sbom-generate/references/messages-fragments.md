@@ -30,6 +30,7 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
 | [`fragment-unusable`](#fragment-unusable) | WARNING | A configured SBOM fragment is the document Pitloom is building: its SpdxDocument has the id the project's own SBOM gets, so it is an earlier SBOM of the same project, not a fragment written to enrich it. Merging it would fold the project into itself. | 0.25.0 |
 | [`generated-value-conflict`](#generated-value-conflict) | INFO | A fragment states a value Pitloom generated itself, and the fragment's statement wins, by design: in a project build, a base model's value generated from the model file, or its name, replaced by the one the fragments agree on; or a merged element now holds a value its not_measured provenance entry says was not measured. | 0.25.0 |
 | [`reference-not-found`](#reference-not-found) | ERROR, WARNING | After the fragments merged, an element of the merged document names an element that is neither in it nor declared external (an import of its SpdxDocument): a relationship's from or to, an annotation's subject, a collection's rootElement, or a licence expression's customIdToUri in the document's own namespace. Usually a fragment written against an older SBOM of the project, whose element ids have changed since (a Pitloom upgrade, a change to the project's files or name), or one naming an element a fragment left out was to supply. | 0.25.0 |
+| [`reference-not-found/dataset`](#reference-not-founddataset) | WARNING | A loom run's add_output_dataset names, in input_datasets, a dataset no add_input_dataset of the same run declared (a typo, or an input declared in another run). | 0.25.0 |
 
 ### `datetime-missing`
 
@@ -286,6 +287,24 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
   ```text
   WARNING: Merge: ELEMENT=<spdx-id>: <property> names <reference>, which is not in the merged document; regenerate the base SBOM, then run the enrichment again [reference-not-found]
   ERROR: <number> reference(s) to elements not in the merged document; regenerate the base SBOM, then run the enrichment again [reference-not-found]
+  ```
+
+### `reference-not-found/dataset`
+
+- **Level**: WARNING.
+- **Means**: A loom run's add_output_dataset names, in input_datasets, a dataset
+  no add_input_dataset of the same run declared (a typo, or an input declared in
+  another run).
+- **SBOM effect**: thinner: the SBOM says less than reading the input would.
+- **Pitloom did**: Linked the output dataset to the inputs it names that were
+  declared, not to this one; the fragment is written.
+- **The caller may fix**: The caller may declare the input with
+  add_input_dataset in the same run, or correct the name in input_datasets, and
+  run again.
+- **Lines**:
+
+  ```text
+  WARNING: loom SDK: add_output_dataset('<dataset>') names input_datasets='<dataset-input>', which no add_input_dataset of this run declared; not linked [reference-not-found/dataset]
   ```
 
 ## Summaries

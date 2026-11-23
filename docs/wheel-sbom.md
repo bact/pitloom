@@ -163,7 +163,8 @@ get different ids, and a renamed copy gets new ids.
 declared. Backends write a name-only author into the free-text `Author`
 field, so authors with an email address are read first, then name-only
 ones; several name-only authors joined in one `Author` read as one author
-(an `INFO:` says it may list several when it holds `,`, `;` or `and`);
+(an `INFO:` says it may list several when it holds `,`, `;` or `and`,
+[`author-ambiguous`](message-codes-authors.md#author-ambiguous));
 a name-only author beside a single email-only one reads as one author, but
 one beside two read as three (never paired by position); and poetry-core
 writes only the first author. With `embed-wheel --project-dir` (and the
@@ -171,7 +172,10 @@ GitHub Action) the project's declared authors are used instead, with no
 `WARNING:` for the wheel's split `Author` or `Author-email` (one for a
 split in the project's own free-text `author` or `author_email`,
 `--config` or not); when the project's name differs from the wheel's, a
-`WARNING:` says so and the wheel's authors are kept.
+`WARNING:` says so and the wheel's authors are kept
+([`metadata-conflict`](message-codes-metadata.md#metadata-conflict)), as they
+are when the project's metadata cannot be read
+([`project-unreadable`](message-codes-authors.md#project-unreadable)).
 How `Author` (cut only next to an address) and `Author-email` (split) are
 read and what each author becomes: [How authors are
 read](metadata-provenance-authors.md#how-authors-are-read).

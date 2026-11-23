@@ -48,13 +48,12 @@ from pitloom.enrich.base import EnrichedField, EnrichmentResult
 from pitloom.logging_config import field_loss_suffix
 from pitloom.messages import emit
 from pitloom.messages.files import (
-    CARD_MALFORMED,
     Cap,
     warn_dir_unlistable,
     warn_file_unreadable,
-    warn_lone_surrogates,
     warn_over_cap,
 )
+from pitloom.messages.text import CARD_MALFORMED, warn_lone_surrogates
 
 log = logging.getLogger(__name__)
 

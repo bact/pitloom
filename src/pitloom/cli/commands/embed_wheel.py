@@ -196,7 +196,8 @@ def _run_embed_wheel_command(args: argparse.Namespace) -> int:
 
     # Before any SBOM is generated or build run: a name that is a path is
     # refused here, once, not at each wheel's last step.
-    checked_embed_basename(args.sbom_basename)
+    # The checked base goes on, so the library does not say it again.
+    args.sbom_basename = checked_embed_basename(args.sbom_basename)
 
     build_options = _settled_build_options(args)
 

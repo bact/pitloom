@@ -33,7 +33,6 @@ from pitloom.messages.files import (
     FILE_UNREADABLE,
     FILE_UNREADABLE_NOT_UTF8,
     FILE_UNWRITABLE,
-    JSON_MALFORMED,
     OVER_CAP,
     REGISTRY_USE,
     SOURCE_LINE,
@@ -65,6 +64,7 @@ from pitloom.messages.targets import (
     SBOM_INVALID,
     input_not_found,
 )
+from pitloom.messages.text import JSON_MALFORMED
 from pitloom.messages.url_credentials import (
     CREDENTIALS_UNSAFE_REGISTRY,
     registry_file_refused_error,

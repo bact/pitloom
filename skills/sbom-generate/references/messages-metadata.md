@@ -23,7 +23,7 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
 | [`dynamic-field-unusable`](#dynamic-field-unusable) | WARNING | A dynamic [project] field's backend resolver failed: pdm-backend reading the version from a file or SCM tag, or flit-core reading the version and description from the module without importing it. The failure is the resolver's. | 0.25.0 |
 | [`installed-metadata-ambiguous`](#installed-metadata-ambiguous) | WARNING | More than one .dist-info or .egg-info directory in the project directory names the project (an old install left beside a new one). | 0.25.0 |
 | [`installed-metadata-unusable`](#installed-metadata-unusable) | WARNING | A .dist-info or .egg-info directory in the project directory, read to complete the declared metadata, is not this project's: it has no METADATA (or PKG-INFO), or names no project or another one (a renamed project, a stale install). One whose file cannot be read says file-unreadable, for the project metadata. | 0.25.0 |
-| [`metadata-conflict`](#metadata-conflict) | WARNING | Two sources of the project's metadata give one field two real values: setup.py and setup.cfg (a setup() keyword overrides the setup.cfg option, as setuptools does), or the declared metadata and an installed .dist-info or .egg-info (a stale install). | 0.25.0 |
+| [`metadata-conflict`](#metadata-conflict) | WARNING | Two sources of the project's metadata give one field two real values: setup.py and setup.cfg (a setup() keyword overrides the setup.cfg option, as setuptools does), or the declared metadata and an installed .dist-info or .egg-info (a stale install). The DIR= line with 'names project' is an embed with a project directory (embed-wheel --project-dir) whose project is not the wheel's, by PEP 503 name; it prints since 0.25.0. | 0.25.0 |
 | [`metadata-invalid`](#metadata-invalid) | ERROR, WARNING | A project metadata value is not what its format allows: a [project] that pyproject-metadata refuses (its words), a [project] or [tool.poetry] that is no table, a name that is no string, a version with a number too long to parse, a [project] with no name, a value of the wrong type, a setup() keyword Pitloom cannot read statically, a tool.setuptools.dynamic entry that is no {file = ...} table, or a requirements file a setting lists that is not there. | 0.25.0 |
 | [`metadata-malformed`](#metadata-malformed) | ERROR, WARNING | A setup.py is not Python the parser of the Python Pitloom runs on can read: a syntax error, a NUL byte, or an expression nested too deeply for it. The failure is the parser's. The nested line is the line of a module that a setup.cfg attr: directive names, too deeply nested to parse alone. | 0.25.0 |
 | [`metadata-no-effect`](#metadata-no-effect) | WARNING | A project declares something its build backend does not read: a [tool.poetry] table or keys Poetry ignores because [project] declares the same, [tool.poetry] keys under another build backend, or pip option lines (-r, --index-url) in a requirements file setuptools reads for tool.setuptools.dynamic. | 0.25.0 |
@@ -116,10 +116,13 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
 - **Means**: Two sources of the project's metadata give one field two real
   values: setup.py and setup.cfg (a setup() keyword overrides the setup.cfg
   option, as setuptools does), or the declared metadata and an installed
-  .dist-info or .egg-info (a stale install).
+  .dist-info or .egg-info (a stale install). The DIR= line with 'names project'
+  is an embed with a project directory (embed-wheel --project-dir) whose project
+  is not the wheel's, by PEP 503 name; it prints since 0.25.0.
 - **SBOM effect**: weaker: what the SBOM says is less sure.
 - **Pitloom did**: Recorded the value the line keeps and both values as a
-  conflict in the field's provenance.
+  conflict in the field's provenance. For an embed's project directory, took the
+  authors from the wheel's METADATA, not from the project.
 - **Tell the user**: which field disagrees, what was kept and what dropped, as
   the line says. They make the sources agree (or reinstall the project) and
   generate again. Do not edit the project for them; ask first, and with nobody
@@ -130,6 +133,7 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
   WARNING: DIR=<dir>: <field>: setup.py and setup.cfg disagree; kept setup.py's <kept>, dropped setup.cfg's <dropped> [metadata-conflict]
   WARNING: DIR=<dir>: <field>: setup.py and setup.cfg disagree; kept setup.cfg's <kept>, dropped setup.py's <dropped> [metadata-conflict]
   WARNING: DIR=<dir>: <field>: declared and installed metadata disagree; kept the declared <kept>, dropped the installed <dropped> [metadata-conflict]
+  WARNING: DIR=<dir>: names project <project-value>, not the wheel's <wheel-value>; authors from the wheel METADATA [metadata-conflict]
   ```
 
 ### `metadata-invalid`

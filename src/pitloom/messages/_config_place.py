@@ -262,6 +262,9 @@ EXPECTED: Final[Mapping[str, str]] = MappingProxyType(
         "sha-256": "a SHA-256 in hex (64 characters)",
         "url-credentials-mode": '"warn" or "refuse"',
         "sbom-content": "an SBOM, not empty or white space only",
+        "local-file": "a local file, not a URL",
+        "local-model": "a local model file, not a Hugging Face model "
+        "(generate_model_sbom reads one)",
     }
 )
 

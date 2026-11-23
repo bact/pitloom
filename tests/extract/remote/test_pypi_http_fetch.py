@@ -42,16 +42,13 @@ from pitloom.extract.remote._http_fetch import (
 )
 from pitloom.extract.remote._http_watch import Watch
 from pitloom.extract.remote.errors import RemoteSourceError
-from pitloom.messages.files import (
-    JSON_MALFORMED,
-    OVER_CAP,
-    TEMP_DIR_UNUSABLE,
-)
+from pitloom.messages.files import OVER_CAP, TEMP_DIR_UNUSABLE
 from pitloom.messages.network import (
     DOWNLOAD_FAILED,
     DOWNLOAD_TIMEOUT,
     URL_REFUSED,
 )
+from pitloom.messages.text import JSON_MALFORMED
 from tests._fake_pypi_server import FakePypi, Route, redirect, serving, sha256_of
 
 #: Windows ends no ``recv`` on a socket shut for reading.

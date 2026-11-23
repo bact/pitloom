@@ -29,6 +29,7 @@ from pitloom.assemble.spdx3.document import build_model
 from pitloom.core.ai_metadata import AiModelMetadata
 from pitloom.core.creation import CreationMetadata
 from pitloom.id_registry import DEFAULT_ID_REGISTRY_FILENAME, IdRegistry
+from pitloom.messages import code_of
 
 from ..conftest import _AI_MODEL_ROOT, _write_smoke_project
 
@@ -117,8 +118,12 @@ def test_enrich_model_rejects_huggingface_source() -> None:
     """A Hugging Face source has no local enrichment to run -- HF model
     cards are already parsed natively -- so enrich_model() must reject it
     with a clear error rather than silently doing nothing."""
-    with pytest.raises(ValueError, match="Hugging Face"):
+    with pytest.raises(
+        ValueError, match="^source: must be a local model file"
+    ) as raised:
         enrich_model("org/model-id")
+    assert code_of(raised.value) == "option-invalid"
+    assert str(raised.value).endswith("got a string 'org/model-id'")
 
 
 def test_enrich_model_and_generate_model_sbom_reference_matching_ai_package_id() -> (

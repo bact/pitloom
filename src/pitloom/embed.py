@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+from typing import Final
 
 from pitloom._embed_build_sbom import (
     EmbedFileCache,
@@ -107,8 +108,16 @@ def embed_filename(sbom_basename: str | None) -> str | None:
     return sbom_file_name(sbom_basename)
 
 
-def checked_embed_basename(sbom_basename: str | None) -> str | None:
-    """*sbom_basename* (``--sbom-basename``) as
+#: Where a base name checked by :func:`checked_embed_basename` was given.
+_CLI_BASENAME: Final = Parameter("--sbom-basename")
+_LIBRARY_BASENAME: Final = Parameter("sbom_basename")
+
+
+def checked_embed_basename(
+    sbom_basename: str | None, where: Parameter = _CLI_BASENAME
+) -> str | None:
+    """*sbom_basename*, given as *where* (``--sbom-basename``, or a library
+    caller's ``sbom_basename``), as
     :func:`~pitloom.core.file_names.sbom_base_name` leaves it (an empty or
     absent one as given), once the embedded SBOM's file name it makes
     (``<base>.spdx3.json``) is known to be a plain file name. Called before
@@ -121,7 +130,6 @@ def checked_embed_basename(sbom_basename: str | None) -> str | None:
     """
     if not sbom_basename:
         return sbom_basename
-    where = Parameter("--sbom-basename")
     base = sbom_base_name(sbom_basename, where)
     if not is_plain_file_name(f"{base}{SPDX3_JSONLD_EXTENSION}"):
         raise invalid_value(where, "file-name", got=sbom_basename)
@@ -257,7 +265,7 @@ def embed_wheel_sbom(
             transient I/O error).
     """
     configure_logging()
-    sbom_basename = checked_embed_basename(sbom_basename)
+    sbom_basename = checked_embed_basename(sbom_basename, _LIBRARY_BASENAME)
     require_wheel_file(wheel_path)
     # Not resolved: a symlink's name is the one judged, and the one the
     # embed reports; ``embed_sbom_in_wheel`` resolves to write.

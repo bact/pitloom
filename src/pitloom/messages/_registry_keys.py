@@ -39,6 +39,17 @@ UNHASHED_LINE: Final = _line(
     "%(element_kind)s %(entity)s: the entry records a SHA-256 but no content "
     "was hashed; minting a new spdxId",
 )
+#: A loom model declared without ``path=``, a registry loaded.
+MODEL_NO_PATH_LINE: Final = _line(
+    "WARNING", "model %(entity)s has no path=; looked up ungated: not hashed"
+)
+#: A loom model whose ``path=`` is no regular file at run exit, a registry
+#: loaded (with none, ``model-file-missing``).
+MODEL_NOT_A_FILE_LINE: Final = _line(
+    "WARNING",
+    "model %(entity)s: path= %(path)s is not a file at exit; looked up "
+    "ungated: not hashed",
+)
 #: A dataset looked up with no hash.
 UNGATED_LINE: Final = _line("INFO", "dataset %(entity)s looked up ungated: not hashed")
 #: A hashed dataset matched a pin that records no hash.
@@ -58,6 +69,8 @@ REGISTRY_HASH_MISSING: Final = Message(
     condition="missing",
     lines=(
         UNHASHED_LINE,
+        MODEL_NO_PATH_LINE,
+        MODEL_NOT_A_FILE_LINE,
         UNGATED_LINE,
         HASHLESS_PIN_LINE,
         PIN_WITHOUT_HASH_LINE,

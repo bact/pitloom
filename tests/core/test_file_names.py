@@ -23,7 +23,8 @@ from pitloom.core.file_names import (
     sbom_base_name,
     sbom_file_name,
 )
-from pitloom.messages import code_of
+from pitloom.logging_config import CODE_ATTR
+from pitloom.messages import code_of, trusted_message
 from pitloom.messages.config import ConfigPlace, Parameter
 from tests.warning_helpers import logged_warnings
 
@@ -31,6 +32,11 @@ from tests.warning_helpers import logged_warnings
 _FILE = CONFIG_BASENAME_PLACE
 _PARAM = Parameter("--sbom-basename")
 _WHERE = pytest.mark.parametrize("where", [_FILE, _PARAM], ids=["file", "parameter"])
+
+
+def code_of_record(record: object) -> object:
+    """The code a record carries."""
+    return getattr(record, CODE_ATTR, None)
 
 
 def _label(where: ConfigPlace | Parameter) -> str:
@@ -70,9 +76,36 @@ def test_sbom_base_name_strips_once_and_warns_once(
         assert not warnings
         return
     assert len(warnings) == 1
-    assert _label(where) in warnings[0]
-    assert repr(value) in warnings[0]
-    assert repr(expected) in warnings[0]
+    assert warnings[0].startswith(f"{_label(where)}: a string {value!r} ")
+    assert warnings[0].endswith(f"; using {expected}")
+    (record,) = [r for r in caplog.records if r.levelname == "WARNING"]
+    assert code_of_record(record) == "sbom-name-invalid"
+
+
+@_WHERE
+def test_a_long_base_name_is_cut_in_the_line(
+    where: ConfigPlace | Parameter, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A 1 MB base name: used whole, shown cut, one trusted line."""
+    value = " " + "b" * 1_000_000
+    assert sbom_base_name(value, where) == value.strip()
+    (warning,) = logged_warnings(caplog)
+    assert len(warning) < 2000
+    assert warning.endswith("b...")
+    (record,) = [r for r in caplog.records if r.levelname == "WARNING"]
+    printed = f"WARNING: {record.getMessage()} [{code_of_record(record)}]"
+    assert trusted_message(printed) is not None
+
+
+@_WHERE
+def test_each_stripped_value_warns_once(
+    where: ConfigPlace | Parameter, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Two different values at one place: one ``WARNING`` each."""
+    for value in (" a ", " b ", " a "):
+        sbom_base_name(value, where)
+    warnings = logged_warnings(caplog)
+    assert [w.rsplit(" ", 1)[-1] for w in warnings] == ["a", "b"]
 
 
 @pytest.mark.parametrize(

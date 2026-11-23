@@ -61,9 +61,7 @@ from pitloom.extract._author_parts import (
     separators,
 )
 from pitloom.extract._author_warnings import (
-    CORE_METADATA_HINT,
     AuthorSplit,
-    counted,
     dependency_author_splits,
     warn_author_splits,
     warn_field_cap,
@@ -80,7 +78,6 @@ __all__ = [
     "AUTHOR_FIELD_MAX_CHARS",
     "AUTHOR_FIELD_MAX_NAMES",
     "AUTHOR_KEYS",
-    "CORE_METADATA_HINT",
     "AuthorSplit",
     "author_pairs",
     "collapse_whitespace",
@@ -126,6 +123,11 @@ class _Report(NamedTuple):
     addresses: list[tuple[str, str]] | None
 
 
+def _counted_entries(count: int) -> str:
+    """``1 entry`` or ``N entries``."""
+    return f"{count} {'entry' if count == 1 else 'entries'}"
+
+
 def _capped(field: str, parts: list[str], what: _Field, warn: bool) -> list[str]:
     """*parts* of *field* within :data:`AUTHOR_FIELD_MAX_CHARS` and
     :data:`AUTHOR_FIELD_MAX_NAMES`: past the first, the last part (maybe
@@ -143,7 +145,7 @@ def _capped(field: str, parts: list[str], what: _Field, warn: bool) -> list[str]
             if cut
             else Cap(AUTHOR_FIELD_MAX_NAMES, "entry", "author-field", "FIELD")
         )
-        read = counted(len(kept), "entry", "entries") if kept else None
+        read = _counted_entries(len(kept)) if kept else None
         warn_field_cap(field, what.key, cap, read)
     return kept
 
@@ -351,13 +353,12 @@ def read_author_fields(
     *,
     quiet: bool = False,
     splits: list[AuthorSplit] | None = None,
-    hint: str = "",
 ) -> list[dict[str, str]]:
     """:func:`author_pairs` as ``{name?, email?}`` dicts (the shape of
     :attr:`pitloom.core.project.ProjectMetadata.authors`).
 
-    A split field gets one ``WARNING:`` per key and call ending with *hint*
-    (unless *quiet*: a read whose value is discarded, which warns about
+    A split field gets one ``WARNING:`` per key and call (unless *quiet*: a
+    read whose value is discarded, which warns about
     nothing); with *splits* given, the splits are appended to it
     instead, for a caller that warns only once it knows these authors are
     the ones used (:func:`warn_author_splits`).
@@ -370,5 +371,5 @@ def read_author_fields(
             author["email"] = addr
         authors.append(author)
     if splits is None:
-        warn_author_splits(noted, quiet=quiet, hint=hint)
+        warn_author_splits(noted, quiet=quiet)
     return authors

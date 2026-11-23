@@ -34,25 +34,14 @@ CREATED = CreationMetadata(creation_datetime="2024-05-01T00:00:00Z")
 #: In every author split ``WARNING:``, a name or an address field's, and
 #: in no other line.
 SPLIT_MARK = ": split into "
-#: The ``INFO:`` for a project's name field read as one author that may
-#: list several: the field's excerpt, then the route's hint.
-ONE_AUTHOR_LINE = (
-    "AUTHOR={}: read as one author; it may list several"
-    " ('Doe, Jane' and 'Ann and Bob' cannot be told from lists){}"
+#: The ``INFO:`` (``author-ambiguous``) for a project's name field read as
+#: one author that may list several: the field's excerpt.
+ONE_AUTHOR_LINE = "AUTHOR={}: read as one author; it may list several"
+#: The surfaces reading a project's own free-text ``author``, which say
+#: :data:`ONE_AUTHOR_LINE`; any other surface does not.
+ONE_AUTHOR_SURFACES = frozenset(
+    {"setup-cfg", "setup-py", "wheel-metadata", "sdist-pkg-info"}
 )
-#: The hint of a route reading core metadata.
-CORE_HINT = (
-    " -- only authors listed in pyproject.toml (a project directory or an sdist)"
-    " are read one by one"
-)
-#: The hint ending :data:`ONE_AUTHOR_LINE` per surface reading a project's
-#: own free-text ``author``; any other surface gives none.
-ONE_AUTHOR_HINTS = {
-    "setup-cfg": "",
-    "setup-py": "",
-    "wheel-metadata": CORE_HINT,
-    "sdist-pkg-info": CORE_HINT,
-}
 #: Reads (author, author_email) through one surface: its authors.
 Surface = Callable[[Path, str | None, str | None], list[dict[str, str]]]
 

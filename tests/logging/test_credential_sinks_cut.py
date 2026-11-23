@@ -24,10 +24,10 @@ from pitloom.core.requirements import (
     warn_skipped_dependency,
     warn_skipped_extra_entry,
 )
-from pitloom.extract._author_warnings import shown_list
 from pitloom.extract._license_resolve import DeclaredResolution, say_resolved
 from pitloom.extract.project.reader import read_project
 from pitloom.logging_config import EXCERPT_CHARS, excerpt, one_line
+from pitloom.messages.authors import authors_text
 
 #: The setup.cfg case reads a project from disk.
 pytestmark = pytest.mark.platform
@@ -77,7 +77,7 @@ def test_excerpt_masks_before_it_cuts() -> None:
         lambda v: say_resolved(
             v, DeclaredResolution("MIT", "id", (), (), True, "t", ()), "license"
         ),
-        lambda v: logging.getLogger("pitloom.t").warning("%s", shown_list([v])),
+        lambda v: logging.getLogger("pitloom.t").warning("%s", authors_text([v])),
     ],
     ids=["skipped", "extra-entry", "dep-scope", "license", "author"],
 )

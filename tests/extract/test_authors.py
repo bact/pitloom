@@ -32,8 +32,7 @@ from tests.assemble.conftest import _FakeMetadata
 
 _SPLIT = [{"name": "Ann"}, {"name": "Bob"}]
 _REASON = (
-    " on ',' / ';'; an address field cannot tell a list from one name"
-    " containing a comma"
+    " on ',' or ';'; an address field cannot tell a list from one name holding a comma"
 )
 
 
@@ -45,20 +44,16 @@ _REASON = (
 def test_read_author_fields_warning(
     caplog: pytest.LogCaptureFixture, deferred: bool, quiet: bool, warned: bool
 ) -> None:
-    """One ``WARNING:`` for a split address field, ending with the hint;
-    none when quiet; with *splits* given, the split string goes to it for
-    the caller to warn about."""
+    """One ``WARNING:`` for a split address field; none when quiet; with
+    *splits* given, the split string goes to it for the caller to warn
+    about."""
     splits: list[AuthorSplit] | None = [] if deferred else None
     with caplog.at_level(logging.WARNING):
-        authors = read_author_fields(
-            None, "Ann; Bob", quiet=quiet, splits=splits, hint=" -- HINT"
-        )
+        authors = read_author_fields(None, "Ann; Bob", quiet=quiet, splits=splits)
     assert authors == _SPLIT
     assert splits == ([AuthorSplit("Ann; Bob", 2)] if deferred else None)
     assert caplog.messages == (
-        [f"AUTHOR_EMAIL='Ann; Bob': split into 2 entries{_REASON} -- HINT"]
-        if warned
-        else []
+        [f"AUTHOR_EMAIL='Ann; Bob': split into 2 entries{_REASON}"] if warned else []
     )
 
 
@@ -78,8 +73,8 @@ def test_dependency_splits_one_summary_per_document(
         assert dependency_author_pairs("c", "Fay, Gus", None) == [("Fay, Gus", None)]
         assert caplog.messages == []
     (line,) = caplog.messages
-    assert line.startswith("AUTHOR_EMAIL='Ann, Bob': split into 2 entries on")
-    assert "(PACKAGE=a; 2 dependencies split in all)" in line
+    assert line.startswith("PACKAGE=a AUTHOR_EMAIL='Ann, Bob': split into 2 entries on")
+    assert line.endswith("; 2 dependencies split in all")
 
 
 @pytest.mark.parametrize("inside", [False, True], ids=["outside-block", "raised"])
@@ -145,24 +140,22 @@ def _dependency_split(names: str | None, addresses: str | None) -> None:
             [f"AUTHOR_EMAIL='Ann, {'b' * 115}'...: split into 2 entries"],
         ),
         (
-            lambda: warn_author_splits(
-                [AuthorSplit(f"{c}, {c}", 2) for c in "ABCD"], hint=""
-            ),
+            lambda: warn_author_splits([AuthorSplit(f"{c}, {c}", 2) for c in "ABCD"]),
             ["AUTHOR_EMAIL=['A, A', 'B, B', 'C, C', ...]: split into 8 entries"],
         ),
         (lambda: _dependency_split("Ann, Bob", None), []),
         (
             lambda: _dependency_split(None, "Doe, Jane <j@x.org>"),
             [
-                "AUTHOR_EMAIL='Doe, Jane <j@x.org>': split into 2 entries on"
-                " ',' / ';' (PACKAGE=a; 1 dependency split in all)"
+                "PACKAGE=a AUTHOR_EMAIL='Doe, Jane <j@x.org>': split into 2 entries"
+                f"{_REASON}; 1 dependency split in all"
             ],
         ),
         (
             lambda: _dependency_split(_TWO_MAILBOXES, None),
             [
-                f"AUTHOR={_TWO_MAILBOXES!r}: split into 2 entries next to an address"
-                f" (PACKAGE=a; 1 dependency split in all){_NAME_REASON}"
+                f"PACKAGE=a AUTHOR={_TWO_MAILBOXES!r}: split into 2 entries next to"
+                f" an address{_NAME_REASON}; 1 dependency split in all"
             ],
         ),
         (
@@ -330,14 +323,14 @@ _DOE = "Doe, Jane <j@x.org>"
         (
             {"Maintainer-email": _DOE},
             [("Doe", None), ("Jane", "j@x.org")],
-            f"MAINTAINER_EMAIL={_DOE!r}: split into 2 entries",
+            f"PACKAGE=p MAINTAINER_EMAIL={_DOE!r}: split into 2 entries",
         ),
         ({"Maintainer": "z" * 70000}, [], "FIELD=MAINTAINER: larger than the"),
         ({"Author": "Ann <a@x.org, Bob <b@x.org>", "Maintainer": "Zed"}, [], ""),
         (
             {"Author": "Ann <a@x.org>, Bob <b@x.org>", "Maintainer": "Zed"},
             [("Ann", "a@x.org"), ("Bob", "b@x.org")],
-            "AUTHOR='Ann <a@x.org>, Bob <b@x.org>': split into 2 entries",
+            "PACKAGE=p AUTHOR='Ann <a@x.org>, Bob <b@x.org>': split into 2 entries",
         ),
         ({"Author-email": "a@b c", "Maintainer": "Zed"}, [], ""),
         ({"Author": "UNKNOWN", "Maintainer": "Zed"}, [("Zed", None)], ""),

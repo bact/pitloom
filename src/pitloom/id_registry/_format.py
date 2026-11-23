@@ -49,12 +49,7 @@ from pitloom.id_registry._types import (
     is_utf8_text,
 )
 from pitloom.messages import CodedValueError
-from pitloom.messages.files import (
-    JSON_MALFORMED,
-    NOT_OBJECT_LINE,
-    REGISTRY_USE,
-    file_unreadable_error,
-)
+from pitloom.messages.files import REGISTRY_USE, file_unreadable_error
 from pitloom.messages.id_registry import (
     COUNTER_NUMBER_LINE,
     COUNTER_PREFIX_LINE,
@@ -80,6 +75,7 @@ from pitloom.messages.id_registry import (
     UNKNOWN_ENTRY_KEY_LINE,
     UNKNOWN_TOP_KEY_LINE,
 )
+from pitloom.messages.text import JSON_MALFORMED, NOT_OBJECT_LINE
 
 if TYPE_CHECKING:
     from pitloom.messages import Line

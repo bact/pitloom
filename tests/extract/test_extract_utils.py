@@ -27,12 +27,8 @@ from pitloom.extract._extract_utils import (
     json_nests_over,
 )
 from pitloom.messages import code_of
-from pitloom.messages.files import (
-    FILE_UNREADABLE,
-    JSON_MALFORMED,
-    OVER_CAP,
-    Cap,
-)
+from pitloom.messages.files import FILE_UNREADABLE, OVER_CAP, Cap
+from pitloom.messages.text import JSON_MALFORMED
 from tests._bounded import run_bounded_in_child
 from tests._message_drift import raised_as
 from tests._unreadable import deny

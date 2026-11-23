@@ -35,11 +35,8 @@ from pitloom.core.ai_metadata import (
 from pitloom.core.untrusted_text import escape_lone_surrogates_in
 from pitloom.extract.ai_model.formats import Limits
 from pitloom.extract.ai_model.unrecordable import notice_unrecordable
-from pitloom.messages.files import (
-    Cap,
-    warn_lone_surrogates,
-    warn_over_cap,
-)
+from pitloom.messages.files import Cap, warn_over_cap
+from pitloom.messages.text import warn_lone_surrogates
 
 __all__ = [
     "MAX_MODEL_ENTRIES",

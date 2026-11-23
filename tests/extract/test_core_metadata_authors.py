@@ -24,7 +24,6 @@ import pytest
 from pitloom.core.project import ProjectMetadata
 from pitloom.extract._core_metadata import parse_core_metadata_authors
 from pitloom.extract.authors import (
-    CORE_METADATA_HINT,
     AuthorSplit,
     warn_author_splits,
 )
@@ -416,7 +415,7 @@ def test_split_author_warns_once(
         (line,) = caplog.messages
         field, count = warned
         assert line.startswith(
-            f"AUTHOR_EMAIL={field!r}: split into {count} entries on ',' / ';';"
+            f"AUTHOR_EMAIL={field!r}: split into {count} entries on ',' or ';';"
         )
 
 
@@ -426,12 +425,12 @@ def test_warn_splits_several_fields_is_one_line(
     """One line for several split fields, their entries counted together."""
     with caplog.at_level(logging.WARNING):
         splits = [AuthorSplit("A, B", 2), AuthorSplit("C; D; E", 3)]
-        warn_author_splits(splits, hint=CORE_METADATA_HINT)
+        warn_author_splits(splits)
     (line,) = caplog.messages
     assert line.startswith(
-        "AUTHOR_EMAIL=['A, B', 'C; D; E']: split into 5 entries on ',' / ';';"
+        "AUTHOR_EMAIL=['A, B', 'C; D; E']: split into 5 entries on ',' or ';';"
     )
-    assert line.endswith(CORE_METADATA_HINT)
+    assert line.endswith("holding a comma")
 
 
 def test_split_authors_same_on_wheel_and_sdist_readers(

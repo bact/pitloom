@@ -58,7 +58,8 @@ no licence relationship -- Pitloom never asserts a licence it was not told
   is one author: `Jane, Bob` or `Ann and Bob` there is one author
   (backends write a name-only author so; a free-text list of names is one
   author too: for the project's own, holding `,`, `;` or `and`, one `INFO:
-  AUTHOR=...: read as one author; it may list several`). It is cut only
+  AUTHOR=...: read as one author; it may list several [author-ambiguous]`).
+  It is cut only
   next to an address (after a closed `<address>` or a bare address, before
   a bare address, between two `<address>` entries), with a `WARNING:`:
   `Ann <a@x.org>; Bob <b@x.org>` and `Ann <a@x.org> and Bob <b@x.org>` are

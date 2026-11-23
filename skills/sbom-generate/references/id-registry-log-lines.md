@@ -113,9 +113,12 @@ create and choose one), [messages.md](messages.md) (every line's code).
   in a dataset directory; expected for a registry kept there, so relay it
   (once per directory per run). Suggest keeping the registry outside the
   dataset only if the user wants the line gone; do not move it for them.
-- `WARNING: loom: model X has no path=; not hashed, looked up by name only`
-  (or `... is not a file at exit ...`) -- the model is matched by name and
-  gets no hash; add `path=` to the `set_model()`/`use_model()` call.
+- `WARNING: ID registry: model X has no path=; looked up ungated: not hashed
+  [registry-hash-missing]` (or `... path= 'p' is not a file at exit ...`) --
+  the model is looked up by name and gets no hash; add `path=` to the
+  `set_model()`/`use_model()` call. With no registry loaded, a missing file is
+  `WARNING: loom SDK: model X: path= 'p' is not a file at exit; not hashed
+  [model-file-missing]` and no-`path=` says nothing.
 - `WARNING: Merge: ELEMENT=<spdx-id>: id held by two '<type>' elements of
   different <algorithm> digests; both kept, the later is now <new-id>
   [fragment-id-conflict]` -- a merged fragment reused an id for other content

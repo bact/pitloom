@@ -65,7 +65,6 @@ from pitloom.id_registry._types import (
 )
 from pitloom.id_registry.import_keys import import_keys, report_imported
 from pitloom.messages import CodedValueError, emit
-from pitloom.messages.files import registry_name_error
 from pitloom.messages.id_registry import MINT_LINE, REGISTRY_MALFORMED
 from pitloom.messages.id_registry_ids import (
     HASH_CHANGED_LINE,
@@ -79,6 +78,7 @@ from pitloom.messages.options import (
     namespace_conflict_line,
 )
 from pitloom.messages.targets import SBOM_INVALID, SBOM_NAMESPACE_LINE
+from pitloom.messages.text import registry_name_error
 
 log = logging.getLogger("pitloom.id_registry")
 
