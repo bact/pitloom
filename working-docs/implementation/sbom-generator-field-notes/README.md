@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-02
-Last-Modified: 2026-11-14
+Last-Modified: 2026-11-23
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -58,7 +58,8 @@ the day it was added (2026-10-02 to 2026-11-14).
 - [messages-and-surfaces.md](messages-and-surfaces.md): absent vs
   failed; one message per event; surfaces that drift apart.
 - [datasets-and-reproducible-results.md](datasets-and-reproducible-results.md):
-  one dataset under several names and capture routes; who made the SBOM versus
+  one dataset under several names and capture routes; a version in a
+  dataset's identity (#509); who made the SBOM versus
   who supplies the component; conformance counts that depend on the machine;
   what a CI matrix found; review rounds of PR #311 to #315.
 - [remote-git-sources.md](remote-git-sources.md): a Git URL on any forge:
