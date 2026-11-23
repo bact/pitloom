@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-01
-Last-Modified: 2026-11-10
+Last-Modified: 2026-11-23
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -82,7 +82,8 @@ The findings, by class, are in three parts:
 
 - [ai-model-scan-security-lessons-parsers-and-archives.md](ai-model-scan-security-lessons-parsers-and-archives.md):
   3.1 the library parses far more than the SBOM needs, 3.2 native code
-  in-process, 3.3 archives inside archives.
+  in-process, 3.3 archives inside archives, 3.14 replacing the library:
+  what it refused for free.
 - [ai-model-scan-security-lessons-runtime-and-output.md](ai-model-scan-security-lessons-runtime-and-output.md):
   3.4 Python runtime surprises, 3.5 logs and terminals are an output
   channel, 3.6 determinism, 3.13 a cloned repository's file list is code.
@@ -144,6 +145,12 @@ The findings, by class, are in three parts:
     is a state of the checkout, not of one file: detect it exactly, report
     it once per run, and never let its bytes stand for the content's
     identity (a model entry, a registry key).
+17. A reader that replaces a library keeps the library's refusals, its
+    implicit ones included (numpy's 64-dimension limit), each cited to the
+    format's reference implementation.
+18. Check a declared length against the file before any cap: past the end
+    is malformed, over a cap is a partial read, and a partial read says so
+    in the output with its own cause.
 
 ## 5. Status at the time of writing
 
@@ -151,9 +158,12 @@ The findings, by class, are in three parts:
   one handle and walks the real directory; every round-5c repro is refused at
   43-65 MB (was 797-844 MB), on 3.10 and 3.14, and the hostile wheel scan
   dropped from 831 MB to 44 MB.
-- Header-only readers, planned (only the pickle walker and CRFsuite are built in
-  0.21.0): they remove the
+- Header-only readers, planned (the pickle walker and CRFsuite built in
+  0.21.0, the GGUF header in #517): they remove the
   library-amplification and native-code classes (3.1, 3.2, most of 3.4's
   stderr work) but not the archive, determinism and transparency classes;
   see [model-metadata-readers.md](../design/model-metadata-readers.md),
   "What the readers remove, and what stays".
+- GGUF header reader built (#517, 2026-11-23): `GGUFReader` no longer reads
+  the header (a Gemma-4 header: 7.5 s and 927 MiB before, 0.3 s and 78 MiB
+  after); see 3.14.

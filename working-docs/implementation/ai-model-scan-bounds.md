@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-01
-Last-Modified: 2026-11-10
+Last-Modified: 2026-11-23
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -77,12 +77,16 @@ scans too: same readers.
   block undoes only what that block did, by identity, like the log capture
   below; `contextlib.redirect_stderr` swaps the stream for every thread and,
   with two overlapping, could leave it swapped for good) into a bounded sink and
-  summarised in one warning. GGUF (`_gguf_bounds.py`): a `struct` walk over the
-  key/value section refuses tensors, pairs and array elements over one weighted
-  budget of 1M, arrays nested deeper than the walker follows, or a count that
-  cannot fit in the file, before `GGUFReader`; a merely truncated file, or a
-  version `GGUFReader` itself rejects, is left to the reader, while a version it
-  reads and the walker does not know (round-4 review, fail closed) is refused.
+  summarised in one warning. GGUF (#517): Pitloom's own header reader
+  (`formats/gguf_header.py`, adapter `_gguf_bounds.py`) replaces `GGUFReader`.
+  It passes over array contents (fixed-size elements in one step, strings and
+  nested arrays one hop each) and charges parsed items (pairs, tensor infos,
+  dimensions, kept strings) to a budget of 1M, hops to 4,194,304, strings to
+  8 MiB each and 64 MiB in all, nesting to 4 levels. A bound reached keeps the
+  pairs read so far (a partial read, one `over-cap` warning); a count or
+  length that cannot fit in the file, more than 4 tensor dimensions (llama.cpp's
+  `GGML_MAX_DIMS`) or a version the `gguf` package reads and this reader does
+  not know is refused.
   Safetensors (`safetensors.py`): the 8-byte header length is read first and
   refused over 16 MiB (`MAX_SAFETENSORS_HEADER_BYTES`). Detection (magic only,
   which matters for an explicit path without the suffix) uses the format's own
@@ -170,22 +174,20 @@ scans too: same readers.
 Not covered, by design, until the metadata-only readers
 ([model-metadata-readers.md](../design/model-metadata-readers.md)):
 
-- **GGUF CPU.** `gguf.GGUFReader` loops in Python once per tensor, key/value
-  pair and array element (scalar or string, at any nesting depth), keeping a
-  numpy view for each: ~1.1 KiB and 6 us per string, ~0.5 KiB per scalar,
-  ~3.5 KiB per tensor or pair. The walker charges all of them to one budget of
-  1M (a tensor or pair weighs 4, an element 1) and refuses nesting deeper than
-  it follows, so a hostile header is refused in well under a second; the
-  largest accepted headers measured ~1.1 GB and 6 s (990k strings, 8 MB),
-  ~0.9 GB and 8 s (250k tensors, 10 MB), ~0.6 GB (250k pairs), ~0.5 GB
-  (990k scalars). Before the combined budget, 12 x 1M uint8 elements (12 MB)
-  peaked at 5 GB, arrays nested 5 deep were not followed by the walker but
-  were by the reader (24 MB, 3.3 GB), and 1M tensor infos (39 MB) took 3.6 GB.
-  A real vocabulary plus merges is ~0.5M elements, so the budget cannot drop
-  further without stubbing real models. GGUF is also gated in a wheel. Replacing
-  `GGUFReader` with our own key/value reader, which makes the walker
-  unnecessary, is part of the metadata-only readers
-  ([model-metadata-readers.md](../design/model-metadata-readers.md)).
+- **GGUF CPU, before #517.** `gguf.GGUFReader` loops in Python once per
+  tensor, key/value pair and array element (scalar or string, at any nesting
+  depth), keeping a numpy view for each: ~1.1 KiB and 6 us per string, ~0.5 KiB
+  per scalar, ~3.5 KiB per tensor or pair. The walker that guarded it charged
+  all of them to one budget of 1M (a tensor or pair weighs 4, an element 1);
+  the largest accepted headers measured ~1.1 GB and 6 s (990k strings, 8 MB),
+  ~0.9 GB and 8 s (250k tensors, 10 MB). Before the combined budget, 12 x 1M
+  uint8 elements (12 MB) peaked at 5 GB, arrays nested 5 deep took 3.3 GB
+  (24 MB) and 1M tensor infos (39 MB) 3.6 GB. The budget assumed a real
+  vocabulary plus merges of ~0.5M elements; Gemma 4 has 1.3M, and every Gemma-4
+  header was refused. #517 replaced `GGUFReader` for the header (a Gemma-4
+  header: 7.5 s and 927 MiB before, 0.3 s and 78 MiB after; see
+  [the lessons, 3.14](ai-model-scan-security-lessons-parsers-and-archives.md)).
+  GGUF stays gated in a wheel.
 - **Pure-Python amplification.** fickling builds an AST per opcode (~200x the
   pickle's size): a pickle at the 250k-opcode cap measured ~100 MB and 0.4 s. The
   safetensors `__metadata__` and ONNX readers build their result before the

@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-02
-Last-Modified: 2026-10-05
+Last-Modified: 2026-11-23
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -246,6 +246,18 @@ See also: [README.md](README.md) (index of these notes),
   left only `pyproject.toml` and `src`. A read-only "check with the
   tool's own Python" recipe in a skill must not alter the checkout (#235).
   Do: run helper tools with `uvx` or `pipx run`, never `uv run --with`.
+- **`python-version: "3.x"` moves before native wheels do.** The fuzz
+  workflow asked for `3.x`, which resolved to CPython 3.15; atheris 3.1.0
+  ships no cp315 wheel, so every fuzz target failed at install, on `main`
+  too (#517). Pinned to 3.14 with a comment to raise it when atheris ships.
+  Do: pin a workflow that needs a native dependency to the newest version
+  that dependency has wheels for.
+- **Renaming a pull request's head branch closes the pull request.** The
+  GitHub branch-rename API closed #516 when its `auto/...` branch was renamed;
+  the work moved to a new pull request (#517) from a branch pushed under the
+  new name, with the `CHANGELOG` links updated.
+  Do: name the branch before the first push; never rename an open pull
+  request's head branch.
 
 ## 3. Test harness
 

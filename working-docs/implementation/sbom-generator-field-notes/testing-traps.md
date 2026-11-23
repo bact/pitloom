@@ -389,3 +389,30 @@ Ways a test passes, fails or floods the log for the wrong reason.
   parametrise a test over a hand-written copy of a constant set, never over
   the constant itself (a dropped member then drops its own test); give each
   "said once" or "first wins" rule a test with three inputs, not two.
+- **Each fix round needs its own mutation run.** On #517 (a new GGUF header
+  reader), 46 hand-written mutants in the first gate left 2 alive: a
+  per-pair state not reset (a cap hit on a scalar after an array was
+  reported as an array cut) and a blank producer read as an empty prefix
+  (`_x` lost its name). After the second review's fixes, 14 mutants on the
+  changed lines left 1: a quantised scalar tensor, where two size formulas
+  differ only when the element count is not a whole number of blocks. A
+  delta review of the fix commit alone had found the scalar bug itself
+  (`()` skipped the size check).
+  Do: mutate the lines each fix round touched, and pin the edge where two
+  formulas could differ.
+- **A fail-on-base run can silently test the branch.** pytest's
+  `pythonpath = ["src"]` puts the checkout's `src` first, whatever
+  `PYTHONPATH` says, so "run the new tests against main" ran them against the
+  branch. `python -I` has the mirror problem: it ignores `PYTHONPATH`, and a
+  local fuzz run tested the main checkout's installed code (see
+  [process-lessons.md](process-lessons.md) for the editable-install case).
+  Do: `git archive` the base into a scratch directory, copy the branch's
+  `tests/` over it and run pytest from inside that copy; check which `src`
+  a run imports.
+- **Coverage can fail a thread test that is fine.** Once in many full runs
+  under `--cov -n 4`, a test that starts a thread failed inside coverage's
+  collector (`Cannot install a trace function while another trace function
+  is being installed`); the same test file passed three times in a row under
+  coverage (#517).
+  Do: read the traceback's frame before blaming the change; rerun the file
+  under the same flags.

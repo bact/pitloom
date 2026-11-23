@@ -8,13 +8,15 @@ SPDX-License-Identifier: CC0-1.0
 
 # Model readers: ONNX default graph names, GGUF tokeniser headers (#514)
 
-Status: plan, not built; rulings Q1-Q5 taken 2026-11-23 (end of file).
-Built on `main` while PR #515 (`catalogue-wheels`) is open; the message,
-docs and skill parts and the push wait for it (see "Start order").
+Status: built and merged in #517 (2026-11-23; #516 closed for a branch
+rename); rulings Q1-Q5 at the end. The plan below is kept as written, with
+the build notes, review rounds and open items after it. Lessons for the
+paper: [ai-model-scan-security-lessons-parsers-and-archives.md](ai-model-scan-security-lessons-parsers-and-archives.md),
+3.14.
 
-See also: [model-metadata-readers.md](model-metadata-readers.md) (step 3,
-GGUF), [ai-model-scan-bounds.md](../implementation/ai-model-scan-bounds.md),
-[evidence-levels.md](evidence-levels.md).
+See also: [model-metadata-readers.md](../design/model-metadata-readers.md)
+(step 3, GGUF), [ai-model-scan-bounds.md](ai-model-scan-bounds.md),
+[evidence-levels.md](../design/evidence-levels.md).
 
 ## Context
 
