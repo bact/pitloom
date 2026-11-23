@@ -163,6 +163,24 @@ def test_a_programming_error_is_out_of_scope(
     assert internal and not any(load().in_scope(r) for r in internal)
 
 
+def test_an_os_error_rebuilt_from_the_systems_words_is_detail(
+    records: list[dict[str, Any]],
+) -> None:
+    """The two ``PermissionError`` raises of the atomic SBOM writer rebuild
+    the system's own errno and description (rule R-a): the detail of the
+    ``file-unwritable`` line its caller says, out of scope; the only such
+    raises of the tree."""
+    rebuilt = [
+        (r["file"], r["line"])
+        for r in records
+        if r["emitter"] == "raise"
+        and load().reach(r) == "detail"
+        and r.get("exc_class") == "PermissionError"
+    ]
+    assert len(rebuilt) == 2
+    assert {file for file, _ in rebuilt} == {"src/pitloom/_sbom_io.py"}
+
+
 def _calls_of(name: str) -> set[str]:
     """The modules of ``src/pitloom`` (POSIX, under it) that call *name*."""
     root = REPO_ROOT / "src" / "pitloom"
@@ -264,10 +282,24 @@ def test_the_documented_command_runs_the_ratchet() -> None:
             "logging.log",
             "setuptools stderr: %s",
         ),
+        (
+            "src/pitloom/extract/ai_model/pytorch.py",
+            "_relay_fickling_stderr",
+            "prefixed",
+            "logging.warning",
+            "fickling: %s",
+        ),
+        (
+            "src/pitloom/cli/commands/utils.py",
+            "report_error_line",
+            "exception-param",
+            "print_error",
+            None,
+        ),
     ],
-    ids=["handler", "parser", "licenseid", "setuptools"],
+    ids=["handler", "parser", "licenseid", "setuptools", "fickling", "reporter"],
 )
-def test_the_four_relays_say_no_text_of_their_own(
+def test_the_six_relays_say_no_text_of_their_own(
     records: list[dict[str, Any]],
     file: str,
     function: str,
@@ -275,13 +307,14 @@ def test_the_four_relays_say_no_text_of_their_own(
     emitter: str,
     template: str | None,
 ) -> None:
-    """The command handler says the caught exception's text and code, the
-    parser argparse's, the ``licenseid: `` and ``setuptools stderr: ``
-    relays LicenseID's and setuptools' own words: none counts, known by the
-    code's shape, not by a bare ``%s`` template. They are the only relays,
-    so no other line leaves the count this way."""
+    """The command handler and the per-wheel reporter say an exception's own
+    text and code, the parser argparse's, the ``licenseid: ``,
+    ``setuptools stderr: `` and ``fickling: `` relays those tools' own
+    words: none counts, known by the code's shape, not by a bare ``%s``
+    template. They are the only relays, so no other line leaves the count
+    this way."""
     relays = [(r["file"], r["function"], r["relays"]) for r in records if r["relays"]]
-    assert (file, function, kind) in relays and len(relays) == 4
+    assert (file, function, kind) in relays and len(relays) == 6
     (site,) = [r for r in records if (r["file"], r["function"]) == (file, function)]
     assert site["emitter"] == emitter and not load().in_scope(site)
     if kind == "prefixed":  # not left out as a bare "%s" passthrough

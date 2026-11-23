@@ -44,6 +44,7 @@ from pitloom.extract.ai_model._gguf_bounds import check_gguf_header
 from pitloom.extract.ai_model.gguf import read_gguf
 from pitloom.extract.ai_model.limits import ModelLimitExceeded, ModelOverCap
 from pitloom.extract.ai_model.pytorch import (
+    FICKLING_PREFIX,
     _fickling_get_top_class,
     read_pytorch,
 )
@@ -148,10 +149,10 @@ def test_fickling_stderr_becomes_one_bounded_escaped_warning(
     assert capsys.readouterr().err == ""
     (record,) = caplog.records
     message = record.getMessage()
-    assert message.startswith("fickling reported")
+    assert message.startswith(FICKLING_PREFIX)
     assert len(message) < 300
     assert "\n" not in message
-    text = message.partition("stderr: ")[2]
+    text = message.removeprefix(FICKLING_PREFIX)
     assert text.startswith("'") == quoted
     assert text.endswith("'" if quoted else "y")
 

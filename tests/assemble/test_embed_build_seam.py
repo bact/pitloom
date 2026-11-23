@@ -39,6 +39,7 @@ import pytest
 
 from pitloom.assemble.spdx3 import document as spdx3_document
 from pitloom.assemble.spdx3.deps import _finish_dependency_enrichment
+from pitloom.core import provenance as core_provenance
 from pitloom.core.config import AssembleOptions, PitloomConfig
 from pitloom.core.config_cascade import apply_overrides
 from pitloom.core.provenance import ProvenanceConfig
@@ -242,11 +243,23 @@ def _every_field_non_default(prov: ProvenanceConfig) -> ProvenanceConfig:
     return dataclasses.replace(prov, **changed)
 
 
-def test_apply_overrides_round_trips_every_provenance_field() -> None:
+def test_apply_overrides_round_trips_every_provenance_field(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """A ``ProvenanceConfig`` field with no matching
     ``PitloomConfig.provenance_<name>`` (or not read back by
-    ``PitloomConfig.provenance``) fails here, whatever its name."""
-    prov = _every_field_non_default(ProvenanceConfig())
+    ``PitloomConfig.provenance``) fails here, whatever its name. The
+    choices it checks when built take the changed values too."""
+    default = ProvenanceConfig()
+    for name, choices in (
+        ("VALID_PROVENANCE_FORMATS", {default.format}),
+        ("KNOWN_PROVENANCE_SCHEMAS", {default.schema}),
+        ("VALID_PROVENANCE_DETAIL", {default.detail}),
+        ("VALID_PRESERVE_SOURCE_METADATA", {default.preserve_source_metadata}),
+    ):
+        known = getattr(core_provenance, name)
+        monkeypatch.setattr(core_provenance, name, known | {f"{c}-x" for c in choices})
+    prov = _every_field_non_default(default)
     assert all(
         getattr(prov, f.name) != getattr(ProvenanceConfig(), f.name)
         for f in dataclasses.fields(prov)
@@ -302,9 +315,9 @@ def test_provenance_override_replaces_the_config_provenance_whole() -> None:
         provenance_detail="full", provenance_max_source_metadata_bytes=8192
     )
     overridden = apply_overrides(
-        cfg, ConfigOverrides(provenance=ProvenanceConfig(format="fields"))
+        cfg, ConfigOverrides(provenance=ProvenanceConfig(format="comment"))
     )
-    assert overridden.provenance == ProvenanceConfig(format="fields")
+    assert overridden.provenance == ProvenanceConfig(format="comment")
     assert cfg.provenance != overridden.provenance
 
 

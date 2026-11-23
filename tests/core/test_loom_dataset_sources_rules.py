@@ -356,7 +356,9 @@ def test_a_card_that_fails_to_read_is_skipped(
         )
     assert declared(graph, "corpus") == [(EXPRESSION, "Apache-2.0")]
     (message,) = warnings_of(caplog)
-    assert message.startswith("loom: dataset 'corpus': dataset card skipped: ")
+    assert message == "DIR=corpus: could not read for the dataset card; hostile"
+    (record,) = [r for r in caplog.records if r.levelno == logging.WARNING]
+    assert getattr(record, "pitloom_code", None) == "file-unreadable"
 
 
 @pytest.mark.parametrize(

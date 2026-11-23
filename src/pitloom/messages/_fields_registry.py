@@ -16,7 +16,7 @@ from collections.abc import Mapping
 from types import MappingProxyType
 from typing import Final
 
-from pitloom.core.iri import NAMESPACE_EMPTY, NAMESPACE_PROBLEMS
+from pitloom.core.namespace_problems import NAMESPACE_EMPTY, NAMESPACE_PROBLEMS
 from pitloom.messages._field_tables import ELEMENT_KINDS, KEY_REASONS, REGISTRY_PARTS
 from pitloom.messages._field_type import QUOTED, Field
 from pitloom.messages._field_writers import (

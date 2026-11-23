@@ -126,7 +126,12 @@ def test_generate_project_sbom_partial_presupply_warns_and_discards(
     # discarded and re-resolved from disk instead -- "locked-app" wins.
     assert "caller-supplied-name" not in sbom_json
     assert "locked-app" in sbom_json
-    assert "project_metadata needs pitloom_config" in caplog.text
+    (record,) = [r for r in caplog.records if "project_metadata" in r.getMessage()]
+    assert record.getMessage() == (
+        f"Options: {tmp_path}: project_metadata has no effect without "
+        "pitloom_config (the project's metadata is read again from it)"
+    )
+    assert getattr(record, "pitloom_code", None) == "option-no-effect"
 
 
 def test_generate_project_sbom_pitloom_config_alone_replaces_target_config(
@@ -153,4 +158,4 @@ def test_generate_project_sbom_pitloom_config_alone_replaces_target_config(
     assert "from-explicit" in sbom_json
     assert "from-target" not in sbom_json
     assert "locked-app" in sbom_json
-    assert "project_metadata needs pitloom_config" not in caplog.text
+    assert "project_metadata" not in caplog.text

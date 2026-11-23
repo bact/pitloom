@@ -75,6 +75,7 @@ from pitloom.messages import (
     Message,
     emit,
     relay_extra,
+    say_summary,
 )
 from pitloom.messages.files import (
     Cap,
@@ -84,20 +85,14 @@ from pitloom.messages.files import (
 )
 from pitloom.messages.models import (
     READER_UNSAFE,
+    USAGE_HINTS,
+    USAGE_SETTING_PROJECT,
     USAGE_UNUSABLE,
 )
 
 log = logging.getLogger(__name__)
 _T = TypeVar("_T")
 
-# The usage hint. The setting is spelt per producer: a project reads its own
-# config; a wheel reads none implicitly, so its setting needs a named one.
-_USAGE_HINT = (
-    "Found %d AI model file(s); pass --scan-model-usage (or set %s) to also "
-    "record which Python files reference them."
-)
-USAGE_SETTING_PROJECT = "scan-model-usage = true"
-USAGE_SETTING_WHEEL = "scan-model-usage = true in a --config file or pitloom_config"
 
 # Extensions that might genuinely be AI models.
 _ALLOWED_EXTS: frozenset[str] = model_file_suffixes() | {".zip"}
@@ -457,12 +452,13 @@ def scan_ai_models(
     Discovery always runs. The usage pass reads every Python source, so it
     runs only on request. Otherwise, with models found, *usage_hint* is
     called -- only then, so it may claim a once-per-run slot -- and when it
-    returns true one ``INFO:`` line names the setting, spelt *usage_setting*.
+    returns true one ``INFO:`` line names the setting, spelt *usage_setting*
+    (a key of :data:`~pitloom.messages.models.USAGE_HINTS`).
     Order: see :func:`discover_ai_models`.
     """
     models = discover_ai_models(candidates)
     if scan_usage:
         attach_usage_references(models, sources)
     elif models and usage_hint():
-        log.info(_USAGE_HINT, len(models), usage_setting)
+        say_summary(log, USAGE_HINTS[usage_setting], number=len(models))
     return models

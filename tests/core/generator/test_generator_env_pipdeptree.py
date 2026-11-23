@@ -29,6 +29,7 @@ from pitloom import __main__
 from pitloom.assemble import generate_env_sbom
 from pitloom.core.creation import CreationMetadata
 from pitloom.id_registry import DEFAULT_ID_REGISTRY_FILENAME, IdRegistry, package_key
+from pitloom.messages import code_of, trusted_message
 
 FIXTURES = Path(__file__).parent.parent.parent / "fixtures" / "pipdeptree"
 _JSON = FIXTURES / "requests-2.34.2.json"
@@ -105,8 +106,9 @@ def test_real_pipdeptree_json_tree_output_is_an_error() -> None:
     """The former ``--json-tree`` shape must fail loudly, not emit a
     document of ``unknown`` packages."""
     with _stub(_JSON_TREE):
-        with pytest.raises(RuntimeError, match="Unexpected pipdeptree output"):
+        with pytest.raises(RuntimeError, match="pipdeptree output is not") as caught:
             generate_env_sbom(offline=True)
+    assert code_of(caught.value) == "environment-unreadable"
 
 
 def test_cli_env_malformed_output_is_one_error_line(
@@ -124,8 +126,11 @@ def test_cli_env_malformed_output_is_one_error_line(
     error_lines = [line for line in captured.err.splitlines() if line]
     assert code == 1
     assert len(error_lines) == 1
-    assert error_lines[0].startswith("ERROR: ")
-    assert "pipdeptree" in error_lines[0]
+    assert error_lines[0] == (
+        "ERROR: loom env: pipdeptree output is not its --json list: expected "
+        "'package' with a string 'key' per node [environment-unreadable]"
+    )
+    assert trusted_message(error_lines[0]) is not None
     assert not (tmp_path / "out.json").exists()
 
 

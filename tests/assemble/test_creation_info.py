@@ -209,8 +209,13 @@ def test_build_creator_agents_invalid_type_raises() -> None:
     creator = Creator(name="Bad", type="person")
     creator.type = "not-a-real-type"
     metadata = CreationMetadata(creators=[creator])
-    with pytest.raises(ValueError, match="Invalid creator type"):
+    with pytest.raises(ValueError) as caught:
         build_creator_agents(metadata, _DOC_NAME, _DOC_UUID, spdx_ci)
+    assert str(caught.value) == (
+        "Creator.type: must be one of agent, organization, person, "
+        "software-agent, got a string 'not-a-real-type'"
+    )
+    assert code_of(caught.value) == "option-invalid"
 
 
 # ---------------------------------------------------------------------------

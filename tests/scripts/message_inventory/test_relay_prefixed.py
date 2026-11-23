@@ -116,6 +116,11 @@ from pitloom.logging_config import one_line
 log = logging.getLogger(__name__)
 PREFIX = "tool: "
 FINAL_PREFIX: Final = "tool: "
+LIMIT = 200
+LIMIT_TWICE = 1
+LIMIT_TWICE = 2
+FLAG = True
+TEXT_LIMIT = "200"
 
 
 def kwonly(*, text):
@@ -135,6 +140,16 @@ def shapes(text):
     log.warning(PREFIX + "%s", one_line(text, end=""))  # in: one-line-keyword
     log.warning(PREFIX % "%s", one_line(text))  # in: not-a-sum
     log.warning(PREFIX + "%r", one_line(text))  # in: repr-template
+
+
+def limits(text):
+    log.warning(PREFIX + "%s", one_line(text, LIMIT))  # out: int-limit
+    log.warning(PREFIX + "%s", one_line(text, 200))  # in: literal-limit
+    log.warning(PREFIX + "%s", one_line(text, LIMIT_TWICE))  # in: limit-twice
+    log.warning(PREFIX + "%s", one_line(text, FLAG))  # in: bool-limit
+    log.warning(PREFIX + "%s", one_line(text, TEXT_LIMIT))  # in: text-limit
+    log.warning(PREFIX + "%s", one_line(LIMIT, LIMIT))  # in: limit-as-text
+    log.warning(PREFIX + "%s", one_line(text, LIMIT, LIMIT))  # in: three-args
 
 
 def level_first(text, level):

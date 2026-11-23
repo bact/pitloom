@@ -8,8 +8,8 @@ message, so its line ends in `` [code]``.
 A call has a *static* code when it
 
 - is ``emit(...)``, ``CodedValueError(...)``, ``CodedImportError(...)``,
-  ``CodedFileNotFoundError(...)``, or a coded exception said again
-  (``recoded(...)``, ``exc.located(...)``), or
+  ``CodedFileNotFoundError(...)``, ``CodedRuntimeError(...)``, or a coded
+  exception said again (``recoded(...)``, ``exc.located(...)``), or
 - passes ``code=`` (or ``pitloom_code=``, as an exception class's own
   keyword) a string or a ``pitloom.messages`` constant, or
 - passes ``extra=`` holding a ``pitloom_code`` key (``CODE_ATTR``), or
@@ -51,6 +51,7 @@ STATIC_CALLS = frozenset(
         "emit",
         "CodedFileNotFoundError",
         "CodedImportError",
+        "CodedRuntimeError",
         "CodedValueError",
         "located",
         "recoded",

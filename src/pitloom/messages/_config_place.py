@@ -248,6 +248,7 @@ EXPECTED: Final[Mapping[str, str]] = MappingProxyType(
         "string-or-array": "a string or an array of strings",
         "one-of-format": "one of annotation, both, comment",
         "one-of-detail": "one of full, minimal",
+        "one-of-schema": "one of pitloom/1",
         "one-of-preserve": "one of always, auto, never",
         "one-of-method": "one of auto, extension, magika",
         "creator-type": "one of agent, organization, person, software-agent",
@@ -260,6 +261,7 @@ EXPECTED: Final[Mapping[str, str]] = MappingProxyType(
         "fingerprints": "an array of fingerprints",
         "sha-256": "a SHA-256 in hex (64 characters)",
         "url-credentials-mode": '"warn" or "refuse"',
+        "sbom-content": "an SBOM, not empty or white space only",
     }
 )
 

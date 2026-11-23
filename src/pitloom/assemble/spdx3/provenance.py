@@ -27,8 +27,6 @@ from pitloom.assemble.spdx3._provenance_encoders import (
     DEPLOYED_PACKAGE_SOURCE,
     INSTALLED_DEPENDENCY_SOURCE,
     TRANSPARENT_SOURCES,
-    VALID_PROVENANCE_DETAIL,
-    VALID_PROVENANCE_FORMATS,
     PitloomV1Encoder,
     ProvenanceEncoder,
     filter_high_signal,
@@ -41,9 +39,12 @@ from pitloom.core.canonical_json import (
     canonical_json_bytes,
     json_safe,
 )
+from pitloom.core.internal_error import InternalError
 from pitloom.core.models import generate_spdx_id
 from pitloom.core.project import ConflictCandidate
 from pitloom.core.provenance import (
+    VALID_PROVENANCE_DETAIL,
+    VALID_PROVENANCE_FORMATS,
     ProvenanceConfig,
     escape_provenance_comment_part,
     parse_provenance_value,
@@ -414,7 +415,8 @@ def build_provenance_annotation(
             statement=enc.encode(provenance),
         )
     except ValueError as exc:
-        raise ValueError(
+        # Every encoder, its content type and statement are Pitloom's own.
+        raise InternalError(
             f"Invalid Annotation for provenance schema {enc.schema_id!r} "
             f"(content_type={enc.content_type!r}): {exc}"
         ) from exc
@@ -439,16 +441,11 @@ def emit_provenance(
     config = provenance_config or ProvenanceConfig()
     provenance_format = config.format
     provenance_detail = config.detail
+    # ProvenanceConfig refuses both when built (option-invalid).
     if provenance_format not in VALID_PROVENANCE_FORMATS:
-        valid = ", ".join(sorted(VALID_PROVENANCE_FORMATS))
-        raise ValueError(
-            f"Unknown provenance_format {provenance_format!r}; expected one of {valid}"
-        )
+        raise InternalError(f"unknown provenance format {provenance_format!r}")
     if provenance_detail not in VALID_PROVENANCE_DETAIL:
-        valid = ", ".join(sorted(VALID_PROVENANCE_DETAIL))
-        raise ValueError(
-            f"Unknown provenance_detail {provenance_detail!r}; expected one of {valid}"
-        )
+        raise InternalError(f"unknown provenance detail {provenance_detail!r}")
 
     if provenance_detail == "minimal":
         provenance = filter_high_signal(provenance)

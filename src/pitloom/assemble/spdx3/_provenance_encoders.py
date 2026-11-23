@@ -15,6 +15,7 @@ from typing import Protocol
 
 from pitloom.core.canonical_json import canonical_json
 from pitloom.core.evidence import EVIDENCE_KEY
+from pitloom.core.internal_error import InternalError
 from pitloom.core.provenance import parse_provenance_value
 
 #: Transparent, re-readable manifest sources.
@@ -45,9 +46,6 @@ DEPLOYED_PACKAGE_SOURCE = "deployed package metadata"
 THIRD_PARTY_SOURCES: frozenset[str] = frozenset(
     {"pypi json api", INSTALLED_DEPENDENCY_SOURCE}
 )
-
-VALID_PROVENANCE_DETAIL: frozenset[str] = frozenset({"minimal", "full"})
-VALID_PROVENANCE_FORMATS: frozenset[str] = frozenset({"annotation", "comment", "both"})
 
 
 def _source_name(entry: dict[str, str]) -> str:
@@ -134,10 +132,18 @@ DEFAULT_SCHEMA_ID = PitloomV1Encoder.schema_id
 
 
 def resolve_encoder(schema_id: str | None = None) -> ProvenanceEncoder:
-    """Return the encoder registered for *schema_id* (default when ``None``)."""
+    """Return the encoder registered for *schema_id* (default when ``None``).
+
+    Raises:
+        pitloom.core.internal_error.InternalError: None is: a schema is
+            checked when its setting is read or its ``ProvenanceConfig``
+            built (:data:`~pitloom.core.provenance.KNOWN_PROVENANCE_SCHEMAS`).
+    """
     key = DEFAULT_SCHEMA_ID if schema_id is None else schema_id
     try:
         return _ENCODERS[key]
     except KeyError:
         known = ", ".join(sorted(_ENCODERS))
-        raise ValueError(f"Unknown provenance schema {key!r}; known: {known}") from None
+        raise InternalError(
+            f"Unknown provenance schema {key!r}; known: {known}"
+        ) from None

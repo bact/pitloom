@@ -162,13 +162,13 @@ def _resolve_remote_authors_file(
     else:
         return base_url, None, None
 
-    if offline or content_type_method == "extension":
+    # A host of another scheme (an ssh:// GitLab URL) is not fetched.
+    fetchable = raw_url.startswith(("http://", "https://"))
+    if offline or content_type_method == "extension" or not fetchable:
         ctype, _ = guess_content_type(b"", filename, method="extension")
         return locator, ctype, None
 
     try:
-        if not raw_url.startswith(("http://", "https://")):
-            raise ValueError(f"Disallowed scheme in URL: {raw_url}")
         req = urllib.request.Request(raw_url, headers={"User-Agent": "pitloom"})
         with urllib.request.urlopen(req, timeout=5) as res:  # nosec B310
             content = res.read(1024 * 64)

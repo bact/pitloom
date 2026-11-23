@@ -147,6 +147,7 @@ _TOPIC_FAMILIES: Final[Mapping[str, tuple[str, ...]]] = MappingProxyType(
         "dependencies": (
             "dependency-name-ambiguous",
             "dependency-pin-conflict",
+            "environment-unreadable",
             "extra-gate-ambiguous",
             "extra-gate-unusable",
             "requirement-invalid",

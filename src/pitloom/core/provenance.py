@@ -26,6 +26,15 @@ from pitloom.core.untrusted_text import escape_display_controls, escape_lone_sur
 from pitloom.messages.config import ConfigPlace, Parameter, invalid_value
 
 DEFAULT_PROVENANCE_SCHEMA = "pitloom/1"
+#: The provenance schemas an encoder writes: a drift test holds it equal to
+#: the schema ids of :mod:`pitloom.assemble.spdx3._provenance_encoders`.
+KNOWN_PROVENANCE_SCHEMAS: frozenset[str] = frozenset({DEFAULT_PROVENANCE_SCHEMA})
+#: How metadata provenance may be recorded (``ProvenanceConfig.format``).
+VALID_PROVENANCE_FORMATS: frozenset[str] = frozenset({"annotation", "comment", "both"})
+#: How much of it (``ProvenanceConfig.detail``).
+VALID_PROVENANCE_DETAIL: frozenset[str] = frozenset({"minimal", "full"})
+#: When source metadata is kept (``ProvenanceConfig.preserve_source_metadata``).
+VALID_PRESERVE_SOURCE_METADATA: frozenset[str] = frozenset({"auto", "always", "never"})
 
 #: Segment-key normalisation for "Key: value | Key: value" strings. The
 #: grammar's segment order is Source | Field | Method | Evidence | Reason;
@@ -260,6 +269,35 @@ def parse_provenance_value(value: str) -> dict[str, str]:
     return parsed
 
 
+def require_provenance_choices(
+    fmt: object, schema: object, detail: object, preserve: object, *, owner: str
+) -> None:
+    """Refuse a provenance *fmt*, *schema*, *detail* or *preserve* (source
+    metadata) that is not one of :data:`VALID_PROVENANCE_FORMATS`,
+    :data:`KNOWN_PROVENANCE_SCHEMAS`, :data:`VALID_PROVENANCE_DETAIL` or
+    :data:`VALID_PRESERVE_SOURCE_METADATA`, in that order: ``option-invalid`` naming
+    the parameter *owner* (``ProvenanceConfig.``, ``PitloomConfig.provenance_``)
+    plus the setting's name. A configuration file's value is checked when
+    parsed (``config-invalid``), so it never reaches here.
+
+    Raises:
+        pitloom.messages.CodedValueError: One is not (a ``ValueError``).
+    """
+    for value, choices, name, expected in (
+        (fmt, VALID_PROVENANCE_FORMATS, "format", "one-of-format"),
+        (schema, KNOWN_PROVENANCE_SCHEMAS, "schema", "one-of-schema"),
+        (detail, VALID_PROVENANCE_DETAIL, "detail", "one-of-detail"),
+        (
+            preserve,
+            VALID_PRESERVE_SOURCE_METADATA,
+            "preserve_source_metadata",
+            "one-of-preserve",
+        ),
+    ):
+        if not isinstance(value, str) or value not in choices:
+            raise invalid_value(Parameter(owner + name), expected, got=value)
+
+
 @dataclass(frozen=True)
 class ProvenanceConfig:
     """Configuration settings for SPDX 3 metadata provenance annotations.
@@ -283,7 +321,21 @@ class ProvenanceConfig:
     max_source_metadata_bytes: int = 0
 
     def __post_init__(self) -> None:
-        """Reject an invalid budget, however it got here; keep it as a plain int."""
+        """Reject an invalid format, schema, detail, preserve setting or
+        budget when built, however it got here, not when provenance is
+        first written; keep the budget as a plain int.
+
+        Raises:
+            pitloom.messages.CodedValueError: A value is not one the setting
+                takes (``option-invalid``, a ``ValueError``).
+        """
+        require_provenance_choices(
+            self.format,
+            self.schema,
+            self.detail,
+            self.preserve_source_metadata,
+            owner="ProvenanceConfig.",
+        )
         object.__setattr__(
             self,
             "max_source_metadata_bytes",

@@ -134,8 +134,9 @@ def build_creator_agents(
     Agent without asserting a human did the work.
 
     Raises:
-        ValueError: If a creator's ``type`` is set but not one of
-            :data:`CREATOR_TYPES`.
+        pitloom.messages.CodedValueError: A creator's ``type`` is set but
+            not one of :data:`CREATOR_TYPES` (``option-invalid``, a
+            ``ValueError``).
     """
     if not creation_metadata.creators:
         return [
@@ -153,9 +154,9 @@ def build_creator_agents(
         creator_type = (creator.type or "person").strip().lower()
         agent_cls = CREATOR_TYPES.get(creator_type)
         if agent_cls is None:
-            valid = ", ".join(sorted(CREATOR_TYPES))
-            raise ValueError(
-                f"Invalid creator type {creator.type!r}; must be one of: {valid}."
+            # Set after Creator.__post_init__, which refuses it when built.
+            raise invalid_value(
+                Parameter("Creator.type"), "creator-type", got=creator.type
             )
         agent = agent_cls(
             spdxId=generate_spdx_id(

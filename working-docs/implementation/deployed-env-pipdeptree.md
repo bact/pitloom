@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-30
-Last-Modified: 2026-10-29
+Last-Modified: 2026-11-23
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -32,10 +32,11 @@ saw it.
   older. `-o json` output is byte-identical.
 - **Validate at the boundary.** pipdeptree's output is external data. A
   non-list, a node without a dict `package` carrying a string `key`, a
-  non-list `dependencies`, or a dependency without a string `key` raises
-  `RuntimeError("Unexpected pipdeptree output: ...")`; so do invalid JSON
-  and invalid UTF-8. The CLI reports it as one `ERROR:` line. It is not
-  masked as `unknown`. An empty list is a valid, empty environment.
+  non-list `dependencies`, or a dependency without a string `key` raises a
+  coded `RuntimeError` (`environment-unreadable`: `pipdeptree output is not
+  its --json list: <problem>`); so do invalid JSON and invalid UTF-8
+  (`pipdeptree output is not JSON; <failure>`). The CLI reports it as one
+  coded `ERROR:` line. It is not masked as `unknown`. An empty list is a valid, empty environment.
   Stdout is parsed as bytes, so a UTF-8 BOM is accepted.
 - **Canonical order at the extractor.** pipdeptree sorts by `key`, but does
   not document it, and `build_deployed()` follows input order (`Package-N`

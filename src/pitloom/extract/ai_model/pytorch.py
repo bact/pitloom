@@ -65,6 +65,8 @@ def _dotted_name(node: Any) -> str | None:
 
 # What of fickling's own stderr output a warning quotes.
 _FICKLING_STDERR_CHARS = 200
+#: What comes before fickling's own words on stderr, relayed as they are.
+FICKLING_PREFIX = "fickling: "
 
 
 def _constructed_class(call: ast.Call) -> str | None:
@@ -199,10 +201,19 @@ def _fickling_get_top_class(pkl_file: IO[bytes]) -> str | None:
                 failure = (FICKLING_WALK_LINE, exc)
     if failure is not None:
         _warn_type_unread(*failure)
-    stderr = one_line(sink.text(), _FICKLING_STDERR_CHARS)
-    if stderr:
-        log.warning("fickling reported on stderr: %s", stderr)
+    if sink.text().strip():
+        _relay_fickling_stderr(sink.text())
     return type_of_model
+
+
+def _relay_fickling_stderr(text: str) -> None:
+    """One ``WARNING:`` of what fickling wrote to stderr, *text*, after
+    :data:`FICKLING_PREFIX`: its own words, on one line, a URL's credentials
+    masked, cut to :data:`_FICKLING_STDERR_CHARS` characters, escaped."""
+    # The prefix is a constant, the text a %s argument: the shape the
+    # message inventory reads as a prefixed relay.
+    # pylint: disable-next=logging-not-lazy
+    log.warning(FICKLING_PREFIX + "%s", one_line(text, _FICKLING_STDERR_CHARS))
 
 
 def _read_pytorch_zip(

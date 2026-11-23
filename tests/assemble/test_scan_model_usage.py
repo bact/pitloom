@@ -357,7 +357,7 @@ def test_hint_text_has_one_source() -> None:
         for p in root.rglob("*.py")
         if "AI model file(s); pass --scan-model-usage" in p.read_text(encoding="utf-8")
     ]
-    assert [p.name for p in hits] == ["scanner.py"]
+    assert [p.name for p in hits] == ["_usage_unusable.py"]  # the catalogue
 
 
 def _sdist(tmp: Path, project: Path) -> Path:

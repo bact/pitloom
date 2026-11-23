@@ -25,10 +25,12 @@ import os
 import shutil
 import tempfile
 import zipfile
+from collections.abc import Iterator
 from datetime import datetime, timezone
 from pathlib import Path
 
 from pitloom._embed_stale import stale_sboms
+from pitloom._sbom_io import write_sbom_output
 from pitloom._wheel_sbom_location import (
     _find_dist_info_prefix,
     read_wheel_member,
@@ -50,9 +52,13 @@ from pitloom.core.wheel_dist_info import (
 )
 from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
 from pitloom.logging_config import configure_logging
-from pitloom.messages import emit
+from pitloom.messages import code_of, emit
 from pitloom.messages.config import Parameter, invalid_value
-from pitloom.messages.files import FILE_UNWRITABLE_MODE
+from pitloom.messages.files import (
+    FILE_UNWRITABLE_MODE,
+    SBOM_USE,
+    file_unwritable_error,
+)
 from pitloom.messages.wheels import (
     refuse_non_conforming,
     refuse_signed,
@@ -385,6 +391,33 @@ def _rewrite_wheel_archive(
         raise
 
 
+@contextlib.contextmanager
+def _coded_write(file: str | os.PathLike[str]) -> Iterator[None]:
+    """Say a write of *file* (as the line names it) the system refuses as
+    ``file-unwritable`` for the SBOM: an :class:`OSError` that carries a
+    code of ours (a refused read of the wheel) passes as it is."""
+    try:
+        yield
+    except OSError as exc:
+        if code_of(exc) is not None:
+            raise
+        raise file_unwritable_error(exc, file=file, use=SBOM_USE) from exc
+
+
+def write_sbom_copy(sbom_json: str, output_path: Path | str | None) -> None:
+    """Write the copy of an embedded SBOM that ``-o`` asks for
+    (:func:`~pitloom._sbom_io.write_sbom_output`): a write the system refuses
+    is ``file-unwritable`` for *output_path* as given.
+
+    Raises:
+        pitloom.messages.CodedOSError: The system refused the write.
+    """
+    if output_path is None:
+        return
+    with _coded_write(output_path):
+        write_sbom_output(sbom_json, output_path)
+
+
 def embed_sbom_in_wheel(
     wheel_path: Path | str,
     sbom_content: str | bytes,
@@ -413,7 +446,8 @@ def embed_sbom_in_wheel(
     Raises:
         FileNotFoundError: Nothing is at *wheel_path*, or not a regular
             file (``input-not-found``, carrying the code).
-        ValueError: *sbom_content* is empty, or the wheel's content is bad
+        ValueError: *sbom_content* is empty or white space only
+            (``option-invalid``), or the wheel's content is bad
             (missing/ambiguous ``.dist-info``), or the wheel is refused
             (:class:`~pitloom.core.wheel_dist_info.WheelRefused`): not a ZIP
             archive, a member cannot be read (damaged, encrypted,
@@ -423,6 +457,10 @@ def embed_sbom_in_wheel(
             The wheel is left as it was.
         pitloom.messages.CodedValueError: *wheel_path* cannot be looked at
             (``file-unreadable``: a directory on its way refuses search).
+        pitloom.messages.CodedOSError: The system refused the write of the
+            new wheel (no write permission on its directory, a full disk):
+            ``file-unwritable``, the wheel named by its file name. The wheel
+            is left as it was.
         OSError: An environment problem opening the file itself (its own
             permissions, a transient I/O error) -- kept as its own
             exception type, not folded into ``ValueError``.
@@ -435,7 +473,7 @@ def embed_sbom_in_wheel(
         sbom_content.encode("utf-8") if isinstance(sbom_content, str) else sbom_content
     )
     if not sbom_bytes.strip():
-        raise ValueError("SBOM content cannot be empty")
+        raise invalid_value(Parameter("sbom_content"), "sbom-content", got=sbom_content)
 
     orig_mode = wheel_obj.stat().st_mode if wheel_obj.exists() else None
 
@@ -456,20 +494,22 @@ def embed_sbom_in_wheel(
             identity,
             archive=named.name,
         )
-        temp_path = _rewrite_wheel_archive(
-            wheel_obj,
-            original_zf,
-            plan.sbom_arcname,
-            sbom_bytes,
-            plan.record_arcname,
-            plan.new_record_bytes,
-            plan.timestamp,
-            plan.stale_arcnames,
-            name=named.name,
-        )
+        with _coded_write(named.name):
+            temp_path = _rewrite_wheel_archive(
+                wheel_obj,
+                original_zf,
+                plan.sbom_arcname,
+                sbom_bytes,
+                plan.record_arcname,
+                plan.new_record_bytes,
+                plan.timestamp,
+                plan.stale_arcnames,
+                name=named.name,
+            )
 
     try:
-        os.replace(temp_path, wheel_obj)
+        with _coded_write(named.name):
+            os.replace(temp_path, wheel_obj)
         if orig_mode is not None:
             try:
                 os.chmod(wheel_obj, orig_mode)

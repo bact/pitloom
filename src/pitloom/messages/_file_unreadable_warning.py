@@ -6,9 +6,10 @@
 """The one ``WARNING:`` for a file Pitloom could not read
 (:func:`warn_file_unreadable`) and for a directory it could not list
 (:func:`warn_dir_unlistable`), and the one error for a file whose read
-raises (:func:`file_unreadable_error`) and a directory whose listing raises
-(:func:`dir_unlistable_error`): the entry chosen by the exception, and never
-for one that is absent.
+raises (:func:`file_unreadable_error`), a directory whose listing raises
+(:func:`dir_unlistable_error`) and a file whose write raises
+(:func:`file_unwritable_error`): the entry chosen by the exception, and
+never for one that is absent.
 
 See also: :mod:`pitloom.messages._file_unreadable` (the entries).
 """
@@ -21,7 +22,7 @@ import os
 from pitloom.core.internal_error import InternalError
 from pitloom.core.path_confine import OutsideRootError
 from pitloom.core.path_probe import is_missing_errno
-from pitloom.messages._emit import CodedValueError, emit
+from pitloom.messages._emit import CodedOSError, CodedValueError, emit
 from pitloom.messages._file_unreadable import (
     DIR_ERROR_LINE,
     DIR_UNLISTABLE,
@@ -32,7 +33,37 @@ from pitloom.messages._file_unreadable import (
     HEADER_ERROR_LINE,
     NOT_UTF8_ERROR_LINE,
 )
+from pitloom.messages._file_unwritable import FILE_UNWRITABLE, WRITE_ERROR_LINE
 from pitloom.messages._types import Message
+
+
+def system_failure(exc: BaseException) -> BaseException:
+    """*exc* as a ``failure`` value says it: an :class:`OSError` the system
+    raised with no description of its own (``FileNotFoundError('gone
+    /abs/x.whl')``, whose text quotes a path) stands as a bare one of its
+    class, said by the class name; any other exception as it is."""
+    if not isinstance(exc, OSError) or exc.strerror:
+        return exc
+    try:
+        return type(exc)()
+    except TypeError:
+        return OSError()
+
+
+def file_unwritable_error(
+    exc: OSError, *, file: str | os.PathLike[str], use: str
+) -> CodedOSError:
+    """The error to raise for the file *file* (as the line names it) that
+    *exc* stopped Pitloom writing for *use* (one of
+    :data:`~pitloom.messages._field_tables.READ_USES`), ``file-unwritable``:
+    what *exc* reports, never its text. The caller raises it ``from exc``."""
+    return CodedOSError(
+        FILE_UNWRITABLE,
+        line=WRITE_ERROR_LINE,
+        file=file,
+        use=use,
+        failure=system_failure(exc),
+    )
 
 
 def _refuse_absent(exc: BaseException) -> None:
@@ -174,7 +205,11 @@ def file_unreadable_error(
         if use is None:
             raise InternalError("a text not UTF-8 is read for a use")
         return CodedValueError(
-            entry, line=NOT_UTF8_ERROR_LINE, file=file, use=use, failure=exc
+            entry,
+            line=NOT_UTF8_ERROR_LINE,
+            file=file,
+            use=use,
+            failure=system_failure(exc),
         )
     if model_format is not None:
         return CodedValueError(
@@ -182,10 +217,14 @@ def file_unreadable_error(
             line=HEADER_ERROR_LINE,
             file=file,
             format=model_format,
-            failure=exc,
+            failure=system_failure(exc),
         )
     return CodedValueError(
-        FILE_UNREADABLE, line=FILE_ERROR_LINE, file=file, use=use, failure=exc
+        FILE_UNREADABLE,
+        line=FILE_ERROR_LINE,
+        file=file,
+        use=use,
+        failure=system_failure(exc),
     )
 
 

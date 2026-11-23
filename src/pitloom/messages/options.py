@@ -23,6 +23,8 @@ from pitloom.messages._options import (
     MODE_UNREAD_LINE,
     NAMESPACE_CONFLICT_LINE,
     NAMESPACE_CONFLICT_MASKED_LINE,
+    NAMESPACE_EMPTY_LINE,
+    NAMESPACE_INVALID_LINE,
     OPTION_CONFLICT,
     OPTION_INVALID,
     OPTION_MISSING,
@@ -41,6 +43,7 @@ from pitloom.messages._options import (
     namespace_conflict_line,
 )
 from pitloom.messages._options_say import (
+    namespace_invalid,
     usage_code,
     warn_option_no_effect,
 )
@@ -54,6 +57,8 @@ __all__ = [
     "FINGERPRINT_SHAPE",
     "NAMESPACE_CONFLICT_LINE",
     "NAMESPACE_CONFLICT_MASKED_LINE",
+    "NAMESPACE_EMPTY_LINE",
+    "NAMESPACE_INVALID_LINE",
     "OPTION_CONFLICT",
     "OPTION_INVALID",
     "OPTION_MISSING",
@@ -71,6 +76,7 @@ __all__ = [
     "URL_CREDENTIALS_MODE_ARGUMENT_LINE",
     "VALUE_LINE",
     "namespace_conflict_line",
+    "namespace_invalid",
     "usage_code",
     "warn_option_no_effect",
 ]

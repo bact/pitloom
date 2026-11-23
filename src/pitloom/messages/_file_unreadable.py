@@ -53,11 +53,23 @@ HEADER_LINE: Final = Line(
 #: The same, where the read raises: the only model file of a folder named as
 #: a model.
 HEADER_ERROR_LINE: Final = Line(level="ERROR", template=HEADER_LINE.template)
+#: A loom dataset directory whose card could not be read for a reason that
+#: names no file of it (the current directory gone while the run lasts).
+DIR_READ_LINE: Final = Line(
+    level="WARNING", template="DIR=%(dir)s: could not read %(use)s; %(failure)s"
+)
 
 FILE_UNREADABLE: Final = Message(
     code="file-unreadable",
     condition="unreadable",
-    lines=(FILE_LINE, FIELD_LINE, HEADER_LINE, FILE_ERROR_LINE, HEADER_ERROR_LINE),
+    lines=(
+        FILE_LINE,
+        FIELD_LINE,
+        HEADER_LINE,
+        DIR_READ_LINE,
+        FILE_ERROR_LINE,
+        HEADER_ERROR_LINE,
+    ),
     summary="A file Pitloom found or was named could not be read: the "
     "operating system refused it (no read permission, a directory above it "
     "without search permission, a file another program holds open on "
@@ -67,7 +79,12 @@ FILE_UNREADABLE: Final = Message(
     "without search permission says so 'for the input check', not that it "
     "is not found. The ERROR line for an SBOM given to 'loom id import' or "
     "to embed, for an ID registry file, for a 'loom id generate' PATH, for "
-    f"a configuration file and for the input check, prints since {_SINCE_SBOM}.",
+    f"a configuration file and for the input check, prints since "
+    f"{_SINCE_SBOM}. A wheel given to verify-wheel, validate-wheel or "
+    "embed-wheel that the system refuses is said 'for the SBOM'. The DIR= "
+    "line is a loom dataset directory whose dataset card could not be read "
+    "for a reason that names no file of it (the current directory removed "
+    "while the run lasts).",
     did="Read nothing more of it and went on without what it holds, as the "
     "line says what it was read for: a file scan leaves the file out of the "
     "SBOM (loom embed-wheel keeps it, with the wheel's own hash); a hash "
@@ -78,7 +95,8 @@ FILE_UNREADABLE: Final = Message(
     "leaves it out of the index; an ID registry file read again to save the "
     "ids a run added is not saved; no dependency pins are read from a lock "
     "file; a model whose header could not be read is not listed as an AI "
-    "model; a model or dataset card sets none of the fields it states; "
+    "model; a model or dataset card (the DIR= line too) sets none of the "
+    "fields it states; "
     "installed project metadata is ignored, and a setup.cfg or setup.py read "
     "beside another source leaves the project read without it. As an "
     "ERROR, the call that named the file raises (a Croissant document: the "
@@ -91,7 +109,8 @@ FILE_UNREADABLE: Final = Message(
     "possible "
     "model file of a folder named for a model SBOM: no SBOM is written; the "
     "input check: the command writes nothing and exits 1, the library "
-    "raises ValueError carrying the code).",
+    "raises ValueError carrying the code; a wheel of verify-wheel, "
+    "validate-wheel or embed-wheel fails alone, the others go on).",
     effect="thinner",
     actor="user",
     advice="Tell the user which file could not be read and what the system "
