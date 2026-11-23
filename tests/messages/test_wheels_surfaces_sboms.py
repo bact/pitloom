@@ -58,7 +58,7 @@ def _given(tmp_path: Path, content: bytes, name: str = "given.json") -> Path:
     return path
 
 
-# -- missing, ambiguous: the caller's mistake, an ERROR on verify and validate ----
+# -- missing, ambiguous: the caller's mistake, an ERROR on verify and validate -
 
 
 @pytest.mark.parametrize("command", ["verify-wheel", "validate-wheel"])
@@ -110,7 +110,7 @@ def test_several_sboms_are_ambiguous_unless_one_is_named(
     assert "wheel-sbom-ambiguous" not in named.codes  # valid or not, it is read
 
 
-# -- wrong format, unusable, conflict ----------------------------------------------
+# -- wrong format, unusable, conflict ------------------------------------------
 
 
 def test_verify_says_a_wrong_extension_and_an_unknown_format_as_warnings(
@@ -211,7 +211,7 @@ def test_a_mismatch_says_one_line_per_differing_part_at_the_level_the_command_gi
     assert allowed.status == 0 and allowed.err == [f"WARNING: {x}" for x in lines]
 
 
-# -- held SBOMs, the ZIP date floor, the project-dir note, the file mode ----------
+# -- held SBOMs, the ZIP date floor, the project-dir note, the file mode -------
 
 
 @pytest.mark.parametrize(
@@ -264,7 +264,7 @@ def test_an_embed_on_the_zip_date_floor_says_so_once_per_wheel(
         for n in ("one", "two")
     ]
     with zipfile.ZipFile(one) as zf:
-        assert zf.getinfo(f"one-1.0.dist-info/sboms/one-1.0.spdx3.json").date_time == (
+        assert zf.getinfo("one-1.0.dist-info/sboms/one-1.0.spdx3.json").date_time == (
             1980,
             1,
             1,
@@ -306,7 +306,7 @@ def test_the_project_dir_note_is_one_info_when_a_pyproject_is_here(
     assert "option-missing/project-dir" not in quiet.codes
 
 
-# -- the validator's text and the summaries -----------------------------------------
+# -- the validator's text and the summaries ------------------------------------
 
 
 _BAD_VERSION = {

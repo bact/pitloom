@@ -16,6 +16,8 @@ tests/messages/test_wheels_surfaces_sboms.py (the commands) and
 tests/messages/test_wheels_core.py (the helpers).
 """
 
+# pylint: disable=protected-access
+
 from __future__ import annotations
 
 import codecs
@@ -29,9 +31,7 @@ from unittest.mock import patch
 import pytest
 
 from pitloom.assemble import find_embedded_sbom
-from pitloom.core._models_wheel_build_and_read import (  # pylint: disable=protected-access
-    _extract_wheel_to_included_files,
-)
+from pitloom.core._models_wheel_build_and_read import _extract_wheel_to_included_files
 from pitloom.embed import embed_wheel_sbom
 from pitloom.logging_config import CODE_ATTR
 from pitloom.messages import (
@@ -71,7 +71,7 @@ def _records(caplog: pytest.LogCaptureFixture) -> list[tuple[str, str, str | Non
     ]
 
 
-# -- the library: every refusal is a ValueError that carries its code ---------------
+# -- the library: every refusal is a ValueError that carries its code ----------
 
 
 def _unreadable(directory: Path) -> Path:
@@ -212,7 +212,7 @@ def test_the_library_says_a_member_it_leaves_out_with_its_code(
     ]
 
 
-# -- the Hatchling hook -----------------------------------------------------------------
+# -- the Hatchling hook --------------------------------------------------------
 
 
 def _project(root: Path, extra: str = "") -> Path:
@@ -287,7 +287,7 @@ def test_the_hook_says_an_unusable_hatchling_once_as_a_coded_value_error(
     assert trusted(line) is MESSAGES["library-unusable/hatchling"]
 
 
-# -- the build route -----------------------------------------------------------------------
+# -- the build route -----------------------------------------------------------
 
 
 def test_the_build_route_says_not_copied_behind_its_frame(

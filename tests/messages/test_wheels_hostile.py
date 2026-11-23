@@ -85,7 +85,7 @@ def _only(done: Run, code: str, *, cut: bool = False) -> str:
     return line
 
 
-# -- member names ---------------------------------------------------------------------
+# -- member names ------------------------------------------------------------
 
 
 @pytest.mark.parametrize("kind", ["unsafe", "normalised"])
@@ -183,7 +183,7 @@ def test_an_sdist_with_shared_hostile_paths_is_one_safe_line(
     )
 
 
-# -- SBOM names, declared values, the file name asked for ---------------------------
+# -- SBOM names, declared values, the file name asked for --------------------
 
 
 def test_a_hostile_sbom_filename_asked_for_is_one_safe_quoted_error(
@@ -254,12 +254,12 @@ def test_a_declared_name_in_a_mismatch_is_one_cut_masked_line(
         lines = [ln for ln in done.err if not ln.startswith("INFO: ")]
         (line,) = lines
         _one_safe_line(line, "wheel-sbom-conflict")
-        assert line.startswith(("ERROR: loom verify-wheel: " if fail else "WARNING: "))
+        assert line.startswith("ERROR: loom verify-wheel: " if fail else "WARNING: ")
         assert len(line) < 1_000  # a value is shown as an excerpt, never whole
         assert done.status == (1 if fail else 0)
 
 
-# -- the validator's text ----------------------------------------------------------------
+# -- the validator's text ----------------------------------------------------
 
 
 @pytest.mark.parametrize(

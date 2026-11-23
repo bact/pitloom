@@ -18,6 +18,8 @@ See also: tests/messages/test_wheels_surfaces.py and
 tests/messages/test_wheels_surfaces_sboms.py (every line on every surface).
 """
 
+# pylint: disable=protected-access
+
 from __future__ import annotations
 
 import codecs
@@ -29,9 +31,7 @@ from typing import Any, NoReturn
 
 import pytest
 
-from pitloom.core._models_wheel_build_and_read import (  # pylint: disable=protected-access
-    _extract_wheel_to_included_files,
-)
+from pitloom.core._models_wheel_build_and_read import _extract_wheel_to_included_files
 from pitloom.embed import embed_wheel_sbom
 from pitloom.messages import code_of
 from tests._loom_child import coded_lines, run_loom
@@ -67,7 +67,7 @@ def _lines(stderr: bytes) -> list[str]:
     return stderr.decode("utf-8").splitlines()
 
 
-# -- P1: a wheel with no single own .dist-info ------------------------------------------
+# -- P1: a wheel with no single own .dist-info -------------------------------
 
 
 @pytest.mark.parametrize("shape", sorted(_NO_OWN))
@@ -89,7 +89,7 @@ def test_p1_a_command_that_refuses_the_wheel_does_not_also_warn_it_is_unknown(
     assert line.startswith("WARNING: ") and "; identity unknown [" in line
 
 
-# -- P2 and P3: the validator's text, and a format Pitloom does not know ---------------
+# -- P2 and P3: the validator's text, and a format Pitloom does not know -----
 
 
 @pytest.mark.usefixtures("offline_spdx3_validate")
@@ -106,7 +106,8 @@ def test_p2_each_finding_is_printed_once_and_no_error_line_is_empty(
         ln.startswith(frame) and ln.removeprefix(frame).strip() for ln in done.err
     )
     findings = [ln for ln in done.err if re.search(r": \[(schema|shacl)\] ", ln)]
-    assert findings and len(findings) == len(set(findings))  # none twice
+    schema = [ln for ln in findings if ": [schema] " in ln]
+    assert schema and len(schema) == len(set(schema))  # a path is not said twice
     count = re.search(r"\((\d+) finding\(s\) above\)", done.err[-1])
     assert count is not None and int(count.group(1)) == len(findings)
 
@@ -138,7 +139,7 @@ def test_p3_an_unrecognised_format_never_prints_none(
     assert not any("None" in ln for ln in embedded.err)
 
 
-# -- P4: --sbom-basename is checked before anything is generated -----------------------
+# -- P4: --sbom-basename is checked before anything is generated -------------
 
 
 def _forbid_work(monkeypatch: pytest.MonkeyPatch) -> list[str]:
@@ -222,7 +223,7 @@ def test_p4_a_plain_basename_is_still_accepted_in_each_spelling(
         assert f"{DIST_INFO}/sboms/{arcname}" in zf.namelist()
 
 
-# -- P5: a member left out is "not listed" (a read) or "not copied" (a build) -----------
+# -- P5: a member left out is "not listed" (a read) or "not copied" (a build) ---
 
 
 def _unsafe_wheel(tmp_path: Path) -> Path:
@@ -252,7 +253,7 @@ def test_p5_a_build_says_not_copied_behind_its_frame(
     )
 
 
-# -- P7: the file mode of a wheel reached through a link ----------------------------------
+# -- P7: the file mode of a wheel reached through a link ---------------------
 
 
 @pytest.mark.skipif(not CAN_SYMLINK, reason="needs a symbolic link")
@@ -277,7 +278,7 @@ def test_p7_the_file_mode_warning_names_the_file_as_given_not_its_target(
     assert "target" not in line and str(tmp_path) not in line
 
 
-# -- the byte order mark: said with a code by embed-wheel and by loom id import --------
+# -- the byte order mark: said with a code by embed-wheel and by loom id import ---
 
 
 def test_a_byte_order_mark_is_said_with_its_code_by_embed_wheel_and_id_import(

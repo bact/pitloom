@@ -164,7 +164,7 @@ def test_wheel_and_generate_only_warn_when_the_identity_is_unknown(
     assert done.err == [f"WARNING: {_ARCHIVE}{tail}; identity unknown [{code}]"]
 
 
-# -- the .dist-info the file name does not name, METADATA that is not there ------
+# -- the .dist-info the file name does not name, METADATA that is not there ---
 
 
 def _renamed(directory: Path) -> Path:
@@ -218,7 +218,7 @@ def test_embed_wheel_warns_where_the_name_only_names_the_package(
     assert done.codes == ["dist-info-conflict"] and done.err[0].startswith("WARNING: ")
 
 
-# -- unusable: a signature, a name that is not one ----------------------------------
+# -- unusable: a signature, a name that is not one ---------------------------
 
 
 def _signed(directory: Path) -> Path:
@@ -309,7 +309,7 @@ def test_a_member_that_cannot_be_read_is_a_refusal_naming_it(
     ]
 
 
-# -- archive members: the same lines on a wheel and on an sdist ---------------------
+# -- archive members: the same lines on a wheel and on an sdist --------------
 
 _MEMBERS = {
     f"{DIST_INFO}/METADATA": metadata(),
@@ -319,6 +319,7 @@ _MEMBERS = {
     "demo/dir/f.py": b"z",
     "/abs.py": b"",
 }
+PYPROJECT = b'[project]\nname = "demo"\nversion = "1.0.0"\n'
 _MEMBER_LINES = [
     f"WARNING: {_ARCHIVE} ENTRY='demo\\a.py': non-conforming name; listed as "
     "'demo/a.py' [archive-member-invalid]",
@@ -355,7 +356,7 @@ def test_an_sdist_whose_members_share_a_project_path_says_which(
         tmp_path / "demo-1.0.0.tar.gz",
         {
             "demo-1.0.0/PKG-INFO": metadata("demo", "1.0.0"),
-            "demo-1.0.0/pyproject.toml": b'[project]\nname = "demo"\nversion = "1.0.0"\n',
+            "demo-1.0.0/pyproject.toml": PYPROJECT,
             "demo-1.0.0/x.py": b"1",
             "x.py": b"2",
             "demo-1.0.0/y.py": b"1",
