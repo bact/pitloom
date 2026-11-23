@@ -148,14 +148,21 @@ def test_distinct_ascii_values_get_no_note() -> None:
     assert compared_pair("demo", "demo2") == ("demo", "demo2")
 
 
+_LOOP: list[object] = []
+_LOOP.append(_LOOP)
+
+
 @pytest.mark.parametrize(
     ("value", "shown"),
     [
         (["a  b\t"], "'[\"a  b\\\\t\"]'"),
         ({"b": 1, "a": None}, '\'{"a": null, "b": 1}\''),
         (5, "'5'"),
+        # JSON refuses these: the shown form falls back to the value's repr.
+        ({1}, "'{1}'"),
+        (_LOOP, "'[[...]]'"),
     ],
-    ids=["list", "dict", "int"],
+    ids=["list", "dict", "int", "set", "circular"],
 )
 def test_a_value_not_text_is_shown_as_json(value: object, shown: str) -> None:
     assert compared_text(value) == shown
