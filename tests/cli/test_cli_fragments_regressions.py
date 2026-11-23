@@ -266,7 +266,8 @@ def test_fragment_list_with_nothing_configured_says_so_and_prints_nothing(
     )
     done = run_loom(["fragment", "list", "--project-dir", str(project)], tmp_path)
     assert done.returncode == 0
-    assert done.stderr == b"INFO: fragment list: no fragments configured\n"
+    # splitlines: a Windows child ends its lines with CRLF.
+    assert done.stderr.splitlines() == [b"INFO: fragment list: no fragments configured"]
     assert done.stdout == b""
 
 
