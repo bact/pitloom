@@ -47,7 +47,8 @@ jobs:
 
       - uses: ./.github/actions/setup-python
         with:
-          python-version: "3.x"
+          # atheris has no wheel for newer CPython; raise the pin when it does.
+          python-version: "3.14"
 
       - name: Install project and fuzz dependencies
         uses: ./.github/actions/install-pitloom
