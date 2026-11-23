@@ -17,6 +17,7 @@ both totals), :mod:`tests.core.test_model_parameters` (the rules).
 from __future__ import annotations
 
 import json
+import logging
 from typing import Any
 
 import pytest
@@ -187,3 +188,22 @@ def test_the_owner_and_count_reach_the_sbom() -> None:
     assert f"{PARAMETER_COUNT_PROVENANCE_KEY}: {_ST_COUNT}" in lines[1]
     assert f"{ORIGINATORS_PROVENANCE_KEY}: {_OWNER_PROVENANCE}" in lines[1]
     assert f"{SUPPLIER_PROVENANCE_KEY}: {_OWNER_PROVENANCE}" in lines[1]
+
+
+def test_the_warning_names_the_model_url_masked_before_it_is_escaped(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A Hub URL whose model name holds a token split by a zero-width space
+    is named with the token masked, in the count warning and the G7 notice:
+    escaped first, the token would be two runs of letters the masker cannot
+    read as one."""
+    caplog.set_level(logging.INFO, logger="pitloom")
+    half = "T0KENaB3aB3aB3aB3a"
+    url = f"https://huggingface.co/o/ghp_{half}\u200bB3aB3aB3aB3aB3aB3x"
+    with _patch_hf_calls(hub_info={"author": "o", "sha": "x", "safetensors_total": -1}):
+        read_huggingface(url)
+    (message,) = logged_warnings(caplog)
+    assert "ghp_***" in message
+    infos = [r.getMessage() for r in caplog.records if r.levelno == logging.INFO]
+    assert any("ghp_***" in info for info in infos)
+    assert not any(half in r.getMessage() for r in caplog.records)

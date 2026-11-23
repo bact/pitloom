@@ -394,6 +394,9 @@ _ADVERSARIAL: dict[str, Callable[[int], str]] = {
     "escaped-near-tokens": lambda n: ("\\x1bglpat-" + "Ab1" * 6) * (n // 28),
     "scheme-separators": lambda n: "Bearer" + "\\t" * (n // 2) + "!",
     "scheme-short-runs": lambda n: "bearer abc\\t" * (n // 12),
+    "scheme-long-run": lambda n: "Bearer " + "aB3" * (n // 3),
+    "header-runs": lambda n: "Authorization: Bearer x " * (n // 24),
+    "header-gaps": lambda n: "authorization" + " " * n + "x",
 }
 
 

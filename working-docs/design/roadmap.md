@@ -167,16 +167,15 @@ counts are in [message-catalogue-migration-plan.md](message-catalogue-migration-
   [message-catalogue-review-rounds.md](../implementation/message-catalogue-review-rounds.md);
   also a NUL byte in a library registry path raises `InternalError`, and
   `test_each_view_is_linear` flaked twice on CI runners (bound now 64, retried).
-- [x] **Log masker: a token after an escaped control character** (PR 13
-  round 1; fixed in #526, with `Bearer`/`Basic`). See
-  [log-masker-escaped-tokens.md](../implementation/log-masker-escaped-tokens.md),
-  which lists what is left (escape-first `loggable` call sites).
-- [ ] **PR 14a follow-ups** (round 5, see the review-rounds page): the PDM
-  discoverer's `pitloom-unused-<uuid>` directory is created by pdm-backend and
+- [ ] **Log masker leftovers** (#526): ~50 `loggable(x)` log sites escape
+  first (zero-width-split token); a token after an ANSI colour (`\x1b[33m`);
+  non-ASCII/`@` scp passwords; `Cookie:`, `X-Api-Key:`; `Bearer 'x'`. See
+  [log-masker-escaped-tokens.md](../implementation/log-masker-escaped-tokens.md).
+- [ ] **PR 14a follow-ups** (round 5): the PDM
+  discoverer's `pitloom-unused-<uuid>` directory, made by pdm-backend, is
   never removed (`_models_wheel_pdm.py:181`, `extract/project/pdm.py:160`);
   a signal test depends on the child's inherited SIGINT disposition (a
-  backgrounded shell ignores it);
-  `docs/git-urls.md` is over the 30 KB limit.
+  backgrounded shell ignores it); `docs/git-urls.md` is over 30 KB.
 - [ ] **Unexplained CI hang** (2026-11-21, PR #507's first 3.14 ubuntu run):
   two xdist workers stopped for 23 minutes in `tests/core/models_wheel`
   (`test_models_wheel_guard.py::test_a_link_loop_in_a_clone_is_stopped_by_the_cap[setuptools-find]`

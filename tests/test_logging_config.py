@@ -277,6 +277,16 @@ def test_excerpt_masks_a_url_before_it_cuts() -> None:
     assert "secret" not in shown and "user:" not in shown
 
 
+@pytest.mark.parametrize("space", ["\n", "\t", "\r\n"], ids=["lf", "tab", "crlf"])
+def test_excerpt_masks_a_password_before_it_collapses_white_space(space: str) -> None:
+    """A line break or a tab inside a URL's password is masked with the
+    rest of it, not turned into a space first, which ends the user
+    information and shows both halves."""
+    shown = excerpt(f"see https://u:pa{space}ss99@h/x")
+    assert "pa" not in shown and "ss99" not in shown
+    assert shown == "'see https://***:***@h/x'"
+
+
 @pytest.mark.parametrize(
     ("text", "escaped"),
     [

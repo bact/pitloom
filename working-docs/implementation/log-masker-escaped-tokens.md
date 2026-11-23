@@ -64,43 +64,71 @@ Windows folder `C:\tghp_...`) reads as an escape.
 `git._prepare` dropped its `sanitize_url_credentials` pass: `masked` masks an
 scp-style address too.
 
-**`Bearer`/`Basic`** (`core/url_masking/_auth_schemes.py`): the word, any
-case, not glued (`_`, `-`, letter, digit) or after an escape; one or more
-spaces, tabs, `\t` or `%20`; a run of RFC 6750 `b64token` characters
-(`[A-Za-z0-9._~+/=-]`, `_` included: base64url and JWTs use it, the brief's
-class lacked it). A `.` ending the run is a sentence end and kept. The run is
-a credential when it has 8 or more characters and a digit, one of `.~+/=`,
-mixed case past a capital first one (`dXNlcjpwYXNz`), or 20 or more
-characters; `-` and `_` alone do not count. A `Basic` run must be standard
-base64 (`[A-Za-z0-9+/]+={0,2}`). The scheme and separators are kept:
-`Bearer ***`. The run is read in a lookahead and replaced by hand, so a
-short run (prose) does not consume a later scheme (`Bearer bearer 1234abcd`
-masks the second). Runs never overlap, so it is linear.
+**`Bearer`/`Basic`/`Authorization`** (`core/url_masking/_auth_schemes.py`,
+final rule after the security review below), two passes:
+
+- After a header name (`Authorization`, `Proxy-Authorization`, any case, not
+  glued to a letter, digit, `_` or `-`; an optional quote, also `\"`; white
+  space or an escaped tab; `:` or `=`; the same again): the scheme `Bearer`,
+  `Basic`, `token` or `Digest`, then the run of RFC 6750 `b64token`
+  characters (`[A-Za-z0-9._~+/=-]`) is masked whatever its length or shape.
+  A placeholder (`<token>`, `${TOKEN}`, `$GITHUB_TOKEN`) starts with no such
+  character and is kept; `Authorization: Bearer token required` prints
+  `Bearer *** required` (accepted). For `Digest`, only the `response=` value,
+  up to the next header name or the line end.
+- After `Bearer` or `Basic` alone: a run of 8 characters or more that ends in
+  `=`, is digits only, holds `~` or `+`, or holds a word (letters and digits
+  between the other characters) that is 20 characters or more, has a
+  single lower-case letter among other runs (`dXNlcjpwYXNz`, `s3cr3t`), has
+  2 digits or more before its end (`abcd12efgh`, `1234abcd`), or ends in
+  digits at least as many as its letters (`abcd1234`). `Basic` must be
+  base64. `/` and `.` count for nothing on their own: the words decide.
+- Separators for both: spaces, tabs, no-break spaces, `%20`, the escaped tab
+  and no-break space once or doubled (`\t`, `\\t`, `\xa0`, `\\xa0`). A `.`
+  ending a run is kept; a run is masked whole (`Bearer s3cr3tvalue99.gguf`
+  prints `Bearer ***`, the extension lost, by decision).
+- Each run is read in a lookahead and replaced from a span list, so a prose
+  run does not hide a later scheme; runs never overlap.
 
 ## Probe corpus (`Bearer`/`Basic`)
 
-Kept as written (26 prose texts): `the bearer of bad news`, `Bearer token
-required`, `Use Bearer authentication.`, `Use Basic authentication for the
-registry`, `a basic well-formed document`, two `WWW-Authenticate` challenges
-(`realm=...`), `bearer-token`, `HTTP Basic Auth`, `Authorization: Bearer
-<token>`, `Bearer ${TOKEN}`, `Bearer $GITHUB_TOKEN`, `basic_auth = True`,
-`Basic Authentication`, `Bearer Token-Based scheme`, `the bearer co-signer`,
-`Bearer access_token`, `basic 2024-edition`, `basic 20240101-x`, `Basic usage
-examples`, `basicConfiguration`, `Bearer: none`, `Bearer tokens are described
-in RFC`, `Basic and Digest schemes`, `subearer abcdef123456`, `x-basic
-abc12345678`.
+The first version (a digit, one of `.~+/=`, mixed case, or 20 characters)
+kept 26 prose texts (`the bearer of bad news`, `Bearer token required`,
+`Use Bearer authentication.`, `Basic Authentication`, `a basic well-formed
+document`, `WWW-Authenticate` challenges, `Bearer $GITHUB_TOKEN`, `Bearer
+access_token`, ...), all still kept. While choosing it, `_` as a mark
+(`Bearer access_token`), no base64 check (`basic 20240101-x`) and no
+trailing-`.` strip (`Use Bearer authentication.`) were false positives, fixed.
 
-False positives found while choosing the rule, and fixed: with `_` counting
-as a mark, `Bearer access_token` was masked (`_` dropped from the marks);
-without the base64 check, `basic 20240101-x` and a hyphenated word after
-`basic` would be; without the trailing-`.` strip, `Use Bearer
-authentication.` was. Left (accepted, fails closed): a camelCase word or a
-20-letter word after the scheme (`Basic HTTPAuthentication`), a version
-after `Bearer` (`Bearer 1.2.3-beta`).
+The security review then found these masked, now kept (all in the test
+corpus): `basic types/values`, `Basic usage/configuration`, `use bearer
+tokens/keys`, `requires basic understanding/skill`, `Basic tutorial2024`,
+`see Bearer RFC-6750-style`, `Basic Latin1Supplement`, `bearer
+requests.auth.HTTPBearer`, `https://h/guide/bearer%20tokens/setup`, and the
+file name `Bearer Token.txt` through `escaped_name` (it printed `Bearer ***`,
+the extension lost). Also kept now: `Bearer 1.2.3-beta`, `Bearer a.b.c.d.e.f`,
+`Bearer tokens/authorization-headers`, `Bearer error=invalid_token`, `Basic
+DevOps2024`, `X-Authorization: Bearer abcdefghij`. The reviewer's suggested
+rule (a digit counts with a capital or 2 digits before the end) would still
+mask `RFC-6750-style`, so the word-based rule was chosen instead.
 
-Missed (in `docs/url-credentials.md`): a credential under 8 characters, or of
-8 to 19 letters of one case or title case; `Digest` and GitHub's `token`
-scheme (a known token shape after them is masked).
+Three earlier positive cases relied on `/` or `.` alone and were given inputs
+that prove the rule: `Bearer abcd/efgh` became `Bearer dXNl/cjpwYXNz` (a
+random word beside a `/`), `Bearer a.b.c.d.e.f.` became `Bearer eyJh.eyJz.`
+(the `.` kept) and `Bearer a.b.c.d.e.f` is now prose; `Bearer abc.def.Bearer
+12345678x` became `Bearer eyJh.eyJz.Bearer 12345678x`.
+
+Now masked (review F2, F3): `ascii(loggable("Authorization: Bearer\ts3cr3tvalue99"))`
+and the same for `Basic` and a no-break space (doubled escapes printed raw);
+`Authorization: Bearer abcdefghij`, `... ABCDEFGHIJKLMNOPQRS`, `...
+Abcdefghijklmnop`, `... abcdefgh-ijklmno`, `Authorization: token
+abcdefgh12345678`, a quoted or escaped-JSON header, `Proxy-Authorization=Basic
+abcdefgh`, a `Digest` `response="..."`.
+
+Missed (in `docs/url-credentials.md`): after a scheme word alone, a credential
+under 8 characters, of letters only without a single lower-case letter among
+other runs, or with fewer digits at its end than letters; a `Digest` header
+over several lines; `Bearer 'x'`; `Cookie:` and `X-Api-Key:` values.
 
 ## Before and after
 
@@ -134,6 +162,32 @@ lookahead on the prefixes' first characters (`(?=[Aaghnpsx])`, `(?=[Bb])`
 for the scheme) brought it under the base. Four shapes joined the
 linear-time ratio test (`test_a_given_path_is_masked_in_linear_time`).
 
+Timing after the review (seconds, best of two, 1 MiB; base 0761d040, the
+first PR version, the reviewed version; the machine was loaded, so compare
+within a row):
+
+| Text | Base | First | Reviewed |
+| --- | --- | --- | --- |
+| `\t` repeated | 0.61 | 0.19 | 0.30 |
+| `\x1b` repeated | 0.31 | 0.40 | 0.63 |
+| `\tglpat-` + 18 near-token characters, repeated | 0.11 | 0.25 | 0.42 |
+| `Bearer` + 1 MiB of spaces | 0.96 | 0.23 | 0.32 |
+| `bearer abc\t` repeated | 0.23 | 0.29 | 0.46 |
+| `Bearer ` + 1 MiB of `a` | 0.07 | 0.26 | 0.37 |
+| `Bearer ` + 1 MiB of random mixed case | 0.10 | 0.19 | 0.18 |
+| `Bearer ` + 1 MiB of digits | 0.10 | 0.19 | 0.14 |
+| `Bearer ` + `ab/` repeated | 0.35 | 0.60 | 0.72 |
+| `Bearer ` + `AbcDef.` repeated | 0.18 | 0.36 | 0.59 |
+| `Authorization: Bearer ` + 1 MiB of `a` | 0.07 | 0.29 | 0.56 |
+| `Authorization: Bearer x ` repeated | 0.24 | 0.35 | 0.53 |
+| `authorization` + 1 MiB of spaces | 0.94 | 0.33 | 0.20 |
+| `Authorization: Digest a=1, ` repeated | 0.30 | 0.38 | 0.28 |
+
+`_looks_random` returns at once on a word of 20 characters or more, so a long
+run costs one pass. Four more shapes joined the ratio test (a long
+`Bearer` run, repeated headers, header-name gaps, repeated `Digest`
+headers): all under the bound.
+
 ## Verification
 
 - Fail on base: every new regression case fails on `git archive HEAD` (48 in
@@ -153,14 +207,54 @@ linear-time ratio test (`test_a_given_path_is_masked_in_linear_time`).
 
 ## Left open
 
+- Review fixes (F1 to F4): the rule above; `logging_config.excerpt()` masks
+  before it collapses white space (`excerpt("https://u:pa\nss99@h/x")`
+  printed `'https://u:pa ss99@h/x'`); `huggingface.py` names the model URL
+  through `url_text` (a model name from a URL may hold anything but `/?#`).
+  Every new case fails on the first PR version (33 auth and excerpt cases, 5
+  separator cases, 1 Hub URL case). Mutation of the new rule: 45 mutants
+  first, 5 survived; 4 were killed by new cases (`Basic DevOps2024`, `Bearer
+  s3cr3tx`, `Basic s3cr3t-value`, the Hub URL), one is equivalent (the run
+  lookahead `*` against `+`: an empty run is skipped either way).
+- Second review (performance and tests, M1 to M6): the two passes now
+  read the text as given and their spans are merged (overlapping or
+  touching spans write one `***`), written once through `io.StringIO`. The
+  header pass had masked a scheme word as the credential and hidden the
+  credential after it: `Authorization: Basic Bearer abcd1234efgh` printed
+  `Basic *** abcd1234efgh`, now `Basic *** ***` (and `Authorization: token
+  Bearer s3cr3tvalue99`). Peak memory of `masked_text` on 4 MiB of `Bearer
+  abcd1234 ` repeated (tracemalloc): first PR 21.5 MiB, first review fix
+  51.7 MiB, now 6.1 MiB; 4 MiB of `Authorization: Bearer x ` 46.8 to 8.7
+  MiB. `Bearer x86_64-linux` and `Bearer iPhone15Pro` stay masked (no cheap
+  rule tells them from `abcd1234` and `abcd12efgh`): pinned by a test and
+  listed as over-masked in `docs/url-credentials.md`. `Basic
+  dXNlcjpwYXNz===` (three `=`) is kept, pinned. The `Digest` scan's bound at
+  the next header is load-bearing (without it the ratio test hung): a spy
+  test now checks the searched lengths add up to the text's length, and the
+  `Digest` shape left the ratio test, so losing the bound fails fast.
+  Timing after it (1 MiB, seconds, one run): `Bearer` + letters 0.19, +
+  random mixed case 0.13, + digits 0.10; `Bearer abcd1234 ` repeated 0.27;
+  `Authorization: Bearer ` + letters 0.18; repeated headers 0.21; repeated
+  `Authorization: Basic Bearer abcd1234efgh ` 0.23; repeated `Digest`
+  headers 0.21. Mutation: the two passes run in sequence (killed by the
+  `Basic Bearer` case), each pass dropped, the merge dropped, `={0,3}` and
+  `={0,1}` padding, the `Digest` bound at the next header and at the line
+  end: killed. Equivalent: `start <= done` against `<` and `max(done, end)`
+  against `end` (spans start after a separator, so they only coincide or
+  stay apart), and dropping the early return when nothing is masked.
 - About 50 call sites still escape before the formatter masks:
   `log.warning(..., loggable(x))` across `extract/`, `core/`, `assemble/`
   (`grep -rn "loggable(" src/pitloom`), and the free-field writers
   `free_text`, `file_text`, `entity_text`. The boundary rule covers a token
   or address after an escape there; a credential split by a format character
   (a zero-width space inside a token) still prints through them. Moving them
-  to mask-first is a cross-package change, not done here.
+  to mask-first is a cross-package change, not done here. Also open: an scp
+  password with non-ASCII or a raw `@`, `Cookie:` and `X-Api-Key:` values, a
+  quoted `Bearer 'x'` (one roadmap bullet).
 - `_SCHEME_RUN_RE` and `URL_AS_PATH_RE` (no `word_start`) read
   `\thttps://u:p@h` as scheme `thttps`; its user information is masked all the
   same, so they were left as they are.
 - A JSON escape `\b` or `\f` (not written by `ascii()`) is no boundary.
+- A token after an ANSI colour sequence (`token: \x1b[33mghp_...`, coloured
+  build or pip output) is not masked, raw or escaped: the `m` glues to the
+  prefix.

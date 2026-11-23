@@ -91,14 +91,35 @@ is not Pitloom's own: a string of it that is a whole URL with a credential, a
 `name` too, is found; a sentence holding one is not.) A README example must
 not block a build, and finding secrets in prose is a secret scanner's job.
 Pitloom's log lines and `-v` details do mask a credential they print
-(`https://***:***@host`, `ghp_***`); that is display only. They also mask the
-credential after an HTTP `Bearer` or `Basic` scheme, keeping the scheme
-(`Authorization: Bearer ***`), and a token, an scp-style password or a PURL
-qualifier right after an escape sequence Pitloom writes for a control
-character (`\t`, `\n`, `\r`, `\x1b`, `\u202e`, `\U000e0001`), as after white
-space. A token glued to plain letters (`abghp_...`) is not masked, and a
-backslash typed before a letter (a Windows folder `C:\tghp_...`) reads as such
-an escape, so the name after it may be masked.
+(`https://***:***@host`, `ghp_***`); that is display only. They also mask an
+HTTP credential, keeping the scheme:
+
+- after an `Authorization` or `Proxy-Authorization` header name and `:` or `=`
+  (quoted or not), the credential after `Bearer`, `Basic` or `token`, whatever
+  its shape, and the `response=` value of a `Digest` header on that line. A
+  placeholder (`<token>`, `$GITHUB_TOKEN`) is kept; a word after the scheme is
+  masked too (`Authorization: Bearer token required` prints
+  `Authorization: Bearer *** required`).
+- after the word `Bearer` or `Basic` alone, a credential that looks random: 8
+  characters or more holding a `~` or `+`, `=` padding, digits only, a word of
+  20 letters or digits, or a word mixing a single lower-case letter with
+  capitals or digits (`dXNlcjpwYXNz`, `s3cr3t`) or holding digits as a key
+  does (`abcd1234`, `abcd12efgh`). Prose is kept: `the bearer of bad news`,
+  `basic types/values`, `Basic tutorial2024`, `see Bearer RFC-6750-style`,
+  `Basic Latin1Supplement`, `bearer requests.auth.HTTPBearer`, a file named
+  `Bearer Token.txt`. A credential in a file name is masked with the extension
+  after it (`Bearer s3cr3tvalue99.gguf` prints `Bearer ***`).
+
+They also mask a token, an scp-style password or a PURL qualifier right after
+an escape sequence Pitloom writes for a control character (`\t`, `\n`, `\r`,
+`\x1b`, `\u202e`, `\U000e0001`), as after white space. A token glued to plain
+letters (`abghp_...`) is not masked.
+
+Over-masked, as a credential shown costs more than a word hidden: a backslash
+typed before a letter (a Windows folder `C:\tghp_...`) reads as an escape, so
+the name after it may be masked; after `Bearer` or `Basic`, a word that mixes
+letters and digits as a key does (`Bearer x86_64-linux`, `Bearer
+iPhone15Pro`) is masked.
 
 ## What you see
 
@@ -290,12 +311,12 @@ credentials out of URLs:
   only warned of, as a weak value.
 - A file name in a URL field that is scp-shaped (`meet-10:30@ab:c.txt`) is
   found as a credential: accept its fingerprint.
-- In a log line, a `Bearer` or `Basic` credential shorter than 8 characters, or
-  of 8 to 19 letters (and `-`, `_`) all of one case or a capital and then
-  lower case: prose follows these words too (`Bearer token required`,
-  `Basic Authentication`). A `Basic` value that is not base64, and other
-  schemes (`Digest`, GitHub's `token`), are not masked either; a known token
-  shape after them is.
+- In a log line, after `Bearer` or `Basic` with no `Authorization` header name
+  before it, a credential under 8 characters, of letters only with no single
+  lower-case letter among capitals (`abcdefghij`, `Abcdefghijklmnop`), or with
+  fewer digits at its end than letters; a `Basic` value that is not base64; a
+  `Digest` header spread over lines; a quoted credential (`Bearer 'x'`); a
+  `Cookie:` or `X-Api-Key:` value. A known token shape is masked anywhere.
 - Logs that are not Pitloom's own: a third-party library's warning or log line
   and a Hatchling traceback are not masked (`urllib3` and `requests` log lines
   are, once Pitloom has set up its logging), and a line break in a password can

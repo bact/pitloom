@@ -179,8 +179,8 @@ and this project adheres to
 - Rotate any credential an SBOM, wheel, registry file or log held (warn mode
   writes it); remove it from git credential stores (`git credential reject`)
   ([#487])
-- Log lines mask a token, scp password or PURL after an escape (`\t`, `\x1b`) and
-  a `Bearer` or `Basic` credential ([#503], [#526])
+- Log lines mask a token, scp password or PURL after an escape (`\t`, `\x1b`),
+  an `Authorization`, `Bearer` or `Basic` credential ([#503], [#526])
 
 [#481]: https://github.com/bact/pitloom/pull/481
 [#482]: https://github.com/bact/pitloom/pull/482
