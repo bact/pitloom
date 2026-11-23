@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-08
-Last-Modified: 2026-11-22
+Last-Modified: 2026-11-23
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -48,6 +48,19 @@ fact-check of the LLMSC 2027 workshop paper draft against 0.24.0 (#483,
   models both called `torch-jit-export`.
   Do: treat known exporter defaults as no name; fall back to the file
   name stem and record that it was derived.
+- **A default graph name outlives the tool that wrote it.** Three more
+  defaults, read from each tool's source (#514, #517): `merged` from
+  optimum-onnx's `merge_decoders` (argument default), `spox_graph` from
+  spox (used when no name is set), `mxnet_converted_model` from MXNet 1.9.1
+  (hard-coded). Of the 12 `merged` files in the SBOM-MinBench 0.2 header
+  probe, 4 carry `producer_name` `onnx.quantize`: quantisation rewrote the
+  producer after the merge, so a rule keyed on the producer misses them.
+  MXNet writes no producer at all. Pitloom keeps the list keyed on the name
+  alone and adds a rule: a name equal to the stated producer, or the producer
+  plus `_` or `-` and more (casefolded), is no name; a blank producer turns
+  the rule off.
+  Do: key a default name on the name, not on the producer; cite the source
+  line for each entry.
 - **An integer version can be packed SemVer.** `model_version` is an
   int64. The versioning doc packs SemVer as MAJOR (16 bits), MINOR (16),
   PATCH (32); non-zero upper 32 bits mark SemVer, zero marks a simple
