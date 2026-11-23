@@ -116,6 +116,12 @@ second look on `main` before work starts: 135 commits lie between.
 | PIT-13 | **`simplelicensing_licenseListVersion` is not set.** | read at the base | yes: `known-bugs/licences-and-licenseid.md`, the roadmap |
 | PIT-14 | **The page on licence provenance says PEP 639 forbids an SPDX `license` beside licence classifiers.** The `pyproject.toml` specification says a build tool may raise an error | `docs/metadata-provenance-licences.md` on `main`; the specification's source read 2026-11-23 | no |
 
+### Tests and CI
+
+| # | Finding | Seen | On `main` |
+| --- | --- | --- | --- |
+| PIT-20 | **Four Hub loopback tests fail now and then on a socket the Hub library leaves open.** `tests/extract/remote/test_hub_loopback.py`, on "Test on Python 3.13 (macos-latest)": `ResourceWarning: unclosed <socket.socket ...>` raised at `huggingface_hub/utils/_detect_agent.py`, turned into a failure by `filterwarnings = error`; 4 failed, 18,604 passed. The same workflow passed on another pull request five minutes before, so it hangs on when Python reports the socket. A fix on `main`: a narrow, module-qualified `ignore` for that warning, or the library's agent detection switched off in tests. A rerun does not show it gone | CI of pull request 519 (a change of documents only), run 45168805298, 2026-11-23; the library's version was not found in the log | no |
+
 ### To look into, no fix known
 
 | # | Question | What is known |
