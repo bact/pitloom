@@ -24,7 +24,6 @@ from typing import IO, NamedTuple
 from pitloom.core.archive_member_names import file_members, zip_file_members
 from pitloom.core.file_hash import DigestHasher, FileDigests
 from pitloom.core.project import ProjectFile, digest_fields
-from pitloom.core.quote_source import quote_source
 from pitloom.core.wheel_dist_info import HeaderBlockOverCap, read_header_block
 from pitloom.extract._license_detect import (
     LICENSE_FILE_CAP,
@@ -34,6 +33,7 @@ from pitloom.messages.files import (
     Cap,
     warn_archive_member_over_cap,
 )
+from pitloom.messages.wheels import warn_shared_paths
 
 log = logging.getLogger(__name__)
 
@@ -166,13 +166,10 @@ def _project_path(name: str, strip_top: str | None) -> str:
     return name
 
 
-_SHARED_PATHS_SHOWN = 5
-
-
 def _warn_shared_paths(files: list[ProjectFile], archive: str) -> None:
     """One ``WARNING:`` when members of *archive* share a project path (a
     member outside the top directory next to one inside it, as in a
-    malformed sdist), naming up to :data:`_SHARED_PATHS_SHOWN` of them."""
+    malformed sdist; ``archive-member-conflict``)."""
     seen: set[str] = set()
     shared: dict[str, None] = {}
     for file in files:
@@ -180,14 +177,7 @@ def _warn_shared_paths(files: list[ProjectFile], archive: str) -> None:
             shared[file.physical_path] = None
         seen.add(file.physical_path)
     if shared:
-        names = ", ".join(map(quote_source, list(shared)[:_SHARED_PATHS_SHOWN]))
-        log.warning(
-            "ARCHIVE=%s: members share a project path (%s%s); they would share "
-            "one ID registry key",
-            quote_source(Path(archive).name),
-            names,
-            ", ..." if len(shared) > _SHARED_PATHS_SHOWN else "",
-        )
+        warn_shared_paths(log, archive, list(shared))
 
 
 def _scan(

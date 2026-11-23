@@ -27,6 +27,7 @@ import pytest
 from pitloom.core._models_wheel_build_and_read import build_and_read_wheel
 from pitloom.core._models_wheel_types import is_dist_info_path
 from pitloom.core.build_signals import TerminationGuard
+from pitloom.logging_config import CODE_ATTR
 from tests.build_and_read_shared import (
     RUN_BUILD,
     FakeBuildState,
@@ -244,7 +245,7 @@ def test_extract_wheel_to_included_files_rejects_zip_slip_entry(
     assert len(warnings) == 1
     assert warnings[0] == (
         f"Build: ARCHIVE='pkg-1.0-py3-none-any.whl' ENTRY={escaping!r}: "
-        "no safe install location -- skipped"
+        "no safe install location; not copied"
     )
     cleanup()
 
@@ -273,10 +274,12 @@ def test_extract_wheel_to_included_files_resolve_guard(
     # Nothing left to extract: the build counts as a discovery failure.
     assert result is None
     assert not (sys_tmp / "outside").exists()
-    assert (
-        "ENTRY='..\\outside\\evil.py': resolves outside the extraction directory"
-        in caplog.text
+    (record,) = [r for r in caplog.records if "ENTRY=" in r.getMessage()]
+    assert record.getMessage() == (
+        "Build: ARCHIVE='pkg-1.0-py3-none-any.whl' ENTRY='..\\outside\\evil.py': "
+        "resolves outside the extraction directory; not copied"
     )
+    assert getattr(record, CODE_ATTR) == "archive-member-unsafe"
 
 
 def test_extract_wheel_to_included_files_normalises_member_names(
@@ -309,8 +312,7 @@ def test_extract_wheel_to_included_files_normalises_member_names(
     assert by_name["pkg/c.py"].read_bytes() == b"second\n"
     assert len(caplog.records) == 4
     assert (
-        "ENTRY='./pkg/b.py': non-conforming name -- recorded as 'pkg/b.py'"
-        in caplog.text
+        "ENTRY='./pkg/b.py': non-conforming name; copied as 'pkg/b.py'" in caplog.text
     )
     cleanup()
 

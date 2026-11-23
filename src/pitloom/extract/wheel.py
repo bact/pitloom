@@ -22,7 +22,6 @@ from pitloom.core.project import (
     digest_fields,
 )
 from pitloom.core.provenance import provenance_source
-from pitloom.core.quote_source import quote_source
 from pitloom.core.wheel_dist_info import (
     open_wheel_zip,
     read_metadata_headers,
@@ -43,6 +42,7 @@ from pitloom.extract._license_detect import (
 from pitloom.extract.authors import AuthorSplit
 from pitloom.extract.copyright_notices import apply_in_package_copyright
 from pitloom.messages.files import warn_archive_member_over_cap
+from pitloom.messages.wheels import warn_dist_info
 
 log = logging.getLogger(__name__)
 
@@ -261,12 +261,7 @@ def read_wheel(
         members = wheel_members(zf, archive, log)
         choice = resolve_own_dist_info(archive, [name for name, _ in members])
         if choice.problem:
-            log.warning(
-                "ARCHIVE=%s: %s%s",
-                quote_source(archive),
-                choice.problem,
-                "" if choice.prefix else " -- identity unknown",
-            )
+            warn_dist_info(log, archive, choice.problem, chosen=choice.prefix)
         # Every member is read, the own .dist-info's too, so a damaged one
         # still refuses the wheel; it is not listed afterwards.
         project_files = payload_files(

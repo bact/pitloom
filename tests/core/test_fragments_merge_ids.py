@@ -116,6 +116,6 @@ def test_conflict_warning_names_elements_by_id(
     assert first == _conflict_messages(tmp_path / "2", caplog)
     assert len(first) == 2
     assert not [m for m in first if "object at 0x" in m]
-    supplier = next(m for m in first if "'suppliedBy'" in m)
-    assert f"on software_Package {_BASE_NS}#P 'p'" in supplier
+    supplier = next(m for m in first if ": suppliedBy differs;" in m)
+    assert supplier.startswith(f"Merge: ELEMENT={_BASE_NS}#P: ")
     assert "frag#B" in supplier

@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-12
-Last-Modified: 2026-11-16
+Last-Modified: 2026-11-23
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -233,8 +233,8 @@ key) since it's expected to grow more fragment-related settings.
 | `path` | string | *(required)* | Path to the fragment file, relative to the directory of the file that sets it (the project directory for its own `pyproject.toml`). |
 | `role` | string | `null` | Free-form, unvalidated label for what *part* this fragment plays in a pipeline (e.g. `input_dataset`, `output_dataset`, `ai_model`, `software_package`, `source`, `training_script`, `data_cleaning_script`, `post_processing_script`, `guardrail_safety_function`) -- not enforced, and not read by the merge itself yet; informational only, shown by `loom fragment list`. |
 | `description` | string | `null` | Human-readable description of what the fragment covers. |
-| `required` | boolean | `false` | If `true`, a missing or unreadable fragment fails the build (`FragmentMergeError`) instead of the default warn-and-skip. |
-| `sha256` | string | `null` | Expected SHA-256 hex digest of the fragment file. Currently checked for display only by `loom fragment list` -- not yet enforced before merge (planned: `loom fragment sign`). |
+| `required` | boolean | `false` | If `true`, a missing, unreadable or unmergeable fragment fails the build (`FragmentMergeError`, code `fragment-missing`) instead of the default warn-and-skip. |
+| `sha256` | string | `null` | Expected SHA-256 hex digest of the fragment file: 64 hex digits, in either case. Anything else is a `config-invalid` error. Currently checked for display only by `loom fragment list` -- not yet enforced before merge (planned: `loom fragment sign`). |
 | `link-to-main` | string | `null` | Reserved for a future SPDX relationship type between the fragment's root element and the project's main package. Stored but not yet acted on. |
 
 ```toml

@@ -56,9 +56,7 @@ _DECODED = "'utf-8' codec can't decode byte 0xff in position 0: invalid start by
 #: Modules whose own strings still hold the family's wording for a cause of
 #: their own, not catalogued yet: path under ``src/pitloom``, with why.
 #: Shrink only.
-_OTHER_CAUSES = {
-    "core/wheel_dist_info.py": "a wheel member that does not read (PR 15-16)",
-}
+_OTHER_CAUSES: dict[str, str] = {}
 
 
 def _said(caplog: pytest.LogCaptureFixture) -> logging.LogRecord:

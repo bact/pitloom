@@ -56,11 +56,13 @@ from pitloom.core.build_options import (
     BuildOptions,
 )
 from pitloom.core.given_path import TypedPath
-from pitloom.embed import EmbedFileCache
-from pitloom.logging_config import loggable, print_error
+from pitloom.embed import EmbedFileCache, checked_embed_basename
+from pitloom.logging_config import print_error
+from pitloom.messages import emit
 from pitloom.messages.options import (
     CANNOT_BE_USED_LINE,
     OPTION_CONFLICT,
+    OPTION_MISSING_PROJECT_DIR,
 )
 from pitloom.messages.targets import (
     SBOM_INVALID,
@@ -139,7 +141,7 @@ def _given_sbom_is_valid(args: argparse.Namespace) -> bool:
         return True
     if _import_spdx3_validate() is None:  # prints the install hint
         return False
-    if validate_sbom_data(data, loggable(args.sbom.name)):
+    if validate_sbom_data(data, args.sbom.name, per_document=False):
         return True
     print_error(SBOM_NOT_VALID_LINE.render({"file": args.sbom}), code=SBOM_INVALID.code)
     return False
@@ -165,11 +167,7 @@ def _settled_build_options(args: argparse.Namespace) -> BuildOptions:
         )
         if os.path.isfile("pyproject.toml"):
             # For a user expecting the project here to be rescanned.
-            log.info(
-                "embed-wheel: no --project-dir given; the SBOM is built from "
-                "the wheel alone (the project in the current directory is "
-                "not used)"
-            )
+            emit(log, OPTION_MISSING_PROJECT_DIR, logging.INFO)
     return build_options
 
 
@@ -195,6 +193,10 @@ def _run_embed_wheel_command(args: argparse.Namespace) -> int:
             code=OPTION_CONFLICT.code,
         )
         return 1
+
+    # Before any SBOM is generated or build run: a name that is a path is
+    # refused here, once, not at each wheel's last step.
+    checked_embed_basename(args.sbom_basename)
 
     build_options = _settled_build_options(args)
 

@@ -76,9 +76,8 @@ def test_conflicting_sha256_keeps_both_with_one_warning(
     assert [h["hashValue"] for h in by_id[_SHARED]["verifiedUsing"]] == [_A]
     assert [h["hashValue"] for h in by_id[new_id]["verifiedUsing"]] == [_B]
     assert warnings == [
-        f"Merge: {type_name} {frag_name!r} shares spdxId {_SHARED} with a "
-        f"{type_name} of a different SHA256 hash; keeping both, it gets new "
-        f"id {new_id}."
+        f"Merge: ELEMENT={_SHARED}: id held by two '{type_name}' elements of "
+        f"different sha256 digests; both kept, the later is now {new_id}"
     ]
 
 

@@ -97,8 +97,111 @@ def test_findings_are_printed_in_a_fixed_order_under_the_shown_name(
     )
     assert code == 1
     assert capsys.readouterr().err.splitlines() == [
-        "ERROR: w.whl/m.spdx3.json: [shacl] a not in list ['y', 'z']",
-        "ERROR: w.whl/m.spdx3.json: [shacl] b",
-        "ERROR: second line",
-        "ERROR: w.whl/m.spdx3.json: [shacl] c",
+        "ERROR: spdx3-validate: w.whl/m.spdx3.json: [shacl] a not in list ['y', 'z']",
+        "ERROR: spdx3-validate: w.whl/m.spdx3.json: [shacl] b",
+        "ERROR: spdx3-validate: second line",
+        "ERROR: spdx3-validate: w.whl/m.spdx3.json: [shacl] c",
+        "ERROR: FILE=w.whl/m.spdx3.json: not valid SPDX 3 (3 finding(s) above) "
+        "[sbom-invalid]",
     ]
+
+
+def _fake_validator(result: object) -> SimpleNamespace:
+    """A stand-in for ``spdx3_validate`` whose ``validate`` gives *result*, or
+    raises it when it is an exception."""
+
+    def validate(*_a: object, **_k: object) -> object:
+        if isinstance(result, Exception):
+            raise result
+        return result
+
+    return SimpleNamespace(validate=validate, SpdxValidateError=ValueError)
+
+
+def test_a_blank_line_is_dropped_and_a_repeat_said_once(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The empty line of a SHACL finding is not an ``ERROR:`` line, and a
+    finding the validator gives twice is said once and counted once."""
+    same = _finding("p", "x\n\n  y")
+    fake = _fake_validator(_Result([same, same, _finding("p", "z")]))
+    monkeypatch.setattr(utils, "_import_spdx3_validate", lambda: fake)
+    assert utils._validate_spdx3_documents(["p"], check_merged=False) == 1
+    assert capsys.readouterr().err.splitlines() == [
+        "ERROR: spdx3-validate: p: [shacl] x",
+        "ERROR: spdx3-validate: y",
+        "ERROR: spdx3-validate: p: [shacl] z",
+        "ERROR: FILE=p: not valid SPDX 3 (2 finding(s) above) [sbom-invalid]",
+    ]
+
+
+@pytest.mark.parametrize(
+    ("per_document", "last"),
+    [
+        (True, "ERROR: FILE=p: not valid SPDX 3 (1 finding(s) above) [sbom-invalid]"),
+        (False, "ERROR: spdx3-validate: p: [shacl] c"),
+    ],
+    ids=["coded-line", "left-to-the-caller"],
+)
+def test_per_document_gates_the_coded_line(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    per_document: bool,
+    last: str,
+) -> None:
+    fake = _fake_validator(_Result([_finding("p", "c")]))
+    monkeypatch.setattr(utils, "_import_spdx3_validate", lambda: fake)
+    code = utils._validate_spdx3_documents(
+        ["p"], check_merged=False, per_document=per_document
+    )
+    assert code == 1
+    assert capsys.readouterr().err.splitlines()[-1] == last
+
+
+@pytest.mark.parametrize(
+    ("paths", "per_document", "last"),
+    [
+        (
+            ["a"],
+            True,
+            "ERROR: FILE=a: could not be validated; spdx3-validate says "
+            "why above [sbom-invalid]",
+        ),
+        (
+            ["a", "b"],
+            True,
+            "ERROR: the SBOMs could not be validated; spdx3-validate "
+            "says why above [sbom-invalid]",
+        ),
+        (["a"], False, "ERROR: spdx3-validate: cannot load"),
+    ],
+    ids=["one", "several", "left-to-the-caller"],
+)
+def test_a_document_the_validator_cannot_load_says_why_then_one_coded_line(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    paths: list[str],
+    per_document: bool,
+    last: str,
+) -> None:
+    fake = _fake_validator(ValueError("cannot load"))
+    monkeypatch.setattr(utils, "_import_spdx3_validate", lambda: fake)
+    code = utils._validate_spdx3_documents(
+        paths, check_merged=True, per_document=per_document
+    )
+    assert code == 1
+    lines = capsys.readouterr().err.splitlines()
+    assert lines[0] == "ERROR: spdx3-validate: cannot load"
+    assert lines[-1] == last
+
+
+def test_the_merged_findings_have_their_own_coded_line(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    fake = _fake_validator(_Result([_finding("(merged)", "m")]))
+    monkeypatch.setattr(utils, "_import_spdx3_validate", lambda: fake)
+    assert utils._validate_spdx3_documents(["a", "b"], check_merged=True) == 1
+    assert capsys.readouterr().err.splitlines()[-1] == (
+        "ERROR: the SBOMs together are not valid SPDX 3 (1 finding(s) above) "
+        "[sbom-invalid]"
+    )

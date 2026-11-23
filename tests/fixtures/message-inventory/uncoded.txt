@@ -2,45 +2,23 @@
 # tests/test_message_ratchet.py. A count may fall, never rise.
 # Format: <module> <count>. A module with no uncoded site is absent.
 # Regenerate from the repository root: python -m scripts.message_inventory --write-baseline
-pitloom._embed_generate 1
 pitloom._embed_overlay 1
-pitloom._embed_stale 1
-pitloom._embed_wheel 6
+pitloom._embed_wheel 1
 pitloom._loom_active_run 1
 pitloom._loom_caller 2
 pitloom._loom_dataset_meta 2
 pitloom._loom_model 2
 pitloom._sbom_io 2
-pitloom._wheel_sbom_location 3
 pitloom.assemble._generators 1
 pitloom.assemble.spdx3._ai_package 2
-pitloom.assemble.spdx3._fragments_envelope 1
-pitloom.assemble.spdx3._fragments_evidence 1
-pitloom.assemble.spdx3._fragments_generated 1
-pitloom.assemble.spdx3._fragments_hashes 1
-pitloom.assemble.spdx3._fragments_ids 1
-pitloom.assemble.spdx3._fragments_model_names 1
-pitloom.assemble.spdx3._fragments_props 2
 pitloom.assemble.spdx3.creation_info 1
 pitloom.assemble.spdx3.deps_originator 1
-pitloom.assemble.spdx3.fragments 5
 pitloom.assemble.spdx3.provenance 5
-pitloom.cli.commands._embed_wheel_batch 3
-pitloom.cli.commands.embed_wheel 1
-pitloom.cli.commands.enrich 1
-pitloom.cli.commands.fragment 8
-pitloom.cli.commands.merge 1
-pitloom.cli.commands.utils 4
-pitloom.cli.commands.validate_wheel 3
-pitloom.cli.commands.verify_wheel 6
-pitloom.core._models_wheel_build_and_read 1
-pitloom.core.archive_member_names 2
+pitloom.cli.commands.utils 1
 pitloom.core.dataset_merge 1
 pitloom.core.dataset_names 1
 pitloom.core.file_names 1
 pitloom.core.iri 1
-pitloom.core.wheel_dist_info 4
-pitloom.embed 3
 pitloom.enrich 1
 pitloom.extract._author_warnings 5
 pitloom.extract._extract_utils 1
@@ -48,7 +26,4 @@ pitloom.extract.ai_model.pytorch 1
 pitloom.extract.dataset.croissant 3
 pitloom.extract.dataset.values 4
 pitloom.extract.env 2
-pitloom.extract.project._sdist_scan 1
 pitloom.extract.scanner 1
-pitloom.extract.wheel 1
-pitloom.plugins.hatch 3

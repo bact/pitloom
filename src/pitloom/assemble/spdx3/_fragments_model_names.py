@@ -11,7 +11,7 @@ A fragment ``ai_AIPackage`` that folds into one of the base document's
 (``loom.set_model(name, path=...)``); the base names it from its file. When
 every such fragment gives one name, that name is kept, with one ``INFO:``,
 and the base's provenance for its own name is dropped. Fragments giving two
-names keep the base's, with the usual ``Merge: conflicting`` warning per
+names keep the base's, with the usual ``fragment-conflict`` warning per
 other name. A fold into an element a fragment added (``loom merge`` has no
 base model) and every other field are plain field merges.
 
@@ -53,16 +53,10 @@ from pitloom.core.provenance import (
     escape_provenance_comment_part,
     parse_provenance_value,
 )
-from pitloom.export.spdx3_describe import describe_element, describe_value
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
+from pitloom.messages.fragments import say_model_name_replaced
 
 log = logging.getLogger(__name__)
-
-#: ``log.info()`` format for a base model renamed by its fragments.
-#: Arguments: the model (type and id), the kept name, the dropped name.
-MODEL_NAME_KEPT_INFO = (
-    "Merge: 'name' on %s: keeping the fragment's %s, dropping the project's %s."
-)
 
 _NAME = "name"
 _SKIP_NAME = frozenset({_NAME})
@@ -242,11 +236,11 @@ class ModelNames:
 
     def _rename(self, model: _BaseModel, name: str) -> None:
         package = model.package
-        log.info(
-            MODEL_NAME_KEPT_INFO,
-            describe_element(type(package).__name__, require_spdx_id(package), None),
-            describe_value(name),
-            describe_value(model.name),
+        say_model_name_replaced(
+            log,
+            spdx_id=require_spdx_id(package),
+            kept=name,
+            dropped=model.name,
         )
         package.name = name
 

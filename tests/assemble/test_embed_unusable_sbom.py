@@ -20,6 +20,7 @@ import pytest
 
 from pitloom import __main__
 from pitloom.embed import embed_wheel_sbom
+from pitloom.logging_config import CODE_ATTR
 from pitloom.messages import code_of, trusted_message
 
 from .conftest import _make_dummy_wheel, _spdx3_json_with_subject
@@ -119,7 +120,9 @@ def test_a_valid_json_object_in_another_format_keeps_the_skip_warning(
     with caplog.at_level("WARNING"):
         embed_wheel_sbom(wheel, sbom_path=sbom)
 
-    assert any("cannot cross-check" in m for m in caplog.messages)
+    (record,) = caplog.records
+    assert getattr(record, CODE_ATTR) == "wheel-sbom-unusable"
+    assert "not cross-checked: the SBOM is not SPDX 3 JSON-LD" in record.getMessage()
 
 
 def test_a_valid_spdx3_file_still_embeds(tmp_path: Path) -> None:

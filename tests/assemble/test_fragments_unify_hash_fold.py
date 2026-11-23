@@ -96,7 +96,7 @@ def test_two_fragments_with_the_same_conflicting_bytes_share_one_new_element(
     shared = {i: d for i, d in _files(merged).items() if d in "ab"}
     assert shared == {_X: "a", f"{_MAIN}#File-1": "b"}
     assert len(warnings) == 1
-    assert "different SHA256 hash" in warnings[0]
+    assert "elements of different sha256 digests; both kept" in warnings[0]
 
 
 def test_same_bytes_under_another_id_fold_instead_of_a_new_element(
@@ -106,7 +106,7 @@ def test_same_bytes_under_another_id_fold_instead_of_a_new_element(
     base = [_file(_X, "x", "a"), _file(_Y, "y", "b")]
     merged, warnings = _run(tmp_path, base, [fragment], caplog)
     assert _files(merged) == {_X: "a", _Y: "b"}
-    assert not [w for w in warnings if "SHA" in w or "shares spdxId" in w]
+    assert not [w for w in warnings if "SHA" in w or "id held by" in w]
 
 
 @pytest.mark.parametrize("own", [False, True], ids=["moved", "own-kept"])

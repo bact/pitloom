@@ -12,6 +12,7 @@ See also: :mod:`pitloom.id_registry._registry` (``IdRegistry.import_sbom``),
 from __future__ import annotations
 
 import io
+import logging
 from pathlib import Path
 from typing import Any
 
@@ -19,8 +20,11 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom._sbom_format import read_given_sbom
 from pitloom.id_registry._harvest import _sorted_by_spdx_id
-from pitloom.messages import CodedValueError
+from pitloom.messages import CodedValueError, emit
+from pitloom.messages.files import JSON_MALFORMED_BOM
 from pitloom.messages.targets import SBOM_INVALID, SBOM_UNREADABLE_LINE
+
+log = logging.getLogger(__name__)
 
 __all__ = ["document_id", "read_sbom_objects"]
 
@@ -38,9 +42,15 @@ def read_sbom_objects(sbom_path: Path) -> list[Any]:
             ``sbom-wrong-format``, ``sbom-invalid`` for an ``@graph`` that
             is not a list of objects); ``sbom-invalid`` too for one the
             SPDX 3 deserialiser refuses. Each names *sbom_path*.
+
+    An SBOM that starts with a UTF-8 byte order mark is read without it,
+    with one ``WARNING:`` (``json-malformed/bom``), as ``embed-wheel --sbom``
+    reads it.
     """
     object_set = spdx3.SHACLObjectSet()
     given = read_given_sbom(sbom_path)
+    if given.dropped_bom:
+        emit(log, JSON_MALFORMED_BOM, logging.WARNING, file=sbom_path)
     raw = io.BytesIO(given.text.encode("utf-8"))
     try:
         spdx3.JSONLDDeserializer().read(raw, object_set)

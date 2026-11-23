@@ -170,14 +170,18 @@ GIT_FRAME: Final = Frame(
 BUILD_PREFIX: Final = "Build: "
 
 #: What ``--allow-build`` puts before its warnings and notes: the build, its
-#: temporary directories and a signal while it runs; never before an
-#: ``ERROR`` line (an exception's text).
+#: temporary directories, a signal while it runs and a member of the built
+#: wheel it does not copy; never before an ``ERROR`` line (an exception's
+#: text).
 BUILD_FRAME: Final = Frame(
     levels=frozenset({"WARNING", "INFO"}),
     template=BUILD_PREFIX,
     surface="--allow-build: the build and its temporary directories",
     codes=frozenset(
         {
+            "archive-member-conflict",
+            "archive-member-invalid",
+            "archive-member-unsafe",
             "build-code-unsafe",
             "build-failed",
             "build-processes-unsafe",

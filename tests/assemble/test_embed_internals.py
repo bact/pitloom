@@ -25,7 +25,6 @@ from pitloom._embed_stale import looks_like_pitloom_sbom
 from pitloom.cli.options_resolve import _resolve_output_path
 from pitloom.core.config import PitloomConfig
 from pitloom.core.project import ProjectMetadata
-from pitloom.core.wheel_dist_info import PROBLEM_NONE, PROBLEM_SEVERAL_NONE_MATCH
 from pitloom.embed import (
     _derive_wheel_sbom_filename,
     _find_dist_info_prefix,
@@ -47,7 +46,7 @@ def test_find_dist_info_prefix_edge_cases(tmp_path: Path) -> None:
     with zipfile.ZipFile(p1, "w") as zf:
         zf.writestr("nodist/module.py", "# code")
     with zipfile.ZipFile(p1, "r") as zf:
-        with pytest.raises(ValueError, match=PROBLEM_NONE):
+        with pytest.raises(ValueError, match="no top-level .dist-info"):
             _find_dist_info_prefix(zf, p1)
 
     # 2. Multiple dist-info where one matches stem prefix
@@ -64,7 +63,7 @@ def test_find_dist_info_prefix_edge_cases(tmp_path: Path) -> None:
         zf.writestr("pkg1-1.0.0.dist-info/METADATA", "Name: pkg1\n")
         zf.writestr("pkg2-1.0.0.dist-info/METADATA", "Name: pkg2\n")
     with zipfile.ZipFile(p3, "r") as zf:
-        with pytest.raises(ValueError, match=PROBLEM_SEVERAL_NONE_MATCH):
+        with pytest.raises(ValueError, match="none the one the file name names"):
             _find_dist_info_prefix(zf, p3)
 
 

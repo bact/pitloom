@@ -307,14 +307,14 @@ def test_metadata_from_hatchling_does_not_fill_gaps_from_poetry(
 
 
 def test_check_hatchling_sbom_support_raises_when_metadata_missing() -> None:
-    """If Hatchling's version can't be determined, raise a clear
-    ``RuntimeError`` rather than letting a raw ``PackageNotFoundError``
+    """If Hatchling's version can't be determined, raise a clear coded error
+    (a ``ValueError``) rather than letting a raw ``PackageNotFoundError``
     escape (e.g. a vendored copy or zipapp bundle without dist-info)."""
     with patch(
         "pitloom.plugins.hatch._pkg_version",
         side_effect=PackageNotFoundError("hatchling"),
     ):
-        with pytest.raises(RuntimeError, match="version unknown"):
+        with pytest.raises(ValueError, match="version unknown"):
             _check_hatchling_sbom_support()
 
 

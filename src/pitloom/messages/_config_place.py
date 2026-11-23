@@ -258,6 +258,7 @@ EXPECTED: Final[Mapping[str, str]] = MappingProxyType(
         "config-source": "a path to a configuration file, or a PitloomConfig",
         "fingerprint": f"a fingerprint ({FINGERPRINT_SHAPE})",
         "fingerprints": "an array of fingerprints",
+        "sha-256": "a SHA-256 in hex (64 characters)",
         "url-credentials-mode": '"warn" or "refuse"',
     }
 )

@@ -23,7 +23,14 @@ from collections.abc import Callable, Iterable
 from typing import TYPE_CHECKING, Literal, NamedTuple, TypeVar
 
 from pitloom.core._models_wheel_types import to_posix_distribution_path
-from pitloom.core.quote_source import quote_source
+from pitloom.messages.wheels import (
+    MEMBER_DIRECTORY_DATA,
+    MEMBER_NORMALISED,
+    MEMBER_OVERWRITTEN,
+    MEMBER_SHADOWED,
+    MEMBER_UNSAFE,
+    warn_archive_member,
+)
 
 if TYPE_CHECKING:
     from pitloom.messages import Frame
@@ -33,13 +40,6 @@ MemberNameStatus = Literal["ok", "normalized", "unsafe"]
 T = TypeVar("T")
 
 _DRIVE_PREFIX = re.compile(r"^[A-Za-z]:")
-
-_MSG = "%sARCHIVE=%s ENTRY=%s: "
-_UNSAFE = _MSG + "no safe install location -- skipped"
-_OVERWRITTEN = _MSG + "overwritten by later entry %s -- skipped"
-_SHADOWED = _MSG + "also a directory of other entries -- skipped"
-_NORMALIZED = _MSG + "non-conforming name -- recorded as %s"
-_DIRECTORY_DATA = _MSG + "directory entry carries data -- skipped"
 
 
 class MemberName(NamedTuple):
@@ -115,15 +115,18 @@ def archive_members(
     """*entries* (raw member name, payload) as (install-location name,
     payload), in archive order.
 
-    Exactly one ``WARNING:`` per member, quoting its raw name, that is:
+    Exactly one ``WARNING:`` per member, quoting its raw name
+    (:func:`pitloom.messages.wheels.warn_archive_member`; *frame* is
+    :data:`~pitloom.messages.BUILD_FRAME` on the ``--allow-build`` route,
+    whose lines say ``not copied`` where a read says ``not listed``), that is:
 
-    - skipped as unsafe (see :func:`normalize_member_name`);
-    - skipped because a later member has the same normalised name: read
+    - left out as unsafe (see :func:`normalize_member_name`);
+    - left out because a later member has the same normalised name: read
       with ``\\`` as a separator, as on Windows, an installer extracting
       in archive order leaves the later one behind (on POSIX, pip keeps a
       backslash name as a separate literal file; exact and ``./``
       duplicates overwrite there too);
-    - skipped because it is a file whose name is also a directory of other
+    - left out because it is a file whose name is also a directory of other
       members (no installer can write both);
     - kept under its normalised name.
 
@@ -135,7 +138,6 @@ def archive_members(
     later one repeats, it returns the exception to raise, before anything
     is logged.
     """
-    prefix = frame.render({}) if frame else ""
     classified = [
         (raw, _classify(raw, dot_prefix_ok), payload) for raw, payload in entries
     ]
@@ -147,23 +149,29 @@ def archive_members(
     directories = _ancestors(last)
     members: list[tuple[str, T]] = []
     for index, (raw, member, payload) in enumerate(classified):
+        later: str | None = None
+        listed_as: str | None = None
         if member.status == "unsafe":
-            args: tuple[object, ...] = (_UNSAFE, quote_source(raw))
+            kind = MEMBER_UNSAFE
         elif last[member.name] != index:
-            args = (
-                _OVERWRITTEN,
-                quote_source(raw),
-                quote_source(classified[last[member.name]][0]),
-            )
+            kind, later = MEMBER_OVERWRITTEN, classified[last[member.name]][0]
         elif member.name in directories:
-            args = (_SHADOWED, quote_source(raw))
+            kind = MEMBER_SHADOWED
         else:
             members.append((member.name, payload))
             if member.status == "ok":
                 continue
-            args = (_NORMALIZED, quote_source(raw), quote_source(member.name))
+            kind, listed_as = MEMBER_NORMALISED, member.name
         if logger is not None:
-            logger.warning(args[0], prefix, quote_source(archive_name), *args[1:])
+            warn_archive_member(
+                logger,
+                kind,
+                archive_name,
+                raw,
+                frame=frame,
+                later=later,
+                listed_as=listed_as,
+            )
     return members
 
 
@@ -191,17 +199,13 @@ def file_members(
     (raw name, size, payload), after dropping the ones whose name is a
     directory (:func:`is_directory_name`); one that carries data gets a
     ``WARNING:`` too, since its bytes are dropped."""
-    prefix = frame.render({}) if frame else ""
     files: list[tuple[str, T]] = []
     for raw, size, payload in entries:
         if not is_directory_name(raw):
             files.append((raw, payload))
         elif size and logger is not None:
-            logger.warning(
-                _DIRECTORY_DATA,
-                prefix,
-                quote_source(archive_name),
-                quote_source(raw),
+            warn_archive_member(
+                logger, MEMBER_DIRECTORY_DATA, archive_name, raw, frame=frame
             )
     return archive_members(
         files,

@@ -229,7 +229,10 @@ def _dup_id(s: _Seq) -> None:
 
 
 def _forbidden(s: _Seq) -> None:
-    s.stderr[1] = "WARNING: Merge: x 'y' shares spdxId z with a w\n"
+    s.stderr[1] = (
+        "WARNING: Merge: ELEMENT=z: id held by a 'x', also wanted by a 'y'; "
+        "both kept, the later is now w [fragment-id-conflict]\n"
+    )
 
 
 def _untagged(s: _Seq) -> None:

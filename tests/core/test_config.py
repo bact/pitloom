@@ -375,7 +375,7 @@ def test_read_fragments_table_entry_with_all_fields() -> None:
                     "role": "ai_model",
                     "description": "fine-tune training provenance",
                     "required": True,
-                    "sha256": "a3f1",
+                    "sha256": "a3f1" * 16,
                     "link-to-main": "trainedOn",
                 }
             ]
@@ -387,7 +387,7 @@ def test_read_fragments_table_entry_with_all_fields() -> None:
             role="ai_model",
             description="fine-tune training provenance",
             required=True,
-            sha256="a3f1",
+            sha256="a3f1" * 16,
             link_to_main="trainedOn",
         )
     ]

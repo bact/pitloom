@@ -61,6 +61,7 @@ _QUOTING_CALLS = frozenset(
         "CodedFileNotFoundError",
         "CodedImportError",
         "CodedValueError",
+        "FragmentMergeError",
         "_interpolation_error",
         "dir_unlistable_error",
         "file_unreadable_error",
@@ -68,9 +69,20 @@ _QUOTING_CALLS = frozenset(
         "project_hint_error",
         "_malformed",
         "NotAWheelError",
+        # The wheel and embedded-SBOM constructors (pitloom.messages.wheels,
+        # pitloom.messages.wheel_sboms): their fields quote and cut a name.
+        "refuse_unopenable",
+        "refuse_unreadable_member",
+        "refuse_nul_name",
+        "refuse_duplicate_name",
+        "refuse_non_conforming",
+        "refuse_signed",
+        "refuse_dist_info",
+        "wheel_sbom_missing",
+        "wheel_sbom_ambiguous",
+        "identity_mismatch_error",
+        "sbom_name_conflict",
         "build_error",
-        "_fragment_read_failure_message",
-        "_same_document_message",
         "refusal_error",
         "render",
         "_invalid_project",
@@ -126,6 +138,7 @@ def _is_message_call(node: ast.Call) -> bool:
 
 
 #: Calls that quote their leading path arguments (how many) and show the rest as given.
+#: The names are the scanner's own self-test's; no production call keeps them.
 _QUOTING_FIRST = {"refusal": 2, "unreadable_member_error": 2}
 #: Constructors whose filename argument ``OSError`` shows with ``repr()``.
 _OS_ERRORS = frozenset({"PermissionError", "FileNotFoundError", "OSError"})

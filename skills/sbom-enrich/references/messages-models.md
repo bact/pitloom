@@ -24,6 +24,7 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
 | [`lfs-pointer/shipped`](#lfs-pointershipped) | WARNING | A built wheel or sdist holds Git LFS pointer files where the content belongs: it was built from a checkout without the LFS content. | 0.22.0 |
 | [`library-missing`](#library-missing) | ERROR, WARNING | A library Pitloom needs for a step is not installed: an optional extra for a model reader, the Hugging Face Hub, SPDX 3 validation, --allow-build or magika content types. | 0.22.0 |
 | [`library-unusable`](#library-unusable) | ERROR, WARNING | A library Pitloom needs for a step is installed but fails to import: a broken or partial install, a library it needs in turn missing, or a build for another Python or platform. The API line (since 0.25.0) is poetry-core, which Pitloom depends on, installed at a release that moved a function Pitloom calls. | 0.23.0 |
+| [`library-unusable/hatchling`](#library-unusablehatchling) | ERROR | The Hatchling that runs the build hook cannot embed an SBOM: its release predates the build_data sbom_files support PEP 770 embedding needs, or its version cannot be read (no package metadata: a broken install). | 0.25.0 |
 | [`model-unreadable`](#model-unreadable) | WARNING | A file whose header is a model format's could not be read: its reader failed (a truncated or corrupt file, a format version the reader does not know), or the file declares more than it can hold. | 0.22.0 |
 | [`model-wrong-format`](#model-wrong-format) | ERROR, WARNING | A file named as an AI model is not one: its header is not the format its suffix names, it is empty, or (a file named on its own) it is no model of a supported format. | 0.22.0 |
 | [`reader-unsafe`](#reader-unsafe) | INFO | A wheel holds AI models in formats whose reader Pitloom does not run on a wheel's files (fastText, GGUF, HDF5, ONNX, PyTorch .pt and .pth): a hostile file could crash or hang it, or exhaust its memory. | 0.22.0 |
@@ -156,6 +157,28 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
   ERROR: required library failed to import: <module>: <error>; reinstall <requirement> [library-unusable]
   WARNING: required library failed to import: <module>: <error>; content types from file extensions; reinstall <requirement> [library-unusable]
   WARNING: required library API not found: poetry-core: <error>; Poetry dependency tables not read; reinstall Pitloom [library-unusable]
+  ```
+
+### `library-unusable/hatchling`
+
+- **Level**: ERROR. As an ERROR, the command stops for that input and writes
+  nothing for it (exit 1).
+- **Means**: The Hatchling that runs the build hook cannot embed an SBOM: its
+  release predates the build_data sbom_files support PEP 770 embedding needs, or
+  its version cannot be read (no package metadata: a broken install).
+- **SBOM effect**: not-written: no SBOM is written for the input.
+- **Pitloom did**: Wrote nothing: the build hook fails the build before it makes
+  an SBOM.
+- **Tell the user**: which Hatchling the build runs with and which release it
+  needs, as the line says. They raise the floor in the project's [build-system]
+  requires (hatchling>=, the release named) or reinstall Hatchling, and build
+  again. Do not edit the project or install anything for them; ask first, and
+  with nobody to ask, report it only.
+- **Lines**:
+
+  ```text
+  ERROR: Hatchling <version> cannot embed an SBOM (PEP 770 needs <minimum-version> or later); upgrade Hatchling [library-unusable/hatchling]
+  ERROR: Hatchling version unknown (no package metadata found); PEP 770 needs <minimum-version> or later, reinstall Hatchling [library-unusable/hatchling]
   ```
 
 ### `model-unreadable`

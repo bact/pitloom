@@ -11,6 +11,7 @@ See also: test_embed_internals.py (the archive rewrite itself).
 
 from __future__ import annotations
 
+import io
 import logging
 import zipfile
 from pathlib import Path
@@ -18,7 +19,9 @@ from pathlib import Path
 import pytest
 from installer.sources import WheelFile
 
+from pitloom._embed_stale import stale_sboms
 from pitloom._embed_wheel import embed_sbom_in_wheel
+from pitloom.logging_config import CODE_ATTR
 
 from .conftest import _SAMPLE_SPDX3_JSON, _make_dummy_wheel, _spdx3_json_with_subject
 
@@ -70,7 +73,9 @@ def test_only_a_build_or_analyzed_sbom_of_the_wheel_is_replaced(
     assert (f"{_DIST}first.spdx3.json" in record) is not removed
     assert len(caplog.messages) == (0 if removed else 1)
     if not removed:
-        assert f"{_DIST}first.spdx3.json: kept" in caplog.messages[0]
+        assert f"ENTRY='{_DIST}first.spdx3.json'" in caplog.messages[0]
+        assert caplog.messages[0].endswith("; kept")
+        assert getattr(caplog.records[0], CODE_ATTR) == "wheel-sbom-conflict/held"
     with WheelFile.open(wheel) as wf:
         wf.validate_record()
 
@@ -111,4 +116,36 @@ def test_a_failed_chmod_is_one_warning(
     monkeypatch.setattr("pitloom._embed_wheel.os.chmod", refuse)
     with caplog.at_level(logging.WARNING):
         embed_sbom_in_wheel(wheel, _NEW)
-    assert caplog.messages == [f"{wheel.name}: file mode not restored: denied"]
+    assert caplog.messages == [f"FILE={wheel.name}: file mode not restored; denied"]
+    assert getattr(caplog.records[0], CODE_ATTR) == "file-unwritable/mode"
+
+
+def test_a_held_sbom_of_an_in_memory_archive_is_said_and_never_crashes(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """An in-memory ``ZipFile`` has no ``filename``: the line still comes,
+    naming the wheel as the caller gives it, not raising."""
+    archive = "given-1.0.0-py3-none-any.whl"
+    other = _spdx3_json_with_subject("otherpkg", "1.0.0", pitloom_sbom_types=["build"])
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as zf:
+        zf.writestr(
+            zipfile.ZipInfo(f"{_DIST}first.spdx3.json", (1980, 1, 1, 0, 0, 0)), other
+        )
+    with zipfile.ZipFile(buffer) as zf:
+        assert zf.filename is None
+        members = {info.filename: info for info in zf.infolist()}
+        with caplog.at_level(logging.WARNING):
+            stale = stale_sboms(
+                zf,
+                members,
+                "stalepkg-1.0.0.dist-info/",
+                f"{_DIST}second.spdx3.json",
+                ("stalepkg", "1.0.0"),
+                archive=archive,
+            )
+    assert stale == frozenset()
+    (record,) = caplog.records
+    assert getattr(record, CODE_ATTR) == "wheel-sbom-conflict/held"
+    assert record.getMessage().startswith(f"ARCHIVE={archive!r} ")
+    assert f"ENTRY='{_DIST}first.spdx3.json'" in record.getMessage()

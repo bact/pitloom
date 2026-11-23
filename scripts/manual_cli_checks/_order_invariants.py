@@ -25,7 +25,7 @@ sections), ``id-registry-v3-build-notes.md`` (BN).
 - C, idempotence: a reader step run again leaves the registry bytes
   unchanged; a third run's SBOM equals the second's (I7, "SBOM output").
 - D, clean runs: exit 0, every stderr line tagged, no traceback, no
-  ERROR, no duplicate spdxId in an output, no ``shares spdxId`` or
+  ERROR, no duplicate spdxId in an output, no ``fragment-id-conflict`` or
   ``another run saved`` warning (I4, D11, 8.4).
 - E, cross-surface agreement: the same key, registry entry and content
   gets one id on every surface (section 7).

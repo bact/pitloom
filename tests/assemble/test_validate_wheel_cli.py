@@ -13,7 +13,9 @@ counterpart these tests intentionally don't duplicate.
 from __future__ import annotations
 
 import json
+import re
 import sys
+import tempfile
 import zipfile
 from pathlib import Path
 from unittest.mock import patch
@@ -21,7 +23,6 @@ from unittest.mock import patch
 import pytest
 
 from pitloom import __main__
-from pitloom.core.wheel_dist_info import PROBLEM_NONE
 from tests.kv_helpers import kv_stdout, statuses
 
 from .conftest import _SAMPLE_SPDX3_JSON, _embed_sbom_entry, _make_dummy_wheel
@@ -63,6 +64,7 @@ def test_validate_wheel_valid_sbom_ok(
     assert "INFO: validate-wheel: 1 wheel(s) valid" in captured.err.splitlines()
 
 
+@pytest.mark.usefixtures("offline_spdx3_validate")
 def test_validate_wheel_invalid_sbom_errors(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
@@ -71,9 +73,7 @@ def test_validate_wheel_invalid_sbom_errors(
     """A schema-invalid embedded document -> ERROR lines, exit 1.
 
     Corrupts a known-good document's node type so it still has a valid
-    @context (no network-dependent schema fetch needed to reach the
-    UnknownVersionError path -- this exercises the ValidationResult.errors
-    path instead, offline, mirroring test_cli_fragment.py's local case)."""
+    @context; the vendored model keeps the run offline."""
     doc = json.loads(_SAMPLE_SPDX3_JSON)
     doc["@graph"][0]["type"] = "NotARealType"
     wheel_path = _make_dummy_wheel(tmp_path, "badpkg", "1.0.0")
@@ -84,12 +84,21 @@ def test_validate_wheel_invalid_sbom_errors(
     assert result == 1
 
     captured = capsys.readouterr()
-    assert captured.err.strip() != ""
-    for line in captured.err.splitlines():
-        assert line.startswith("ERROR: ")
+    lines = captured.err.splitlines()
+    assert lines
+    for line in lines:
+        assert line.startswith("ERROR: loom validate-wheel: ")
+    # The validator's own words after its prefix, none blank, then the one
+    # coded line of the document.
+    relayed = [ln for ln in lines if "validate-wheel: spdx3-validate: " in ln]
+    assert relayed and lines[-1].endswith(" [sbom-invalid]")
+    assert len(relayed) == len(lines) - 1
     # The messages name the wheel's member, not the temporary copy checked.
-    assert f"{wheel_path.name}/" in captured.err
-    assert ".dist-info/sboms/badpkg-1.0.0.spdx3.json" in captured.err
+    assert f"FILE={wheel_path.name}/" in lines[-1]
+    assert ".dist-info/sboms/badpkg-1.0.0.spdx3.json: not valid SPDX 3" in lines[-1]
+    found = len([ln for ln in relayed if re.search(r": \[(schema|shacl)\] ", ln)])
+    assert f"({found} finding(s) above)" in lines[-1]
+    assert tempfile.gettempdir() not in captured.err
 
 
 def test_validate_wheel_missing_dependency(
@@ -127,8 +136,8 @@ def test_validate_wheel_missing_sbom_errors(
 
     captured = capsys.readouterr()
     assert (
-        "ERROR: loom validate-wheel: no SBOM found under .dist-info/sboms/"
-        in captured.err
+        "ERROR: loom validate-wheel: ARCHIVE='nosbompkg-1.0.0-py3-none-any.whl': "
+        "no SBOM under .dist-info/sboms/ [wheel-sbom-missing]" in captured.err
     )
     assert statuses(captured.out) == ["failed"]
 
@@ -171,7 +180,8 @@ def test_validate_wheel_malformed_wheel_errors(
 
     captured = capsys.readouterr()
     assert captured.err.startswith("ERROR: ")
-    assert PROBLEM_NONE in captured.err
+    assert "no top-level .dist-info directory" in captured.err
+    assert "[dist-info-missing]" in captured.err
 
 
 def test_validate_wheel_corrupt_zip_errors(
@@ -193,7 +203,7 @@ def test_validate_wheel_corrupt_zip_errors(
     assert __main__.main() == 1
 
     captured = capsys.readouterr()
-    assert "wheel refused" in captured.err
+    assert "; wheel refused [wheel-unreadable]" in captured.err
 
 
 def test_validate_wheel_no_wheel_files_errors(
@@ -228,7 +238,8 @@ def test_validate_wheel_unrecognized_format_warns_not_fails(
 
     captured = capsys.readouterr()
     assert "WARNING: " in captured.err
-    assert "no validator registered" in captured.err
+    assert "no validator for the SBOM's format; not validated" in captured.err
+    assert "[wheel-sbom-unusable]" in captured.err
     assert statuses(captured.out) == ["skipped"]
     assert (
         "INFO: validate-wheel: 0 wheel(s) valid, 1 skipped "

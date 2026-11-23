@@ -1,5 +1,5 @@
 ---
-Last-Modified: 2026-11-22
+Last-Modified: 2026-11-23
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -26,10 +26,11 @@ and this project adheres to
 
 - Input, option, SBOM, target, ID registry file, id, key, save, file-set, lock
   file, dependency, configuration, licence, project metadata, file discovery,
-  Git URL, Hugging Face Hub, build, temporary directory, signal and build hook
-  messages carry a message code, and a configuration error names the file; see
-  `docs/message-codes.md` ([#482], [#485], [#486], [#492], [#496], [#497],
-  [#498], [#501], [#503], [#506], [#508], [#511])
+  Git URL, Hugging Face Hub, build, temporary directory, signal, build hook, SBOM
+  fragment, wheel and embedded SBOM messages carry a message code, and a
+  configuration error names the file; see `docs/message-codes.md` ([#482],
+  [#485], [#486], [#492], [#496], [#497], [#498], [#501], [#503], [#506], [#508],
+  [#511], [#513], [#515])
 - A credential in an SBOM URL field is warned of; `url-credentials = "refuse"`
   or `--refuse-url-credentials` refuse the SBOM ([#489], [#490])
 - `embed-wheel --sbom` (every string) and `merge` check an SBOM for such
@@ -110,6 +111,23 @@ and this project adheres to
 - The build hook's disabled, not-a-wheel and editable lines carry
   `[hook-no-effect]` and drop the trailing period and the quotes round the
   target; its staged-SBOM line starts `Pitloom build hook: ` ([#511])
+- `loom merge` of a directory where no fragment could be merged writes nothing
+  and exits 1; `merged N fragment(s)` counts merged fragments; a merge no
+  fragment dates warns `[datetime-missing]` ([#513])
+- `loom fragment list` reads a fragment as the merge does: a required one with an
+  integer beyond 2**53 fails ([#513])
+- A malformed `sha256` in `[tool.pitloom.fragment]` is `config-invalid`; upper-case
+  hex is accepted ([#513])
+- Fragment merge lines name the element, property and values kept and dropped;
+  dangling-reference warnings are sorted ([#513])
+- Wheel refusal lines end `; wheel refused [code]` and quote the archive and
+  member; member lines say `; not listed` or `; not copied`, not `skipped`
+  ([#515])
+- `validate-wheel` and `fragment validate` print each finding once as
+  `spdx3-validate: <line>`, then one coded `sbom-invalid` line, no empty
+  `ERROR:` line ([#515])
+- A byte order mark in an SBOM is a coded `WARNING:` for `loom id import` too
+  ([#515])
 
 ### Fixed
 
@@ -136,6 +154,8 @@ and this project adheres to
 - A Hub revision warning is said once per model read, not per file; a refused
   PyPI URL gives its `ERROR:` line without a `WARNING:` before it; an error text
   in a `failure` value is cut to 500 characters ([#508])
+- `embed-wheel --sbom-basename` with a path is refused before the SBOM is
+  generated, not after ([#515])
 
 ### Security
 
@@ -168,6 +188,8 @@ and this project adheres to
 [#508]: https://github.com/bact/pitloom/pull/508
 [#509]: https://github.com/bact/pitloom/pull/509
 [#511]: https://github.com/bact/pitloom/pull/511
+[#513]: https://github.com/bact/pitloom/pull/513
+[#515]: https://github.com/bact/pitloom/pull/515
 
 ## [0.24.0] - 2026-11-11
 

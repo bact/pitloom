@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-29
-Last-Modified: 2026-11-13
+Last-Modified: 2026-11-23
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -11,6 +11,14 @@ SPDX-License-Identifier: CC0-1.0
 See also: `../SKILL.md` ("Troubleshooting: dangling references", which
 holds the rule: regenerate the base SBOM, never retry the same merge, never
 create or write an ID registry to fix it) and `deterministic-pass.md`.
+
+The lines, one `WARNING:` per dangling reference in sorted order, then the
+`ERROR:` (the merge writes nothing, exit 1):
+
+```text
+WARNING: Merge: ELEMENT=<spdx-id>: <property> names <reference>, which is not in the merged document; regenerate the base SBOM, then run the enrichment again [reference-not-found]
+ERROR: <number> reference(s) to elements not in the merged document; regenerate the base SBOM, then run the enrichment again [reference-not-found]
+```
 
 If Pitloom was upgraded since the base SBOM was generated, regenerate the base
 before merging when the upgrade could have changed file discovery for this

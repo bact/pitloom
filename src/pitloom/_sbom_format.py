@@ -12,7 +12,11 @@ Independent of PEP 770/wheel-embedding mechanics; see
 `verify-wheel` (on an already-built wheel) and `embed-wheel` (on an
 externally supplied ``--sbom``, before embedding) both use
 :func:`check_spdx3_name_version`, so they agree on what counts as a mismatch
-and what a skip.
+and what a skip. It returns data, not prose: each mismatch an
+:class:`~pitloom.messages.wheel_sboms.IdentityMismatch`, each check not made
+a :class:`~pitloom.messages.wheel_sboms.CrossCheckGap`, which the catalogue
+says (:func:`~pitloom.messages.wheel_sboms.say_identity_mismatches`,
+:func:`~pitloom.messages.wheel_sboms.warn_cross_check_gaps`).
 """
 
 from __future__ import annotations
@@ -27,7 +31,6 @@ from packaging.utils import canonicalize_name
 
 from pitloom.core.given_file import read_given_bytes
 from pitloom.core.pep440 import parse_version
-from pitloom.core.quote_source import quote_source
 from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
 from pitloom.messages import CodedValueError
 from pitloom.messages.files import JSON_MALFORMED, SBOM_USE, file_unreadable_error
@@ -37,6 +40,21 @@ from pitloom.messages.targets import (
     SBOM_GRAPH_NOT_LIST_LINE,
     SBOM_INVALID,
     SBOM_WRONG_FORMAT,
+)
+from pitloom.messages.wheel_sboms import (
+    GAP_BOTH_PART_MISSING,
+    GAP_NO_DOCUMENT,
+    GAP_NO_DOCUMENT_ROOT,
+    GAP_NO_SBOM_ROOT,
+    GAP_NO_WHEEL_IDENTITY,
+    GAP_NOT_SPDX3,
+    GAP_SBOM_PART_MISSING,
+    GAP_SBOM_VERSION_INVALID,
+    GAP_SUBJECT_NOT_PACKAGE,
+    GAP_WHEEL_PART_MISSING,
+    GAP_WHEEL_VERSION_INVALID,
+    CrossCheckGap,
+    IdentityMismatch,
 )
 
 
@@ -92,12 +110,12 @@ def detect_sbom_format(data: bytes) -> str | None:
 
 @dataclasses.dataclass(frozen=True)
 class _SbomSubjectIdentity:
-    """An SBOM's declared subject name/version, or the reason it couldn't
-    be extracted."""
+    """An SBOM's declared subject name/version, or why it couldn't be
+    extracted (*gap*)."""
 
     name: str | None
     version: str | None
-    error: str | None = None
+    gap: CrossCheckGap | None = None
 
 
 def _parse_jsonld_graph(data: bytes) -> list[Any] | None:
@@ -142,7 +160,7 @@ def extract_spdx3_subject_identity(data: bytes) -> _SbomSubjectIdentity | None:
 
     Returns ``None`` if *data* isn't even recognisable JSON-LD (callers
     should already have checked via `detect_sbom_format`); returns an
-    `_SbomSubjectIdentity` with a non-``None`` `.error` and both fields
+    `_SbomSubjectIdentity` with a non-``None`` `.gap` and both fields
     ``None`` if the graph shape doesn't match what's expected (missing
     `SpdxDocument` node, empty/dangling `rootElement`, a resolved subject
     of the wrong type, etc.) -- callers must treat that as "skip the
@@ -174,12 +192,10 @@ def extract_spdx3_subject_identity(data: bytes) -> _SbomSubjectIdentity | None:
         None,
     )
     if spdx_doc is None:
-        return _SbomSubjectIdentity(None, None, "no SpdxDocument node found")
+        return _SbomSubjectIdentity(None, None, CrossCheckGap(GAP_NO_DOCUMENT))
     root = spdx_doc.get("rootElement")
     if not isinstance(root, list) or not root or root[0] not in by_id:
-        return _SbomSubjectIdentity(
-            None, None, "SpdxDocument has no usable rootElement"
-        )
+        return _SbomSubjectIdentity(None, None, CrossCheckGap(GAP_NO_DOCUMENT_ROOT))
 
     subject = by_id[root[0]]
     if subject.get("type") == "software_Sbom":
@@ -189,17 +205,13 @@ def extract_spdx3_subject_identity(data: bytes) -> _SbomSubjectIdentity | None:
             or not sbom_root
             or sbom_root[0] not in by_id
         ):
-            return _SbomSubjectIdentity(
-                None, None, "Sbom node has no usable rootElement"
-            )
+            return _SbomSubjectIdentity(None, None, CrossCheckGap(GAP_NO_SBOM_ROOT))
         subject = by_id[sbom_root[0]]
 
     subject_type = subject.get("type")
     if subject_type not in _SUBJECT_TYPES:
         return _SbomSubjectIdentity(
-            None,
-            None,
-            f"SBOM subject is a {subject_type!r} node, not a recognized package type",
+            None, None, CrossCheckGap(GAP_SUBJECT_NOT_PACKAGE, value=subject_type)
         )
 
     name = subject.get("name")
@@ -215,79 +227,56 @@ def compare_name_version(
     wheel_version: str | None,
     sbom_name: str | None,
     sbom_version: str | None,
-) -> tuple[list[str], list[str]]:
+) -> tuple[list[IdentityMismatch], list[CrossCheckGap]]:
     """Compare a wheel's METADATA name/version against an SBOM subject's,
     after PEP 503 (name) / PEP 440 (version) normalisation.
 
-    Returns ``(mismatches, warnings)`` as human-readable fragments (no
-    wheel-name prefix, no `WARNING:`/`ERROR:` tag) -- callers decide how
-    to log/report them and at what severity. An unparseable version on
-    either side, or a missing name/version on *either* side, yields a
-    `warnings` fragment (skip that half of the check) rather than a
-    `mismatches` one -- "can't compare" is a different finding from
-    "compared and differs," and is never silently dropped: a missing
-    wheel-side value warns exactly like a missing SBOM-side one; a wheel
-    with neither warns once.
+    Returns ``(mismatches, gaps)``, name before version: data, not text --
+    callers say them (:mod:`pitloom.messages.wheel_sboms`) at the severity
+    they choose. An unparseable version on either side, or a missing
+    name/version on *either* side, yields a gap (that half of the check is
+    skipped) rather than a mismatch -- "can't compare" is a different
+    finding from "compared and differs," and is never silently dropped: a
+    missing wheel-side value is a gap exactly like a missing SBOM-side one;
+    a wheel with neither is one gap.
     """
     if not wheel_name and not wheel_version:
-        return [], ["wheel METADATA has no name or version to cross-check"]
-    mismatches: list[str] = []
-    warnings: list[str] = []
+        return [], [CrossCheckGap(GAP_NO_WHEEL_IDENTITY)]
+    mismatches: list[IdentityMismatch] = []
+    gaps: list[CrossCheckGap] = []
 
     if wheel_name and sbom_name:
         if canonicalize_name(wheel_name) != canonicalize_name(sbom_name):
-            mismatches.append(
-                f"name: wheel declares {wheel_name!r}, SBOM declares {sbom_name!r}"
-            )
+            mismatches.append(IdentityMismatch("name", wheel_name, sbom_name))
     else:
-        warnings.append(_missing_side_warning("name", wheel_name, sbom_name))
+        gaps.append(_missing_side_gap("name", wheel_name, sbom_name))
 
     if wheel_version and sbom_version:
         wheel_v = parse_version(wheel_version)
         sbom_v = parse_version(sbom_version)
         if wheel_v is None:
-            warnings.append(
-                f"wheel METADATA version {wheel_version!r} isn't a valid PEP "
-                "440 version; skipping version cross-check"
-            )
+            gaps.append(CrossCheckGap(GAP_WHEEL_VERSION_INVALID, value=wheel_version))
         elif sbom_v is None:
-            warnings.append(
-                f"SBOM subject version {sbom_version!r} isn't a valid PEP "
-                "440 version; skipping version cross-check"
-            )
+            gaps.append(CrossCheckGap(GAP_SBOM_VERSION_INVALID, value=sbom_version))
         elif wheel_v != sbom_v:
-            mismatches.append(
-                f"version: wheel declares {wheel_version!r}, SBOM declares "
-                f"{sbom_version!r}"
-            )
+            mismatches.append(IdentityMismatch("version", wheel_version, sbom_version))
     else:
-        warnings.append(_missing_side_warning("version", wheel_version, sbom_version))
+        gaps.append(_missing_side_gap("version", wheel_version, sbom_version))
 
-    return mismatches, warnings
+    return mismatches, gaps
 
 
-def _missing_side_warning(
-    field: str, wheel_value: str | None, sbom_value: str | None
-) -> str:
-    """Build the "can't compare" warning fragment for `field` ("name" or
-    "version") when at least one of *wheel_value*/*sbom_value* is falsy --
-    names which side(s) are missing so a skip is never unexplained."""
+def _missing_side_gap(
+    part: str, wheel_value: str | None, sbom_value: str | None
+) -> CrossCheckGap:
+    """The gap of *part* (``name`` or ``version``) when at least one of
+    *wheel_value*/*sbom_value* is falsy -- naming which side(s) lack it, so
+    a skip is never unexplained."""
     if not wheel_value and not sbom_value:
-        return f"neither the wheel nor the SBOM subject has a {field} to cross-check"
+        return CrossCheckGap(GAP_BOTH_PART_MISSING, part=part)
     if not wheel_value:
-        return f"wheel METADATA has no {field} to cross-check"
-    return f"SBOM subject has no {field} to cross-check"
-
-
-def format_name_version_mismatch(subject: str, mismatches: list[str]) -> str:
-    """Format `compare_name_version`/`check_spdx3_name_version`'s
-    `mismatches` list into one human-readable line prefixed with
-    *subject* (typically a wheel filename) -- the shared wording both
-    `verify-wheel` (`cli/commands/verify_wheel.py`) and `embed-wheel`
-    (`embed.py`'s pre-embed enforcement) log/raise, so a wording tweak
-    can't silently diverge between the two.
-    """
-    return f"{quote_source(subject)}: SBOM/wheel " + "; ".join(mismatches)
+        return CrossCheckGap(GAP_WHEEL_PART_MISSING, part=part)
+    return CrossCheckGap(GAP_SBOM_PART_MISSING, part=part)
 
 
 def check_spdx3_name_version(
@@ -295,28 +284,28 @@ def check_spdx3_name_version(
     wheel_version: str | None,
     sbom_data: bytes,
     sbom_format: str | None,
-) -> tuple[list[str], list[str]]:
+) -> tuple[list[IdentityMismatch], list[CrossCheckGap]]:
     """Cross-check an embedded/to-be-embedded SBOM's declared subject
     name/version against *wheel_name*/*wheel_version* (a wheel's own
     METADATA).
 
-    Returns ``(mismatches, warnings)``, same shape as
-    :func:`compare_name_version`. Only ``"spdx3-jsonld"`` is supported --
-    any other *sbom_format* (including ``None``, unrecognised) or a
-    graph shape :func:`extract_spdx3_subject_identity` can't follow
-    yields a single `warnings` fragment naming why and an empty
-    `mismatches` -- "couldn't check" is never escalated to a mismatch.
+    Returns ``(mismatches, gaps)``, as :func:`compare_name_version`. Only
+    ``"spdx3-jsonld"`` is supported -- any other *sbom_format* (including
+    ``None``, unrecognised) or a graph shape
+    :func:`extract_spdx3_subject_identity` can't follow yields a single gap
+    naming why and no mismatch -- "couldn't check" is never escalated to a
+    mismatch.
     """
     if sbom_format != "spdx3-jsonld":
-        return [], [
-            f"cannot cross-check name/version for unsupported SBOM format "
-            f"{sbom_format!r}"
-        ]
+        return [], [CrossCheckGap(GAP_NOT_SPDX3)]
 
     identity = extract_spdx3_subject_identity(sbom_data)
-    if identity is None or identity.error is not None:
-        reason = identity.error if identity is not None else "unrecognized SBOM content"
-        return [], [f"cannot cross-check SBOM name/version ({reason})"]
+    if identity is None:
+        # detect_sbom_format() read it as SPDX 3 JSON-LD, so this is not
+        # reached; said as the format's gap all the same.
+        return [], [CrossCheckGap(GAP_NOT_SPDX3)]
+    if identity.gap is not None:
+        return [], [identity.gap]
 
     return compare_name_version(
         wheel_name, wheel_version, identity.name, identity.version

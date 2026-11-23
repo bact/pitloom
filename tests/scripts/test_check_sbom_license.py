@@ -270,7 +270,10 @@ def test_load_sbom_reads_wheel_member(module: ModuleType, tmp_path: Path) -> Non
     ("sboms", "pattern"),
     [
         ({}, "no SBOM"),
-        ({"s0.spdx3.json": b"{}", "s1.spdx3.json": b"{}"}, "Multiple SBOMs"),
+        (
+            {"s0.spdx3.json": b"{}", "s1.spdx3.json": b"{}"},
+            "SBOMs under .dist-info/sboms/",
+        ),
         ({"sub/s.spdx3.json": b"{}"}, "no SBOM"),
     ],
 )

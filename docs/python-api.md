@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-11-17
+Last-Modified: 2026-11-23
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -521,8 +521,11 @@ lists files) raises `pitloom.assemble.FragmentMergeError` if an element
 of the merged graph references an id that resolves to nothing -- most
 commonly a fragment recorded against a base SBOM whose ids have since
 changed: regenerate the base SBOM and re-run the fragment-producing
-script. `generate_merged_sbom(fragments_dir)` merges a directory of
-fragments into one document, as `loom merge` does. See [SBOM
+script. It raises the same error, carrying the code `fragment-missing`, when a
+fragment marked `required = true` could not be merged.
+`generate_merged_sbom(fragments_dir)` merges a directory of fragments into one
+document, as `loom merge` does; it raises the error too, and writes nothing,
+when none of the fragments could be merged. See [SBOM
 fragments](fragments.md) and [API reference](api.md#fragment-merging).
 
 ## See also

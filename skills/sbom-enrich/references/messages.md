@@ -30,15 +30,15 @@ is one of the code's lines on its page (the table links it), a value in place of
 each `<name>` (the values page says what each is), after at most one prefix from
 the table of prefixes.
 
-- [AI models](messages-models.md): 12 codes
+- [AI models](messages-models.md): 13 codes
 - [Model fields](messages-model-fields.md): 5 codes
 - [Targets](messages-targets.md): 16 codes
-- [Options](messages-options.md): 4 codes
+- [Options](messages-options.md): 5 codes
 - [Configuration](messages-config.md): 6 codes
 - [Project metadata](messages-metadata.md): 9 codes
 - [File discovery](messages-file-discovery.md): 3 codes
 - [Builds and temporary directories](messages-build.md): 7 codes
-- [Files and text](messages-files.md): 12 codes
+- [Files and text](messages-files.md): 14 codes
 - [Lock files](messages-lock-files.md): 7 codes
 - [Dependencies](messages-dependencies.md): 6 codes
 - [PyPI](messages-pypi.md): 13 codes
@@ -48,10 +48,16 @@ the table of prefixes.
 - [ID registry](messages-id-registry.md): 5 codes
 - [ID registry ids and keys](messages-id-registry-ids.md): 15 codes
 - [Licences](messages-licences.md): 8 codes
+- [SBOM fragments](messages-fragments.md): 11 codes
+- [Wheels](messages-wheels.md): 10 codes
+- [Embedded SBOMs](messages-wheel-sboms.md): 8 codes
 - [Values](messages-values.md): what each `<name>` in a line is
 
 | Code | Level | Since |
 | --- | --- | --- |
+| [`archive-member-conflict`](messages-wheels.md#archive-member-conflict) | WARNING | 0.25.0 |
+| [`archive-member-invalid`](messages-wheels.md#archive-member-invalid) | WARNING | 0.25.0 |
+| [`archive-member-unsafe`](messages-wheels.md#archive-member-unsafe) | WARNING | 0.25.0 |
 | [`build-code-unsafe`](messages-build.md#build-code-unsafe) | WARNING | 0.25.0 |
 | [`build-failed`](messages-build.md#build-failed) | WARNING | 0.25.0 |
 | [`build-processes-unsafe`](messages-build.md#build-processes-unsafe) | WARNING, INFO | 0.25.0 |
@@ -71,11 +77,16 @@ the table of prefixes.
 | [`credentials-unsafe/refused`](messages-url-credentials.md#credentials-unsaferefused) | ERROR | 0.25.0 |
 | [`credentials-unsafe/registry`](messages-url-credentials.md#credentials-unsaferegistry) | ERROR, WARNING | 0.25.0 |
 | [`credentials-unsafe/written`](messages-url-credentials.md#credentials-unsafewritten) | WARNING | 0.25.0 |
+| [`datetime-missing`](messages-fragments.md#datetime-missing) | WARNING | 0.25.0 |
+| [`datetime-not-recordable`](messages-wheel-sboms.md#datetime-not-recordable) | INFO | 0.25.0 |
 | [`datetime-unpinned`](messages-config.md#datetime-unpinned) | INFO | 0.25.0 |
 | [`dependency-name-ambiguous`](messages-dependencies.md#dependency-name-ambiguous) | INFO | 0.25.0 |
 | [`dependency-pin-conflict`](messages-dependencies.md#dependency-pin-conflict) | WARNING | 0.25.0 |
 | [`digest-invalid`](messages-pypi.md#digest-invalid) | ERROR | 0.24.0 |
 | [`dir-unlistable`](messages-files.md#dir-unlistable) | ERROR, WARNING | 0.22.0 |
+| [`dist-info-ambiguous`](messages-wheels.md#dist-info-ambiguous) | ERROR, WARNING | 0.25.0 |
+| [`dist-info-conflict`](messages-wheels.md#dist-info-conflict) | WARNING | 0.25.0 |
+| [`dist-info-missing`](messages-wheels.md#dist-info-missing) | ERROR, WARNING | 0.25.0 |
 | [`download-network-failed`](messages-network.md#download-network-failed) | ERROR, WARNING | 0.24.0 |
 | [`download-timeout`](messages-network.md#download-timeout) | ERROR, WARNING | 0.24.0 |
 | [`dynamic-field-needs-build`](messages-metadata.md#dynamic-field-needs-build) | WARNING | 0.25.0 |
@@ -92,6 +103,16 @@ the table of prefixes.
 | [`file-unreadable/outside-project`](messages-files.md#file-unreadableoutside-project) | WARNING | 0.22.0 |
 | [`file-unreadable/outside-repository`](messages-files.md#file-unreadableoutside-repository) | WARNING | 0.23.4 |
 | [`file-unwritable`](messages-files.md#file-unwritable) | ERROR, WARNING | 0.25.0 |
+| [`file-unwritable/mode`](messages-files.md#file-unwritablemode) | WARNING | 0.25.0 |
+| [`fragment-conflict`](messages-fragments.md#fragment-conflict) | WARNING | 0.25.0 |
+| [`fragment-digest-invalid`](messages-fragments.md#fragment-digest-invalid) | WARNING | 0.25.0 |
+| [`fragment-hash-conflict`](messages-fragments.md#fragment-hash-conflict) | WARNING | 0.25.0 |
+| [`fragment-id-conflict`](messages-fragments.md#fragment-id-conflict) | WARNING | 0.25.0 |
+| [`fragment-invalid`](messages-fragments.md#fragment-invalid) | WARNING | 0.25.0 |
+| [`fragment-missing`](messages-fragments.md#fragment-missing) | ERROR | 0.25.0 |
+| [`fragment-unreadable`](messages-fragments.md#fragment-unreadable) | WARNING | 0.25.0 |
+| [`fragment-unusable`](messages-fragments.md#fragment-unusable) | WARNING | 0.25.0 |
+| [`generated-value-conflict`](messages-fragments.md#generated-value-conflict) | INFO | 0.25.0 |
 | [`git-filter-unusable`](messages-git.md#git-filter-unusable) | INFO | 0.25.0 |
 | [`git-link-unsafe`](messages-git.md#git-link-unsafe) | INFO | 0.25.0 |
 | [`git-missing`](messages-git.md#git-missing) | ERROR | 0.25.0 |
@@ -112,11 +133,13 @@ the table of prefixes.
 | [`installed-metadata-unusable`](messages-metadata.md#installed-metadata-unusable) | WARNING | 0.25.0 |
 | [`interrupted`](messages-build.md#interrupted) | ERROR, WARNING | 0.25.0 |
 | [`json-malformed`](messages-files.md#json-malformed) | ERROR, WARNING | 0.23.0 |
+| [`json-malformed/bom`](messages-files.md#json-malformedbom) | WARNING | 0.25.0 |
 | [`lfs-pointer`](messages-models.md#lfs-pointer) | ERROR, WARNING | 0.22.0 |
 | [`lfs-pointer-malformed`](messages-models.md#lfs-pointer-malformed) | ERROR, WARNING | 0.22.0 |
 | [`lfs-pointer/shipped`](messages-models.md#lfs-pointershipped) | WARNING | 0.22.0 |
 | [`library-missing`](messages-models.md#library-missing) | ERROR, WARNING | 0.22.0 |
 | [`library-unusable`](messages-models.md#library-unusable) | ERROR, WARNING | 0.23.0 |
+| [`library-unusable/hatchling`](messages-models.md#library-unusablehatchling) | ERROR | 0.25.0 |
 | [`license-ambiguous`](messages-licences.md#license-ambiguous) | WARNING | 0.25.0 |
 | [`license-conflict`](messages-licences.md#license-conflict) | WARNING | 0.25.0 |
 | [`license-db-missing`](messages-licences.md#license-db-missing) | WARNING, INFO | 0.25.0 |
@@ -146,6 +169,7 @@ the table of prefixes.
 | [`option-conflict`](messages-options.md#option-conflict) | ERROR | 0.25.0 |
 | [`option-invalid`](messages-options.md#option-invalid) | ERROR | 0.25.0 |
 | [`option-missing`](messages-options.md#option-missing) | ERROR | 0.25.0 |
+| [`option-missing/project-dir`](messages-options.md#option-missingproject-dir) | INFO | 0.25.0 |
 | [`option-no-effect`](messages-options.md#option-no-effect) | WARNING, INFO | 0.25.0 |
 | [`over-cap`](messages-files.md#over-cap) | ERROR, WARNING | 0.22.0 |
 | [`parameter-count-invalid`](messages-model-fields.md#parameter-count-invalid) | WARNING | 0.22.0 |
@@ -159,6 +183,7 @@ the table of prefixes.
 | [`query-no-effect`](messages-network.md#query-no-effect) | INFO | 0.24.0 |
 | [`reader-unsafe`](messages-models.md#reader-unsafe) | INFO | 0.22.0 |
 | [`reader-unsafe/remote`](messages-models.md#reader-unsaferemote) | INFO | 0.23.4 |
+| [`reference-not-found`](messages-fragments.md#reference-not-found) | ERROR, WARNING | 0.25.0 |
 | [`registry-conflict`](messages-id-registry-ids.md#registry-conflict) | WARNING | 0.25.0 |
 | [`registry-conflict/concurrent`](messages-id-registry-ids.md#registry-conflictconcurrent) | WARNING | 0.25.0 |
 | [`registry-conflict/file-set`](messages-id-registry-ids.md#registry-conflictfile-set) | WARNING | 0.25.0 |
@@ -189,6 +214,7 @@ the table of prefixes.
 | [`requirement-invalid`](messages-dependencies.md#requirement-invalid) | WARNING | 0.25.0 |
 | [`requirement-unusable`](messages-dependencies.md#requirement-unusable) | WARNING | 0.25.0 |
 | [`sbom-invalid`](messages-targets.md#sbom-invalid) | ERROR, WARNING | 0.25.0 |
+| [`sbom-name-conflict`](messages-wheel-sboms.md#sbom-name-conflict) | ERROR | 0.25.0 |
 | [`sbom-wrong-format`](messages-targets.md#sbom-wrong-format) | ERROR | 0.25.0 |
 | [`source-date-epoch-invalid`](messages-config.md#source-date-epoch-invalid) | ERROR | 0.25.0 |
 | [`target-ambiguous`](messages-targets.md#target-ambiguous) | INFO | 0.23.4 |
@@ -207,6 +233,16 @@ the table of prefixes.
 | [`usage-unparseable`](messages-models.md#usage-unparseable) | WARNING | 0.22.1 |
 | [`usage-unparseable/mention`](messages-models.md#usage-unparseablemention) | INFO | 0.22.1 |
 | [`usage-unusable`](messages-models.md#usage-unusable) | WARNING | 0.22.1 |
+| [`wheel-invalid`](messages-wheels.md#wheel-invalid) | ERROR | 0.25.0 |
+| [`wheel-sbom-ambiguous`](messages-wheel-sboms.md#wheel-sbom-ambiguous) | ERROR | 0.25.0 |
+| [`wheel-sbom-conflict`](messages-wheel-sboms.md#wheel-sbom-conflict) | ERROR, WARNING | 0.25.0 |
+| [`wheel-sbom-conflict/held`](messages-wheel-sboms.md#wheel-sbom-conflictheld) | WARNING, INFO | 0.25.0 |
+| [`wheel-sbom-missing`](messages-wheel-sboms.md#wheel-sbom-missing) | ERROR | 0.25.0 |
+| [`wheel-sbom-unusable`](messages-wheel-sboms.md#wheel-sbom-unusable) | WARNING | 0.25.0 |
+| [`wheel-sbom-wrong-format`](messages-wheel-sboms.md#wheel-sbom-wrong-format) | WARNING | 0.25.0 |
+| [`wheel-unreadable`](messages-wheels.md#wheel-unreadable) | ERROR | 0.25.0 |
+| [`wheel-unusable`](messages-wheels.md#wheel-unusable) | ERROR | 0.25.0 |
+| [`wheel-unusable/signed`](messages-wheels.md#wheel-unusablesigned) | ERROR, INFO | 0.25.0 |
 
 A line may start with one prefix before its text:
 

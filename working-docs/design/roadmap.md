@@ -138,11 +138,15 @@ counts are in [message-catalogue-migration-plan.md](message-catalogue-migration-
   conflict messages; then save, file-set and summary lines (`file-unwritable`,
   `registry-file-missing`, `registry-conflict/file-set`); merged, ratchet 366
   to 328 to 316.
-- [ ] **Catalogue PRs 14 to 17** (the remaining families): Hub and build,
-  fragments and wheels, miscellany. Done: lock files (10, 11, #496), config
+- [ ] **Catalogue PR 17** (the remaining families): miscellany (author split,
+  dataset fields, over-cap, library misuse); then the final sweep. Done: lock files (10, 11, #496), config
   (8, 9, #497), licence (18, #498), project metadata and file discovery (12,
   #501; ratchet 211 to 154), Git source (13, #503; ratchet 154 to 132,
-  frames by exact code, relays dropped), the generated values page (#499). The
+  frames by exact code, relays dropped), build, temporary directories and signals
+  (14a, #506), the Hub timeout (#507), Hub and PyPI relay (14b, #508), hook
+  lines (14c, #511; ratchet 132 to 108), SBOM fragments and merge
+  (15, #513; ratchet 108 to 85), wheels and embedding (16, #515; ratchet 85 to
+  44), the generated values page (#499). The
   consistency re-check of the merged families is done (#494). Plans:
   [message-catalogue-pr8-12-plan.md](message-catalogue-pr8-12-plan.md),
   [message-catalogue-pr12-18-plan.md](message-catalogue-pr12-18-plan.md).
@@ -150,6 +154,10 @@ counts are in [message-catalogue-migration-plan.md](message-catalogue-migration-
   0.24.1` names no release (0.24.0 is the last tag; skills document 0.25.0
   flags and codes): raise to 0.25.0 in every `SKILL.md`, example and install
   line at the cut, keeping "0.24.0 or later" on the PyPI-URL lines.
+- [ ] **LLMSC 2027 paper camera-ready** (user, 2026-11-23): the submitted
+  paper reports Pitloom 0.24.0. Once 0.25.0 is out and LicenseID is 0.9.x,
+  re-run its observations (Hub probe, embedded models, test files), then
+  update its versions, counts and the reader gaps fixed since (#483, #509).
 - [ ] **Review follow-ups** (the #492 and #480-#494 reviews): the open
   catalogue, code-shape, docs and size items are listed in
   [message-catalogue-review-rounds.md](../implementation/message-catalogue-review-rounds.md);

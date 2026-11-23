@@ -177,8 +177,9 @@ def test_the_curated_value_wins_on_every_route(
     merge = [line for line in err.splitlines() if "Merge:" in line]
     assert len(merge) == len(replaced)
     for line, name in zip(merge, replaced, strict=True):
-        assert line.startswith(f"INFO: Merge: '{name}' on ai_AIPackage")
-        assert "replacing the value generated from the model file" in line
+        assert line.startswith("INFO: Merge: ELEMENT=")
+        assert f": {name} generated from the model file replaced by a " in line
+        assert line.endswith(" [generated-value-conflict]")
     comment = models[0].get("comment", "")
     for name in replaced:
         for field in PROVENANCE_PROPERTY_FIELDS[name]:

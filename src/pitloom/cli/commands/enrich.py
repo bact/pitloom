@@ -25,6 +25,8 @@ from pitloom.core.given_path import TypedPath
 from pitloom.core.inert_options import ENRICH, forward_options
 from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
 from pitloom.logging_config import print_error
+from pitloom.messages import say_summary
+from pitloom.messages.fragments import ENRICH_REGISTER_HINT
 from pitloom.messages.targets import (
     INPUT_NOT_FOUND,
     MODEL_FILE_NOT_FOUND_LINE,
@@ -71,10 +73,7 @@ def _run_enrich_command(args: argparse.Namespace) -> int:
         **forward_options(ENRICH, str(opened_path), enrich_model, options),
     )
     _print_sbom_output_path(output_path)
-    log.info(
-        "enrich: register the fragment under [tool.pitloom.fragment] and "
-        "re-run 'loom project'/'loom generate' to merge it into a base SBOM"
-    )
+    say_summary(log, ENRICH_REGISTER_HINT)
     return 0
 
 

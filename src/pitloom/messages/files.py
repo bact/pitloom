@@ -36,11 +36,15 @@ from pitloom.messages._file_unreadable_warning import (
 )
 from pitloom.messages._file_unwritable import (
     FILE_UNWRITABLE,
+    FILE_UNWRITABLE_MODE,
+    MODE_NOT_RESTORED_LINE,
     WRITE_ERROR_LINE,
     WRITE_LINE,
 )
 from pitloom.messages._json_malformed import (
+    BOM_DROPPED_LINE,
     JSON_MALFORMED,
+    JSON_MALFORMED_BOM,
     NOT_JSON_LINE,
     NOT_OBJECT_LINE,
 )
@@ -87,8 +91,12 @@ __all__ = [
     "FILE_UNREADABLE_OUTSIDE",
     "FILE_UNREADABLE_OUTSIDE_REPOSITORY",
     "FILE_UNWRITABLE",
+    "FILE_UNWRITABLE_MODE",
     "GIT_OUTPUT_LINE",
+    "BOM_DROPPED_LINE",
     "JSON_MALFORMED",
+    "JSON_MALFORMED_BOM",
+    "MODE_NOT_RESTORED_LINE",
     "NOT_JSON_LINE",
     "NOT_OBJECT_LINE",
     "OVER_CAP",

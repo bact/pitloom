@@ -30,6 +30,19 @@ from tests._message_drift import quote_matches, relative
 #: The texts that mark a quote as saying a family's message: one, or one per
 #: line for a family whose lines share no core.
 _MARKERS: dict[str, tuple[str, ...]] = {
+    "archive-member-conflict": (
+        "they would share one ID registry key",
+        "also a directory of other entries",
+        "overwritten by later entry",
+    ),
+    "archive-member-invalid": (
+        "non-conforming name; ",
+        "directory entry carries data",
+    ),
+    "archive-member-unsafe": (
+        "no safe install location",
+        "resolves outside the extraction directory",
+    ),
     "build-code-unsafe": ("--allow-build runs a PEP 517 build",),
     "build-failed": (
         "the build exited with code",
@@ -68,6 +81,8 @@ _MARKERS: dict[str, tuple[str, ...]] = {
         "the ID registry stores the key as written",
         "the SBOM states it as written; remove it from the source",
     ),
+    "datetime-missing": ("no fragment states a creation time",),
+    "datetime-not-recordable": ("the earliest a ZIP archive can record",),
     "datetime-unpinned": ("come from the clock; set ",),
     "dependency-name-ambiguous": ("a direct reference; not looked up",),
     "dependency-pin-conflict": (
@@ -76,6 +91,15 @@ _MARKERS: dict[str, tuple[str, ...]] = {
     ),
     "digest-invalid": ("declared by ",),
     "dir-unlistable": ("could not list ",),
+    "dist-info-ambiguous": (
+        "several top-level .dist-info directories",
+        "none the one the file name names",
+    ),
+    "dist-info-conflict": ("the file name names no top-level",),
+    "dist-info-missing": (
+        "no top-level .dist-info directory",
+        "not in the wheel; ",
+    ),
     "download-network-failed": ("URL=", "; nothing fetched"),
     "download-timeout": ("no complete answer within ", "did not finish within "),
     "dynamic-field-needs-build": (
@@ -109,7 +133,29 @@ _MARKERS: dict[str, tuple[str, ...]] = {
         "auto-discovery is ambiguous",
     ),
     "file-unreadable": ("could not read ", "outside the downloaded repository"),
-    "file-unwritable": ("could not write ",),
+    "file-unwritable": (
+        "could not write ",
+        "file mode not restored",
+    ),
+    "fragment-conflict": (" differs; kept ",),
+    "fragment-digest-invalid": ("does not match the configured ",),
+    "fragment-hash-conflict": ("another of that name ",),
+    "fragment-id-conflict": ("id held by a ", "id held by two "),
+    "fragment-invalid": (
+        "SBOM fragment is not valid JSON",
+        "is not SPDX 3 JSON-LD Pitloom",
+    ),
+    "fragment-missing": (
+        "required SBOM fragment(s) not merged",
+        "could be merged; fix each",
+    ),
+    "fragment-unreadable": ("SBOM fragment could not be read",),
+    "fragment-unusable": ("is the document being merged into",),
+    "generated-value-conflict": (
+        "generated from the model file replaced by",
+        "name replaced by the one the fragments agree on",
+        "dropped its not_measured provenance",
+    ),
     "git-filter-unusable": ("rejected the blob filter",),
     "git-link-unsafe": ("symbolic link(s) leading out of the repository",),
     "git-missing": ("git is not installed or not on PATH",),
@@ -152,11 +198,18 @@ _MARKERS: dict[str, tuple[str, ...]] = {
         "declares no name",
     ),
     "interrupted": ("received SIGTERM", ": interrupted"),
-    "json-malformed": ("not valid JSON for ",),
+    "json-malformed": (
+        "not valid JSON for ",
+        "byte order mark",
+    ),
     "lfs-pointer": ("Git LFS pointer",),
     "lfs-pointer-malformed": ("Git LFS pointer",),
     "library-missing": ("required library not installed",),
-    "library-unusable": ("required library failed to import",),
+    "library-unusable": (
+        "required library failed to import",
+        "cannot embed an SBOM",
+        "Hatchling version unknown",
+    ),
     "license-ambiguous": ("several licence classifiers",),
     "license-conflict": ("both state a licence",),
     "license-db-missing": ("licenseid database not found",),
@@ -232,6 +285,7 @@ _MARKERS: dict[str, tuple[str, ...]] = {
         "the following arguments are required",
         "no ID registry declared",
         "-o/--output is required",
+        "--project-dir not given",
     ),
     "option-no-effect": ("has no effect", "matches no URL of th"),
     "over-cap": (" cap;",),
@@ -273,6 +327,10 @@ _MARKERS: dict[str, tuple[str, ...]] = {
         "the version names no branch",
     ),
     "reader-unsafe": ("pass --trust-model-files", "run on a downloaded file"),
+    "reference-not-found": (
+        "which is not in the merged document",
+        "reference(s) to elements not in the merged document",
+    ),
     "registry-conflict": (
         "is registered for both",
         "another run saved",
@@ -351,7 +409,10 @@ _MARKERS: dict[str, tuple[str, ...]] = {
         "SBOM @graph",
         "SBOM cannot be read as SPDX 3",
         "the ID registry keeps its own",
+        "not valid SPDX 3",
+        "could not be validated",
     ),
+    "sbom-name-conflict": ("also the name, ignoring case",),
     "sbom-wrong-format": ("named .spdx3.json but not SPDX 3",),
     "source-date-epoch-invalid": (
         "of seconds since the Unix epoch",
@@ -382,7 +443,50 @@ _MARKERS: dict[str, tuple[str, ...]] = {
     "url-unsafe": ("redirects to ", "; not fetched", " redirects; "),
     "usage-unparseable": ("could not parse as Python ",),
     "usage-unusable": ("not scanned for usage",),
+    "wheel-invalid": (
+        "NUL in member name",
+        "duplicate member name",
+    ),
+    "wheel-sbom-ambiguous": ("SBOMs under .dist-info/sboms/",),
+    "wheel-sbom-conflict": (
+        "differs from the wheel's METADATA",
+        "a Pitloom SBOM, not a build",
+        "an earlier Pitloom SBOM",
+    ),
+    "wheel-sbom-missing": ("no SBOM under .dist-info/sboms/",),
+    "wheel-sbom-unusable": (
+        "not cross-checked",
+        "extension not checked",
+        "not validated",
+    ),
+    "wheel-sbom-wrong-format": ("SBOM does not end in",),
+    "wheel-unreadable": (
+        "could not open as a ZIP archive",
+        "could not read (",
+    ),
+    "wheel-unusable": (
+        "signs the RECORD the embed rewrites",
+        "signature removed",
+        "member under a non-conforming name",
+    ),
 }
+
+#: Families whose lines no doc or skill quotes yet (the docs name their codes
+#: and link the generated pages): each leaves this set when one does. Shrink
+#: only.
+_NOT_QUOTED: frozenset[str] = frozenset(
+    {
+        "archive-member-conflict",
+        "datetime-not-recordable",
+        "dist-info-ambiguous",
+        "wheel-sbom-ambiguous",
+        "wheel-sbom-conflict",
+        "wheel-sbom-missing",
+        "wheel-sbom-unusable",
+        "wheel-sbom-wrong-format",
+        "wheel-unreadable",
+    }
+)
 
 #: Quotes of a tool's own lines, which no pattern here covers: (file, quote).
 #: Shrink only.
@@ -427,7 +531,9 @@ def test_the_scan_found_quotes() -> None:
         "skills/sbom-generate/references/git-url.md",
         "skills/sbom-generate/references/known-limitations.md",
     } <= files
-    assert {f for _, families, _ in _QUOTES for f in families} == set(_MARKERS)
+    quoted = {f for _, families, _ in _QUOTES for f in families}
+    assert quoted | _NOT_QUOTED == set(_MARKERS)
+    assert not quoted & _NOT_QUOTED  # a family quoted now leaves the set
 
 
 @pytest.mark.parametrize(

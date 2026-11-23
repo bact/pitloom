@@ -43,7 +43,6 @@ from pitloom._sbom_format import (
     VALIDATED_FORMATS,
     check_spdx3_name_version,
     detect_sbom_format,
-    format_name_version_mismatch,
 )
 from pitloom._sbom_io import write_sbom_output
 from pitloom._wheel_sbom_location import (
@@ -54,14 +53,19 @@ from pitloom._wheel_sbom_location import (
 from pitloom.core.config import PitloomConfig
 from pitloom.core.config_cascade import ConfigOverrides
 from pitloom.core.creation import CreationMetadata
-from pitloom.core.file_names import sbom_base_name, sbom_file_name
-from pitloom.core.quote_source import quote_source
+from pitloom.core.file_names import is_plain_file_name, sbom_base_name, sbom_file_name
 from pitloom.core.wheel_dist_info import require_wheel_file
+from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
 from pitloom.extract.authors import AuthorSplit
 from pitloom.extract.wheel import read_wheel, wheel_identity
 from pitloom.id_registry import IdRegistry
 from pitloom.logging_config import configure_logging
-from pitloom.messages.config import Parameter
+from pitloom.messages.config import Parameter, invalid_value
+from pitloom.messages.wheel_sboms import (
+    identity_mismatch_error,
+    say_identity_mismatches,
+    warn_cross_check_gaps,
+)
 
 log = logging.getLogger(__name__)
 
@@ -84,6 +88,7 @@ __all__ = [
     "_rewrite_wheel_archive",
     "_update_record_lines",
     "_validate_sbom_filename",
+    "checked_embed_basename",
     "embed_filename",
     "embed_sbom_in_wheel",
     "embed_wheel_sbom",
@@ -102,6 +107,27 @@ def embed_filename(sbom_basename: str | None) -> str | None:
     return sbom_file_name(sbom_basename)
 
 
+def checked_embed_basename(sbom_basename: str | None) -> str | None:
+    """*sbom_basename* (``--sbom-basename``) as
+    :func:`~pitloom.core.file_names.sbom_base_name` leaves it (an empty or
+    absent one as given), once the embedded SBOM's file name it makes
+    (``<base>.spdx3.json``) is known to be a plain file name. Called before
+    anything is generated, so a name that is a path (``../x``) fails before
+    the SBOM is made or a build runs, not at the last step.
+
+    Raises:
+        pitloom.messages.CodedValueError: *sbom_basename* is not a plain file
+            name (``option-invalid``).
+    """
+    if not sbom_basename:
+        return sbom_basename
+    where = Parameter("--sbom-basename")
+    base = sbom_base_name(sbom_basename, where)
+    if not is_plain_file_name(f"{base}{SPDX3_JSONLD_EXTENSION}"):
+        raise invalid_value(where, "file-name", got=sbom_basename)
+    return base
+
+
 def _enforce_sbom_name_version(
     wheel_filename: str,
     wheel_name: str | None,
@@ -114,15 +140,17 @@ def _enforce_sbom_name_version(
     name/version against the target wheel's own METADATA, *before*
     anything is written to the wheel.
 
-    Raises ``ValueError`` on a genuine mismatch unless *allow_mismatch* --
-    the embed is refused outright rather than writing a known-wrong SBOM
-    and relying on a later `verify-wheel`/`--verify` to catch it, since
-    nothing is on disk yet to roll back. *allow_mismatch* downgrades a
-    mismatch to a `WARNING:` and lets the embed proceed (for CI/automation
-    that wants best-effort embedding). Extraction failures (unsupported
-    format, unexpected graph shape) are always a non-fatal `WARNING:`,
-    regardless of *allow_mismatch* -- "couldn't check" is never escalated
-    to "refused."
+    Raises ``wheel-sbom-conflict`` (a
+    :class:`~pitloom.messages.CodedValueError`, so a ``ValueError``) on a
+    genuine mismatch unless *allow_mismatch*: each part of the identity that
+    differs but the last is said as an ``ERROR:`` first, the last is the
+    error. The embed is refused outright rather than writing a known-wrong
+    SBOM and relying on a later `verify-wheel`/`--verify` to catch it, since
+    nothing is on disk yet to roll back. *allow_mismatch* downgrades each
+    part to a `WARNING:` and lets the embed proceed (for CI/automation that
+    wants best-effort embedding). Extraction failures (unsupported format,
+    unexpected graph shape) are always a non-fatal `WARNING:`, regardless of
+    *allow_mismatch* -- "couldn't check" is never escalated to "refused."
 
     Fatal-by-default here, unlike `verify-wheel`'s own WARNING-by-default
     (:func:`pitloom.cli.commands.verify_wheel._check_name_version`) --
@@ -132,20 +160,18 @@ def _enforce_sbom_name_version(
     """
     sbom_data = sbom_json.encode("utf-8")
     sbom_format = detect_sbom_format(sbom_data)
-    mismatches, warnings = check_spdx3_name_version(
+    mismatches, gaps = check_spdx3_name_version(
         wheel_name, wheel_version, sbom_data, sbom_format
     )
-    for warning in warnings:
-        log.warning("%s: %s", quote_source(wheel_filename), warning)
+    warn_cross_check_gaps(log, wheel_filename, gaps)
 
     if not mismatches:
         return
 
-    message = format_name_version_mismatch(wheel_filename, mismatches)
     if allow_mismatch:
-        log.warning(message)
+        say_identity_mismatches(log, wheel_filename, mismatches)
         return
-    raise ValueError(message)
+    raise identity_mismatch_error(log, wheel_filename, mismatches)
 
 
 # pylint: disable=too-many-arguments
@@ -225,8 +251,7 @@ def embed_wheel_sbom(
             transient I/O error).
     """
     configure_logging()
-    if sbom_basename:
-        sbom_basename = sbom_base_name(sbom_basename, Parameter("--sbom-basename"))
+    sbom_basename = checked_embed_basename(sbom_basename)
     require_wheel_file(wheel_path)
     # Not resolved: a symlink's name is the one judged, and the one the
     # embed reports; ``embed_sbom_in_wheel`` resolves to write.

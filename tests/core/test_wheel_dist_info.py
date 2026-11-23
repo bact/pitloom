@@ -30,16 +30,21 @@ import pytest
 from pitloom.core import wheel_dist_info
 from pitloom.core.archive_member_names import normalize_member_name, zip_file_members
 from pitloom.core.wheel_dist_info import (
-    PROBLEM_NONE,
-    PROBLEM_NOT_A_WHEEL_NAME,
-    PROBLEM_SEVERAL_MATCH,
-    PROBLEM_SEVERAL_NONE_MATCH,
-    WheelRefused,
     open_wheel_zip,
     read_metadata_headers,
-    refusal,
     resolve_own_dist_info,
     wheel_members,
+)
+from pitloom.messages.wheels import (
+    DIST_INFO_NONE,
+    DIST_INFO_NOT_A_WHEEL_NAME,
+    DIST_INFO_OTHER,
+    DIST_INFO_SEVERAL_MATCH,
+    DIST_INFO_SEVERAL_NONE_MATCH,
+    WheelRefused,
+    exception_label,
+    refuse_unopenable,
+    refuse_unreadable_member,
 )
 from tests._wheel_damage import (
     WHEEL,
@@ -76,17 +81,22 @@ def _members(*dist_infos: str) -> list[str]:
         # Not a wheel file name: the only one, silently.
         ("pkg.whl", ["demo-1.0.dist-info"], "demo-1.0.dist-info/", None),
         # A wheel file name that names another directory: the only one, said.
-        (WHEEL, ["evil-9.9.dist-info"], "evil-9.9.dist-info/", "names no"),
+        (WHEEL, ["evil-9.9.dist-info"], "evil-9.9.dist-info/", DIST_INFO_OTHER),
         # Zero, or several none of which the file name names.
-        (WHEEL, [], None, PROBLEM_NONE),
-        (WHEEL, ["a-1.dist-info", "b-1.dist-info"], None, PROBLEM_SEVERAL_NONE_MATCH),
-        ("pkg.whl", ["a-1.dist-info", "b-1.dist-info"], None, PROBLEM_NOT_A_WHEEL_NAME),
+        (WHEEL, [], None, DIST_INFO_NONE),
+        (WHEEL, ["a-1.dist-info", "b-1.dist-info"], None, DIST_INFO_SEVERAL_NONE_MATCH),
+        (
+            "pkg.whl",
+            ["a-1.dist-info", "b-1.dist-info"],
+            None,
+            DIST_INFO_NOT_A_WHEEL_NAME,
+        ),
         # Two directories spelling the one name: ambiguous, not "first".
         (
             WHEEL,
             ["demo-1.0.dist-info", "Demo-1.0.dist-info"],
             None,
-            PROBLEM_SEVERAL_MATCH,
+            DIST_INFO_SEVERAL_MATCH,
         ),
         # A name may hold the dash that splits name from version (pip takes it).
         (
@@ -133,7 +143,7 @@ def test_the_own_dist_info_and_what_is_said(
     if problem is None:
         assert choice.problem is None
     else:
-        assert choice.problem is not None and problem in choice.problem
+        assert choice.problem == problem
 
 
 @pytest.mark.parametrize(
@@ -294,7 +304,8 @@ def _zip_with(
         (
             None,
             {},
-            "ARCHIVE='a.whl': no demo-1.0.dist-info/METADATA -- identity unknown",
+            "ARCHIVE='a.whl' ENTRY='demo-1.0.dist-info/METADATA': not in the wheel;"
+            " identity unknown",
         ),
         (
             b"A: 1\nB: 2\nC: 3\n",
@@ -358,21 +369,34 @@ def test_the_metadata_headers_refuse_a_member_that_cannot_be_read(
 def test_the_exception_is_named_bare_for_a_builtin_and_qualified_otherwise(
     exc: Exception, label: str
 ) -> None:
-    assert wheel_dist_info.exception_label(exc) == label
-    assert f"could not read ({label}) -- wheel refused" in str(
-        wheel_dist_info.unreadable_member_error("a.whl", "m", exc)
+    assert exception_label(exc) == label
+    assert f"could not read ({label}); wheel refused" in str(
+        refuse_unreadable_member("a.whl", "m", exc)
     )
 
 
 @pytest.mark.parametrize(
     ("entry", "shape"),
     [
-        ("m\nFORGED", "ARCHIVE='a\\n.whl' ENTRY='m\\nFORGED': why -- wheel refused"),
-        (None, "ARCHIVE='a\\n.whl': why -- wheel refused"),
+        (
+            "m\nFORGED",
+            "ARCHIVE='a\\n.whl' ENTRY='m\\nFORGED': could not read (EOFError); "
+            "wheel refused",
+        ),
+        (
+            None,
+            "ARCHIVE='a\\n.whl': could not open as a ZIP archive (EOFError); "
+            "wheel refused",
+        ),
     ],
 )
 def test_a_refusal_is_one_line_in_one_shape(entry: str | None, shape: str) -> None:
-    error = refusal("a\n.whl", entry, "why")
+    exc = EOFError("text\nFORGED")
+    error = (
+        refuse_unopenable("a\n.whl", exc)
+        if entry is None
+        else refuse_unreadable_member("a\n.whl", entry, exc)
+    )
     assert str(error) == shape and isinstance(error, ValueError)
 
 
@@ -401,9 +425,7 @@ def test_a_wheel_holding_one_name_twice_is_refused(
         )
     message = str(refused.value)
     assert f"ARCHIVE={WHEEL!r}" in message
-    assert f"ENTRY='{entries[0][0]}': duplicate member name -- wheel refused" in (
-        message
-    )
+    assert f"ENTRY='{entries[0][0]}': duplicate member name; wheel refused" in (message)
 
 
 @pytest.mark.parametrize(
@@ -478,7 +500,7 @@ def test_a_nul_in_a_member_name_refuses_the_wheel(
 
     assert str(refused.value) == (
         f"ARCHIVE={WHEEL!r} ENTRY={'m.py' + chr(0) + '.evil'!r}: "
-        "NUL in member name -- wheel refused"
+        "NUL in member name; wheel refused"
     )
 
 
@@ -506,7 +528,7 @@ def test_a_file_zipfile_cannot_open_refuses_at_open_and_a_missing_one_does_not(
     with pytest.raises(WheelRefused) as refused:
         open_wheel_zip(make(tmp_path))
     assert str(refused.value) == (
-        f"ARCHIVE={WHEEL!r}: could not open ({error}) -- wheel refused"
+        f"ARCHIVE={WHEEL!r}: could not open as a ZIP archive ({error}); wheel refused"
     )
     assert type(refused.value.__cause__).__name__ == error.rsplit(".", maxsplit=1)[-1]
     with pytest.raises(OSError):

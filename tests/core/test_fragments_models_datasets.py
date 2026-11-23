@@ -278,8 +278,8 @@ def test_a_scanned_model_merges_with_a_loom_fragment_of_the_same_model(
     assert package["comment"].count(PARAMETER_COUNT_NOTE) == 1
     # "7B" is dropped with one WARNING: naming the key, the kept and dropped value
     (warning,) = logged_warnings(caplog)
-    assert f"key {PARAMETER_COUNT_KEY!r}" in warning
-    assert "keeping '7', dropping '7B'" in warning
+    assert f"ai_hyperparameter key {PARAMETER_COUNT_KEY!r} differs; " in warning
+    assert warning.endswith("kept '7', dropped '7B'")
 
 
 _FRAGMENT_AGENT = "https://spdx.org/spdxdocs/frag#B"
@@ -298,7 +298,7 @@ def test_a_hub_supplier_survives_a_fragment_of_the_same_model(
 ) -> None:
     """``suppliedBy`` is single-valued: a fragment re-declaring the model
     with none, the same Agent or an Agent of the same name merges quietly;
-    another supplier is a ``Merge: conflicting`` warning and the base's is
+    another supplier is a ``fragment-conflict`` warning and the base's is
     kept (pinned as merged today)."""
     registry = IdRegistry.new("p")
     model_id = registry.register("ai_AIPackage", "m")
@@ -332,6 +332,8 @@ def test_a_hub_supplier_survives_a_fragment_of_the_same_model(
     (merged,) = _by_type(graph, "ai_AIPackage")
     assert merged["suppliedBy"] == agent["spdxId"]
     assert merged["originatedBy"] == [agent["spdxId"]]
-    supplier_conflicts = [m for m in logged_warnings(caplog) if "'suppliedBy'" in m]
+    supplier_conflicts = [
+        m for m in logged_warnings(caplog) if ": suppliedBy differs;" in m
+    ]
     assert len(supplier_conflicts) == conflicts
     assert len(logged_warnings(caplog)) == conflicts

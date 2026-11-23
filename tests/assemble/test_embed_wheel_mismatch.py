@@ -56,7 +56,10 @@ def test_cli_embed_wheel_sbom_name_mismatch_aborts_before_write(
 
     captured = capsys.readouterr()
     assert "ERROR:" in captured.err
-    assert "name: wheel declares 'realname', SBOM declares 'wrongname'" in captured.err
+    assert "SBOM name 'wrongname' differs from the wheel's METADATA 'realname'" in (
+        captured.err
+    )
+    assert captured.err.rstrip().endswith("[wheel-sbom-conflict]")
     assert not records(captured.out, "SBOM")
     assert wheel_path.read_bytes() == original_bytes
 
@@ -134,7 +137,8 @@ def test_cli_embed_wheel_sbom_mismatch_allow_mismatch_embeds_anyway(
     captured = capsys.readouterr()
     assert "WARNING:" in captured.err
     assert (
-        "name: wheel declares 'realname2', SBOM declares 'wrongname2'" in captured.err
+        "SBOM name 'wrongname2' differs from the wheel's METADATA 'realname2'"
+        in captured.err
     )
     assert records(captured.out, "SBOM")
 
@@ -198,4 +202,31 @@ def test_cli_embed_wheel_no_sbom_flag_skips_cross_check(
 
     captured = capsys.readouterr()
     assert records(captured.out, "SBOM")
-    assert "SBOM/wheel" not in captured.err
+    assert "wheel-sbom-conflict" not in captured.err
+
+
+@pytest.mark.parametrize("allow", [False, True], ids=["refused", "allowed"])
+def test_cli_embed_wheel_every_differing_part_is_said_once(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    allow: bool,
+) -> None:
+    """A name and a version that both differ are two lines (name first):
+    all but the last said as ERROR, the last as the refusal; with
+    --allow-mismatch both are WARNING and the embed goes on."""
+    wheel_path = _make_dummy_wheel(tmp_path, "bothpkg", "1.0.0")
+    sbom_file = tmp_path / "sbom.spdx3.json"
+    sbom_file.write_text(_spdx3_json_with_subject("otherpkg", "2.0.0"), "utf-8")
+    argv = ["loom", "embed-wheel", str(wheel_path), "--sbom", str(sbom_file)]
+    monkeypatch.setattr(sys, "argv", [*argv, *(["--allow-mismatch"] if allow else [])])
+
+    assert __main__.main() == (0 if allow else 1)
+
+    lines = capsys.readouterr().err.splitlines()
+    level = "WARNING" if allow else "ERROR"
+    assert len(lines) == 2
+    assert all(line.startswith(f"{level}: ") for line in lines)
+    assert "SBOM name 'otherpkg' differs" in lines[0]
+    assert "SBOM version '2.0.0' differs" in lines[1]
+    assert all(line.endswith("[wheel-sbom-conflict]") for line in lines)

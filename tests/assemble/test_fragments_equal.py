@@ -165,4 +165,8 @@ def test_a_differing_value_that_is_no_text_is_a_conflict(
     element = spdx3.software_Package(spdxId="https://example.org/e")
     with caplog.at_level(logging.WARNING):
         _merge_scalar(element, "x", old, new)
-    assert "conflicting" in caplog.text
+    assert "ELEMENT=https://example.org/e: x differs; kept " in caplog.text
+    assert "[fragment-conflict]" not in caplog.text  # the code is on the record
+    assert [getattr(r, "pitloom_code", None) for r in caplog.records] == [
+        "fragment-conflict"
+    ]
