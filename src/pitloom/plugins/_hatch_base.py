@@ -15,11 +15,11 @@ from typing import TYPE_CHECKING, Final
 from hatchling.builders.config import BuilderConfig
 from hatchling.builders.hooks.plugin.interface import BuildHookInterface
 
-#: Shared start of every error naming Hatchling (the version gate of
-#: :mod:`pitloom.plugins.hatch` and :func:`resolve_build_hook_base`), so they
-#: are easy to grep/filter for as one family of error. The hook's frame
+#: Start of the error :func:`resolve_build_hook_base` raises when Hatchling's
+#: ``BuildHookInterface`` has an unexpected shape. The hook's frame
 #: (``Pitloom build hook: ``) goes before it on the ERROR line; the traceback
-#: names the module, so the raised text does not repeat it.
+#: names the module, so the raised text does not repeat it. The version gate
+#: of :mod:`pitloom.plugins.hatch` is the catalogued ``library-unusable``.
 HATCHLING_ERROR_PREFIX: Final = "Hatchling"
 
 if TYPE_CHECKING:

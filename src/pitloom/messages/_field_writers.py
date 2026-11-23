@@ -18,10 +18,22 @@ from typing import Final
 
 from pitloom.core.given_path import given_spelling
 from pitloom.core.quote_source import given_path_text, quote_source
+from pitloom.core.url_masking import mask_checkout, masked_given_path
 from pitloom.logging_config import failure_reason, loggable, one_line
 
 #: The most characters of an exception's text a ``failure`` field shows.
 FAILURE_CHARACTERS: Final = 500
+
+#: The most characters of a name a message shows (an archive member, an
+#: archive, a file an archive or a configuration names), ``...`` after a
+#: cut. A display cap: it bounds the report only, so that a line naming
+#: the longest names stays under
+#: :data:`~pitloom.messages._lines.LONGEST_LINE` and keeps its code; the
+#: name itself is read and compared in full.
+NAME_CHARACTERS: Final = 500
+
+#: What follows a name cut to :data:`NAME_CHARACTERS`.
+NAME_CUT_MARK: Final = "..."
 
 #: A bracket, or `` at 0x...``: the address in an object's default repr
 #: (``<A object at 0x7f3a...>``, ``<cell at 0x10: int object>``) differs per run.
@@ -127,6 +139,24 @@ def plain_text(value: object) -> str:
 def quoted_text(value: object) -> str:
     """A text value in quotes, escaped, as :func:`path_text` quotes a path."""
     return quote_source(plain_text(value))
+
+
+def cut_name(text: str) -> str:
+    """*text*, a name, for a message: a URL's credentials and a temporary
+    directory masked, then cut to :data:`NAME_CHARACTERS` characters with
+    :data:`NAME_CUT_MARK` after it; neither quoted nor escaped, so a field's
+    writer quotes and escapes it as any other name. Masked before it is cut,
+    so a cut never takes away the end of a URL's user information."""
+    masked = masked_given_path(mask_checkout(text), line=True)
+    if len(masked) <= NAME_CHARACTERS:
+        return masked
+    return masked[:NAME_CHARACTERS] + NAME_CUT_MARK
+
+
+def quoted_name_text(value: object) -> str:
+    """A name in quotes (:func:`quoted_text`), masked and cut first
+    (:func:`cut_name`), the mark inside the quotes."""
+    return quote_source(cut_name(plain_text(value)))
 
 
 def free_text(value: object) -> str:

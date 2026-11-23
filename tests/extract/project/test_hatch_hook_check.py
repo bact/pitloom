@@ -3,20 +3,27 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Tests for the Hatchling version gate and build-datetime resolution in
-the Pitloom Hatchling build hook."""
+"""Tests for the Hatchling version gate, the SBOM file name check and
+build-datetime resolution in the Pitloom Hatchling build hook."""
+
+# pylint: disable=protected-access
 
 from __future__ import annotations
 
 from datetime import datetime, timezone
 from importlib.metadata import PackageNotFoundError
+from pathlib import Path
+from typing import Any
 from unittest.mock import patch
 
 import pytest
 
 from pitloom.core.config import PitloomConfig
+from pitloom.messages import code_of
 from pitloom.plugins._hatch_document import resolve_build_datetime
 from pitloom.plugins.hatch import _check_hatchling_sbom_support
+
+from ..conftest import make_hook
 
 
 def test_check_hatchling_sbom_support_passes_for_current_hatchling() -> None:
@@ -26,10 +33,16 @@ def test_check_hatchling_sbom_support_passes_for_current_hatchling() -> None:
 
 @pytest.mark.parametrize("bad_version", ["1.28.0", "1.27.0", "1.0.0"])
 def test_check_hatchling_sbom_support_raises_below_minimum(bad_version: str) -> None:
-    """Hatchling older than the minimum must raise a clear ``RuntimeError``."""
+    """Hatchling older than the minimum must raise a clear coded error (a
+    ``ValueError``), naming the release found and the one needed."""
     with patch("pitloom.plugins.hatch._pkg_version", return_value=bad_version):
-        with pytest.raises(RuntimeError, match="too old for PEP 770 SBOM embedding"):
+        with pytest.raises(
+            ValueError,
+            match=rf"^Hatchling {bad_version} cannot embed an SBOM \(PEP 770 "
+            r"needs 1\.29\.0 or later\); upgrade Hatchling$",
+        ) as caught:
             _check_hatchling_sbom_support()
+    assert code_of(caught.value) == "library-unusable/hatchling"
 
 
 def test_check_hatchling_sbom_support_accepts_exact_minimum() -> None:
@@ -69,8 +82,38 @@ def test_check_hatchling_sbom_support_errors_share_filterable_prefix(
             return_value=bad_version_or_error,
         )
     with mock_patch:
-        with pytest.raises(RuntimeError, match=r"^Hatchling "):
+        with pytest.raises(ValueError, match=r"^Hatchling ") as caught:
             _check_hatchling_sbom_support()
+    assert code_of(caught.value) == "library-unusable/hatchling"
+
+
+@pytest.mark.parametrize(
+    "placed",
+    ["mine.spdx3.json", "dist/MINE.Spdx3.JSON"],
+    ids=["same", "other-case-in-a-directory"],
+)
+def test_an_sbom_files_entry_of_the_staged_name_is_refused_as_coded(
+    tmp_path: Path, placed: str
+) -> None:
+    """The check runs on the name ignoring case, over Hatchling's own
+    ``sbom-files`` and another hook's ``build_data``."""
+    for config_side in (True, False):
+        hook = make_hook(str(tmp_path), {})
+        build_data: dict[str, Any] = {"sbom_files": []}
+        if config_side:
+            hook.build_config.sbom_files.append(placed)
+        else:
+            build_data["sbom_files"] = [placed]
+        with pytest.raises(ValueError, match="sbom-files entry") as caught:
+            hook._check_name_is_free("mine.spdx3.json", build_data)
+        assert code_of(caught.value) == "sbom-name-conflict"
+        assert str(caught.value).startswith("FILE=mine.spdx3.json: also the name")
+        assert f"sbom-files entry '{placed}'" in str(caught.value)
+
+
+def test_an_sbom_files_entry_of_another_name_is_free(tmp_path: Path) -> None:
+    hook = make_hook(str(tmp_path), {})
+    hook._check_name_is_free("mine.spdx3.json", {"sbom_files": ["other.spdx3.json"]})
 
 
 def test_resolve_build_datetime_uses_source_date_epoch_when_unpinned() -> None:

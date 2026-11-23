@@ -26,15 +26,15 @@ is one of the code's lines on its page (the table links it), a value in place of
 each `<name>` (the values page says what each is), after at most one prefix from
 the table of prefixes.
 
-- [AI models](message-codes-models.md): 12 codes
+- [AI models](message-codes-models.md): 13 codes
 - [Model fields](message-codes-model-fields.md): 5 codes
 - [Targets](message-codes-targets.md): 16 codes
-- [Options](message-codes-options.md): 4 codes
+- [Options](message-codes-options.md): 5 codes
 - [Configuration](message-codes-config.md): 6 codes
 - [Project metadata](message-codes-metadata.md): 9 codes
 - [File discovery](message-codes-file-discovery.md): 3 codes
 - [Builds and temporary directories](message-codes-build.md): 7 codes
-- [Files and text](message-codes-files.md): 12 codes
+- [Files and text](message-codes-files.md): 14 codes
 - [Lock files](message-codes-lock-files.md): 7 codes
 - [Dependencies](message-codes-dependencies.md): 6 codes
 - [PyPI](message-codes-pypi.md): 13 codes
@@ -45,10 +45,15 @@ the table of prefixes.
 - [ID registry ids and keys](message-codes-id-registry-ids.md): 15 codes
 - [Licences](message-codes-licences.md): 8 codes
 - [SBOM fragments](message-codes-fragments.md): 11 codes
+- [Wheels](message-codes-wheels.md): 10 codes
+- [Embedded SBOMs](message-codes-wheel-sboms.md): 8 codes
 - [Values](message-codes-values.md): what each `<name>` in a line is
 
 | Code | Level | Since |
 | --- | --- | --- |
+| [`archive-member-conflict`](message-codes-wheels.md#archive-member-conflict) | WARNING | 0.25.0 |
+| [`archive-member-invalid`](message-codes-wheels.md#archive-member-invalid) | WARNING | 0.25.0 |
+| [`archive-member-unsafe`](message-codes-wheels.md#archive-member-unsafe) | WARNING | 0.25.0 |
 | [`build-code-unsafe`](message-codes-build.md#build-code-unsafe) | WARNING | 0.25.0 |
 | [`build-failed`](message-codes-build.md#build-failed) | WARNING | 0.25.0 |
 | [`build-processes-unsafe`](message-codes-build.md#build-processes-unsafe) | WARNING, INFO | 0.25.0 |
@@ -69,11 +74,15 @@ the table of prefixes.
 | [`credentials-unsafe/registry`](message-codes-url-credentials.md#credentials-unsaferegistry) | ERROR, WARNING | 0.25.0 |
 | [`credentials-unsafe/written`](message-codes-url-credentials.md#credentials-unsafewritten) | WARNING | 0.25.0 |
 | [`datetime-missing`](message-codes-fragments.md#datetime-missing) | WARNING | 0.25.0 |
+| [`datetime-not-recordable`](message-codes-wheel-sboms.md#datetime-not-recordable) | INFO | 0.25.0 |
 | [`datetime-unpinned`](message-codes-config.md#datetime-unpinned) | INFO | 0.25.0 |
 | [`dependency-name-ambiguous`](message-codes-dependencies.md#dependency-name-ambiguous) | INFO | 0.25.0 |
 | [`dependency-pin-conflict`](message-codes-dependencies.md#dependency-pin-conflict) | WARNING | 0.25.0 |
 | [`digest-invalid`](message-codes-pypi.md#digest-invalid) | ERROR | 0.24.0 |
 | [`dir-unlistable`](message-codes-files.md#dir-unlistable) | ERROR, WARNING | 0.22.0 |
+| [`dist-info-ambiguous`](message-codes-wheels.md#dist-info-ambiguous) | ERROR, WARNING | 0.25.0 |
+| [`dist-info-conflict`](message-codes-wheels.md#dist-info-conflict) | WARNING | 0.25.0 |
+| [`dist-info-missing`](message-codes-wheels.md#dist-info-missing) | ERROR, WARNING | 0.25.0 |
 | [`download-network-failed`](message-codes-network.md#download-network-failed) | ERROR, WARNING | 0.24.0 |
 | [`download-timeout`](message-codes-network.md#download-timeout) | ERROR, WARNING | 0.24.0 |
 | [`dynamic-field-needs-build`](message-codes-metadata.md#dynamic-field-needs-build) | WARNING | 0.25.0 |
@@ -90,6 +99,7 @@ the table of prefixes.
 | [`file-unreadable/outside-project`](message-codes-files.md#file-unreadableoutside-project) | WARNING | 0.22.0 |
 | [`file-unreadable/outside-repository`](message-codes-files.md#file-unreadableoutside-repository) | WARNING | 0.23.4 |
 | [`file-unwritable`](message-codes-files.md#file-unwritable) | ERROR, WARNING | 0.25.0 |
+| [`file-unwritable/mode`](message-codes-files.md#file-unwritablemode) | WARNING | 0.25.0 |
 | [`fragment-conflict`](message-codes-fragments.md#fragment-conflict) | WARNING | 0.25.0 |
 | [`fragment-digest-invalid`](message-codes-fragments.md#fragment-digest-invalid) | WARNING | 0.25.0 |
 | [`fragment-hash-conflict`](message-codes-fragments.md#fragment-hash-conflict) | WARNING | 0.25.0 |
@@ -119,11 +129,13 @@ the table of prefixes.
 | [`installed-metadata-unusable`](message-codes-metadata.md#installed-metadata-unusable) | WARNING | 0.25.0 |
 | [`interrupted`](message-codes-build.md#interrupted) | ERROR, WARNING | 0.25.0 |
 | [`json-malformed`](message-codes-files.md#json-malformed) | ERROR, WARNING | 0.23.0 |
+| [`json-malformed/bom`](message-codes-files.md#json-malformedbom) | WARNING | 0.25.0 |
 | [`lfs-pointer`](message-codes-models.md#lfs-pointer) | ERROR, WARNING | 0.22.0 |
 | [`lfs-pointer-malformed`](message-codes-models.md#lfs-pointer-malformed) | ERROR, WARNING | 0.22.0 |
 | [`lfs-pointer/shipped`](message-codes-models.md#lfs-pointershipped) | WARNING | 0.22.0 |
 | [`library-missing`](message-codes-models.md#library-missing) | ERROR, WARNING | 0.22.0 |
 | [`library-unusable`](message-codes-models.md#library-unusable) | ERROR, WARNING | 0.23.0 |
+| [`library-unusable/hatchling`](message-codes-models.md#library-unusablehatchling) | ERROR | 0.25.0 |
 | [`license-ambiguous`](message-codes-licences.md#license-ambiguous) | WARNING | 0.25.0 |
 | [`license-conflict`](message-codes-licences.md#license-conflict) | WARNING | 0.25.0 |
 | [`license-db-missing`](message-codes-licences.md#license-db-missing) | WARNING, INFO | 0.25.0 |
@@ -153,6 +165,7 @@ the table of prefixes.
 | [`option-conflict`](message-codes-options.md#option-conflict) | ERROR | 0.25.0 |
 | [`option-invalid`](message-codes-options.md#option-invalid) | ERROR | 0.25.0 |
 | [`option-missing`](message-codes-options.md#option-missing) | ERROR | 0.25.0 |
+| [`option-missing/project-dir`](message-codes-options.md#option-missingproject-dir) | INFO | 0.25.0 |
 | [`option-no-effect`](message-codes-options.md#option-no-effect) | WARNING, INFO | 0.25.0 |
 | [`over-cap`](message-codes-files.md#over-cap) | ERROR, WARNING | 0.22.0 |
 | [`parameter-count-invalid`](message-codes-model-fields.md#parameter-count-invalid) | WARNING | 0.22.0 |
@@ -197,6 +210,7 @@ the table of prefixes.
 | [`requirement-invalid`](message-codes-dependencies.md#requirement-invalid) | WARNING | 0.25.0 |
 | [`requirement-unusable`](message-codes-dependencies.md#requirement-unusable) | WARNING | 0.25.0 |
 | [`sbom-invalid`](message-codes-targets.md#sbom-invalid) | ERROR, WARNING | 0.25.0 |
+| [`sbom-name-conflict`](message-codes-wheel-sboms.md#sbom-name-conflict) | ERROR | 0.25.0 |
 | [`sbom-wrong-format`](message-codes-targets.md#sbom-wrong-format) | ERROR | 0.25.0 |
 | [`source-date-epoch-invalid`](message-codes-config.md#source-date-epoch-invalid) | ERROR | 0.25.0 |
 | [`target-ambiguous`](message-codes-targets.md#target-ambiguous) | INFO | 0.23.4 |
@@ -215,6 +229,16 @@ the table of prefixes.
 | [`usage-unparseable`](message-codes-models.md#usage-unparseable) | WARNING | 0.22.1 |
 | [`usage-unparseable/mention`](message-codes-models.md#usage-unparseablemention) | INFO | 0.22.1 |
 | [`usage-unusable`](message-codes-models.md#usage-unusable) | WARNING | 0.22.1 |
+| [`wheel-invalid`](message-codes-wheels.md#wheel-invalid) | ERROR | 0.25.0 |
+| [`wheel-sbom-ambiguous`](message-codes-wheel-sboms.md#wheel-sbom-ambiguous) | ERROR | 0.25.0 |
+| [`wheel-sbom-conflict`](message-codes-wheel-sboms.md#wheel-sbom-conflict) | ERROR, WARNING | 0.25.0 |
+| [`wheel-sbom-conflict/held`](message-codes-wheel-sboms.md#wheel-sbom-conflictheld) | WARNING, INFO | 0.25.0 |
+| [`wheel-sbom-missing`](message-codes-wheel-sboms.md#wheel-sbom-missing) | ERROR | 0.25.0 |
+| [`wheel-sbom-unusable`](message-codes-wheel-sboms.md#wheel-sbom-unusable) | WARNING | 0.25.0 |
+| [`wheel-sbom-wrong-format`](message-codes-wheel-sboms.md#wheel-sbom-wrong-format) | WARNING | 0.25.0 |
+| [`wheel-unreadable`](message-codes-wheels.md#wheel-unreadable) | ERROR | 0.25.0 |
+| [`wheel-unusable`](message-codes-wheels.md#wheel-unusable) | ERROR | 0.25.0 |
+| [`wheel-unusable/signed`](message-codes-wheels.md#wheel-unusablesigned) | ERROR, INFO | 0.25.0 |
 
 A line may start with one prefix before its text:
 

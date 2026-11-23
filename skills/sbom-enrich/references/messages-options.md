@@ -22,6 +22,7 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
 | [`option-conflict`](#option-conflict) | ERROR | The command line holds an option the command cannot take in this case (-o/--output with several wheels), or one an existing ID registry contradicts: 'loom id generate --namespace' for a registry made with another namespace, or 'loom id generate' with a --project-dir (the current directory when not given), or 'loom id import' with an explicit one, other than the one the registry was made for. The 'not allowed with' line is reserved for options of a mutually exclusive group; no command has one yet. | 0.25.0 |
 | [`option-invalid`](#option-invalid) | ERROR | The command line holds an option or a value the command does not take: an unknown option, a value of the wrong form or out of range, an unknown subcommand, an option out of order (a creator's type or email before its name), or a 'loom id generate' PATH outside --project-dir (the library: a path outside the project root given to IdRegistry.generate). Or a library caller gave a value of the wrong type or shape (the must-be line, as config-invalid says it of a setting: a byte cap of 0, a creation_datetime that is no ISO 8601 date). Or a URL credential fingerprint given to the library is not one; the line never shows the value, which may be a credential pasted by mistake. Or PitloomConfig.url_credentials is neither warn nor refuse, or CredentialPolicy(refuse=...) is no bool. The same faults in [tool.pitloom] are config-invalid. An option given without its value is option-missing; two options argparse refuses together are option-conflict. | 0.25.0 |
 | [`option-missing`](#option-missing) | ERROR | The command line lacks an argument or option the command needs (a subcommand, -o/--output for 'loom generate', an ID registry for 'loom id'), or the value of an option given (-o with nothing after it). | 0.25.0 |
+| [`option-missing/project-dir`](#option-missingproject-dir) | INFO | 'loom embed-wheel' ran without --project-dir in a directory holding a pyproject.toml: it never reads a project it is not given, so the SBOM it embeds is built from the wheel's own files and METADATA. | 0.25.0 |
 | [`option-no-effect`](#option-no-effect) | WARNING, INFO | An option or setting was given that the target or command cannot act on (a build flag without --allow-build, --use-lockfile for a wheel given to 'loom generate', a library parameter a URL target ignores); the line says why. The INFO: line is a [tool.pitloom] setting the build hook or 'embed-wheel' never acts on, named by its flag. The FINGERPRINT= line is a fingerprint accepted (--accept-url-credential, accept-url-credentials in [tool.pitloom]) that no URL value of the SBOM it names (its document id) has: a value since removed, or a fingerprint mistyped. The DIR= line is 'loom id generate' or 'loom id import' given -o and --project-dir, whose project config could not be read (a bare setup(), an invalid setting): its url-credentials is not applied. The FILE= line is a --config file (loom.run's pitloom_config) with no [tool.pitloom] table: a wrong file, most often. | 0.25.0 |
 
 ### `option-conflict`
@@ -117,6 +118,24 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
   ERROR: argument <option>: expected <arity> [option-missing]
   ERROR: -o/--output is required: a detected target has no default file name; pass -o FILE, or use 'loom project', 'loom wheel', 'loom model' or 'loom env' for that target's own default [option-missing]
   ERROR: no ID registry declared: pass --id-registry FILE or set id-registry in <table> [option-missing]
+  ```
+
+### `option-missing/project-dir`
+
+- **Level**: INFO.
+- **Means**: 'loom embed-wheel' ran without --project-dir in a directory holding
+  a pyproject.toml: it never reads a project it is not given, so the SBOM it
+  embeds is built from the wheel's own files and METADATA.
+- **SBOM effect**: none: the SBOM states what the input holds.
+- **Pitloom did**: Built the SBOM from the wheel alone and embedded it; the exit
+  status does not change.
+- **The caller may fix**: The caller may run again with --project-dir naming the
+  project the wheel was built from, for an SBOM that also states what the
+  project declares (its lock file, its configuration).
+- **Lines**:
+
+  ```text
+  INFO: --project-dir not given; the SBOM is built from the wheel alone, not from the project in the current directory [option-missing/project-dir]
   ```
 
 ### `option-no-effect`

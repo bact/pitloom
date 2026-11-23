@@ -321,4 +321,34 @@ OPTION_MISSING: Final = Message(
     since=_SINCE,
 )
 
-ENTRIES: Final = (OPTION_NO_EFFECT, OPTION_INVALID, OPTION_CONFLICT, OPTION_MISSING)
+#: ``embed-wheel`` without ``--project-dir``, run where a project is.
+PROJECT_DIR_NOT_GIVEN_LINE: Final = Line(
+    level="INFO",
+    template="--project-dir not given; the SBOM is built from the wheel alone, "
+    "not from the project in the current directory",
+)
+
+OPTION_MISSING_PROJECT_DIR: Final = Message(
+    code="option-missing/project-dir",
+    condition="missing",
+    lines=(PROJECT_DIR_NOT_GIVEN_LINE,),
+    summary="'loom embed-wheel' ran without --project-dir in a directory "
+    "holding a pyproject.toml: it never reads a project it is not given, so "
+    "the SBOM it embeds is built from the wheel's own files and METADATA.",
+    did="Built the SBOM from the wheel alone and embedded it; the exit "
+    "status does not change.",
+    effect="none",
+    actor="caller",
+    advice="The caller may run again with --project-dir naming the project "
+    "the wheel was built from, for an SBOM that also states what the "
+    "project declares (its lock file, its configuration).",
+    since=_SINCE,
+)
+
+ENTRIES: Final = (
+    OPTION_NO_EFFECT,
+    OPTION_INVALID,
+    OPTION_CONFLICT,
+    OPTION_MISSING,
+    OPTION_MISSING_PROJECT_DIR,
+)

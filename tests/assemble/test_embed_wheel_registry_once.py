@@ -45,7 +45,7 @@ def test_embed_wheel_missing_registry_is_one_error_line_for_whole_batch(
     _make_dummy_wheel(dist_dir, "pkg2", "1.0.0")
     missing_registry = tmp_path / "missing-registry.json"
 
-    # No pyproject.toml here, so no incidental "no --project-dir given"
+    # No pyproject.toml here, so no incidental "--project-dir not given"
     # INFO line competes with the one ERROR: line under test.
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(

@@ -342,7 +342,7 @@ def test_hook_initialize_raises_for_old_hatchling() -> None:
         build_data: dict[str, Any] = {}
         with (
             patch("pitloom.plugins.hatch._pkg_version", return_value="1.27.0"),
-            pytest.raises(RuntimeError, match="too old for PEP 770 SBOM embedding"),
+            pytest.raises(ValueError, match="1.27.0 cannot embed an SBOM"),
         ):
             hook.initialize("standard", build_data)
 

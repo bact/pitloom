@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-29
-Last-Modified: 2026-11-14
+Last-Modified: 2026-11-23
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -28,7 +28,9 @@ loom embed-wheel dist/*.whl --project-dir .
 `--project-dir` is required to have `embed-wheel` rescan the source
 project (never inferred from the current directory) -- pass it whenever
 the user has a project directory to scan; omit it only for a genuinely
-standalone wheel. `embed-wheel` also accepts `--allow-build` (see
+standalone wheel (run without it in a directory that holds a `pyproject.toml`,
+`embed-wheel` says so with one `INFO:`, `option-missing/project-dir`: the SBOM
+is built from the wheel alone). `embed-wheel` also accepts `--allow-build` (see
 "Choosing `--build-timeout`" in `../SKILL.md`).
 
 Or embed an already-generated SBOM file directly -- its declared subject
@@ -37,7 +39,8 @@ mismatch aborts the embed (`--allow-mismatch` downgrades to a warning). A
 file whose `@graph` is not a list of objects is refused, with or without
 `--validate` (`FILE=<file>: SBOM @graph is not a list [sbom-invalid]`; exit 1,
 no wheel written). The SBOM is embedded verbatim, so one from another tool may
-list files Pitloom's own never do:
+list files Pitloom's own never do (a UTF-8 byte order mark is dropped with a
+`WARNING:`, `json-malformed/bom`):
 
 ```bash
 loom embed-wheel dist/*.whl --sbom sbom.spdx3.json
@@ -58,7 +61,8 @@ Pitloom SBOM it replaces dropped) and writes the SBOM under
 under the wheel's own `.dist-info`), so every listed hash matches the final
 wheel. Full flags, including `--output` (rejected when more than one wheel
 matches) and `--sbom-basename` (a name without extension; a trailing
-`.spdx3.json` is dropped with a `WARNING:`):
+`.spdx3.json` is dropped with a `WARNING:`, and a path is refused, `option-invalid`,
+before the SBOM is generated):
 <https://bact.github.io/pitloom/wheel-sbom/>.
 
 ## Check the embedded SBOM in the same command

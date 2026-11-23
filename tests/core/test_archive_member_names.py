@@ -28,18 +28,10 @@ from pitloom.core.archive_member_names import (
     normalize_member_name,
     zip_file_members,
 )
-from pitloom.messages import Frame
 from tests._raw_archive import write_raw_member
 
 _LOG = logging.getLogger("test.archive_member_names")
-#: A frame whose text is ``P: ``: what the members' warnings start with.
-_FRAME = Frame(
-    levels=frozenset({"WARNING"}),
-    template="P: ",
-    surface="a test",
-    codes=frozenset({"test"}),
-)
-_P = "P: ARCHIVE='a.zip' ENTRY="
+_P = "ARCHIVE='a.zip' ENTRY="
 
 
 @pytest.mark.parametrize(
@@ -104,33 +96,33 @@ def test_is_directory_name(raw: str, is_dir: bool) -> None:
         (
             ["pkg\\mod.py"],
             ["pkg/mod.py"],
-            [_P + "'pkg\\mod.py': non-conforming name -- recorded as 'pkg/mod.py'"],
+            [_P + "'pkg\\mod.py': non-conforming name; listed as 'pkg/mod.py'"],
         ),
         (
             ["../evil.py", "pkg/a"],
             ["pkg/a"],
-            [_P + "'../evil.py': no safe install location -- skipped"],
+            [_P + "'../evil.py': no safe install location; not listed"],
         ),
         (
             ["pkg/a", "./pkg/a", "pkg\\a"],
             ["pkg/a"],
             [
-                _P + "'pkg/a': overwritten by later entry 'pkg\\a' -- skipped",
-                _P + "'./pkg/a': overwritten by later entry 'pkg\\a' -- skipped",
-                _P + "'pkg\\a': non-conforming name -- recorded as 'pkg/a'",
+                _P + "'pkg/a': overwritten by later entry 'pkg\\a'; not listed",
+                _P + "'./pkg/a': overwritten by later entry 'pkg\\a'; not listed",
+                _P + "'pkg\\a': non-conforming name; listed as 'pkg/a'",
             ],
         ),
         (
             ["pkg/a", "pkg/a"],
             ["pkg/a"],
-            [_P + "'pkg/a': overwritten by later entry 'pkg/a' -- skipped"],
+            [_P + "'pkg/a': overwritten by later entry 'pkg/a'; not listed"],
         ),
         (
             ["pkg", "pkg/sub/mod.py", "pkg/sub"],
             ["pkg/sub/mod.py"],
             [
-                _P + "'pkg': also a directory of other entries -- skipped",
-                _P + "'pkg/sub': also a directory of other entries -- skipped",
+                _P + "'pkg': also a directory of other entries; not listed",
+                _P + "'pkg/sub': also a directory of other entries; not listed",
             ],
         ),
         (["pkg", "pkgx/mod.py"], ["pkg", "pkgx/mod.py"], []),
@@ -148,7 +140,7 @@ def test_archive_members_warns_once_per_member(
     archive (the one an installer leaves behind) is kept."""
     with caplog.at_level(logging.WARNING):
         members = archive_members(
-            [(raw, index) for index, raw in enumerate(raws)], "a.zip", _LOG, _FRAME
+            [(raw, index) for index, raw in enumerate(raws)], "a.zip", _LOG
         )
     assert [name for name, _ in members] == names
     for name, index in members:
@@ -252,9 +244,9 @@ def test_zip_file_members_directory_entries(
     bytes are dropped -- unless no logger is given."""
     path = _zip(tmp_path, [("pkg\\", data), ("pkg/a", b"")])
     with zipfile.ZipFile(path) as zf, caplog.at_level(logging.WARNING):
-        members = zip_file_members(zf, "a.zip", logger, _FRAME)
+        members = zip_file_members(zf, "a.zip", logger)
     assert [name for name, _ in members] == ["pkg/a"]
-    expected = [_P + "'pkg\\': directory entry carries data -- skipped"]
+    expected = [_P + "'pkg\\': directory entry carries data; not listed"]
     assert [r.getMessage() for r in caplog.records] == (expected if warned else [])
 
 

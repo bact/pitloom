@@ -33,14 +33,14 @@ from pitloom._wheel_sbom_location import (
     read_wheel_name_version_from_path,
 )
 from pitloom.core import wheel_dist_info
-from pitloom.core.wheel_dist_info import (
-    PROBLEM_NONE,
-    PROBLEM_SEVERAL_NONE_MATCH,
-    WheelRefused,
-    refusal,
-)
 from pitloom.embed import embed_sbom_in_wheel, embed_wheel_sbom
 from pitloom.extract.wheel import read_wheel
+from pitloom.messages.wheels import (
+    DIST_INFO_NONE,
+    DIST_INFO_SEVERAL_NONE_MATCH,
+    WheelRefused,
+    refuse_dist_info,
+)
 from tests._wheel_damage import REAL, WHEEL, raw_wheel
 
 _EVIL = "Name: evil\nVersion: 9\n"
@@ -67,19 +67,19 @@ def _wheel(path: Path, dirs: list[str]) -> Path:
         (
             "foo-1.0-py3-none-any.whl",
             ["foo-bar-2.0.dist-info", "o-1.dist-info"],
-            PROBLEM_SEVERAL_NONE_MATCH,
+            DIST_INFO_SEVERAL_NONE_MATCH,
         ),
         (
             "foo-1.0-py3-none-any.whl",
             ["foo-bar-2.0.dist-info"],
             "foo-bar-2.0.dist-info/",
         ),
-        ("foo-1.0-py3-none-any.whl", [], PROBLEM_NONE),
+        ("foo-1.0-py3-none-any.whl", [], DIST_INFO_NONE),
         # Nested and vendored alone is no dist-info at all.
         (
             "foo-1.0-py3-none-any.whl",
             ["foo/_vendor/zipp-3.23.0.dist-info"],
-            PROBLEM_NONE,
+            DIST_INFO_NONE,
         ),
     ],
     ids=["pep503", "no-startswith", "single-other", "none", "nested-alone"],
@@ -87,7 +87,7 @@ def _wheel(path: Path, dirs: list[str]) -> Path:
 def test_the_prefix_is_chosen_by_the_shared_selector(
     tmp_path: Path, wheel: str, dirs: list[str], expected: str
 ) -> None:
-    """*expected* is a prefix, or the shared problem text the refusal says."""
+    """*expected* is a prefix, or the shared problem the refusal says."""
     path = _wheel(tmp_path / wheel, dirs)
     with zipfile.ZipFile(path) as zf:
         if expected.endswith("/"):
@@ -95,7 +95,7 @@ def test_the_prefix_is_chosen_by_the_shared_selector(
         else:
             with pytest.raises(WheelRefused) as refused:
                 _find_dist_info_prefix(zf, path)
-            assert str(refused.value) == str(refusal(path.name, None, expected))
+            assert str(refused.value) == str(refuse_dist_info(path.name, expected))
 
 
 @pytest.mark.parametrize("dirs", [[], ["a-1.dist-info", "b-1.dist-info"]])
@@ -226,7 +226,7 @@ def test_a_wheel_holding_one_name_twice_is_refused_by_every_reader(
     wheel = raw_wheel(tmp_path / WHEEL, entries)
     before = wheel.read_bytes()
 
-    with pytest.raises(ValueError, match="duplicate member name -- wheel refused") as e:
+    with pytest.raises(ValueError, match="duplicate member name; wheel refused") as e:
         call(wheel)
 
     assert f"ARCHIVE={WHEEL!r} ENTRY=" in str(e.value) and "\n" not in str(e.value)

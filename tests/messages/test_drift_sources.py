@@ -49,6 +49,18 @@ _NOT_EMITTERS = {
 
 _LOG_METHODS = frozenset({"warning", "info", "error", "critical", "exception", "log"})
 
+# Catalogue PR 16 (wheels and embedding) lands its entries before the call
+# sites say them: each set below lists what the conversion step still has
+# to convert, and must equal what the scan finds, so it only shrinks and
+# goes once that step lands.
+#: Entries no call site says yet.
+_UNSAID_UNTIL_CONVERTED: frozenset[str] = frozenset()
+#: ``<module>: <family>``: a module holding a family's wording that does
+#: not refer to the family yet.
+_FAMILY_TEXT_UNTIL_CONVERTED: frozenset[str] = frozenset()
+#: ``<module>: <log method>``: a log call saying a family's text uncoded.
+_BARE_CALLS_UNTIL_CONVERTED: frozenset[str] = frozenset()
+
 
 def test_every_reason_is_catalogued_or_pending() -> None:
     codes = frozenset(MESSAGES)
@@ -88,7 +100,7 @@ def test_every_catalogued_message_is_used_outside_the_catalogue() -> None:
     for _, tree in source_modules():
         called |= referenced_names(tree)
     used = (called & names) | _said_by_helpers(called, names)
-    assert used == names, f"unused: {sorted(names - used)}"
+    assert names - used == _UNSAID_UNTIL_CONVERTED, f"unused: {sorted(names - used)}"
 
 
 def test_a_module_saying_a_family_text_uses_the_catalogue() -> None:
@@ -105,7 +117,7 @@ def test_a_module_saying_a_family_text_uses_the_catalogue() -> None:
                 for family in sorted(said)
                 if not used & set(names[family])
             ]
-    assert not found
+    assert set(found) == _FAMILY_TEXT_UNTIL_CONVERTED
 
 
 def _says(node: ast.Call) -> bool:
@@ -129,8 +141,8 @@ def test_every_call_saying_a_family_text_carries_its_code() -> None:
             if (name in _LOG_METHODS or name == "print_error") and not any(
                 kw.arg == key for kw in node.keywords
             ):
-                bare.append(f"{path}:{node.lineno}: {name}")
-    assert not bare
+                bare.append(f"{path}: {name}")
+    assert set(bare) == _BARE_CALLS_UNTIL_CONVERTED
 
 
 def _trusted_after(head: str, text: str, message: Message, level: str) -> bool:

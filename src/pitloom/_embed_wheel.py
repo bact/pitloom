@@ -40,19 +40,24 @@ from pitloom.core.file_names import (
     escape_file_name_part,
     is_plain_file_name,
 )
-from pitloom.core.quote_source import quote_source
 from pitloom.core.wheel_dist_info import (
     MAX_NAME_CHARS,
     RefusingReader,
     open_wheel_zip,
-    refusal,
     refuse_unreadable,
     require_wheel_file,
-    unreadable_member_error,
     wheel_members,
 )
 from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
-from pitloom.logging_config import configure_logging, loggable, one_line
+from pitloom.logging_config import configure_logging
+from pitloom.messages import emit
+from pitloom.messages.config import Parameter, invalid_value
+from pitloom.messages.files import FILE_UNWRITABLE_MODE
+from pitloom.messages.wheels import (
+    refuse_non_conforming,
+    refuse_signed,
+    refuse_unreadable_member,
+)
 
 log = logging.getLogger(__name__)
 
@@ -146,10 +151,15 @@ class _EmbedPlan:
     timestamp_floored: bool
 
 
-def _validate_sbom_filename(filename: str) -> None:
-    """Guard against path traversal in an embedded SBOM filename (CWE-22)."""
-    if not is_plain_file_name(filename):
-        raise ValueError(f"Invalid SBOM filename: {quote_source(filename)}")
+def _validate_sbom_filename(sbom_file_name: str) -> None:
+    """Guard against path traversal in an embedded SBOM file name (CWE-22).
+
+    Raises:
+        pitloom.messages.CodedValueError: (a ``ValueError``) *sbom_file_name*
+            is not a plain file name (``option-invalid``).
+    """
+    if not is_plain_file_name(sbom_file_name):
+        raise invalid_value(Parameter("sbom_filename"), "file-name", got=sbom_file_name)
 
 
 def _derive_wheel_sbom_filename(
@@ -197,7 +207,7 @@ def _read_record(
     try:
         return read_wheel_member(zf, info).decode("utf-8")
     except UnicodeDecodeError as exc:
-        raise unreadable_member_error(archive, info.orig_filename, exc) from exc
+        raise refuse_unreadable_member(archive, info.orig_filename, exc) from exc
 
 
 def _refuse_non_conforming_names(
@@ -207,7 +217,7 @@ def _refuse_non_conforming_names(
     a name that is not its install-location name."""
     for name, info in members:
         if name.startswith(dist_info) and info.orig_filename != name:
-            raise refusal(archive, info.orig_filename, "non-conforming name")
+            raise refuse_non_conforming(archive, info.orig_filename)
 
 
 def _refuse_signed_wheel(
@@ -218,13 +228,7 @@ def _refuse_signed_wheel(
     names = {name for name, _ in members}
     for signature in RECORD_SIGNATURES:
         if f"{dist_info}{signature}" in names:
-            raise refusal(
-                archive,
-                f"{dist_info}{signature}",
-                "embedding rewrites RECORD, so this signature would stop "
-                "verifying; --allow-signed-wheel removes it (re-sign the "
-                "wheel after)",
-            )
+            raise refuse_signed(archive, f"{dist_info}{signature}")
 
 
 def _refuse_unembeddable(
@@ -258,6 +262,8 @@ def refuse_unembeddable_wheel(wheel_path: Path, allow_signed_wheel: bool) -> Non
     _refuse_unembeddable(wheel_path.name, dist_info, members, allow_signed_wheel)
 
 
+# One keyword more than the ratchet: the name a message gives the wheel.
+# pylint: disable-next=too-many-arguments
 def _plan_embed(
     original_zf: zipfile.ZipFile,
     dist_info: str,
@@ -265,6 +271,8 @@ def _plan_embed(
     sbom_filename: str | None,
     sbom_bytes: bytes,
     identity: tuple[str | None, str | None] | None = None,
+    *,
+    archive: str | None = None,
 ) -> _EmbedPlan:
     """Resolve target arcname, updated RECORD, and timestamp for an embed.
 
@@ -272,12 +280,15 @@ def _plan_embed(
     :func:`~pitloom.core.wheel_dist_info.wheel_members`. The caller has run
     :func:`_refuse_unembeddable`: the rewrite matches raw names, so a
     non-conforming ``.dist-info`` name would leave the old ``RECORD`` or SBOM
-    beside its replacement.
+    beside its replacement. *archive* is the wheel's file name as the caller
+    was given it, which a message names it by (default: the last component
+    of ``original_zf.filename``, empty for an in-memory archive).
 
     Raises:
         ValueError: ``RECORD`` is not UTF-8.
     """
-    archive = os.path.basename(original_zf.filename or "")
+    if archive is None:
+        archive = os.path.basename(original_zf.filename or "")
     members_by_name = dict(members)
     target_name = (
         sbom_filename
@@ -288,7 +299,7 @@ def _plan_embed(
     sbom_arcname = f"{dist_info}sboms/{target_name}"
     record_arcname = f"{dist_info}RECORD"
     stale_arcnames = stale_sboms(
-        original_zf, members_by_name, dist_info, sbom_arcname, identity
+        original_zf, members_by_name, dist_info, sbom_arcname, identity, archive=archive
     ) | {
         f"{dist_info}{signature}"
         for signature in RECORD_SIGNATURES
@@ -440,7 +451,13 @@ def embed_sbom_in_wheel(
         dist_info = _find_dist_info_prefix(original_zf, named, members=members)
         _refuse_unembeddable(named.name, dist_info, members, allow_signed_wheel)
         plan = _plan_embed(
-            original_zf, dist_info, members, sbom_filename, sbom_bytes, identity
+            original_zf,
+            dist_info,
+            members,
+            sbom_filename,
+            sbom_bytes,
+            identity,
+            archive=named.name,
         )
         temp_path = _rewrite_wheel_archive(
             wheel_obj,
@@ -460,10 +477,12 @@ def embed_sbom_in_wheel(
             try:
                 os.chmod(wheel_obj, orig_mode)
             except OSError as exc:
-                log.warning(
-                    "%s: file mode not restored: %s",
-                    loggable(wheel_obj.name),
-                    one_line(exc),
+                emit(
+                    log,
+                    FILE_UNWRITABLE_MODE,
+                    logging.WARNING,
+                    file=named.name,
+                    failure=exc,
                 )
     finally:
         if temp_path.exists():

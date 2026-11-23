@@ -5,7 +5,8 @@
 
 """A file Pitloom could not write: ``file-unwritable``. The system refused
 the write (no write permission, a read-only file system, a full disk, a
-directory where the file should be).
+directory where the file should be). A wheel an embed rewrote whose file
+mode could not be set back is ``file-unwritable/mode``.
 
 See also: :mod:`pitloom.messages._file_unreadable` (a file Pitloom could not
 read), :mod:`pitloom.messages._registry_save` (an ID registry save, the one
@@ -57,4 +58,28 @@ FILE_UNWRITABLE: Final = Message(
     since=_SINCE,
 )
 
-ENTRIES: Final = (FILE_UNWRITABLE,)
+#: A wheel an embed rewrote whose file mode could not be set back.
+MODE_NOT_RESTORED_LINE: Final = Line(
+    level="WARNING", template="FILE=%(file)s: file mode not restored; %(failure)s"
+)
+
+FILE_UNWRITABLE_MODE: Final = Message(
+    code="file-unwritable/mode",
+    condition="unwritable",
+    lines=(MODE_NOT_RESTORED_LINE,),
+    summary="An embed wrote the wheel with its SBOM through a new file put "
+    "in place of the old one, then could not give it the old file's mode "
+    "(its permission bits): the operating system refused (a file system "
+    "without POSIX modes, a file owned by another account).",
+    did="Kept the new wheel, SBOM embedded, with the mode a new file gets "
+    "(the umask's); the exit status does not change.",
+    effect="none",
+    actor="user",
+    advice="Tell the user the wheel's permissions changed, as the line says, "
+    "if they rely on them (an executable bit, a group's access). They set "
+    f"the mode again. Do not change permissions for them; {ASK_FIRST}",
+    subject_key="FILE",
+    since=_SINCE,
+)
+
+ENTRIES: Final = (FILE_UNWRITABLE, FILE_UNWRITABLE_MODE)

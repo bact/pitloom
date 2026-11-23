@@ -370,9 +370,9 @@ def test_a_duplicate_member_refuses_the_wheel_and_no_model_is_read(
         lambda path, **_: seen.append(path),
     )
 
-    with pytest.raises(ValueError, match="duplicate member name -- wheel refused"):
+    with pytest.raises(ValueError, match="duplicate member name; wheel refused"):
         generate_wheel_sbom(wheel, offline=True)
-    with pytest.raises(ValueError, match="duplicate member name -- wheel refused"):
+    with pytest.raises(ValueError, match="duplicate member name; wheel refused"):
         scan_wheel_for_ai_models(
             wheel, scan_usage=False, usage_hint=lambda: False, max_bytes=1 << 20
         )

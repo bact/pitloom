@@ -33,8 +33,9 @@ reference (:data:`TOPIC_TITLES`, a hyphen spelt ``_``):
 :mod:`~pitloom.messages.files`, :mod:`~pitloom.messages.pypi`,
 :mod:`~pitloom.messages.network`, :mod:`~pitloom.messages.git`,
 :mod:`~pitloom.messages.id_registry`,
-:mod:`~pitloom.messages.id_registry_ids`, :mod:`~pitloom.messages.licences`
-and :mod:`~pitloom.messages.fragments`.
+:mod:`~pitloom.messages.id_registry_ids`, :mod:`~pitloom.messages.licences`,
+:mod:`~pitloom.messages.fragments`, :mod:`~pitloom.messages.wheels` and
+:mod:`~pitloom.messages.wheel_sboms`.
 A :class:`Summary` (:func:`say_summary`) is an ``INFO:`` line with no
 condition, so no code.
 

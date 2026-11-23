@@ -7,7 +7,8 @@
 its own run: a build it makes no SBOM for (``hook-no-effect``, after
 :data:`~pitloom.messages.HOOK_STEP_FRAME`) and the SBOM it staged (a
 summary, which carries the hook's prefix as a literal: a summary takes no
-frame).
+frame); and a Hatchling too old to embed an SBOM
+(``library-unusable/hatchling``, page "AI models" by its family).
 
 See also: :mod:`pitloom.messages._build` (the hook's staging directory,
 ``temp-dir-unwritable``) and :mod:`pitloom.messages._config` (its
@@ -20,7 +21,7 @@ from typing import Final
 
 from pitloom.messages._frames import HOOK_PREFIX
 from pitloom.messages._summary import Summary
-from pitloom.messages._types import Line, Message
+from pitloom.messages._types import ASK_FIRST, Line, Message
 
 _SINCE: Final = "0.25.0"
 _SKIPPING: Final = "; skipping SBOM generation"
@@ -57,6 +58,38 @@ HOOK_NO_EFFECT: Final = Message(
     since=_SINCE,
 )
 
+#: The installed Hatchling predates PEP 770 support.
+HATCHLING_TOO_OLD_LINE: Final = Line(
+    level="ERROR",
+    template="Hatchling %(version)s cannot embed an SBOM (PEP 770 needs "
+    "%(minimum_version)s or later); upgrade Hatchling",
+)
+#: The installed Hatchling's version cannot be read.
+HATCHLING_VERSION_UNKNOWN_LINE: Final = Line(
+    level="ERROR",
+    template="Hatchling version unknown (no package metadata found); PEP 770 "
+    "needs %(minimum_version)s or later, reinstall Hatchling",
+)
+
+LIBRARY_UNUSABLE_HATCHLING: Final = Message(
+    code="library-unusable/hatchling",
+    condition="unusable",
+    lines=(HATCHLING_TOO_OLD_LINE, HATCHLING_VERSION_UNKNOWN_LINE),
+    summary="The Hatchling that runs the build hook cannot embed an SBOM: "
+    "its release predates the build_data sbom_files support PEP 770 "
+    "embedding needs, or its version cannot be read (no package metadata: "
+    "a broken install).",
+    did="Wrote nothing: the build hook fails the build before it makes an SBOM.",
+    effect="not-written",
+    actor="user",
+    advice="Tell the user which Hatchling the build runs with and which "
+    "release it needs, as the line says. They raise the floor in the "
+    "project's [build-system] requires (hatchling>=, the release named) or "
+    "reinstall Hatchling, and build again. Do not edit the project or "
+    f"install anything for them; {ASK_FIRST}",
+    since=_SINCE,
+)
+
 #: The SBOM staged for the wheel.
 HOOK_SBOM_STAGED: Final = Summary(
     template=f"{HOOK_PREFIX}staged SBOM %(path)s (%(number)s fragment(s)); "
@@ -68,6 +101,6 @@ HOOK_SBOM_STAGED: Final = Summary(
     topic="build",
 )
 
-ENTRIES: Final = (HOOK_NO_EFFECT,)
+ENTRIES: Final = (HOOK_NO_EFFECT, LIBRARY_UNUSABLE_HATCHLING)
 
 SUMMARIES: Final = (HOOK_SBOM_STAGED,)

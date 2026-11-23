@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-29
-Last-Modified: 2026-11-22
+Last-Modified: 2026-11-23
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -298,18 +298,27 @@ Use when `unzip -l <wheel>` shows `RECORD.jws` or `RECORD.p7s`, or `embed-wheel`
 ### Refused wheels and unknown identity
 
 A wheel's name and version come from its own top-level `.dist-info` only.
-`wheel`, `generate`, `wheel --embed` and `embed-wheel` refuse a file that is
-not a ZIP and a wheel with a member they cannot read (damaged, encrypted, a
-name that is not UTF-8), two members of one name or a NUL in a name: one
-`ERROR:`, exit 1, nothing written (in a batch the other wheels run). It reads
-`ERROR: loom wheel: ARCHIVE=... ENTRY=...: <cause> -- wheel refused`
-from `wheel` and `wheel --embed`, `ERROR: loom generate: ARCHIVE=...`
-from `generate`, `ERROR: loom embed-wheel: ARCHIVE=...` from `embed-wheel`. The two embeds also
-refuse a wheel with no single own `.dist-info`, or an own `.dist-info` member
-stored under a non-conforming name (`./`, `\`); for no single own `.dist-info`
-a `WARNING: ... -- identity unknown` line comes before the `ERROR:`.
+`wheel`, `generate`, `wheel --embed`, `embed-wheel`, `verify-wheel` and
+`validate-wheel` refuse a file that is not a ZIP, or a wheel with a member
+they cannot read (damaged, encrypted, a name that is not UTF-8:
+`wheel-unreadable`), two members of one name or a NUL in a name
+(`wheel-invalid`): one `ERROR:`, exit 1, nothing written (in a batch the other
+wheels run). It ends `; wheel refused` and the code, and reads (each command
+puts its own name before `ARCHIVE=`)
+`ERROR: loom wheel: ARCHIVE='demo-1.0-py3-none-any.whl' ENTRY='demo/a.py':
+duplicate member name; wheel refused [wheel-invalid]`.
+Every wheel line ends with a code: `references/messages-wheels.md` lists each
+one, what it means and what to tell the user.
+
+The same commands also refuse a wheel with no single own `.dist-info`
+(`dist-info-missing`, `dist-info-ambiguous`); the two embeds also refuse one
+whose own `.dist-info` has a member stored under a non-conforming name (`./`,
+`\`: `wheel-unusable`). Only `wheel` and `generate` warn first for a missing or
+ambiguous own `.dist-info`: the others print only the `ERROR:`, never an
+`identity unknown` `WARNING:` before it.
 With no single own `.dist-info`, or a `METADATA` that is missing or over a cap,
-`wheel` and `generate` only warn (`WARNING: ... identity unknown`) and write an
+`wheel` and `generate` only warn (`WARNING: ARCHIVE='<archive>': no top-level
+.dist-info directory; identity unknown [dist-info-missing]`) and write an
 SBOM that names the wheel `unknown`; an ID registry neither looks up nor
 records that placeholder (one `INFO:` when a registry is declared); its ids
 derive from the wheel's file name and payload, so a renamed copy gets new ids.
@@ -317,9 +326,17 @@ The embeds do the same (one registry `INFO:` per batch) for a `METADATA`
 that is missing or over a cap, but fail with the `ERROR:` above where there is
 no single `.dist-info` to write into. Where the file name names no top-level
 `.dist-info` but one other exists, every one of these commands uses it and logs
-`WARNING: ... the file name names no top-level .dist-info; using ...`: report
-that line, as the name and version then come from a directory the file name
-does not name. It is not a model bound.
+`WARNING: ... the file name names no top-level .dist-info; using ...`
+(`dist-info-conflict`): report that line, as the name and version then come
+from a directory the file name does not name. It is not a model bound.
+
+A member that does not install where its name says (a `\` separator, a `./`,
+an absolute path, a `..` segment) is not a refusal: the SBOM lists it under its
+install name (`; listed as '<install-name>'`), or leaves it out (`; not
+listed`; on the `--allow-build` route `; not copied`), each with a `WARNING:`
+(`archive-member-invalid`, `archive-member-unsafe`, `archive-member-conflict`).
+Say which member and why, as the line does; never repack the archive for the
+user.
 
 ## Licence detection unavailable
 

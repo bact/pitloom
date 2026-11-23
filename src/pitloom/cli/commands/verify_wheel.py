@@ -12,7 +12,7 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from pitloom._sbom_format import check_spdx3_name_version, format_name_version_mismatch
+from pitloom._sbom_format import check_spdx3_name_version
 from pitloom._wheel_sbom_location import read_wheel_name_version_from_path
 from pitloom.assemble import RECOMMENDED_EXTENSIONS, EmbeddedSbomLocation
 from pitloom.cli.commands.utils import (
@@ -22,8 +22,14 @@ from pitloom.cli.commands.utils import (
     report_error_line,
 )
 from pitloom.cli.kv_output import print_kv
-from pitloom.core.quote_source import quote_source
-from pitloom.logging_config import loggable
+from pitloom.messages import say_summary
+from pitloom.messages.wheel_sboms import (
+    VERIFY_WHEEL_OK,
+    say_identity_mismatches,
+    warn_cross_check_gaps,
+    warn_format_unknown,
+    warn_wrong_extension,
+)
 
 log = logging.getLogger(__name__)
 
@@ -44,19 +50,9 @@ def _check_location(
     """
     recommended = RECOMMENDED_EXTENSIONS.get(sbom_format) if sbom_format else None
     if recommended is None:
-        log.warning(
-            "%s: unrecognized SBOM format for %s; cannot check the "
-            "recommended extension",
-            quote_source(wheel_path.name),
-            loggable(location.arcname),
-        )
+        warn_format_unknown(log, wheel_path.name, location.arcname)
     elif not location.arcname.endswith(recommended):
-        log.warning(
-            "%s: %s doesn't use the recommended %r extension for its format",
-            quote_source(wheel_path.name),
-            loggable(location.arcname),
-            recommended,
-        )
+        warn_wrong_extension(log, wheel_path.name, location.arcname, recommended)
     return True
 
 
@@ -89,20 +85,18 @@ def _check_name_version(
     (always non-fatal, since it runs *after* an embed that either already
     passed this same pre-write check or was explicitly forced past it).
     """
-    mismatches, warnings = check_spdx3_name_version(
+    mismatches, gaps = check_spdx3_name_version(
         wheel_name, wheel_version, location.data, sbom_format
     )
-    for warning in warnings:
-        log.warning("%s: %s", quote_source(wheel_path.name), warning)
+    warn_cross_check_gaps(log, wheel_path.name, gaps)
 
     if not mismatches:
         return True
 
-    message = format_name_version_mismatch(wheel_path.name, mismatches)
     if fail_on_mismatch:
-        log.error(message)
+        say_identity_mismatches(log, wheel_path.name, mismatches, level=logging.ERROR)
         return False
-    log.warning(message)
+    say_identity_mismatches(log, wheel_path.name, mismatches)
     return True
 
 
@@ -162,7 +156,7 @@ def _run_verify_wheel_command(args: argparse.Namespace) -> int:
         all_ok = all_ok and ok
 
     if all_ok:
-        log.info("verify-wheel: %d wheel(s) OK", len(wheel_paths))
+        say_summary(log, VERIFY_WHEEL_OK, number=len(wheel_paths))
     return 0 if all_ok else 1
 
 
@@ -172,7 +166,7 @@ def add_parser(subparsers: Any, _parent_parser: argparse.ArgumentParser) -> None
         "verify-wheel",
         help=(
             "Check a wheel's embedded SBOM is at the correct PEP 770 "
-            "location, uses its format's recommended extension, and its "
+            "location, has the extension recommended for its format, and its "
             "declared name/version match the wheel's own METADATA."
         ),
     )

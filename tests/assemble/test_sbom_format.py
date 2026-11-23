@@ -21,7 +21,21 @@ from pitloom._sbom_format import (
     compare_name_version,
     detect_sbom_format,
     extract_spdx3_subject_identity,
-    format_name_version_mismatch,
+)
+from pitloom.messages.wheel_sboms import (
+    GAP_BOTH_PART_MISSING,
+    GAP_NO_DOCUMENT,
+    GAP_NO_DOCUMENT_ROOT,
+    GAP_NO_SBOM_ROOT,
+    GAP_NO_WHEEL_IDENTITY,
+    GAP_NOT_SPDX3,
+    GAP_SBOM_PART_MISSING,
+    GAP_SBOM_VERSION_INVALID,
+    GAP_SUBJECT_NOT_PACKAGE,
+    GAP_WHEEL_PART_MISSING,
+    GAP_WHEEL_VERSION_INVALID,
+    CrossCheckGap,
+    IdentityMismatch,
 )
 
 _TWO_HOP = {
@@ -90,7 +104,7 @@ def test_extract_subject_identity_no_graph_returns_none() -> None:
 def test_extract_subject_identity_two_hop_chain() -> None:
     identity = extract_spdx3_subject_identity(json.dumps(_TWO_HOP).encode())
     assert identity is not None
-    assert identity.error is None
+    assert identity.gap is None
     assert identity.name == "pkg-name"
     assert identity.version == "1.2.3"
 
@@ -107,7 +121,7 @@ def test_extract_subject_identity_single_hop_direct_subject() -> None:
     }
     identity = extract_spdx3_subject_identity(json.dumps(doc).encode())
     assert identity is not None
-    assert identity.error is None
+    assert identity.gap is None
     assert identity.name == "directpkg"
     assert identity.version is None
 
@@ -115,7 +129,7 @@ def test_extract_subject_identity_single_hop_direct_subject() -> None:
 def test_extract_subject_identity_ai_package_no_version() -> None:
     identity = extract_spdx3_subject_identity(json.dumps(_ONE_HOP_AI_PACKAGE).encode())
     assert identity is not None
-    assert identity.error is None
+    assert identity.gap is None
     assert identity.name == "ai-model"
     assert identity.version is None
 
@@ -126,7 +140,7 @@ def test_extract_subject_identity_no_spdx_document_node() -> None:
     assert identity is not None
     assert identity.name is None
     assert identity.version is None
-    assert identity.error == "no SpdxDocument node found"
+    assert identity.gap == CrossCheckGap(GAP_NO_DOCUMENT)
 
 
 def test_extract_subject_identity_dangling_document_root() -> None:
@@ -136,7 +150,7 @@ def test_extract_subject_identity_dangling_document_root() -> None:
     }
     identity = extract_spdx3_subject_identity(json.dumps(doc).encode())
     assert identity is not None
-    assert identity.error == "SpdxDocument has no usable rootElement"
+    assert identity.gap == CrossCheckGap(GAP_NO_DOCUMENT_ROOT)
 
 
 def test_extract_subject_identity_dangling_sbom_root() -> None:
@@ -149,7 +163,7 @@ def test_extract_subject_identity_dangling_sbom_root() -> None:
     }
     identity = extract_spdx3_subject_identity(json.dumps(doc).encode())
     assert identity is not None
-    assert identity.error == "Sbom node has no usable rootElement"
+    assert identity.gap == CrossCheckGap(GAP_NO_SBOM_ROOT)
 
 
 def test_extract_subject_identity_rejects_non_package_subject_type() -> None:
@@ -166,123 +180,142 @@ def test_extract_subject_identity_rejects_non_package_subject_type() -> None:
     assert identity is not None
     assert identity.name is None
     assert identity.version is None
-    assert "SoftwareAgent" in (identity.error or "")
+    assert identity.gap == CrossCheckGap(GAP_SUBJECT_NOT_PACKAGE, value="SoftwareAgent")
 
 
 # --- compare_name_version ---------------------------------------------------
 
 
 def test_compare_name_version_match_no_mismatch() -> None:
-    mismatches, warnings = compare_name_version("pkg", "1.0.0", "pkg", "1.0.0")
+    mismatches, gaps = compare_name_version("pkg", "1.0.0", "pkg", "1.0.0")
     assert mismatches == []
-    assert warnings == []
+    assert gaps == []
 
 
 def test_compare_name_version_pep503_pep440_equivalent_no_mismatch() -> None:
-    mismatches, warnings = compare_name_version(
-        "My-Package", "1.0", "my_package", "1.0.0"
-    )
+    mismatches, gaps = compare_name_version("My-Package", "1.0", "my_package", "1.0.0")
     assert mismatches == []
-    assert warnings == []
+    assert gaps == []
 
 
 def test_compare_name_version_name_mismatch() -> None:
     mismatches, _ = compare_name_version("pkg", "1.0.0", "otherpkg", "1.0.0")
-    assert len(mismatches) == 1
-    assert "name" in mismatches[0]
+    assert mismatches == [IdentityMismatch("name", "pkg", "otherpkg")]
 
 
 def test_compare_name_version_version_mismatch() -> None:
     mismatches, _ = compare_name_version("pkg", "1.0.0", "pkg", "2.0.0")
-    assert len(mismatches) == 1
-    assert "version" in mismatches[0]
-
-
-def test_compare_name_version_missing_wheel_name_warns() -> None:
-    """A missing wheel-side name must warn exactly like a missing
-    SBOM-side name (guards an asymmetric ``elif``)."""
-    _, warnings = compare_name_version(None, "1.0.0", "pkg", "1.0.0")
-    assert any("wheel METADATA has no name" in w for w in warnings)
-
-
-def test_compare_name_version_missing_sbom_name_warns() -> None:
-    _, warnings = compare_name_version("pkg", "1.0.0", None, "1.0.0")
-    assert any("SBOM subject has no name" in w for w in warnings)
-
-
-def test_compare_name_version_missing_both_names_warns() -> None:
-    _, warnings = compare_name_version(None, "1.0.0", None, "1.0.0")
-    assert any(
-        "neither the wheel nor the SBOM subject has a name" in w for w in warnings
-    )
-
-
-def test_compare_name_version_a_wheel_with_neither_warns_once() -> None:
-    assert compare_name_version(None, None, "pkg", "1.0.0") == (
-        [],
-        ["wheel METADATA has no name or version to cross-check"],
-    )
-
-
-def test_compare_name_version_missing_wheel_version_warns() -> None:
-    _, warnings = compare_name_version("pkg", None, "pkg", "1.0.0")
-    assert any("wheel METADATA has no version" in w for w in warnings)
-
-
-def test_compare_name_version_missing_sbom_version_warns() -> None:
-    _, warnings = compare_name_version("pkg", "1.0.0", "pkg", None)
-    assert any("SBOM subject has no version" in w for w in warnings)
+    assert mismatches == [IdentityMismatch("version", "1.0.0", "2.0.0")]
 
 
 @pytest.mark.parametrize(
-    ("wheel_version", "sbom_version", "side"),
+    ("args", "gap"),
     [
-        ("not-a-version", "1.0.0", "wheel METADATA version"),
-        ("1.0.0", "not-a-version", "SBOM subject version"),
+        # A missing wheel-side value gaps exactly like a missing SBOM-side
+        # one (guards an asymmetric ``elif``).
+        (
+            (None, "1.0.0", "pkg", "1.0.0"),
+            CrossCheckGap(GAP_WHEEL_PART_MISSING, part="name"),
+        ),
+        (
+            ("pkg", "1.0.0", None, "1.0.0"),
+            CrossCheckGap(GAP_SBOM_PART_MISSING, part="name"),
+        ),
+        (
+            (None, "1.0.0", None, "1.0.0"),
+            CrossCheckGap(GAP_BOTH_PART_MISSING, part="name"),
+        ),
+        (
+            ("pkg", None, "pkg", "1.0.0"),
+            CrossCheckGap(GAP_WHEEL_PART_MISSING, part="version"),
+        ),
+        (
+            ("pkg", "1.0.0", "pkg", None),
+            CrossCheckGap(GAP_SBOM_PART_MISSING, part="version"),
+        ),
+        (
+            ("pkg", None, "pkg", None),
+            CrossCheckGap(GAP_BOTH_PART_MISSING, part="version"),
+        ),
+    ],
+    ids=[
+        "wheel-name",
+        "sbom-name",
+        "both-names",
+        "wheel-version",
+        "sbom-version",
+        "both-versions",
+    ],
+)
+def test_compare_name_version_a_missing_part_is_a_gap(
+    args: tuple[str | None, str | None, str | None, str | None], gap: CrossCheckGap
+) -> None:
+    mismatches, gaps = compare_name_version(*args)
+    assert mismatches == []
+    assert gaps == [gap]
+
+
+def test_compare_name_version_a_wheel_with_neither_gaps_once() -> None:
+    assert compare_name_version(None, None, "pkg", "1.0.0") == (
+        [],
+        [CrossCheckGap(GAP_NO_WHEEL_IDENTITY)],
+    )
+
+
+@pytest.mark.parametrize(
+    ("wheel_version", "sbom_version", "gap"),
+    [
+        (
+            "not-a-version",
+            "1.0.0",
+            CrossCheckGap(GAP_WHEEL_VERSION_INVALID, value="not-a-version"),
+        ),
+        (
+            "1.0.0",
+            "not-a-version",
+            CrossCheckGap(GAP_SBOM_VERSION_INVALID, value="not-a-version"),
+        ),
         # Past Python's int-conversion limit: a plain ``ValueError``.
-        ("1" * 5000, "1.0.0", "wheel METADATA version"),
-        ("1.0.0", "1" * 5000, "SBOM subject version"),
+        (
+            "1" * 5000,
+            "1.0.0",
+            CrossCheckGap(GAP_WHEEL_VERSION_INVALID, value="1" * 5000),
+        ),
+        (
+            "1.0.0",
+            "1" * 5000,
+            CrossCheckGap(GAP_SBOM_VERSION_INVALID, value="1" * 5000),
+        ),
     ],
     ids=["wheel", "sbom", "wheel-5000-digits", "sbom-5000-digits"],
 )
-def test_compare_name_version_unparseable_version_warns(
-    wheel_version: str, sbom_version: str, side: str
+def test_compare_name_version_unparseable_version_is_a_gap(
+    wheel_version: str, sbom_version: str, gap: CrossCheckGap
 ) -> None:
-    mismatches, warnings = compare_name_version(
-        "pkg", wheel_version, "pkg", sbom_version
-    )
+    mismatches, gaps = compare_name_version("pkg", wheel_version, "pkg", sbom_version)
     assert mismatches == []
-    assert any(side in w for w in warnings)
+    assert gaps == [gap]
 
 
 # --- check_spdx3_name_version -----------------------------------------------
 
 
-def test_check_spdx3_name_version_unsupported_format_warns() -> None:
-    mismatches, warnings = check_spdx3_name_version("pkg", "1.0.0", b"{}", None)
-    assert mismatches == []
-    assert any("unsupported SBOM format" in w for w in warnings)
-
-
-def test_check_spdx3_name_version_extraction_failure_warns() -> None:
-    mismatches, warnings = check_spdx3_name_version(
-        "pkg", "1.0.0", b"not json", "spdx3-jsonld"
+def test_check_spdx3_name_version_unsupported_format_is_a_gap() -> None:
+    assert check_spdx3_name_version("pkg", "1.0.0", b"{}", None) == (
+        [],
+        [CrossCheckGap(GAP_NOT_SPDX3)],
     )
-    assert mismatches == []
-    assert any("cannot cross-check SBOM name/version" in w for w in warnings)
+
+
+def test_check_spdx3_name_version_extraction_failure_is_a_gap() -> None:
+    assert check_spdx3_name_version("pkg", "1.0.0", b"not json", "spdx3-jsonld") == (
+        [],
+        [CrossCheckGap(GAP_NOT_SPDX3)],
+    )
 
 
 def test_check_spdx3_name_version_delegates_to_compare() -> None:
     mismatches, _ = check_spdx3_name_version(
         "wrongname", "1.2.3", json.dumps(_TWO_HOP).encode(), "spdx3-jsonld"
     )
-    assert len(mismatches) == 1
-    assert "name" in mismatches[0]
-
-
-# --- format_name_version_mismatch -------------------------------------------
-
-
-def test_format_name_version_mismatch() -> None:
-    message = format_name_version_mismatch("pkg-1.0.0.whl", ["name: a vs b"])
-    assert message == "'pkg-1.0.0.whl': SBOM/wheel name: a vs b"
+    assert mismatches == [IdentityMismatch("name", "wrongname", "pkg-name")]

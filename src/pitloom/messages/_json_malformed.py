@@ -8,6 +8,9 @@ Croissant document, PyPI's release metadata, an SBOM to embed or import, an
 ID registry file) does not parse, or its top level is no object. The read
 raises; an ID registry file re-read to save a run's ids says the same as a
 ``WARNING`` (:func:`~pitloom.messages._registry_save_say.say_save_failure`).
+An SBOM given to read that starts with a byte order mark, which JSON text
+must not have, is read without it, with a ``WARNING``
+(``json-malformed/bom``).
 
 See also: :func:`pitloom.extract._extract_utils.fetch_json` (a Croissant
 document), :mod:`pitloom.extract.remote._http_fetch` (PyPI's JSON API),
@@ -78,4 +81,31 @@ JSON_MALFORMED: Final = Message(
     since=_SINCE,
 )
 
-ENTRIES: Final = (JSON_MALFORMED,)
+#: An SBOM given to read (``embed-wheel --sbom``, ``loom id import``) that
+#: starts with a UTF-8 byte order mark.
+BOM_DROPPED_LINE: Final = Line(
+    level="WARNING",
+    template="FILE=%(file)s: SBOM starts with a byte order mark, which JSON "
+    "text must not have; dropped",
+)
+
+JSON_MALFORMED_BOM: Final = Message(
+    code="json-malformed/bom",
+    condition="malformed",
+    lines=(BOM_DROPPED_LINE,),
+    summary="An SBOM given to read ('embed-wheel --sbom', 'loom id import') "
+    "starts with a UTF-8 byte order mark (U+FEFF): RFC 8259 section 8.1 "
+    "says JSON text must not, and a reader that does not drop it fails.",
+    did="Read the SBOM without the mark; embed-wheel embeds it without the "
+    "mark. The exit status does not change.",
+    effect="none",
+    actor="user",
+    advice="Tell the user the SBOM file starts with a byte order mark, as the "
+    "line says, only if they asked about it: Pitloom read it without one. "
+    "They save the file as UTF-8 without a byte order mark for other "
+    f"readers. Do not edit the file for them; {ASK_FIRST}",
+    subject_key="FILE",
+    since=_SINCE_SBOM,
+)
+
+ENTRIES: Final = (JSON_MALFORMED, JSON_MALFORMED_BOM)
