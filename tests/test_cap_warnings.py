@@ -137,6 +137,9 @@ _ALLOWED = {
     ),
     "core/scalar_text.py:MAX_INTEGER_DIGITS": _SHOWN,
     "core/wheel_dist_info.py:MAX_NAME_CHARS": _HEURISTIC,
+    "extract/ai_model/formats/gguf_header.py:MAX_DIMS": (
+        "a format rule: ggml refuses more dimensions"
+    ),
     "extract/_file_headers.py:_HEADER_SCAN_MAX_BYTES": "headers lead a file",
     "extract/_file_headers.py:_HEADER_SCAN_MAX_LINES": "headers lead a file",
     "extract/_interrupt_hold.py:HOLD_LIMIT": _NOT_INPUT,

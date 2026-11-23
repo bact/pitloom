@@ -18,7 +18,7 @@ from __future__ import annotations
 import json
 import logging
 from collections.abc import Iterable, Mapping
-from typing import Any, TypedDict, cast
+from typing import Any, NamedTuple, TypedDict, cast
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
@@ -57,6 +57,22 @@ log = logging.getLogger(__name__)
 
 #: Statement-schema URL for a fragment-unification process Annotation (A1).
 UNIFICATION_SCHEMA_URL = "https://pitloom.dev/provenance/unification/1"
+
+
+class KeysLeftOut(NamedTuple):
+    """The metadata keys of a file a reader left out of ``raw_metadata``,
+    counted, not named: *capped* over
+    :data:`~pitloom.core.ai_metadata.MAX_MODEL_ENTRIES`
+    (``AiModelMetadata.raw_metadata_dropped``), *unread* not reached by a
+    read in part (``AiModelMetadata.raw_metadata_unread``)."""
+
+    capped: int = 0
+    unread: int = 0
+
+
+#: No key left out.
+NONE_LEFT_OUT = KeysLeftOut()
+
 
 #: Statement-schema URL for a preserved verbatim artifact-metadata blob (P1).
 #: A scalar is its :func:`~pitloom.core.scalar_text.scalar_text`;
@@ -199,15 +215,15 @@ def _artifact_metadata_envelope(
     dropped_keys: list[str],
     max_metadata_bytes: int,
     value_types: Mapping[str, str],
-    capped_key_count: int,
+    left_out: KeysLeftOut,
 ) -> dict[str, Any]:
     """Build the artifact-metadata ``statement`` envelope (P1).
 
     ``valueTypes`` holds the *value_types* of the kept keys, and is left out
-    when there are none. ``truncatedKeyCount`` counts both the *dropped_keys*
-    (named in ``truncatedKeys``, cut to ``maxMetadataBytes``) and the
-    *capped_key_count* keys the reader left out over ``maxEntries``
-    (unnamed: listing them would cost what the cap saves).
+    when there are none. ``truncatedKeyCount`` counts the *dropped_keys*
+    (named in ``truncatedKeys``, cut to ``maxMetadataBytes``) and the keys
+    *left_out* by the reader, over ``maxEntries`` or unread (unnamed:
+    listing them would cost what the cap saves).
     """
     statement: dict[str, Any] = {
         "schema": ARTIFACT_METADATA_SCHEMA_URL,
@@ -218,15 +234,16 @@ def _artifact_metadata_envelope(
     kept_types = {k: v for k, v in value_types.items() if k in kept_metadata}
     if kept_types:
         statement["valueTypes"] = kept_types  # RFC 8785 sorts the keys
-    if dropped_keys or capped_key_count:
+    left_out_count = left_out.capped + left_out.unread
+    if dropped_keys or left_out_count:
         statement["truncated"] = True
-        statement["truncatedKeyCount"] = len(dropped_keys) + capped_key_count
+        statement["truncatedKeyCount"] = len(dropped_keys) + left_out_count
     if dropped_keys:
         # Canonical: RFC 8785 doesn't reorder JSON arrays (see
         # build_unification_annotation above) -- this sort is load-bearing.
         statement["truncatedKeys"] = sorted(dropped_keys)
         statement["maxMetadataBytes"] = max_metadata_bytes
-    if capped_key_count:
+    if left_out.capped:
         statement["maxEntries"] = MAX_MODEL_ENTRIES
     return statement
 
@@ -236,7 +253,7 @@ def _truncate_metadata_for_budget(
     source_format: str,
     max_metadata_bytes: int,
     value_types: Mapping[str, str],
-    capped_key_count: int,
+    left_out: KeysLeftOut,
 ) -> tuple[dict[str, Any], list[str]] | None:
     """Drop the largest metadata entries first until the artifact-metadata
     envelope's serialised size fits ``max_metadata_bytes``. A dropped key
@@ -261,7 +278,7 @@ def _truncate_metadata_for_budget(
             dropped,
             max_metadata_bytes,
             value_types,
-            capped_key_count,
+            left_out,
         )
         return len(canonical_json_bytes(envelope))
 
@@ -299,17 +316,16 @@ def build_source_metadata_annotation(
     doc_uuid: str,
     max_metadata_bytes: int = 0,
     value_types: Mapping[str, str] | None = None,
-    capped_key_count: int = 0,
+    left_out: KeysLeftOut = NONE_LEFT_OUT,
 ) -> spdx3.Annotation | None:
     """Return an Annotation embedding verbatim original metadata (P1).
 
     *value_types* (``AiModelMetadata.raw_metadata_types``) becomes the
     envelope's ``valueTypes``, cut to the keys kept.
 
-    *capped_key_count* (``AiModelMetadata.raw_metadata_dropped``), the keys
-    the reader left out over :data:`~pitloom.core.ai_metadata.MAX_MODEL_ENTRIES`,
-    marks the result ``truncated`` with that ``truncatedKeyCount`` and
-    ``maxEntries``, without naming the keys.
+    *left_out* (:class:`KeysLeftOut`), the keys the reader left out, marks
+    the result ``truncated`` with that ``truncatedKeyCount``, without naming
+    the keys; ``maxEntries`` when some are over the entry cap.
 
     ``max_metadata_bytes`` (0 = unlimited, the default) caps the serialised
     Annotation's size: when exceeded, the largest metadata entries are
@@ -330,7 +346,7 @@ def build_source_metadata_annotation(
     kept_metadata = metadata
     if max_metadata_bytes:
         result = _truncate_metadata_for_budget(
-            metadata, source_format, max_metadata_bytes, types, capped_key_count
+            metadata, source_format, max_metadata_bytes, types, left_out
         )
         if result is None:
             log.warning(
@@ -357,7 +373,7 @@ def build_source_metadata_annotation(
         dropped_keys,
         max_metadata_bytes,
         types,
-        capped_key_count,
+        left_out,
     )
     annotation_spdx_id = generate_spdx_id(
         "Annotation", doc_name=doc_name, doc_uuid=doc_uuid

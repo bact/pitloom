@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-15
-Last-Modified: 2026-11-10
+Last-Modified: 2026-11-23
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -50,9 +50,9 @@ Lessons:
   version the library accepts would skip the check. Fail closed on a
   version the library reads but the check does not know.
 - **The real fix is not reading the structure at all**: header-only,
-  stdlib-only readers that seek past what they do not emit. Planned (only the
-  pickle walker and CRFsuite are built in 0.21.0), tested for parity against the
-  libraries.
+  stdlib-only readers that seek past what they do not emit, tested for
+  parity against the libraries. Built: the pickle walker, CRFsuite (0.21.0)
+  and the GGUF header (#517, 3.14).
 
 ## 3.2 Native code in-process
 
@@ -116,3 +116,62 @@ Lessons:
   CI's Windows 3.11.9 leg caught it; every local interpreter was patched.
 - **Check and use the same handle.** Checking a path and then reopening it
   is a time-of-check/time-of-use gap.
+
+## 3.14 Replacing the library: what it refused for free (#517, 2026-11-23)
+
+The GGUF bound of 3.1 (one budget of 1M units before `GGUFReader`) refused
+every Gemma-4 header: a 262,144-token vocabulary and 514,906 merges make
+1,301,338 array elements, 777,050 of them strings. The SBOM-MinBench 0.2
+header probe found 93 such files in its dataset (81 Gemma-4 files of 8
+repositories, 12 of one audio repository). The budget only guarded
+`GGUFReader`, which cannot skip a key, so #517 replaced it with a
+stdlib-only header reader that passes over array contents (a fixed-size
+array in one offset step, a string array one length prefix at a time).
+
+| Gemma-4-shaped header (19.8 MB, 700 tensors) | Time | Peak RSS |
+| --- | --- | --- |
+| `gguf.GGUFReader` (gguf 0.19.0) | 7.5 s | 927 MiB |
+| `read_gguf` with Pitloom's reader (imports included) | 0.3 s | 78 MiB |
+
+Measured on macOS, CPython 3.10.19, on main at `0b0538c5`.
+
+Two independent reviews and two mutation runs still found what the first
+build missed:
+
+- **The library's own limits were bounds nobody listed.** `GGUFReader`
+  builds a numpy array per tensor shape, and numpy refuses more than 64
+  dimensions (`maximum supported dimension for an ndarray is currently
+  64`), so a many-dimension tensor failed in milliseconds. The new reader took
+  any dimension count that fit in the file, and the tensor-size check
+  multiplied every declared 64-bit dimension into one Python integer:
+  5,000 dimensions took 0.10 s, 10,000 0.26 s, 20,000 1.04 s, 40,000
+  4.12 s (quadratic; about 40 minutes at 1M dimensions, 8 MB). llama.cpp
+  refuses more than `GGML_MAX_DIMS` (4) (`ggml/src/gguf.cpp` l. 661 at
+  commit a8f8294c); the reader now does the same, and the size product
+  stops once past what the rest of the file can hold.
+- **A declared length checked against a cap before the file.** A string
+  declaring 2^40 bytes in a file of under 100 bytes was reported as over the 8 MiB
+  string cap, a partial read of a large file, when the file was malformed.
+  Which outcome a lie got depended on its size.
+- **A partial read looked complete in the SBOM.** Only the `WARNING:` said
+  the walk stopped; the artifact-metadata annotation listed fewer keys
+  than `GGUF.kv_count` with no marker. Reusing the entry-cap count would
+  have added `maxEntries: 1000`, naming a cap that never applied.
+- **The library had its own crash.** A local run of the fuzz harness
+  (13,759 inputs) found that `GGUFReader` reads a scalar cut at the end of
+  the file as a zero-length view, and the `TypeError` escaped Pitloom's
+  `except (OSError, ValueError)` on main.
+
+Lessons:
+
+- **Before replacing a parser, write down what it refuses.** Probe it with
+  many dimensions, huge counts and a length past the end, and keep each
+  refusal in the new reader, citing the format's reference implementation
+  rather than the library.
+- **Is it in the file? Then is it over a cap?** The first is malformed,
+  the second a partial read: check in that order.
+- **Every product or sum of declared numbers stops early** once past what
+  the file can hold.
+- **A partial read needs an output marker with its own cause**, tested on
+  every surface (a project's own model file keeps no metadata annotation,
+  so there the warning is the only record).

@@ -419,3 +419,26 @@ def test_onnx_real_repeated_key_keeps_last(
     [record] = caplog.records
     assert record.name == "pitloom.extract.ai_model.onnx"
     assert "more than once" in record.getMessage()
+
+
+@pytest.mark.parametrize(
+    ("graph_name", "producer"),
+    [
+        ("merged", "onnx.quantize"),  # a merged decoder, quantised after
+        ("mxnet_converted_model", ""),  # MXNet writes no producer
+        ("spox_graph", "spox"),
+    ],
+)
+def test_onnx_real_tool_default_graph_name_falls_back_to_the_stem(
+    tmp_path: Path, graph_name: str, producer: str
+) -> None:
+    onnx = pytest.importorskip("onnx")
+    graph = onnx.helper.make_graph([], graph_name, [], [])
+    model = onnx.helper.make_model(graph, producer_name=producer)
+    path = tmp_path / "decoder_model_merged.onnx"
+    onnx.save(model, str(path))
+    assert onnx.load(str(path)).graph.name == graph_name  # the file says it
+    meta = read_onnx(path)
+    assert meta.name is None
+    assert "name" not in meta.provenance
+    assert meta.resolve_name()[0] == "decoder_model_merged"

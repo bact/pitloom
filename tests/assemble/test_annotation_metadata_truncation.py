@@ -19,7 +19,10 @@ import logging
 
 import pytest
 
-from pitloom.assemble.spdx3.provenance import build_source_metadata_annotation
+from pitloom.assemble.spdx3.provenance import (
+    KeysLeftOut,
+    build_source_metadata_annotation,
+)
 from pitloom.core.models import _clear_doc_counters
 from pitloom.messages import code_of
 
@@ -210,7 +213,7 @@ def test_respects_the_real_byte_budget(budget: int, capped: int) -> None:
         _DOC_NAME,
         _DOC_UUID,
         max_metadata_bytes=budget,
-        capped_key_count=capped,
+        left_out=KeysLeftOut(capped),
     )
     assert ann is not None
     assert ann.statement is not None
@@ -270,13 +273,24 @@ _ENVELOPE = {"schema", "kind", "format", "metadata", "valueTypes"}
 
 
 @pytest.mark.parametrize(
-    ("budget", "capped", "markers"),
+    ("budget", "left_out", "markers"),
     [
-        (0, 0, {}),
-        (0, 7, {"truncated": True, "truncatedKeyCount": 7, "maxEntries": 1000}),
+        (0, KeysLeftOut(), {}),
+        (
+            0,
+            KeysLeftOut(7),
+            {"truncated": True, "truncatedKeyCount": 7, "maxEntries": 1000},
+        ),
+        # Unread keys (a read in part) are no entry cap: no maxEntries
+        (0, KeysLeftOut(0, 3), {"truncated": True, "truncatedKeyCount": 3}),
+        (
+            0,
+            KeysLeftOut(7, 3),
+            {"truncated": True, "truncatedKeyCount": 10, "maxEntries": 1000},
+        ),
         (
             500,
-            7,
+            KeysLeftOut(7),
             {
                 "truncated": True,
                 "truncatedKeyCount": 8,
@@ -286,13 +300,13 @@ _ENVELOPE = {"schema", "kind", "format", "metadata", "valueTypes"}
             },
         ),
     ],
-    ids=["none", "entry-cap", "entry-cap-and-budget"],
+    ids=["none", "entry-cap", "unread", "entry-cap-and-unread", "entry-cap-and-budget"],
 )
 def test_entry_cap_markers_merge_with_the_byte_budget(
-    budget: int, capped: int, markers: dict[str, object]
+    budget: int, left_out: KeysLeftOut, markers: dict[str, object]
 ) -> None:
-    """Keys over the entry cap are counted, never named; a byte budget's
-    dropped keys are named and counted with them."""
+    """Keys over the entry cap or unread are counted, never named; a byte
+    budget's dropped keys are named and counted with them."""
     ann = build_source_metadata_annotation(
         "urn:doc#ai_AIPackage-1",
         "gguf",
@@ -301,7 +315,7 @@ def test_entry_cap_markers_merge_with_the_byte_budget(
         _DOC_NAME,
         _DOC_UUID,
         max_metadata_bytes=budget,
-        capped_key_count=capped,
+        left_out=left_out,
     )
     assert ann is not None and ann.statement is not None
     statement = json.loads(ann.statement)
@@ -322,6 +336,6 @@ def test_entry_cap_markers_count_against_the_byte_budget(
         _DOC_NAME,
         _DOC_UUID,
         max_metadata_bytes=210,
-        capped_key_count=capped,
+        left_out=KeysLeftOut(capped),
     )
     assert (ann is not None) == emitted

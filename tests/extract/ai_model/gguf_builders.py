@@ -94,3 +94,20 @@ def gguf_with_tensors(
     reader maps each tensor, so it must reach the largest)."""
     head = gguf_file(len(tensors), n_kv, body + b"".join(tensors))
     return head + b"\0" * (-len(head) % ALIGNMENT) + b"\0" * data_bytes
+
+
+def tokeniser(n_tokens: int, n_merges: int) -> bytes:
+    """The four ``tokenizer.ggml`` array pairs of a vocabulary of *n_tokens*
+    tokens and *n_merges* merges, laid out as a Gemma-4 file holds them:
+    ``tokens`` and ``merges`` strings, ``scores`` float32, ``token_type``
+    int32."""
+    tokens = b"".join(string(f"t{i}") for i in range(n_tokens))
+    merges = b"".join(string(f"a{i} b{i}") for i in range(n_merges))
+    return (
+        array(STRING, n_tokens, tokens, key=b"tokenizer.ggml.tokens")
+        + array(FLOAT32, n_tokens, b"\0" * 4 * n_tokens, key=b"tokenizer.ggml.scores")
+        + array(
+            INT32, n_tokens, b"\1\0\0\0" * n_tokens, key=b"tokenizer.ggml.token_type"
+        )
+        + array(STRING, n_merges, merges, key=b"tokenizer.ggml.merges")
+    )

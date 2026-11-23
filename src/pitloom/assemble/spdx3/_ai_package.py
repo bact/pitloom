@@ -25,7 +25,10 @@ from pitloom.assemble.spdx3._display_text import (
     escape_element_display_text,
 )
 from pitloom.assemble.spdx3.creation_info import to_spdx3_datetime
-from pitloom.assemble.spdx3.provenance import build_source_metadata_annotation
+from pitloom.assemble.spdx3.provenance import (
+    KeysLeftOut,
+    build_source_metadata_annotation,
+)
 from pitloom.core.ai_metadata import (
     MODEL_NAME_CAP,
     AiModelFormat,
@@ -129,7 +132,9 @@ def _emit_source_metadata(
         doc_uuid=doc_uuid,
         max_metadata_bytes=max_source_metadata_bytes,
         value_types=source["raw_metadata_types"],
-        capped_key_count=ai_model.raw_metadata_dropped,
+        left_out=KeysLeftOut(
+            ai_model.raw_metadata_dropped, ai_model.raw_metadata_unread
+        ),
     )
     if annotation is not None:
         exporter.add_annotation(annotation)

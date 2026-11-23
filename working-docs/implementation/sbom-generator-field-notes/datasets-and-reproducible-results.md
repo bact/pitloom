@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-21
-Last-Modified: 2026-10-21
+Last-Modified: 2026-11-23
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -40,6 +40,25 @@ evidence is; none is a measured rate.
   only a string that matches the Hub id grammar and collapses whitespace runs
   in all names.
   Do: fold a name only under a rule the naming scheme itself states.
+- **A dataset name is not its identity once the source states a version.**
+  A model card's `datasets:` list states names only, but a GGUF numbered
+  entry carries `general.dataset.<id>.version`. Keyed by name, the GGUF
+  reader kept the first entry of a name and dropped a second one at another
+  version, with no message (found in review of #509, not in the 904 measured
+  headers). Since #509 the reader keys on name and version, so both releases
+  reach the assembler. The format can hold them: `dataset_DatasetPackage`
+  has `software_packageVersion`. But the assembler still merges by name and
+  the ID registry keys a dataset by type and name, so the SBOM shows one
+  package and says `WARNING: FIELD=version: ... the first is kept`. Keying
+  by name and version everywhere is unbuilt, because it changes registry
+  keys. Two choices stay open: a `general.datasets` element states no
+  version, so the reader joins it to the first numbered entry of its name;
+  whether a versionless entry is the same dataset as a versioned one is
+  undecided.
+  Do: put every field that tells two releases apart into the identity key,
+  as for packages ([registry-key-must-carry-the-release.md](registry-key-must-carry-the-release.md));
+  where a later stage cannot keep them apart yet, warn at the fold, never
+  drop silently.
 - **"Not a file" is not "has no digest".** The first version of the SDK rule
   folded anything the hasher returned no digest for. That also covers an
   empty directory, a file over the hash ceiling and an unreadable file: all

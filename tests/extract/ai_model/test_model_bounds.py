@@ -4,8 +4,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """What a hostile model file may declare before its parser runs: a pickle
-before fickling, fickling's stderr, a GGUF header's counts and an
-``.npy`` header's length (before numpy).
+before fickling, fickling's stderr and an ``.npy`` header's length (before
+numpy). GGUF: :mod:`tests.extract.ai_model.test_gguf_bounds`.
 
 See also: :mod:`tests.extract.ai_model.test_pickle_bounds` (the pickle
 bounds as Pitloom applies them),
@@ -34,14 +34,11 @@ import pytest
 
 from pitloom.core.project import ProjectFile
 from pitloom.extract.ai_model import (
-    _gguf_bounds,
     _pickle_bounds,
     archive_member,
     pytorch,
 )
 from pitloom.extract.ai_model import numpy as numpy_reader
-from pitloom.extract.ai_model._gguf_bounds import check_gguf_header
-from pitloom.extract.ai_model.gguf import read_gguf
 from pitloom.extract.ai_model.limits import ModelLimitExceeded, ModelOverCap
 from pitloom.extract.ai_model.pytorch import (
     FICKLING_PREFIX,
@@ -50,11 +47,7 @@ from pitloom.extract.ai_model.pytorch import (
 )
 from pitloom.extract.scanner import discover_ai_models
 from pitloom.extract.scanner_project import project_candidates
-from tests.extract.ai_model.gguf_builders import array, gguf_file, kv
 from tests.warning_helpers import logged_warnings
-
-_GGUF_FIXTURES = Path(__file__).parents[2] / "fixtures" / "aimodels" / "gguf"
-
 
 # -- pickle -----------------------------------------------------------------
 
@@ -185,230 +178,6 @@ def test_a_fickling_failure_is_one_warning_and_no_type(
     assert message.startswith(expected)
     assert "type_of_model" in message
     assert "\n" not in message
-
-
-# -- GGUF -------------------------------------------------------------------
-
-
-_BUDGET = "larger than the 1000000-unit GGUF-header cap"
-_DECLARES = "GGUF header declares "
-_UNDER_CAP = "GGUF array of 1000 elements, more than the file holds"
-
-#: A hostile header, and the reason it is refused.
-_HOSTILE_GGUF = {
-    "tensors-beyond-file": (gguf_file(10**6, 0), f"{_DECLARES}1000000 tensors"),
-    "tensors-over-cap": (gguf_file(2**40, 0), f"{_DECLARES}{2**40} tensors"),
-    "kv-beyond-file": (gguf_file(0, 10**6), f"{_DECLARES}1000000 key/value pairs"),
-    "kv-over-cap": (gguf_file(0, 2**40), f"{_DECLARES}{2**40} key/value pairs"),
-    "string-array-beyond-file": (gguf_file(0, 1, array(8, 10**9), tail=64), _BUDGET),
-    "scalar-array-beyond-file": (gguf_file(0, 1, array(4, 10**9), tail=64), _BUDGET),
-    "string-array-under-cap-beyond-file": (
-        gguf_file(0, 1, array(8, 1000), tail=64),
-        _UNDER_CAP,
-    ),
-    "scalar-array-under-cap-beyond-file": (
-        gguf_file(0, 1, array(4, 1000), tail=64),
-        _UNDER_CAP,
-    ),
-    "array-over-cap": (gguf_file(0, 1, array(7, 2**40)), _BUDGET),
-    "string-over-cap": (
-        gguf_file(0, 1, kv(b"k", 8, struct.pack("<Q", 2**40))),
-        "larger than the 8388608-byte GGUF-string cap",
-    ),
-    "big-endian": (
-        gguf_file(0, 1, array(8, 10**9, endian=">"), endian=">", tail=64),
-        _BUDGET,
-    ),
-    "nested": (
-        gguf_file(
-            0, 1, kv(b"k", 9, struct.pack("<IQ", 9, 1) + struct.pack("<IQ", 8, 10**9))
-        ),
-        _BUDGET,
-    ),
-    # The reader follows any depth, so the walker refuses what it cannot follow.
-    "nested-too-deep": (
-        gguf_file(
-            0,
-            1,
-            kv(b"k", 9, struct.pack("<IQ", 9, 1) * 5 + struct.pack("<IQ", 8, 10**9)),
-        ),
-        "larger than the 4-level GGUF-array-nesting cap",
-    ),
-    # One numpy view per element, scalar or not.
-    "scalar-array-over-budget": (
-        gguf_file(0, 1, array(0, 10**6, b"\0" * 10**6)),
-        _BUDGET,
-    ),
-    "scalar-arrays-sum-over-budget": (
-        gguf_file(0, 2, array(0, 600_000, b"\0" * 600_000) * 2),
-        _BUDGET,
-    ),
-    "tensors-over-budget": (gguf_file(300_000, 0, tail=24 * 300_000), _BUDGET),
-}
-
-
-@pytest.mark.parametrize("case", _HOSTILE_GGUF)
-def test_a_hostile_gguf_header_is_refused_before_the_reader(
-    case: str, tmp_path: Path
-) -> None:
-    data, reason = _HOSTILE_GGUF[case]
-    path = tmp_path / "m.gguf"
-    path.write_bytes(data)
-    with pytest.raises(ModelLimitExceeded) as excinfo:
-        check_gguf_header(path)
-    assert excinfo.value.reason == reason
-    gguf = pytest.importorskip("gguf")
-    with mock.patch.object(gguf, "GGUFReader", side_effect=AssertionError):
-        with pytest.raises(ModelLimitExceeded):
-            read_gguf(path)
-
-
-@pytest.mark.parametrize(
-    "data",
-    [
-        gguf_file(0, 0),
-        gguf_file(0, 1, array(4, 3, b"\0" * 12)),  # exactly fills the file
-        gguf_file(0, 1, array(8, 2, b"\0" * 16)),  # two empty strings, exactly
-        gguf_file(0, 1, kv(b"k", 8, struct.pack("<Q", 100))),  # string cut short
-        gguf_file(0, 1, kv(b"k", 99, b"\0" * 8)),  # unknown value type
-        gguf_file(0, 1, array(99, 1, b"\0" * 8)),  # unknown element type
-        gguf_file(1, 1, kv(b"k", 4, struct.pack("<I", 7)), tail=40),
-        gguf_file(
-            0, 1, array(8, 2, struct.pack("<Q", 1) + b"a" + struct.pack("<Q", 0))
-        ),
-        gguf_file(0, 1, kv(b"k", 8, struct.pack("<Q", 2**40))[:-8]),  # cut short
-        b"GGUF",  # shorter than a header
-        b"not a gguf file at all, but longer than a header....",
-    ],
-    ids=[
-        "empty",
-        "scalar-exact",
-        "strings-exact",
-        "string-cut",
-        "unknown-type",
-        "unknown-element",
-        "scalar",
-        "strings",
-        "truncated",
-        "short",
-        "other",
-    ],
-)
-def test_a_plausible_or_unrecognisable_gguf_is_left_to_the_reader(
-    data: bytes, tmp_path: Path
-) -> None:
-    path = tmp_path / "m.gguf"
-    path.write_bytes(data)
-    check_gguf_header(path)
-
-
-def test_an_unreadable_gguf_is_a_value_error(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    pytest.importorskip("gguf")
-    path = tmp_path / "m.gguf"
-    path.write_bytes(gguf_file(0, 0))
-
-    def denied(_path: Path) -> None:
-        raise PermissionError(13, "Permission denied")
-
-    monkeypatch.setattr("pitloom.extract.ai_model.gguf.check_gguf_header", denied)
-    with pytest.raises(ValueError, match="Failed to read GGUF file"):
-        read_gguf(path)
-
-
-_EMPTY = struct.pack("<Q", 0)
-_NESTED_4 = struct.pack("<IQ", 9, 1) * 3 + struct.pack("<IQ", 0, 1) + b"\0"
-
-
-@pytest.mark.parametrize(
-    ("n_tensors", "arrays", "within"),
-    [
-        (0, [array(0, 5, b"\0" * 5)], False),  # a pair (4) + 5 elements
-        (0, [array(0, 4, b"\0" * 4)], True),  # exactly 8
-        (0, [array(8, 4, _EMPTY * 4)], True),  # strings count like scalars
-        (0, [array(8, 5, _EMPTY * 5)], False),
-        (0, [array(0, 1, b"\0")] * 2, False),  # two pairs (8) + 2
-        (2, [], True),  # two tensors (8)
-        (3, [], False),
-        (1, [array(0, 0)], True),  # a tensor + a pair: 8
-        (1, [array(0, 1, b"\0")], False),  # 4 + 4 + 1
-    ],
-    ids=[
-        "scalar",
-        "at-cap",
-        "string",
-        "strings",
-        "pairs",
-        "tensors",
-        "tensors+1",
-        "tensor+pair",
-        "tensor+pair+1",
-    ],
-)
-def test_tensors_pairs_and_every_element_share_one_budget(
-    n_tensors: int,
-    arrays: list[bytes],
-    within: bool,
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setattr(_gguf_bounds, "MAX_GGUF_COUNT", 8)
-    path = tmp_path / "m.gguf"
-    path.write_bytes(gguf_file(n_tensors, len(arrays), b"".join(arrays), tail=24 * 8))
-    if within:
-        check_gguf_header(path)
-    else:
-        with pytest.raises(ModelOverCap, match="the 8-unit GGUF-header cap"):
-            check_gguf_header(path)
-
-
-def test_nesting_is_followed_to_the_limit_and_refused_beyond(tmp_path: Path) -> None:
-    path = tmp_path / "m.gguf"
-    path.write_bytes(gguf_file(0, 1, kv(b"k", 9, _NESTED_4)))
-    check_gguf_header(path)
-    path.write_bytes(gguf_file(0, 1, kv(b"k", 9, struct.pack("<IQ", 9, 1) + _NESTED_4)))
-    with pytest.raises(ModelLimitExceeded, match="4-level GGUF-array-nesting cap"):
-        check_gguf_header(path)
-
-
-def _gguf_version(version: int) -> bytes:
-    return b"GGUF" + struct.pack("<IQQ", version, 10**9, 0)  # hostile counts
-
-
-@pytest.mark.parametrize("version", [1, 4, 99])
-def test_a_version_the_reader_rejects_is_left_to_it(
-    version: int, tmp_path: Path
-) -> None:
-    pytest.importorskip("gguf")
-    path = tmp_path / "m.gguf"
-    path.write_bytes(_gguf_version(version))
-    check_gguf_header(path)
-
-
-@pytest.mark.parametrize("reader", ["accepts-4", "unknown"])
-def test_a_version_the_walker_does_not_know_but_the_reader_reads_is_refused(
-    reader: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """Fail closed: it would be read unbounded."""
-    gguf_reader = pytest.importorskip("gguf.gguf_reader")
-    if reader == "accepts-4":
-        monkeypatch.setattr(gguf_reader, "READER_SUPPORTED_VERSIONS", [2, 3, 4])
-    else:  # the reader's own list cannot be found
-        monkeypatch.delattr(gguf_reader, "READER_SUPPORTED_VERSIONS")
-    path = tmp_path / "m.gguf"
-    path.write_bytes(_gguf_version(4))
-    with pytest.raises(ModelLimitExceeded, match="version 4"):
-        check_gguf_header(path)
-    gguf = pytest.importorskip("gguf")
-    with mock.patch.object(gguf, "GGUFReader", side_effect=AssertionError):
-        with pytest.raises(ModelLimitExceeded):
-            read_gguf(path)
-
-
-@pytest.mark.parametrize("fixture", sorted(_GGUF_FIXTURES.glob("*.gguf")), ids=str)
-def test_every_real_gguf_passes(fixture: Path) -> None:
-    check_gguf_header(fixture)
 
 
 # -- NumPy ------------------------------------------------------------------

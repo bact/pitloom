@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-03
-Last-Modified: 2026-11-06
+Last-Modified: 2026-11-23
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -373,3 +373,46 @@ Ways a test passes, fails or floods the log for the wrong reason.
   Do: give every NaT and every timedelta a unit (`"NaT", "s"`); never add
   `-W error` on top of the repo's own warning config when running tests
   locally, since it makes unrelated third-party warnings fatal too.
+- **Three review rounds left 15 of 68 mutants alive.** After three review
+  rounds on #509's GGUF dataset reader, one mutation run (68 mutants, each
+  against its own module's tests only) left 16 alive. One was equivalent: a
+  `hub_id.count("/") > 1` guard that `is_hub_dataset_id` already enforced,
+  so the guard was deleted. The other 15 were real gaps that no reviewer had
+  named: five of six site-area names tested by one (`papers`); a dataset
+  page with a query or fragment; a version-only rule that also dropped an
+  author; a first-wins join (`setdefault`) and its case fold; a cache that
+  also kept a warning from repeating; a repeated spelling said once; a
+  stripped name kept stripped; a digit-led word in a copied title rule.
+  Reviewers read for wrong behaviour; a mutant finds right behaviour that no
+  test pins.
+  Do: mutation-test after the review rounds converge, not instead of them;
+  parametrise a test over a hand-written copy of a constant set, never over
+  the constant itself (a dropped member then drops its own test); give each
+  "said once" or "first wins" rule a test with three inputs, not two.
+- **Each fix round needs its own mutation run.** On #517 (a new GGUF header
+  reader), 46 hand-written mutants in the first gate left 2 alive: a
+  per-pair state not reset (a cap hit on a scalar after an array was
+  reported as an array cut) and a blank producer read as an empty prefix
+  (`_x` lost its name). After the second review's fixes, 14 mutants on the
+  changed lines left 1: a quantised scalar tensor, where two size formulas
+  differ only when the element count is not a whole number of blocks. A
+  delta review of the fix commit alone had found the scalar bug itself
+  (`()` skipped the size check).
+  Do: mutate the lines each fix round touched, and pin the edge where two
+  formulas could differ.
+- **A fail-on-base run can silently test the branch.** pytest's
+  `pythonpath = ["src"]` puts the checkout's `src` first, whatever
+  `PYTHONPATH` says, so "run the new tests against main" ran them against the
+  branch. `python -I` has the mirror problem: it ignores `PYTHONPATH`, and a
+  local fuzz run tested the main checkout's installed code (see
+  [process-lessons.md](process-lessons.md) for the editable-install case).
+  Do: `git archive` the base into a scratch directory, copy the branch's
+  `tests/` over it and run pytest from inside that copy; check which `src`
+  a run imports.
+- **Coverage can fail a thread test that is fine.** Once in many full runs
+  under `--cov -n 4`, a test that starts a thread failed inside coverage's
+  collector (`Cannot install a trace function while another trace function
+  is being installed`); the same test file passed three times in a row under
+  coverage (#517).
+  Do: read the traceback's frame before blaming the change; rerun the file
+  under the same flags.
