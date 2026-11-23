@@ -83,9 +83,10 @@ Not built in 0.21.0 (decided 2026-10-23):
 - [ ] **Metadata-only AI model readers**: bounded pure-Python header readers
   replacing library reads, parity-tested; HDF5 last. See
   [model-metadata-readers.md](model-metadata-readers.md).
-- [ ] **#514: ONNX tool-default graph names, GGUF Gemma-4 tokeniser headers**
-  (GGUF header reader, partial read on a cap; after #515). See
-  [model-reader-onnx-defaults-gguf-tokeniser.md](model-reader-onnx-defaults-gguf-tokeniser.md).
+- [x] **#514: ONNX tool-default graph names, GGUF Gemma-4 tokeniser headers**
+  (GGUF header reader, partial read on a cap). Built in #517; open items in
+  [model-reader-onnx-defaults-gguf-tokeniser.md](../implementation/model-reader-onnx-defaults-gguf-tokeniser.md),
+  "Still open".
 
 ### Carried over from 0.23.0
 
