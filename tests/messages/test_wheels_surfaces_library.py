@@ -25,7 +25,7 @@ import logging
 from collections.abc import Callable
 from importlib.metadata import PackageNotFoundError
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 from unittest.mock import patch
 
 import pytest
@@ -237,7 +237,7 @@ def test_the_hook_says_an_sbom_name_clash_once_with_its_frame_and_code(
 ) -> None:
     project = _project(tmp_path, '\n[tool.pitloom]\nsbom-basename = "mine"\n')
     hook = make_hook(str(project), {})
-    hook.build_config.sbom_files.append("dist/MINE.Spdx3.JSON")
+    cast(Any, hook.build_config).sbom_files.append("dist/MINE.Spdx3.JSON")
     build_data: dict[str, Any] = {}
     with pytest.raises(ValueError) as raised:
         hook.initialize("standard", build_data)
@@ -304,7 +304,7 @@ def test_the_build_route_says_not_copied_behind_its_frame(
     assert sorted(f.distribution_path for f in files) == ["pkg/__init__.py", "pkg/a.py"]
     assert not (tmp_path / "evil.py").exists()
     frame = BUILD_FRAME.render({})
-    assert [(lv, text, code) for lv, text, code in _records(caplog)] == [
+    assert list(_records(caplog)) == [
         (
             "WARNING",
             f"{frame}ARCHIVE='{WHEEL_FILE}' ENTRY='../evil.py': no safe install "

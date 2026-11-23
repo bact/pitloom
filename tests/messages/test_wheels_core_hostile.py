@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import tempfile
 from collections.abc import Callable
 from pathlib import Path
@@ -31,6 +32,7 @@ from pitloom.messages import MESSAGES, code_of, trusted_message
 from pitloom.messages import wheel_sboms as s
 from pitloom.messages import wheels as w
 from pitloom.messages._field_writers import NAME_CHARACTERS, NAME_CUT_MARK
+from pitloom.messages._fields_wheels import identity_part_text, quoted_names_text
 from pitloom.messages.targets import relay_validator_text
 
 pytestmark = pytest.mark.platform  # escapes, NUL and line ends in names
@@ -174,3 +176,55 @@ def test_an_in_memory_zip_has_no_archive_name() -> None:
     with pytest.raises(ValueError, match="not an archive name") as caught:
         w.refuse_dist_info(None, w.DIST_INFO_NONE)  # type: ignore[arg-type]
     assert code_of(caught.value) is None
+
+
+@pytest.mark.parametrize(
+    "value", ["name", b"x", None, 3], ids=["str", "bytes", "none", "int"]
+)
+def test_a_names_list_that_is_no_list_is_refused(value: object) -> None:
+    """A ``str`` is not a list of one name: it would be read letter by letter."""
+    with pytest.raises(ValueError, match="not a list"):
+        quoted_names_text(value)
+
+
+@pytest.mark.parametrize(
+    "value", ["", "Name", "build", None], ids=["empty", "case", "other", "none"]
+)
+def test_an_identity_part_is_name_or_version_only(value: object) -> None:
+    with pytest.raises(ValueError, match="not a part"):
+        identity_part_text(value)
+    assert identity_part_text("name") == "name"
+    assert identity_part_text("version") == "version"
+
+
+#: (wheel, SBOM) values that differ only in white space or past the cut.
+_LOOK_ALIKES = {
+    "tab": ("demo", "demo\t"),
+    "double-space": ("my pkg", "my  pkg"),
+    "nbsp": ("demo", "demo\u00a0"),
+    "trailing-space": ("demo", "demo "),
+    "white-space-only": ("demo", "   "),
+    "longer-past-cut": ("a" * (EXCERPT_CHARS + 1), "a" * (EXCERPT_CHARS + 10)),
+    "equal-length-past-cut": ("a" * 130 + "b", "a" * 130 + "c"),
+}
+_SIDES = re.compile(r"SBOM name (.+) differs from the wheel's METADATA (.+)")
+
+
+@pytest.mark.parametrize(
+    ("wheel", "sbom"), _LOOK_ALIKES.values(), ids=list(_LOOK_ALIKES)
+)
+def test_a_mismatch_line_tells_the_two_sides_apart(
+    caplog: pytest.LogCaptureFixture, wheel: str, sbom: str
+) -> None:
+    assert wheel != sbom
+    mismatch = s.IdentityMismatch("name", wheel, sbom)
+    s.say_identity_mismatches(_LOG, "a.whl", [mismatch])
+    exc = s.identity_mismatch_error(_LOG, "a.whl", [mismatch])
+    record = _record(caplog)
+    for text, level in ((record.getMessage(), "WARNING"), (str(exc), "ERROR")):
+        _check(text, "wheel-sbom-conflict", level)
+        found = _SIDES.search(text)
+        assert found is not None, text
+        shown_sbom, shown_wheel = found.groups()
+        assert shown_sbom != shown_wheel
+        assert shown_sbom.startswith("'") and shown_wheel.startswith("'")

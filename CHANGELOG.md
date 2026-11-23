@@ -30,7 +30,7 @@ and this project adheres to
   fragment, wheel and embedded SBOM messages carry a message code, and a
   configuration error names the file; see `docs/message-codes.md` ([#482],
   [#485], [#486], [#492], [#496], [#497], [#498], [#501], [#503], [#506], [#508],
-  [#511], [#513], [#514])
+  [#511], [#513], [#515])
 - A credential in an SBOM URL field is warned of; `url-credentials = "refuse"`
   or `--refuse-url-credentials` refuse the SBOM ([#489], [#490])
 - `embed-wheel --sbom` (every string) and `merge` check an SBOM for such
@@ -122,14 +122,12 @@ and this project adheres to
   dangling-reference warnings are sorted ([#513])
 - Wheel refusal lines end `; wheel refused [code]` and quote the archive and
   member; member lines say `; not listed` or `; not copied`, not `skipped`
-  ([#514])
+  ([#515])
 - `validate-wheel` and `fragment validate` print each finding once as
   `spdx3-validate: <line>`, then one coded `sbom-invalid` line, no empty
-  `ERROR:` line ([#514])
-- `embed-wheel --sbom-basename` with a path is refused before the SBOM is
-  generated ([#514])
+  `ERROR:` line ([#515])
 - A byte order mark in an SBOM is a coded `WARNING:` for `loom id import` too
-  ([#514])
+  ([#515])
 
 ### Fixed
 
@@ -156,6 +154,8 @@ and this project adheres to
 - A Hub revision warning is said once per model read, not per file; a refused
   PyPI URL gives its `ERROR:` line without a `WARNING:` before it; an error text
   in a `failure` value is cut to 500 characters ([#508])
+- `embed-wheel --sbom-basename` with a path is refused before the SBOM is
+  generated, not after ([#515])
 
 ### Security
 
@@ -189,7 +189,7 @@ and this project adheres to
 [#509]: https://github.com/bact/pitloom/pull/509
 [#511]: https://github.com/bact/pitloom/pull/511
 [#513]: https://github.com/bact/pitloom/pull/513
-[#514]: https://github.com/bact/pitloom/pull/514
+[#515]: https://github.com/bact/pitloom/pull/515
 
 ## [0.24.0] - 2026-11-11
 

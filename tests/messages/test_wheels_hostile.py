@@ -49,7 +49,7 @@ _FORGED = "a\nWARNING: x [wheel-invalid]\r"
 #: of at most 65,535 bytes.
 _NAMES = {
     "forged": _FORGED,
-    "escape": "\x1b[31mred ",
+    "escape": "\x1b[31mred\u2028",
     "credential": "https://u:pw@h/m.py",
     "long": "x" * 65_000,
     "quotes": 'it\'s "q"',
@@ -67,7 +67,7 @@ def _one_safe_line(line: str, code: str, *, cut: bool = False) -> None:
     """*line* is one tagged line that keeps its own *code*: nothing raw (a
     line break, an escape, a NUL, a URL credential), cut when *cut*."""
     assert line.startswith(_TAGS) and not line.partition(": ")[2].startswith(_TAGS)
-    assert not any(c in line for c in "\r\x00\x1b "), line[:200]
+    assert not any(c in line for c in "\r\x00\x1b\u2028"), line[:200]
     assert ":pw@" not in line and len(line) < LONGEST_LINE
     if cut:
         # The cut is of the whole name, a directory or prefix of it included.
@@ -262,6 +262,7 @@ def test_a_declared_name_in_a_mismatch_is_one_cut_masked_line(
 # -- the validator's text ----------------------------------------------------
 
 
+@pytest.mark.usefixtures("offline_spdx3_validate")
 @pytest.mark.parametrize(
     "tail",
     [_FORGED + "\x1b[31m https://u:pw@h/m.py", "x" * 100_000],
@@ -271,7 +272,6 @@ def test_a_validator_finding_with_a_forged_code_or_a_break_stays_relayed_text(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
-    offline_spdx3_validate: None,
     tail: str,
 ) -> None:
     context = "https://spdx.org/rdf/9.9.9/spdx-context.jsonld" + tail

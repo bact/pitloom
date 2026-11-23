@@ -138,6 +138,7 @@ def _is_message_call(node: ast.Call) -> bool:
 
 
 #: Calls that quote their leading path arguments (how many) and show the rest as given.
+#: The names are the scanner's own self-test's; no production call keeps them.
 _QUOTING_FIRST = {"refusal": 2, "unreadable_member_error": 2}
 #: Constructors whose filename argument ``OSError`` shows with ``repr()``.
 _OS_ERRORS = frozenset({"PermissionError", "FileNotFoundError", "OSError"})

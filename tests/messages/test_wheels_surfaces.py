@@ -251,7 +251,8 @@ def test_a_signed_wheel_is_refused_and_a_flag_says_the_signature_goes(
         f"INFO: {_ARCHIVE} {entry}: signature removed; re-sign the wheel "
         "[wheel-unusable/signed]"
     ]
-    assert f"{DIST_INFO}/RECORD.jws" not in zipfile.ZipFile(wheel).namelist()
+    with zipfile.ZipFile(wheel) as zf:
+        assert f"{DIST_INFO}/RECORD.jws" not in zf.namelist()
 
 
 def test_a_batch_says_the_signature_of_the_wheel_that_had_one(

@@ -71,9 +71,11 @@ def _lines(stderr: bytes) -> list[str]:
 
 
 @pytest.mark.parametrize("shape", sorted(_NO_OWN))
-def test_p1_a_command_that_refuses_the_wheel_does_not_also_warn_it_is_unknown(
+def test_p1_a_command_that_refuses_the_wheel_prints_only_the_error(
     tmp_path: Path, shape: str
 ) -> None:
+    """The skills said a ``WARNING: ... identity unknown`` came first; no
+    command prints it before a refusal (this held before the catalogue)."""
     wheel = write_wheel(tmp_path / WHEEL_FILE, _NO_OWN[shape])
     for command in ("embed-wheel", "verify-wheel", "validate-wheel"):
         done = run_loom([command, str(wheel)], tmp_path)
@@ -81,12 +83,21 @@ def test_p1_a_command_that_refuses_the_wheel_does_not_also_warn_it_is_unknown(
         assert done.returncode == 1, (command, lines)
         assert len(lines) == 1 and lines[0].startswith("ERROR: "), (command, lines)
         assert "identity unknown" not in lines[0]
-    # ``wheel`` only names the package, so there the identity is a WARNING.
+
+
+@pytest.mark.parametrize("shape", sorted(_NO_OWN))
+def test_p1_wheel_alone_warns_the_identity_is_unknown_with_its_code(
+    tmp_path: Path, shape: str
+) -> None:
+    wheel = write_wheel(tmp_path / WHEEL_FILE, _NO_OWN[shape])
     out = tmp_path / "o.json"
     done = run_loom(["wheel", str(wheel), "-o", str(out)], tmp_path)
     (line,) = _lines(done.stderr)
     assert done.returncode == 0 and out.is_file()
     assert line.startswith("WARNING: ") and "; identity unknown [" in line
+    assert list(coded_lines(done.stderr).values()) == [
+        "dist-info-missing" if shape == "none" else "dist-info-ambiguous"
+    ]
 
 
 # -- P2 and P3: the validator's text, and a format Pitloom does not know -----
@@ -102,9 +113,11 @@ def test_p2_each_finding_is_printed_once_and_no_error_line_is_empty(
     done = run_cli(monkeypatch, capsys, "validate-wheel", wheel)
     assert done.status == 1
     frame = "ERROR: loom validate-wheel:"
-    assert all(
-        ln.startswith(frame) and ln.removeprefix(frame).strip() for ln in done.err
-    )
+    relayed = f"{frame} spdx3-validate:"
+    assert all(ln.startswith(frame) for ln in done.err)
+    # No empty line, relayed or not (a blank line of the SHACL text).
+    assert all(ln.removeprefix(frame).strip() for ln in done.err)
+    assert all(ln.removeprefix(relayed).strip() for ln in done.err[:-1])
     findings = [ln for ln in done.err if re.search(r": \[(schema|shacl)\] ", ln)]
     schema = [ln for ln in findings if ": [schema] " in ln]
     assert schema and len(schema) == len(set(schema))  # a path is not said twice
@@ -112,31 +125,42 @@ def test_p2_each_finding_is_printed_once_and_no_error_line_is_empty(
     assert count is not None and int(count.group(1)) == len(findings)
 
 
+#: SBOMs Pitloom does not recognise as SPDX 3 JSON-LD.
+_NOT_SPDX = {
+    "cyclonedx": b'{"bomFormat": "CycloneDX", "specVersion": "1.6"}',
+    "unknown": b'{"x": 1}',
+}
+#: The commands that read the embedded or given SBOM's format.
+_P3_COMMANDS = {
+    "verify-wheel": ["verify-wheel", "{wheel}"],
+    "validate-wheel": ["validate-wheel", "{wheel}"],
+    "embed-verify": ["embed-wheel", "{wheel}", "--sbom", "{given}", "--verify"],
+    "embed-validate": ["embed-wheel", "{wheel}", "--sbom", "{given}", "--validate"],
+    "embed-both": [
+        *["embed-wheel", "{wheel}", "--sbom", "{given}", "--verify", "--validate"]
+    ],
+}
+
+
 @pytest.mark.usefixtures("offline_spdx3_validate")
-@pytest.mark.parametrize("command", ["verify-wheel", "validate-wheel"])
+@pytest.mark.parametrize("command", sorted(_P3_COMMANDS))
+@pytest.mark.parametrize("kind", sorted(_NOT_SPDX))
 def test_p3_an_unrecognised_format_never_prints_none(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
+    kind: str,
     command: str,
 ) -> None:
-    wheel = make_wheel(tmp_path / "w", sboms={"s.spdx3.json": b'{"x": 1}'})
-    done = run_cli(monkeypatch, capsys, command, wheel)
-    assert done.status == 0 and done.err
-    assert not any("None" in ln for ln in done.err)
+    body = _NOT_SPDX[kind]
     given = tmp_path / "given.json"
-    given.write_bytes(b'{"x": 1}')
-    embedded = run_cli(
-        monkeypatch,
-        capsys,
-        "embed-wheel",
-        make_wheel(tmp_path / "e"),
-        "--sbom",
-        given,
-        "--verify",
-        "--validate",
-    )
-    assert not any("None" in ln for ln in embedded.err)
+    given.write_bytes(body)
+    wheel = make_wheel(tmp_path / "w", sboms={"s.spdx3.json": body})
+    args = [a.format(wheel=wheel, given=given) for a in _P3_COMMANDS[command]]
+    done = run_cli(monkeypatch, capsys, *args)
+    assert done.status == 0, done.err
+    assert not any("None" in ln for ln in done.err), done.err
+    assert "wheel-sbom-unusable" in done.codes  # the format is said, with its code
 
 
 # -- P4: --sbom-basename is checked before anything is generated -------------
@@ -273,9 +297,11 @@ def test_p7_the_file_mode_warning_names_the_file_as_given_not_its_target(
     monkeypatch.setattr("pitloom._embed_wheel.os.chmod", refuse)
     done = run_cli(monkeypatch, capsys, "embed-wheel", link)
     assert done.status == 0
-    (line,) = [ln for ln in done.err if ln.endswith("[file-unwritable/mode]")]
-    assert line.startswith(f"WARNING: FILE={WHEEL_FILE}: file mode not restored; ")
-    assert "target" not in line and str(tmp_path) not in line
+    (line,) = [ln for ln in done.err if "file mode not restored" in ln]
+    assert "target" not in line and str(tmp_path) not in line  # the link's name
+    assert WHEEL_FILE in line
+    assert line.startswith(f"WARNING: FILE={WHEEL_FILE}: ")
+    assert line.endswith("[file-unwritable/mode]")
 
 
 # -- the byte order mark: said with a code by embed-wheel and by loom id import ---

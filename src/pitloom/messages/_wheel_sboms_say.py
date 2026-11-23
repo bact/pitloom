@@ -25,6 +25,7 @@ from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, Final, NamedTuple
 
 from pitloom.core.internal_error import InternalError
+from pitloom.messages._compared_value import compared_pair
 from pitloom.messages._emit import CodedValueError, emit
 from pitloom.messages._field_writers import cut_name
 from pitloom.messages._types import Line
@@ -194,6 +195,9 @@ def say_identity_mismatches(
         raise InternalError(f"no wheel-sbom-conflict line at level {level}")
     line = MISMATCH_LINE if level == logging.WARNING else MISMATCH_ERROR_LINE
     for mismatch in mismatches:
+        wheel_value, sbom_value = compared_pair(
+            mismatch.wheel_value, mismatch.sbom_value
+        )
         emit(
             log,
             WHEEL_SBOM_CONFLICT,
@@ -201,8 +205,8 @@ def say_identity_mismatches(
             line=line,
             archive=archive,
             identity_part=mismatch.part,
-            sbom_value=mismatch.sbom_value,
-            wheel_value=mismatch.wheel_value,
+            sbom_value=sbom_value,
+            wheel_value=wheel_value,
         )
 
 
@@ -221,13 +225,14 @@ def identity_mismatch_error(
         raise InternalError("no mismatch to refuse an embed for")
     *first, last = mismatches
     say_identity_mismatches(log, archive, first, level=logging.ERROR)
+    wheel_value, sbom_value = compared_pair(last.wheel_value, last.sbom_value)
     return CodedValueError(
         WHEEL_SBOM_CONFLICT,
         line=MISMATCH_ERROR_LINE,
         archive=archive,
         identity_part=last.part,
-        sbom_value=last.sbom_value,
-        wheel_value=last.wheel_value,
+        sbom_value=sbom_value,
+        wheel_value=wheel_value,
     )
 
 

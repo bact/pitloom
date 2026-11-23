@@ -120,14 +120,12 @@ def test_a_failed_chmod_is_one_warning(
     assert getattr(caplog.records[0], CODE_ATTR) == "file-unwritable/mode"
 
 
-@pytest.mark.parametrize(
-    "archive", [None, "given-1.0.0-py3-none-any.whl"], ids=["default", "given"]
-)
 def test_a_held_sbom_of_an_in_memory_archive_is_said_and_never_crashes(
-    archive: str | None, caplog: pytest.LogCaptureFixture
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     """An in-memory ``ZipFile`` has no ``filename``: the line still comes,
-    naming the wheel as the caller gives it (else by no name), not raising."""
+    naming the wheel as the caller gives it, not raising."""
+    archive = "given-1.0.0-py3-none-any.whl"
     other = _spdx3_json_with_subject("otherpkg", "1.0.0", pitloom_sbom_types=["build"])
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, "w") as zf:
@@ -149,5 +147,5 @@ def test_a_held_sbom_of_an_in_memory_archive_is_said_and_never_crashes(
     assert stale == frozenset()
     (record,) = caplog.records
     assert getattr(record, CODE_ATTR) == "wheel-sbom-conflict/held"
-    assert record.getMessage().startswith(f"ARCHIVE={archive or ''!r} ")
+    assert record.getMessage().startswith(f"ARCHIVE={archive!r} ")
     assert f"ENTRY='{_DIST}first.spdx3.json'" in record.getMessage()

@@ -18,7 +18,8 @@ from typing import Final
 
 from pitloom.core.given_path import given_spelling
 from pitloom.core.quote_source import given_path_text, quote_source
-from pitloom.core.url_masking import mask_checkout, masked_given_path
+from pitloom.core.url_masking import mask_checkout
+from pitloom.log_masking import masked_text
 from pitloom.logging_config import failure_reason, loggable, one_line
 
 #: The most characters of an exception's text a ``failure`` field shows.
@@ -141,16 +142,29 @@ def quoted_text(value: object) -> str:
     return quote_source(plain_text(value))
 
 
+def masked(text: str) -> str:
+    """*text* with a temporary directory, a URL's credentials and a
+    secret-named parameter's value masked
+    (:func:`~pitloom.log_masking.masked_text`, which never raises); nothing
+    else changed (white space kept)."""
+    return masked_text(mask_checkout(text))
+
+
+def cut_masked(text: str, limit: int) -> str:
+    """*text*, already :func:`masked`, cut to *limit* characters with
+    :data:`NAME_CUT_MARK` after a cut."""
+    if len(text) <= limit:
+        return text
+    return text[:limit] + NAME_CUT_MARK
+
+
 def cut_name(text: str) -> str:
-    """*text*, a name, for a message: a URL's credentials and a temporary
-    directory masked, then cut to :data:`NAME_CHARACTERS` characters with
-    :data:`NAME_CUT_MARK` after it; neither quoted nor escaped, so a field's
-    writer quotes and escapes it as any other name. Masked before it is cut,
-    so a cut never takes away the end of a URL's user information."""
-    masked = masked_given_path(mask_checkout(text), line=True)
-    if len(masked) <= NAME_CHARACTERS:
-        return masked
-    return masked[:NAME_CHARACTERS] + NAME_CUT_MARK
+    """*text*, a name, for a message: masked (:func:`masked`), then cut to
+    :data:`NAME_CHARACTERS` characters with :data:`NAME_CUT_MARK` after it;
+    neither quoted nor escaped, so a field's writer quotes and escapes it as
+    any other name. Masked before it is cut, so a cut never takes away the
+    end of a URL's user information."""
+    return cut_masked(masked(text), NAME_CHARACTERS)
 
 
 def quoted_name_text(value: object) -> str:

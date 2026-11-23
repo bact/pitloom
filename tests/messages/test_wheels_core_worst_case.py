@@ -15,6 +15,7 @@ per writer).
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Mapping
 
 import pytest
@@ -39,6 +40,7 @@ pytestmark = pytest.mark.platform  # escapes of names, as a path is shown
 #: The code point whose escape is the longest (``\\U0001000c``, ten
 #: characters for one).
 _WIDE = "\U0001000c"
+_LOG = logging.getLogger("pitloom.core.wheel_dist_info")
 #: A name longer than the cap.
 _NAME = _WIDE * (4 * NAME_CHARACTERS)
 #: A path of the user's own (``FILE=``), uncapped: PATH_MAX characters.
@@ -159,3 +161,12 @@ def test_the_relay_cuts_the_document_name(capsys: pytest.CaptureFixture[str]) ->
         assert len(line) <= LONGEST_LINE
         assert trusted_message(line) is MESSAGES["sbom-invalid"]
         assert NAME_CUT_MARK in line
+
+
+def test_a_mismatch_past_the_cut_at_its_longest_keeps_its_code() -> None:
+    """Both sides cut alike, each also shown from where they differ."""
+    wheel, sbom = _WIDE * 100_000 + "b", _WIDE * 100_000 + "c" + _WIDE * 1000
+    mismatch = s.IdentityMismatch("name", wheel, sbom)
+    exc = s.identity_mismatch_error(_LOG, _NAME, [mismatch])
+    line = _trusted("wheel-sbom-conflict", "ERROR", str(exc))
+    assert line.count("(from character 100001: ") == 2

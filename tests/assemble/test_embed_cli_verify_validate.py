@@ -349,7 +349,7 @@ def test_cli_embed_wheel_validates_a_given_sbom_before_writing(
     )
     monkeypatch.setattr(
         "pitloom.cli.commands.embed_wheel.validate_sbom_data",
-        lambda _data, _shown: valid,
+        lambda _data, _shown, **_keywords: valid,
     )
     monkeypatch.setattr(
         "pitloom.cli.commands.embed_wheel._run_post_embed_checks",

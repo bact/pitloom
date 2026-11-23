@@ -23,11 +23,13 @@ import hashlib
 import json
 import re
 import zipfile
+from collections.abc import Mapping
 from pathlib import Path
 
 import pytest
 
 from pitloom.messages import trusted_message
+from tests._symlink import CAN_SYMLINK
 from tests._wheel_fixtures import (
     DIST_INFO,
     WHEEL_FILE,
@@ -244,8 +246,27 @@ def test_another_pitloom_sbom_in_the_wheel_is_said_kept_or_removed(
     done = run_cli(monkeypatch, capsys, "embed-wheel", wheel)
     assert done.status == 0
     assert done.err == [line.format(a=_ARCHIVE, s=_SBOMS)]
-    kept = f"{_SBOMS}/mine.spdx3.json" in zipfile.ZipFile(wheel).namelist()
+    with zipfile.ZipFile(wheel) as zf:
+        kept = f"{_SBOMS}/mine.spdx3.json" in zf.namelist()
     assert kept is (types == ["source"])
+
+
+@pytest.mark.skipif(not CAN_SYMLINK, reason="needs a symbolic link")
+def test_a_held_sbom_line_names_a_linked_wheel_by_the_link_not_the_target(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    held = {"mine.spdx3.json": spdx3_sbom("other", "9", pitloom_types=["source"])}
+    real = make_wheel(tmp_path / "real", name="target", sboms=held)
+    link = tmp_path / "link" / WHEEL_FILE
+    link.parent.mkdir()
+    link.symlink_to(real)
+    done = run_cli(monkeypatch, capsys, "embed-wheel", link)
+    assert done.status == 0
+    (line,) = [e for e in done.err if e.endswith("[wheel-sbom-conflict/held]")]
+    assert line.startswith(f"WARNING: {_ARCHIVE} ENTRY='target-1.0.dist-info/sboms/")
+    assert "target-1.0-py3" not in line and str(tmp_path) not in line
 
 
 def test_an_embed_on_the_zip_date_floor_says_so_once_per_wheel(
@@ -315,7 +336,7 @@ _BAD_VERSION = {
 }
 
 
-def _sbom_of(document: dict[str, object]) -> bytes:
+def _sbom_of(document: Mapping[str, object]) -> bytes:
     return json.dumps(document).encode("utf-8")
 
 
@@ -357,6 +378,7 @@ def test_validate_says_when_the_document_could_not_be_validated_at_all(
     )
     assert done.err[0].startswith("ERROR: loom validate-wheel: spdx3-validate: ")
     assert len(done.err) == 2
+    assert done.codes == ["sbom-invalid"]  # one per document
 
 
 def test_a_given_sbom_that_is_not_valid_is_stopped_before_anything_is_written(
@@ -376,6 +398,9 @@ def test_a_given_sbom_that_is_not_valid_is_stopped_before_anything_is_written(
         "SBOM is not valid; no wheel was written [sbom-invalid]"
     )
     assert trusted_message(done.err[-1]) is not None
+    # The one outcome line: no per-document "not valid SPDX 3" line beside it.
+    assert done.codes == ["sbom-invalid"]
+    assert not any("not valid SPDX 3" in ln for ln in done.err)
     assert done.err[0].startswith("ERROR: loom embed-wheel: spdx3-validate: ")
 
 

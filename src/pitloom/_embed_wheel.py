@@ -272,7 +272,7 @@ def _plan_embed(
     sbom_bytes: bytes,
     identity: tuple[str | None, str | None] | None = None,
     *,
-    archive: str | None = None,
+    archive: str,
 ) -> _EmbedPlan:
     """Resolve target arcname, updated RECORD, and timestamp for an embed.
 
@@ -281,14 +281,11 @@ def _plan_embed(
     :func:`_refuse_unembeddable`: the rewrite matches raw names, so a
     non-conforming ``.dist-info`` name would leave the old ``RECORD`` or SBOM
     beside its replacement. *archive* is the wheel's file name as the caller
-    was given it, which a message names it by (default: the last component
-    of ``original_zf.filename``, empty for an in-memory archive).
+    was given it, which a message names it by.
 
     Raises:
         ValueError: ``RECORD`` is not UTF-8.
     """
-    if archive is None:
-        archive = os.path.basename(original_zf.filename or "")
     members_by_name = dict(members)
     target_name = (
         sbom_filename

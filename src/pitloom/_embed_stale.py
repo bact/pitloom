@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import zipfile
 
 from pitloom._sbom_format import check_spdx3_name_version, detect_sbom_format
@@ -74,16 +73,13 @@ def stale_sboms(
     keep: str,
     identity: tuple[str | None, str | None] | None,
     *,
-    archive: str | None = None,
+    archive: str,
 ) -> frozenset[str]:
     """The Pitloom SBOMs under ``<dist_info>sboms/`` (other than *keep*) a
     new embed removes: those :func:`_is_replaceable_sbom` accepts. Any other
     Pitloom SBOM stays, with one ``WARNING:`` each
     (``wheel-sbom-conflict/held``), naming the wheel by *archive*, its file
-    name as the caller was given it (default: the last component of
-    ``zf.filename``, empty for an in-memory archive)."""
-    if archive is None:
-        archive = os.path.basename(zf.filename or "")
+    name as the caller was given it."""
     candidates = [
         (name, info)
         for name, info in members.items()

@@ -115,7 +115,7 @@ violation's Severity/Source Shape/Focus Node breakdown spans several lines, and
 a merged-graph failure is labelled `(merged)`), then one coded `[sbom-invalid]`
 `ERROR:` line per document (`not valid SPDX 3 (<number> finding(s) above)`; a
 document that could not be loaded says why above and ends `could not be
-validated`); a missing file or invalid JSON is one `ERROR:`.
+validated`); a missing file is one `ERROR:`.
 
 To validate several related documents (e.g. a base SBOM plus a fragment
 that declares an `ExternalMap` for the base ids it uses) and additionally

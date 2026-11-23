@@ -31,7 +31,8 @@ from collections.abc import Mapping
 from types import MappingProxyType
 from typing import Final
 
-from pitloom.logging_config import loggable
+from pitloom.logging_config import EXCERPT_CHARS, loggable
+from pitloom.messages._compared_value import compared_text
 from pitloom.messages._field_type import QUOTED, Field
 from pitloom.messages._field_writers import (
     NAME_CHARACTERS,
@@ -40,7 +41,6 @@ from pitloom.messages._field_writers import (
     plain_text,
     quoted_name_text,
 )
-from pitloom.messages._fields_lock import EXCERPT_MEANING, excerpt_text
 
 #: The most names a list of members or project paths shows before ``and N
 #: more``.
@@ -57,6 +57,20 @@ _SHOWN_NAME: Final = (
 )
 
 _RAW_MEMBER: Final = f"as the archive stores it, {_SHOWN_NAME}"
+
+#: How a compared value is shown.
+_COMPARED_MEANING: Final = (
+    "exactly as stated (a value not text as sorted ASCII JSON), never "
+    "collapsed, in quotes: masked whole (a URL's credentials, a secret-named "
+    f"parameter), cut to {EXCERPT_CHARS} characters with `{NAME_CUT_MARK}` "
+    "before the closing quote, backslashes doubled, white space other than "
+    "a plain space and control characters escaped; when the two sides would "
+    "look alike (equal up to the cut, or either not ASCII), each also shows "
+    "`(from character N: '<rest>')`, N counting characters of the masked "
+    "value and the rest an ASCII literal. Raw text is compared, so a "
+    "difference PEP 503 or PEP 440 ignores in the first characters can hide "
+    "one past the cut"
+)
 
 
 def exception_label(exc: BaseException) -> str:
@@ -187,17 +201,17 @@ WHEEL_FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
         ),
         "wheel_value": Field(
             r".+",
-            excerpt_text,
+            compared_text,
             "<wheel-value>",
-            f"the value the wheel's METADATA states, {EXCERPT_MEANING}",
+            f"the value the wheel's METADATA states, {_COMPARED_MEANING}",
             free=True,
         ),
         "sbom_value": Field(
             r".+",
-            excerpt_text,
+            compared_text,
             "<sbom-value>",
             "the value the SBOM states (its subject's name or version, or "
-            f"its type), {EXCERPT_MEANING}",
+            f"its type), {_COMPARED_MEANING}",
             free=True,
         ),
         "extension": Field(

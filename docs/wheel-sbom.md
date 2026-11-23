@@ -111,7 +111,7 @@ Other flags:
 
 - `--sbom-basename NAME` sets the embedded file's basename. A trailing
   `.spdx3.json` is optional and dropped with a `WARNING:`. A path (a `/`, `\`,
-  `:` or NUL, or `.`/`..`) is an
+  `:` or NUL) is an
   [`option-invalid`](message-codes-options.md#option-invalid) `ERROR:`, raised
   before the SBOM is generated (exit 1, nothing written). The default is
   `<name>-<version>.spdx3.json` from the wheel's own name/version, with a
@@ -418,9 +418,11 @@ With `sbom_path=` (form 2, the equivalent of the CLI's `embed-wheel --sbom`),
 the SBOM's declared subject name/version (PEP 503/440-normalised) is
 cross-checked against the wheel's own `.dist-info/METADATA` *before*
 anything is written: a mismatch raises `ValueError` and nothing is
-written, unless `allow_mismatch=True` downgrades it to a `WARNING:` log
-and lets the embed proceed. Form 1 (a Pitloom-generated SBOM) is never
-checked -- it's built from the same wheel metadata, so it can't diverge.
+written (a name and a version both differing log the first as an `ERROR:`
+and raise the last), unless `allow_mismatch=True` downgrades it to a
+`WARNING:` log and lets the embed proceed. Form 1 (a Pitloom-generated SBOM)
+is never checked -- it's built from the same wheel metadata, so it can't
+diverge.
 A Pitloom-generated SBOM lists the wheel's payload only (see
 [Wheel SBOMs](wheel-sbom.md#what-an-sbom-lists)). A wheel with a
 `RECORD` signature (`RECORD.jws`, `RECORD.p7s`) raises `WheelRefused` (a

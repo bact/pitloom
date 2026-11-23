@@ -70,6 +70,36 @@ the excerpt, escaped), `extension`, `skipped` (number), `minimum_version`.
 `option` (existing) carries `--allow-signed-wheel` so the family core does
 not match `cli/options.py`.
 
+**Compared values** (review rounds 1-2): `wheel_value` and `sbom_value`
+are written by `messages/_compared_value.py` (`compared_text`,
+`compared_pair`, `ComparedValue`), not `excerpt_text`, which collapsed
+white space (`'demo\t'` printed as `'demo'`). Rule:
+
+1. Source: a `str` as stated; any other value as JSON (`sort_keys=True`,
+   `ensure_ascii=True`), else its `repr`. Never collapsed.
+2. Mask the whole source with `log_masking.masked_text` (URL credentials,
+   secret-named parameters with or without a URL; never raises) before any
+   cut or slice, so a cut cannot part a secret from its `token=` label.
+   `_field_writers.masked` (used by `cut_name` for names) now masks the
+   same way, plus temporary directories.
+3. Shown form: cut to `EXCERPT_CHARS` (120) with `...`, backslashes
+   doubled (so `\t` written by the escaper is never a literal `\` and
+   `t`), then `quote_source` (quotes, control characters and white space
+   other than a plain space escaped). One-to-one on the cut text.
+4. `compared_pair` (inside `say_identity_mismatches` and
+   `identity_mismatch_error`; signatures unchanged): when the masked values
+   differ and either the two shown forms are equal or either holds a
+   non-ASCII character (NFC against NFD, an astral character), both sides
+   add `(from character N: <rest>)`: N is the first differing character
+   of the MASKED value (a masked credential or an escape shifts it), rest
+   is the masked value from there, cut alike, as an ASCII literal
+   (`'e\u0301'`). Distinct ASCII shown forms get no note.
+
+Not handled, by design: values equal once masked (two credentials) look
+alike; the comparison is of raw text, so a difference PEP 503 or PEP 440
+ignores within the first 120 characters can hide a real one past the cut
+(no note: the shown forms already differ).
+
 **Name display cap** (ruling after step 1, plan Q18):
 `_field_writers.NAME_CHARACTERS = 500`, `NAME_CUT_MARK = "..."`.
 `cut_name(text)` masks (URL credentials, temporary directories), then cuts,

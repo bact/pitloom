@@ -13,7 +13,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from importlib.metadata import PackageNotFoundError
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 from unittest.mock import patch
 
 import pytest
@@ -101,7 +101,7 @@ def test_an_sbom_files_entry_of_the_staged_name_is_refused_as_coded(
         hook = make_hook(str(tmp_path), {})
         build_data: dict[str, Any] = {"sbom_files": []}
         if config_side:
-            hook.build_config.sbom_files.append(placed)
+            cast(Any, hook.build_config).sbom_files.append(placed)
         else:
             build_data["sbom_files"] = [placed]
         with pytest.raises(ValueError, match="sbom-files entry") as caught:
