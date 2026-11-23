@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-03
-Last-Modified: 2026-11-06
+Last-Modified: 2026-11-23
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -373,3 +373,19 @@ Ways a test passes, fails or floods the log for the wrong reason.
   Do: give every NaT and every timedelta a unit (`"NaT", "s"`); never add
   `-W error` on top of the repo's own warning config when running tests
   locally, since it makes unrelated third-party warnings fatal too.
+- **Three review rounds left 15 of 68 mutants alive.** After three review
+  rounds on #509's GGUF dataset reader, one mutation run (68 mutants, each
+  against its own module's tests only) left 16 alive. One was equivalent: a
+  `hub_id.count("/") > 1` guard that `is_hub_dataset_id` already enforced,
+  so the guard was deleted. The other 15 were real gaps that no reviewer had
+  named: five of six site-area names tested by one (`papers`); a dataset
+  page with a query or fragment; a version-only rule that also dropped an
+  author; a first-wins join (`setdefault`) and its case fold; a cache that
+  also kept a warning from repeating; a repeated spelling said once; a
+  stripped name kept stripped; a digit-led word in a copied title rule.
+  Reviewers read for wrong behaviour; a mutant finds right behaviour that no
+  test pins.
+  Do: mutation-test after the review rounds converge, not instead of them;
+  parametrise a test over a hand-written copy of a constant set, never over
+  the constant itself (a dropped member then drops its own test); give each
+  "said once" or "first wins" rule a test with three inputs, not two.
