@@ -21,6 +21,7 @@ from pitloom.messages import (
     _config,
     _config_unsafe,
     _dependency,
+    _environment,
     _file_discovery,
     _file_unreadable,
     _file_unwritable,
@@ -103,6 +104,7 @@ MESSAGES: Final = _by_code(
         *_lock_file.ENTRIES,
         *_lock_entry.ENTRIES,
         *_dependency.ENTRIES,
+        *_environment.ENTRIES,
         *_json_malformed.ENTRIES,
         *_sbom_target.ENTRIES,
         *_input_not_found.ENTRIES,
@@ -147,4 +149,5 @@ SUMMARIES: Final[tuple[Summary, ...]] = (
     *_hook.SUMMARIES,
     *_fragments_merge.SUMMARIES,
     *_wheel_sboms.SUMMARIES,
+    *_usage_unusable.SUMMARIES,
 )

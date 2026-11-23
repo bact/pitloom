@@ -4,8 +4,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Saying the option families: the code of ``argparse``'s own refusal
-(:func:`usage_code`), and the one line for an option that has no effect
-(:func:`warn_option_no_effect`).
+(:func:`usage_code`), the one line for an option that has no effect
+(:func:`warn_option_no_effect`), and the refusal of a document namespace
+(:func:`namespace_invalid`).
 
 See also: :mod:`pitloom.messages._options` (the entries).
 """
@@ -16,10 +17,12 @@ import logging
 
 from pitloom.core.internal_error import InternalError
 from pitloom.logging_config import escape_controls
-from pitloom.messages._emit import emit
+from pitloom.messages._emit import CodedValueError, emit
 from pitloom.messages._lines import says
 from pitloom.messages._options import (
     BUILD_NO_EFFECT_LINE,
+    NAMESPACE_EMPTY_LINE,
+    NAMESPACE_INVALID_LINE,
     OPTION_CONFLICT,
     OPTION_INVALID,
     OPTION_MISSING,
@@ -85,4 +88,24 @@ def warn_option_no_effect(
         name=subject,
         option=option,
         when=when,
+    )
+
+
+def namespace_invalid(value: str, problem: str) -> CodedValueError:
+    """The ``option-invalid`` error for *value*, which cannot be a document
+    namespace for *problem* (one of
+    :data:`~pitloom.core.iri.NAMESPACE_PROBLEMS`): the empty line for an
+    empty *value*, else the namespace line, the value last with a URL's
+    credentials masked.
+
+    Raises:
+        ValueError: (a plain one) *problem* is not one the line can say.
+    """
+    if not value:
+        return CodedValueError(OPTION_INVALID, line=NAMESPACE_EMPTY_LINE)
+    return CodedValueError(
+        OPTION_INVALID,
+        line=NAMESPACE_INVALID_LINE,
+        namespace=value,
+        namespace_problem=problem,
     )

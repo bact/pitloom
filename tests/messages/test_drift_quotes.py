@@ -106,6 +106,11 @@ _MARKERS: dict[str, tuple[str, ...]] = {
         "not resolvable without running project code",
         "not resolved without PKG-INFO",
     ),
+    "environment-unreadable": (
+        "pipdeptree exited with code",
+        "could not run pipdeptree",
+        "pipdeptree output is not",
+    ),
     "dynamic-field-unusable": (
         "dynamic version not resolved",
         "dynamic metadata not resolved",
@@ -479,6 +484,7 @@ _NOT_QUOTED: frozenset[str] = frozenset(
         "archive-member-conflict",
         "datetime-not-recordable",
         "dist-info-ambiguous",
+        "environment-unreadable",
         "wheel-sbom-ambiguous",
         "wheel-sbom-conflict",
         "wheel-sbom-missing",

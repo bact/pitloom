@@ -113,6 +113,7 @@ def test_get_wheel_files_hatchling_discovery_is_not_serialized(
     concurrent_calls = 0
     max_concurrent = 0
     lock = threading.Lock()
+    overlapped = threading.Event()
 
     def _slow_discover(project_dir: Path) -> list[IncludedFile]:
         nonlocal concurrent_calls, max_concurrent
@@ -120,7 +121,13 @@ def test_get_wheel_files_hatchling_discovery_is_not_serialized(
         with lock:
             concurrent_calls += 1
             max_concurrent = max(max_concurrent, concurrent_calls)
-        time.sleep(0.05)
+            if concurrent_calls > 1:
+                overlapped.set()
+        # Wait for the overlap itself, never a fixed sleep: a loaded runner
+        # may start the threads further apart than any fixed time. A real
+        # serialisation never overlaps, so the wait times out and the
+        # assertion below fails.
+        overlapped.wait(10)
         with lock:
             concurrent_calls -= 1
         return []
@@ -151,6 +158,7 @@ def test_get_wheel_files_poetry_discovery_is_not_serialized(
     concurrent_calls = 0
     max_concurrent = 0
     lock = threading.Lock()
+    overlapped = threading.Event()
 
     def _slow_discover(
         project_dir: Path, *, pyproject_data: dict[str, object] | None = None
@@ -160,7 +168,13 @@ def test_get_wheel_files_poetry_discovery_is_not_serialized(
         with lock:
             concurrent_calls += 1
             max_concurrent = max(max_concurrent, concurrent_calls)
-        time.sleep(0.05)
+            if concurrent_calls > 1:
+                overlapped.set()
+        # Wait for the overlap itself, never a fixed sleep: a loaded runner
+        # may start the threads further apart than any fixed time. A real
+        # serialisation never overlaps, so the wait times out and the
+        # assertion below fails.
+        overlapped.wait(10)
         with lock:
             concurrent_calls -= 1
         return []

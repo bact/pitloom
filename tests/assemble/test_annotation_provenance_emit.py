@@ -16,6 +16,7 @@ parsing, encoders and the structured Annotation builders.
 from __future__ import annotations
 
 import json
+from typing import Any
 
 import pytest
 from spdx_python_model.bindings import v3_0_1 as spdx3
@@ -29,11 +30,13 @@ from pitloom.assemble.spdx3.provenance import (
     resolve_encoder,
 )
 from pitloom.core.evidence import NOT_MEASURED, evidence_segment
+from pitloom.core.internal_error import InternalError
 from pitloom.core.models import _clear_doc_counters
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 from pitloom.extract._core_metadata import classifier_provenance
 from pitloom.extract.project.setuptools_cfg import CFG_CLASSIFIER_LICENSE_SOURCE
+from pitloom.messages import code_of
 
 from .conftest import _DOC_NAME, _DOC_UUID, _make_ci, _make_subject
 
@@ -42,15 +45,30 @@ from .conftest import _DOC_NAME, _DOC_UUID, _make_ci, _make_subject
 # ---------------------------------------------------------------------------
 
 
-def test_emit_provenance_unknown_format_raises() -> None:
-    """An unrecognised provenance_format must fail loudly, not silently drop
-    the provenance (neither branch in emit_provenance would otherwise fire)."""
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [("format", "bogus-value"), ("detail", "verbose")],
+    ids=["format", "detail"],
+)
+def test_a_bad_setting_fails_when_built_and_emit_refuses_one_slipped_by(
+    field: str, value: str
+) -> None:
+    """``ProvenanceConfig`` refuses an unknown format or detail when built
+    (``option-invalid``), not when provenance is first written; one set past
+    that check (``object.__setattr__`` on the frozen dataclass) is a
+    programming error to ``emit_provenance``, which applies nothing."""
+    settings: dict[str, Any] = {field: value}
+    with pytest.raises(ValueError, match=value) as caught:
+        ProvenanceConfig(**settings)
+    assert code_of(caught.value) == "option-invalid"
+
     _clear_doc_counters(_DOC_UUID)
     exporter = Spdx3JsonExporter()
     ci = _make_ci()
     pkg = _make_subject(exporter, ci)
-
-    with pytest.raises(ValueError, match="bogus-value"):
+    config = ProvenanceConfig()
+    object.__setattr__(config, field, value)
+    with pytest.raises(InternalError, match=value):
         emit_provenance(
             subject=pkg,
             provenance={"name": "Source: pyproject.toml | Field: project.name"},
@@ -58,31 +76,9 @@ def test_emit_provenance_unknown_format_raises() -> None:
             doc_name=_DOC_NAME,
             doc_uuid=_DOC_UUID,
             exporter=exporter,
-            provenance_config=ProvenanceConfig(format="bogus-value"),
+            provenance_config=config,
         )
     # Nothing partially applied.
-    assert pkg.comment is None
-    assert not any(isinstance(o, spdx3.Annotation) for o in exporter.object_set.objects)
-
-
-def test_emit_provenance_unknown_detail_raises() -> None:
-    """An unrecognised provenance_detail must fail loudly, not silently behave
-    as 'full'."""
-    _clear_doc_counters(_DOC_UUID)
-    exporter = Spdx3JsonExporter()
-    ci = _make_ci()
-    pkg = _make_subject(exporter, ci)
-
-    with pytest.raises(ValueError, match="verbose"):
-        emit_provenance(
-            subject=pkg,
-            provenance={"name": "Source: pyproject.toml | Field: project.name"},
-            creation_info=ci,
-            doc_name=_DOC_NAME,
-            doc_uuid=_DOC_UUID,
-            exporter=exporter,
-            provenance_config=ProvenanceConfig(detail="verbose"),
-        )
     assert pkg.comment is None
     assert not any(isinstance(o, spdx3.Annotation) for o in exporter.object_set.objects)
 

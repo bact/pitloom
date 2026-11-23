@@ -21,12 +21,14 @@ from pitloom.core.credential_policy import (
 from pitloom.core.enrich_config import EnrichConfig
 from pitloom.core.model_extract_limit import DEFAULT_MAX_DOWNLOAD_BYTES
 from pitloom.core.provenance import (
+    DEFAULT_PROVENANCE_SCHEMA,
     ProvenanceConfig,
     require_max_source_metadata_bytes,
+    require_provenance_choices,
 )
 from pitloom.messages.config import Parameter
 
-_DEFAULT_PROVENANCE_SCHEMA = "pitloom/1"
+_DEFAULT_PROVENANCE_SCHEMA = DEFAULT_PROVENANCE_SCHEMA
 VALID_CONTENT_TYPE_METHODS: frozenset[str] = frozenset({"auto", "magika", "extension"})
 #: Default ``max-model-extract-bytes``: 512 MiB.
 DEFAULT_MAX_MODEL_EXTRACT_BYTES = 512 * 1024 * 1024
@@ -232,9 +234,21 @@ class PitloomConfig:
         """Return ProvenanceConfig constructed from current config settings.
 
         Raises:
-            ValueError: ``provenance_max_source_metadata_bytes`` is not ``0``
-                or a valid budget (a config built in code is never parsed).
+            ValueError: ``provenance_format``, ``provenance_schema``,
+                ``provenance_detail`` or
+                ``provenance_preserve_source_metadata`` is not one the
+                setting takes, or
+                ``provenance_max_source_metadata_bytes`` is not ``0`` or a
+                valid budget (``option-invalid``: a config built in code is
+                never parsed).
         """
+        require_provenance_choices(
+            self.provenance_format,
+            self.provenance_schema,
+            self.provenance_detail,
+            self.provenance_preserve_source_metadata,
+            owner="PitloomConfig.provenance_",
+        )
         require_max_source_metadata_bytes(
             self.provenance_max_source_metadata_bytes,
             Parameter("PitloomConfig.provenance_max_source_metadata_bytes"),

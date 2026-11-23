@@ -33,6 +33,7 @@ from pitloom.embed import (
     embed_sbom_in_wheel,
     embed_wheel_sbom,
 )
+from pitloom.messages import code_of
 from tests._spdx3_validate import assert_spdx3_valid
 from tests.kv_helpers import records
 
@@ -381,11 +382,17 @@ def test_embed_wheel_sbom_basename_with_extension_normalized(tmp_path: Path) -> 
 def test_embed_sbom_empty_content_raises(tmp_path: Path) -> None:
     """Test embed_sbom_in_wheel raises ValueError on empty or whitespace SBOM."""
     wheel_path = _make_dummy_wheel(tmp_path, "empty_sbom", "1.0.0")
-    with pytest.raises(ValueError, match="SBOM content cannot be empty"):
-        embed_sbom_in_wheel(wheel_path, "")
-
-    with pytest.raises(ValueError, match="SBOM content cannot be empty"):
-        embed_sbom_in_wheel(wheel_path, "   \n\t  ")
+    for content, got in (
+        ("", "a string ''"),
+        ("   \n\t  ", "a string '   \\n\\t  '"),
+        (b"  ", "a value of type bytes"),
+    ):
+        with pytest.raises(ValueError) as caught:
+            embed_sbom_in_wheel(wheel_path, content)
+        assert str(caught.value) == (
+            f"sbom_content: must be an SBOM, not empty or white space only, got {got}"
+        )
+        assert code_of(caught.value) == "option-invalid"
 
 
 def test_embed_sbom_preserves_file_permissions(

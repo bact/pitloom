@@ -293,16 +293,29 @@ def test_an_interrupted_rewrite_leaves_no_temporary_file(
 
 
 @pytest.mark.parametrize(
-    ("target", "error"),
+    ("target", "error", "expected"),
     [
-        ("zipfile.ZipFile.writestr", RuntimeError("archive write failed")),
-        # e.g. Windows: the wheel is in use.
-        ("os.replace", PermissionError("file in use")),
+        (
+            "zipfile.ZipFile.writestr",
+            RuntimeError("archive write failed"),
+            (RuntimeError, "archive write failed"),
+        ),
+        # e.g. Windows: the wheel is in use. A refused write is coded
+        # (file-unwritable), the system's text never quoted.
+        (
+            "os.replace",
+            PermissionError("file in use"),
+            (OSError, "could not write for the SBOM; PermissionError$"),
+        ),
     ],
     ids=["writestr", "replace"],
 )
 def test_a_failed_rewrite_leaves_no_temporary_file(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, target: str, error: Exception
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    target: str,
+    error: Exception,
+    expected: tuple[type[Exception], str],
 ) -> None:
     wheel_path = _make_dummy_wheel(tmp_path, "cleanuppkg", "1.0.0")
 
@@ -310,7 +323,7 @@ def test_a_failed_rewrite_leaves_no_temporary_file(
         raise error
 
     monkeypatch.setattr(target, _fail)
-    with pytest.raises(type(error), match=str(error)):
+    with pytest.raises(expected[0], match=expected[1]):
         embed_sbom_in_wheel(wheel_path, _SAMPLE_SPDX3_JSON)
 
     assert not list(tmp_path.glob("*.tmp"))

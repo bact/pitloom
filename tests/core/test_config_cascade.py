@@ -34,6 +34,7 @@ from typing import Any
 import pytest
 
 from pitloom.assemble import generate_project_sbom
+from pitloom.core import provenance as core_provenance
 from pitloom.core.config import PitloomConfig
 from pitloom.core.config_cascade import (
     ConfigOverrides,
@@ -46,11 +47,18 @@ from pitloom.logging_config import CODE_ATTR
 from pitloom.messages import code_of
 
 
-def test_apply_overrides_full() -> None:
-    """Test apply_overrides applies all CLI override parameters."""
+def test_apply_overrides_full(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test apply_overrides applies all CLI override parameters (a schema a
+    later encoder may register taken as known)."""
+    known = core_provenance.KNOWN_PROVENANCE_SCHEMAS
+    monkeypatch.setattr(
+        core_provenance,
+        "KNOWN_PROVENANCE_SCHEMAS",
+        known | {"https://example.com/schema"},
+    )
     cfg = PitloomConfig()
     prov = ProvenanceConfig(
-        format="fields",
+        format="annotation",
         schema="https://example.com/schema",
         detail="full",
         preserve_source_metadata="always",
@@ -66,7 +74,7 @@ def test_apply_overrides_full() -> None:
             offline=True,
         ),
     )
-    assert overridden.provenance_format == "fields"
+    assert overridden.provenance_format == "annotation"
     assert overridden.provenance_schema == "https://example.com/schema"
     assert overridden.provenance_detail == "full"
     assert overridden.provenance_preserve_source_metadata == "always"

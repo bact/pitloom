@@ -37,6 +37,7 @@ from pitloom._embed_wheel import (
     _validate_sbom_filename,
     embed_sbom_in_wheel,
     refuse_unembeddable_wheel,
+    write_sbom_copy,
 )
 from pitloom._sbom_format import (
     RECOMMENDED_EXTENSIONS,
@@ -44,7 +45,6 @@ from pitloom._sbom_format import (
     check_spdx3_name_version,
     detect_sbom_format,
 )
-from pitloom._sbom_io import write_sbom_output
 from pitloom._wheel_sbom_location import (
     EmbeddedSbomLocation,
     _find_dist_info_prefix,
@@ -247,6 +247,12 @@ def embed_wheel_sbom(
             the SBOM at *sbom_path* is
             checked as given, by ``overrides.credentials``
             alone, and never rewritten). The wheel is left as it was.
+        pitloom.messages.CodedOSError: The system refused a write
+            (``file-unwritable``): the new wheel (named by its file name;
+            the wheel is left as it was) or the ``-o`` copy at
+            *output_path* (as given), written after the wheel, which then
+            holds the SBOM; or a read of a member of the wheel
+            (``file-unreadable``, an I/O error).
         OSError: The file itself cannot be opened (its own permissions, a
             transient I/O error).
     """
@@ -304,6 +310,6 @@ def embed_wheel_sbom(
         allow_signed_wheel=allow_signed_wheel,
     )
 
-    write_sbom_output(sbom_json, output_path)
+    write_sbom_copy(sbom_json, output_path)
 
     return res_path, arcname, sbom_json, removed_arcnames, timestamp_floored

@@ -51,6 +51,8 @@ from pitloom.messages._catalogue import MESSAGES, SUMMARIES
 from pitloom.messages._emit import (
     CodedFileNotFoundError,
     CodedImportError,
+    CodedOSError,
+    CodedRuntimeError,
     CodedValueError,
     code_extra_of,
     code_of,
@@ -142,6 +144,8 @@ __all__ = [
     "TOP_FRAME",
     "CodedFileNotFoundError",
     "CodedImportError",
+    "CodedOSError",
+    "CodedRuntimeError",
     "CodedValueError",
     "Field",
     "Frame",

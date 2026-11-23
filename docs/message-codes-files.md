@@ -22,11 +22,11 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
 | --- | --- | --- | --- |
 | [`card-malformed`](#card-malformed) | WARNING | The YAML frontmatter at the top of a card (the block between two --- lines) does not parse: a model card beside a local model, a dataset's own card, a Hugging Face model's card, or a Hugging Face dataset card a Hub model lists. The line gives what the parser reported. | 0.23.0 |
 | [`dir-unlistable`](#dir-unlistable) | ERROR, WARNING | A directory could not be listed (no read or search permission): the files under it were not seen. The ERROR line, for a directory named as a 'loom id generate' PATH, prints since 0.25.0. | 0.22.0 |
-| [`file-unreadable`](#file-unreadable) | ERROR, WARNING | A file Pitloom found or was named could not be read: the operating system refused it (no read permission, a directory above it without search permission, a file another program holds open on Windows) or the read failed (an I/O error, a file that is no regular file once opened). A path named for Pitloom to read (a wheel, a project, a configuration, an ID registry, an SBOM) under a directory without search permission says so 'for the input check', not that it is not found. The ERROR line for an SBOM given to 'loom id import' or to embed, for an ID registry file, for a 'loom id generate' PATH, for a configuration file and for the input check, prints since 0.25.0. | 0.22.0 |
+| [`file-unreadable`](#file-unreadable) | ERROR, WARNING | A file Pitloom found or was named could not be read: the operating system refused it (no read permission, a directory above it without search permission, a file another program holds open on Windows) or the read failed (an I/O error, a file that is no regular file once opened). A path named for Pitloom to read (a wheel, a project, a configuration, an ID registry, an SBOM) under a directory without search permission says so 'for the input check', not that it is not found. The ERROR line for an SBOM given to 'loom id import' or to embed, for an ID registry file, for a 'loom id generate' PATH, for a configuration file and for the input check, prints since 0.25.0. A wheel given to verify-wheel, validate-wheel or embed-wheel that the system refuses is said 'for the SBOM'. The DIR= line is a loom dataset directory whose dataset card could not be read for a reason that names no file of it. | 0.22.0 |
 | [`file-unreadable/not-utf8`](#file-unreadablenot-utf8) | ERROR, WARNING | A text file Pitloom read is not UTF-8, the encoding it must be in: a requirements file or a file a setup.cfg directive lists, a Python file read for the model usage scan (a WARNING:), or an SBOM given to embed or to import into an ID registry, an ID registry file (an ERROR:, which prints since 0.25.0), or a configuration file (an ERROR:). | 0.22.0 |
 | [`file-unreadable/outside-project`](#file-unreadableoutside-project) | WARNING | A file a project setting names, or a licence file, leads outside the project directory (a .. or absolute path, or a symbolic link out), and Pitloom reads no file outside it: its content is no part of the project. For an installed dependency, the directory is its .dist-info. | 0.22.0 |
 | [`file-unreadable/outside-repository`](#file-unreadableoutside-repository) | WARNING | The build configuration of a project fetched from a Git URL lists files outside the downloaded repository (an absolute or .. path, as in a Hatchling force-include, or its .git directory), and Pitloom reads no file outside it: the repository is untrusted, and such a file is the host's. A setting entry left out before the files are listed is named as the configuration writes it, one line each; files left out once listed are only counted, never named. | 0.23.4 |
-| [`file-unwritable`](#file-unwritable) | ERROR, WARNING | A file Pitloom writes could not be written: the operating system refused it (no write permission on the file or its directory, a read-only file system, a full disk, a directory where the file should be). Today the ID registry file, written 'for the ID registry'. | 0.25.0 |
+| [`file-unwritable`](#file-unwritable) | ERROR, WARNING | A file Pitloom writes could not be written: the operating system refused it (no write permission on the file or its directory, a read-only file system, a full disk, a directory where the file should be). The ID registry file, written 'for the ID registry'; a wheel an embed rewrites with its SBOM, or the '-o' copy of that SBOM, written 'for the SBOM'. | 0.25.0 |
 | [`file-unwritable/mode`](#file-unwritablemode) | WARNING | An embed wrote the wheel with its SBOM through a new file put in place of the old one, then could not give it the old file's mode (its permission bits): the operating system refused (a file system without POSIX modes, a file owned by another account). | 0.25.0 |
 | [`json-malformed`](#json-malformed) | ERROR, WARNING | A JSON document Pitloom was given to read does not parse, or its top level is not an object; the line says which document by what it was read for: a Croissant document, PyPI's release metadata, or an SBOM given to embed or to import into an ID registry, or an ID registry file. The lines print since 0.23.0 for a Croissant document, 0.24.0 for PyPI's release metadata and 0.25.0 for an SBOM and an ID registry file. | 0.23.0 |
 | [`json-malformed/bom`](#json-malformedbom) | WARNING | An SBOM given to read ('embed-wheel --sbom', 'loom id import') starts with a UTF-8 byte order mark (U+FEFF): RFC 8259 section 8.1 says JSON text must not, and a reader that does not drop it fails. | 0.25.0 |
@@ -98,7 +98,10 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
   under a directory without search permission says so 'for the input check', not
   that it is not found. The ERROR line for an SBOM given to 'loom id import' or
   to embed, for an ID registry file, for a 'loom id generate' PATH, for a
-  configuration file and for the input check, prints since 0.25.0.
+  configuration file and for the input check, prints since 0.25.0. A wheel given
+  to verify-wheel, validate-wheel or embed-wheel that the system refuses is said
+  'for the SBOM'. The DIR= line is a loom dataset directory whose dataset card
+  could not be read for a reason that names no file of it.
 - **SBOM effect**: thinner: the SBOM says less than reading the input would.
 - **Pitloom did**: Read nothing more of it and went on without what it holds, as
   the line says what it was read for: a file scan leaves the file out of the
@@ -109,17 +112,19 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
   reference from it; ID registry indexing leaves it out of the index; an ID
   registry file read again to save the ids a run added is not saved; no
   dependency pins are read from a lock file; a model whose header could not be
-  read is not listed as an AI model; a model or dataset card sets none of the
-  fields it states; installed project metadata is ignored, and a setup.cfg or
-  setup.py read beside another source leaves the project read without it. As an
-  ERROR, the call that named the file raises (a Croissant document: the dataset
-  declaration fails; an SBOM to import: the ID registry is not written; an SBOM
-  to embed: no wheel is changed; an ID registry file, or a 'loom id generate'
-  PATH: no registry or SBOM is written; a configuration file, or a project
-  metadata file (a project's pyproject.toml read by the build hook says for the
-  configuration): nothing is written; the only possible model file of a folder
-  named for a model SBOM: no SBOM is written; the input check: the command
-  writes nothing and exits 1, the library raises ValueError carrying the code).
+  read is not listed as an AI model; a model or dataset card (the DIR= line too)
+  sets none of the fields it states; installed project metadata is ignored, and
+  a setup.cfg or setup.py read beside another source leaves the project read
+  without it. As an ERROR, the call that named the file raises (a Croissant
+  document: the dataset declaration fails; an SBOM to import: the ID registry is
+  not written; an SBOM to embed: no wheel is changed; an ID registry file, or a
+  'loom id generate' PATH: no registry or SBOM is written; a configuration file,
+  or a project metadata file (a project's pyproject.toml read by the build hook
+  says for the configuration): nothing is written; the only possible model file
+  of a folder named for a model SBOM: no SBOM is written; the input check: the
+  command writes nothing and exits 1, the library raises ValueError carrying the
+  code; a wheel of verify-wheel, validate-wheel or embed-wheel fails alone, the
+  others go on).
 - **Tell the user**: which file could not be read and what the system reported,
   as the line says. They give the account Pitloom runs as read access to it (or
   close the program that holds it), or restore a damaged copy, and generate
@@ -131,6 +136,7 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
   WARNING: FILE=<file>: could not read <use>; <failure> [file-unreadable]
   WARNING: FILE=<file>: could not read for <field>; <failure> [file-unreadable]
   WARNING: FORMAT=<format> FILE=<file>: could not read header; <failure> [file-unreadable]
+  WARNING: DIR=<dir>: could not read <use>; <failure> [file-unreadable]
   ERROR: FILE=<file>: could not read <use>; <failure> [file-unreadable]
   ERROR: FORMAT=<format> FILE=<file>: could not read header; <failure> [file-unreadable]
   ```
@@ -216,18 +222,23 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
   writes nothing for it (exit 1).
 - **Means**: A file Pitloom writes could not be written: the operating system
   refused it (no write permission on the file or its directory, a read-only file
-  system, a full disk, a directory where the file should be). Today the ID
-  registry file, written 'for the ID registry'.
+  system, a full disk, a directory where the file should be). The ID registry
+  file, written 'for the ID registry'; a wheel an embed rewrites with its SBOM,
+  or the '-o' copy of that SBOM, written 'for the SBOM'.
 - **SBOM effect**: none: the SBOM states what the input holds.
-- **Pitloom did**: Tried to write the file through a temporary file beside it,
-  so a failed write leaves its old content; where the directory refuses a
-  temporary file, the file is written in place and a failure (a full disk) can
-  leave it part-written. As an ERROR ('loom id generate', 'loom id import'), the
-  command exits 1. As a WARNING (loom generate (a project, wheel or
-  environment), project, wheel and env, the library's generate_project_sbom,
-  generate_wheel_sbom, generate_env_sbom and the PyPI and Git URL functions that
-  call them, and loom.Run, saving the ids a run added after its SBOM is built),
-  the SBOM stands and the ids are not saved: the next run mints them again.
+- **Pitloom did**: Tried to write an ID registry file through a temporary file
+  beside it, so a failed write leaves its old content; where the directory
+  refuses a temporary file, the file is written in place and a failure (a full
+  disk) can leave it part-written. A wheel is written as a new file beside it,
+  put in its place once complete: a refused write leaves the wheel as it was;
+  the '-o' copy is written in place, after the wheel. As an ERROR ('loom id
+  generate', 'loom id import', 'loom embed-wheel', 'loom wheel --embed'), the
+  command exits 1 (an embed-wheel batch goes on with its other wheels). As a
+  WARNING (loom generate (a project, wheel or environment), project, wheel and
+  env, the library's generate_project_sbom, generate_wheel_sbom,
+  generate_env_sbom and the PyPI and Git URL functions that call them, and
+  loom.Run, saving the ids a run added after its SBOM is built), the SBOM stands
+  and the ids are not saved: the next run mints them again.
 - **Tell the user**: which file could not be written and what the system
   reported, as the line says. They give the account Pitloom runs as write access
   to the file and its directory, or free disk space, and run again. Do not

@@ -15,6 +15,7 @@ See also:
 
 from __future__ import annotations
 
+import errno
 import sys
 import zipfile
 from pathlib import Path
@@ -219,7 +220,7 @@ def test_verify_wheel_permission_error_reported_per_wheel(
     wheel_path = _make_dummy_wheel(tmp_path, "unreadablepkg", "1.0.0")
 
     def _raise_permission_error(*_args: object, **_kwargs: object) -> zipfile.ZipFile:
-        raise PermissionError(f"[Errno 13] Permission denied: '{wheel_path}'")
+        raise PermissionError(errno.EACCES, "Permission denied", str(wheel_path))
 
     monkeypatch.setattr(
         "pitloom._wheel_sbom_location.zipfile.ZipFile", _raise_permission_error
@@ -228,7 +229,12 @@ def test_verify_wheel_permission_error_reported_per_wheel(
     assert __main__.main() == 1
 
     captured = capsys.readouterr()
-    assert "ERROR: loom verify-wheel: [Errno 13] Permission denied" in captured.err
+    # Coded at the per-wheel handler, named as the wheel's other lines name
+    # it, the system's words only: no path.
+    assert captured.err == (
+        "ERROR: loom verify-wheel: FILE=unreadablepkg-1.0.0-py3-none-any.whl: "
+        "could not read for the SBOM; Permission denied [file-unreadable]\n"
+    )
 
 
 def test_verify_wheel_no_wheel_files_errors(

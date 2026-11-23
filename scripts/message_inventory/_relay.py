@@ -18,12 +18,21 @@ shape of the code around the call, never by a variable's name.
   ``print_error``: argparse wrote it, as a reader's exception is the detail
   of the line a wrapper says.
 
+- ``exception-param``: a reporter of an exception it is handed. A
+  function whose only statement (a docstring aside) is
+  ``print_error(str(p), code=code_of(p))`` of its own parameter ``p`` (the
+  text also as ``p`` or ``str(p) or type(p).__name__``): the text and the
+  code are the exception's, whose raise is the counted site, as for
+  ``exception``. A second statement, or text of its own, is a message of
+  its own.
 - ``prefixed``: a foreign tool's own words after Pitloom's sub-prefix (the
-  ``licenseid: `` relay). The template is a module constant bound to a
-  string once in the module, then ``"%s"``; its one argument is
-  ``one_line(<param>)`` of a parameter of the function saying it, with
-  ``one_line`` imported from ``pitloom.logging_config``; no keyword
-  argument. The text is the tool's, the prefix only says whose.
+  ``licenseid: `` and ``fickling: `` relays). The template is a module
+  constant bound to a string once in the module, then ``"%s"``; its one
+  argument is ``one_line(<param>)`` of a parameter of the function saying
+  it, or ``one_line(<param>, <LIMIT>)`` with ``LIMIT`` a module constant
+  bound once to an ``int`` (a cut, not text), with ``one_line`` imported
+  from ``pitloom.logging_config``; no keyword argument. The text is the
+  tool's, the prefix only says whose.
 
 Any of them holds only where the call is in the binder's own body (not in a
 nested function, lambda, class or comprehension) and nothing in that body
@@ -51,6 +60,7 @@ if TYPE_CHECKING:
     _Function: TypeAlias = ast.FunctionDef | ast.AsyncFunctionDef
 
 EXCEPTION = "exception"
+EXCEPTION_PARAM = "exception-param"
 ARGPARSE = "argparse"
 PREFIXED = "prefixed"
 #: Where the one-line writer of a prefixed relay's text comes from.
@@ -227,18 +237,33 @@ def _is_prefix_constant(mod: Module, node: ast.expr) -> bool:
     return isinstance(value, ast.Constant) and isinstance(value.value, str)
 
 
+def _is_int_constant(mod: Module, node: ast.expr) -> bool:
+    """*node* is a name *mod* binds once, at module level, to an ``int``
+    (never a ``bool``)."""
+    if not isinstance(node, ast.Name) or _module_bindings(mod, node.id) != 1:
+        return False
+    value = mod.assigns.get(node.id)
+    return (
+        isinstance(value, ast.Constant)
+        and isinstance(value.value, int)
+        and not isinstance(value.value, bool)
+    )
+
+
 def _one_line_param(mod: Module, func: _Function, node: ast.expr) -> str:
-    """The parameter of *func* that *node* writes as ``one_line(<param>)``,
-    with ``one_line`` imported from ``pitloom.logging_config`` and bound by
+    """The parameter of *func* that *node* writes as ``one_line(<param>)``
+    or ``one_line(<param>, <LIMIT>)`` (:func:`_is_int_constant`), with
+    ``one_line`` imported from ``pitloom.logging_config`` and bound by
     nothing else in *mod*; else ``""``."""
     if not (
         isinstance(node, ast.Call)
         and isinstance(node.func, ast.Name)
         and mod.imports.get(node.func.id) == _ONE_LINE
         and _module_bindings(mod, node.func.id) == 1
-        and len(node.args) == 1
+        and len(node.args) in (1, 2)
         and not node.keywords
         and isinstance(node.args[0], ast.Name)
+        and all(_is_int_constant(mod, limit) for limit in node.args[1:])
     ):
         return ""
     name = node.args[0].id
@@ -270,14 +295,73 @@ def _is_prefixed(
     return bool(param) and _says_only(func.body, call, param)
 
 
+def _is_exception_class(node: ast.expr | None) -> bool:
+    """*node* annotates an exception: a class named ``Exception``,
+    ``BaseException`` or ``...Error`` (bare or dotted), or a ``|`` union of
+    such."""
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.BitOr):
+        return _is_exception_class(node.left) and _is_exception_class(node.right)
+    if isinstance(node, ast.Name):
+        last = node.id
+    elif isinstance(node, ast.Attribute):
+        last = node.attr
+    else:
+        return False
+    return last in {"Exception", "BaseException"} or last.endswith("Error")
+
+
+def _exception_param(func: ast.FunctionDef | ast.AsyncFunctionDef, name: str) -> bool:
+    """*name* is a parameter of *func* annotated with an exception class and
+    with no default: what the caller hands it is always an exception."""
+    args = func.args
+    positional = (*args.posonlyargs, *args.args)
+    defaulted = {a.arg for a in positional[len(positional) - len(args.defaults) :]}
+    defaulted |= {
+        a.arg
+        for a, default in zip(args.kwonlyargs, args.kw_defaults, strict=True)
+        if default is not None
+    }
+    return any(
+        a.arg == name and a.arg not in defaulted and _is_exception_class(a.annotation)
+        for a in (*positional, *args.kwonlyargs)
+    )
+
+
+def _is_exception_param_reporter(
+    func: ast.AST | None, call: ast.Call, text: ast.expr, name: str
+) -> bool:
+    """*call* is the only statement of *func* (a docstring aside), *name*
+    one of *func*'s parameters, an exception (:func:`_exception_param`),
+    and *text* its text written by ``str()`` (``str(name)`` or ``str(name)
+    or type(name).__name__``), never the bare name (``EXCEPTION_PARAM``)."""
+    if not isinstance(func, (ast.FunctionDef, ast.AsyncFunctionDef)):
+        return False
+    body = func.body
+    if (
+        body
+        and isinstance(body[0], ast.Expr)
+        and isinstance(body[0].value, ast.Constant)
+        and isinstance(body[0].value.value, str)
+    ):
+        body = body[1:]
+    return (
+        len(body) == 1
+        and isinstance(body[0], ast.Expr)
+        and body[0].value is call
+        and unparse(text) != name
+        and _exception_param(func, name)
+    )
+
+
 def relay_kind(
     mod: Module,
     site: tuple[str, ast.Call | None, ast.expr | None],
     func: ast.AST | None,
     cls: str | None,
 ) -> str | None:
-    """``EXCEPTION``, ``ARGPARSE``, ``PREFIXED`` or ``None`` for the site *site*
-    (emitter, call, text argument) in *func* of class *cls*."""
+    """``EXCEPTION``, ``EXCEPTION_PARAM``, ``ARGPARSE``, ``PREFIXED`` or
+    ``None`` for the site *site* (emitter, call, text argument) in *func* of
+    class *cls*."""
     emitter, call, text = site
     if text is None or call is None:
         return None
@@ -292,10 +376,10 @@ def relay_kind(
     ):
         return ARGPARSE
     name = _forwarded(call)
-    if (
-        name is not None
-        and _is_own_text(text, name)
-        and _caught_by_catch_all(func, call, name)
-    ):
+    if name is None or not _is_own_text(text, name):
+        return None
+    if _caught_by_catch_all(func, call, name):
         return EXCEPTION
+    if _is_exception_param_reporter(func, call, text, name):
+        return EXCEPTION_PARAM
     return None

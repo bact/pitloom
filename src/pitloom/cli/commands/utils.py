@@ -29,6 +29,7 @@ from pitloom.core.optional_libraries import (
     missing,
     not_installed,
 )
+from pitloom.core.path_probe import is_missing_errno
 from pitloom.core.url_masking import masked_given_path
 from pitloom.core.wheel_dist_info import (
     WheelRefused,
@@ -38,6 +39,7 @@ from pitloom.core.wheel_dist_info import (
 )
 from pitloom.logging_config import print_error, print_traceback
 from pitloom.messages import CodedValueError, code_of
+from pitloom.messages.files import SBOM_USE, file_unreadable_error
 from pitloom.messages.models import (
     LIBRARY_MISSING,
     LIBRARY_UNUSABLE,
@@ -46,6 +48,7 @@ from pitloom.messages.targets import (
     INPUT_NOT_FOUND,
     NO_WHEEL_MATCH_LINE,
     WHEEL_PATTERN_TOO_DEEP_LINE,
+    input_not_found,
     is_input_file,
     relay_validator_text,
     say_input_not_found,
@@ -195,8 +198,30 @@ def _given(path: str) -> Path:
 def report_error_line(exc: Exception) -> None:
     """Print one ``ERROR: <message>`` line to stderr -- the same shape for
     every per-wheel check, so one bad wheel of a batch never aborts the
-    others."""
+    others. The text and code are *exc*'s own: a caller handing it an
+    exception that may carry none codes it first
+    (:func:`report_wheel_failure`)."""
     print_error(str(exc), code=code_of(exc))
+
+
+def report_wheel_failure(exc: ValueError | OSError, wheel_path: Path) -> None:
+    """:func:`report_error_line` for the failure *exc* of one wheel at
+    *wheel_path*: an :class:`OSError` the system raised with no code of ours
+    is a read (a refused write is coded where it is made) and is said as
+    ``file-unreadable`` for the wheel (``input-not-found`` when it says the
+    wheel is gone), named by its file name as the wheel's other lines name
+    it, so every per-wheel ``ERROR:`` line carries a code."""
+    if isinstance(exc, OSError) and code_of(exc) is None:
+        name = wheel_path.name
+        gone = is_missing_errno(exc) or (
+            exc.errno is None and isinstance(exc, FileNotFoundError)
+        )
+        exc = (
+            input_not_found("wheel file", name)
+            if gone
+            else file_unreadable_error(exc, file=name, use=SBOM_USE)
+        )
+    report_error_line(exc)
 
 
 def refuse_non_wheel(path: Path | str) -> bool:
@@ -255,7 +280,7 @@ def _locate_embedded_sbom_or_report(
     try:
         location = find_embedded_sbom(wheel_path, sbom_filename)
     except (ValueError, OSError) as exc:
-        report_error_line(exc)
+        report_wheel_failure(exc, wheel_path)
         return None
 
     if location is None:

@@ -12,7 +12,8 @@ the catch-all handler's line, which says the caught exception's own text
 and code; ``argparse``'s own text in an ``ArgumentParser.error`` override:
 see ``_relay.py``, keyed on the code's shape, never on a variable's name),
 the detail text of a reader's exception (it is the DETAIL of a line a
-wrapper says), internal invariants a caller never sees,
+wrapper says; an ``OSError`` rebuilt from the OS's own errno and
+description too, :func:`is_os_error_rebuilt`), internal invariants a caller never sees,
 library-only errors raised to a Python caller, and a helper's call sites
 whose text lives in the helper body (the body is counted once).
 
@@ -36,6 +37,7 @@ See also: ``_coded.py`` (coded or not), ``_relay.py`` (the relays) and
 
 from __future__ import annotations
 
+import ast
 import re
 from typing import Any
 
@@ -71,7 +73,6 @@ DETAIL_EXC = frozenset(
         "LockFileRefusedError",
         "on_duplicate",
         "NotAModel",
-        "_shape_error",
         "MemberReadError",
         "FragmentReadError",
         "_MarkersTypeError",
@@ -99,7 +100,7 @@ INTERNAL_PAT = re.compile(
     r"EmbedFileCache: every call|build option \{name\} must be bool|"
     r"build timeout must be an int|max_bytes must be a positive|"
     r"Failed to build relationship|^received \{|no id prefix for an empty|"
-    r"GGUF array field without|Unknown provenance schema|duplicate key$|"
+    r"GGUF array field without|duplicate key$|"
     r"^not JSON: |is not a JSON value|"
     r"content_type_method must be one of"
 )
@@ -141,11 +142,120 @@ READER_PACKAGE = "src/pitloom/extract/ai_model/"
 READER_DISPATCH = "src/pitloom/extract/ai_model/reader.py"
 
 
+#: The ``OSError`` family: a raise of one whose first argument is an errno
+#: and whose second is the OS's own description is the OS's error.
+OS_ERRORS = frozenset(
+    {
+        "BlockingIOError",
+        "ChildProcessError",
+        "ConnectionError",
+        "EnvironmentError",
+        "FileExistsError",
+        "FileNotFoundError",
+        "IOError",
+        "InterruptedError",
+        "IsADirectoryError",
+        "NotADirectoryError",
+        "OSError",
+        "PermissionError",
+        "ProcessLookupError",
+        "TimeoutError",
+    }
+)
+
+
+def _expr(text: str) -> ast.expr | None:
+    """*text*, an argument as the walker unparsed it (cut to 80
+    characters), as an expression; ``None`` when it does not parse."""
+    try:
+        return ast.parse(text, mode="eval").body
+    except SyntaxError:
+        return None
+
+
+def _is_attribute_of_name(node: ast.expr | None, attr: str) -> bool:
+    """*node* is ``<name>.<attr>``: ``exc.errno``, ``errno.EACCES``."""
+    return (
+        isinstance(node, ast.Attribute)
+        and node.attr == attr
+        and isinstance(node.value, ast.Name)
+    )
+
+
+def _is_errno(node: ast.expr | None) -> bool:
+    """An errno: ``errno.E<NAME>`` or another error's ``<name>.errno``."""
+    if _is_attribute_of_name(node, "errno"):
+        return True
+    return (
+        isinstance(node, ast.Attribute)
+        and isinstance(node.value, ast.Name)
+        and node.value.id == "errno"
+        and re.fullmatch(r"E[A-Z0-9]+", node.attr) is not None
+    )
+
+
+def _is_call_of(node: ast.expr | None, module: str, name: str) -> bool:
+    """*node* is ``<module>.<name>(<one argument>)``, no keyword."""
+    return (
+        isinstance(node, ast.Call)
+        and _is_attribute_of_name(node.func, name)
+        and isinstance(node.func, ast.Attribute)
+        and isinstance(node.func.value, ast.Name)
+        and node.func.value.id == module
+        and len(node.args) == 1
+        and not node.keywords
+    )
+
+
+def _is_strerror(node: ast.expr | None) -> bool:
+    """The OS's own description: exactly ``os.strerror(...)`` or another
+    error's ``<name>.strerror``, nothing of Pitloom's added."""
+    return _is_call_of(node, "os", "strerror") or _is_attribute_of_name(
+        node, "strerror"
+    )
+
+
+def _is_bare_path(node: ast.expr | None) -> bool:
+    """A path as given: a bare name or ``str(<name>)``."""
+    if isinstance(node, ast.Name):
+        return True
+    return (
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "str"
+        and len(node.args) == 1
+        and isinstance(node.args[0], ast.Name)
+        and not node.keywords
+    )
+
+
+def is_os_error_rebuilt(rec: dict[str, Any]) -> bool:
+    """Whether *rec* raises an ``OSError`` built from the OS's own words
+    (rule R-a): ``PermissionError(errno.EACCES, os.strerror(errno.EACCES),
+    path)``, ``PermissionError(exc.errno, exc.strerror, str(path))``. Its
+    text is the OS's, the detail of the caller's wrapping line
+    (``file-unwritable``). An ``OSError`` given a text of Pitloom's in the
+    description or the path (``os.strerror(...) + name``, ``f"{path}!"``),
+    or more arguments, stays counted."""
+    exc = (rec.get("exc_class") or "").rpartition(".")[2]
+    args = rec.get("arg_exprs") or []
+    return (
+        rec["emitter"] == "raise"
+        and exc in OS_ERRORS
+        and _is_errno(_expr(rec.get("dynamic_expr") or ""))
+        and 1 <= len(args) <= 2
+        and _is_strerror(_expr(args[0]))
+        and all(_is_bare_path(_expr(arg)) for arg in args[1:])
+    )
+
+
 def _raise_reach(rec: dict[str, Any]) -> str:
     exc = rec.get("exc_class") or ""
     text = rec["template"] or ""
-    if exc in DETAIL_EXC or (
-        rec["file"].startswith(READER_PACKAGE) and rec["file"] != READER_DISPATCH
+    if (
+        exc in DETAIL_EXC
+        or is_os_error_rebuilt(rec)
+        or (rec["file"].startswith(READER_PACKAGE) and rec["file"] != READER_DISPATCH)
     ):
         return "detail"
     names = {exc.rpartition(".")[2], rec.get("exc_origin") or ""}

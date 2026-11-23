@@ -85,6 +85,10 @@ _CASES = {
         '[tool.pitloom.provenance]\ndetail = "maybe"',
         "[tool.pitloom.provenance] detail",
     ),
+    "one-of-schema": (
+        '[tool.pitloom.provenance]\nschema = "maybe"',
+        "[tool.pitloom.provenance] schema",
+    ),
     "one-of-preserve": (
         '[tool.pitloom.provenance]\npreserve-source-metadata = "maybe"',
         "[tool.pitloom.provenance] preserve-source-metadata",
@@ -145,6 +149,7 @@ _FOUND = {
     "array-of-tables": "a table",
     "one-of-format": "a string 'maybe'",
     "one-of-detail": "a string 'maybe'",
+    "one-of-schema": "a string 'maybe'",
     "one-of-preserve": "a string 'maybe'",
     "one-of-method": "a string 'maybe'",
     "creator-type": "a string 'maybe'",
@@ -229,7 +234,8 @@ def _chain(exc: BaseException | None) -> list[str]:
 
 def test_every_expected_id_has_a_case() -> None:
     """A new id of the table fails here until a real reader says it."""
-    library_only = {"config-source"}  # a parameter's type, no file says it
+    # A parameter's type or value, no file says it.
+    library_only = {"config-source", "sbom-content"}
     # Said by the project metadata readers (metadata-invalid), not config.
     metadata_only = {"array-of-strings", "string-or-array"}
     not_config = library_only | metadata_only

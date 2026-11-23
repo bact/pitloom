@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-15
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-23
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -141,7 +141,9 @@ def resolve_encoder(schema_id: str | None = None) -> ProvenanceEncoder:
         return _ENCODERS[key]
     except KeyError:
         known = ", ".join(sorted(_ENCODERS))
-        raise ValueError(f"Unknown provenance schema {key!r}; known: {known}") from None
+        # A schema is checked when its setting is read or its
+        # ProvenanceConfig built: an unknown one here is a programming error.
+        raise InternalError(f"Unknown provenance schema {key!r}; known: {known}") from None
 
 
 def build_provenance_annotation(

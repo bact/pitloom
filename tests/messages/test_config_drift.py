@@ -20,6 +20,7 @@ import sys
 
 import pytest
 
+from pitloom.assemble.spdx3._provenance_encoders import _ENCODERS
 from pitloom.core._config_keys import KNOWN_ENTRY_KEYS, KNOWN_KEYS
 from pitloom.core._config_legacy import (
     _MOVED_CREATION_KEYS,
@@ -33,7 +34,10 @@ from pitloom.core.config import (
     _VALID_PROVENANCE_FORMATS,
 )
 from pitloom.core.creation import VALID_CREATOR_TYPES
-from pitloom.core.provenance import MIN_SOURCE_METADATA_BYTES
+from pitloom.core.provenance import (
+    KNOWN_PROVENANCE_SCHEMAS,
+    MIN_SOURCE_METADATA_BYTES,
+)
 from pitloom.messages import TOPIC_TITLES, topic_of
 from pitloom.messages.config import (
     ARRAY_TABLES,
@@ -66,16 +70,23 @@ _ENTRIES = (
     [
         ("one-of-format", _VALID_PROVENANCE_FORMATS),
         ("one-of-detail", _VALID_PROVENANCE_DETAIL),
+        ("one-of-schema", KNOWN_PROVENANCE_SCHEMAS),
         ("one-of-preserve", _VALID_PRESERVE_SOURCE_METADATA),
         ("one-of-method", VALID_CONTENT_TYPE_METHODS),
         ("creator-type", VALID_CREATOR_TYPES),
     ],
-    ids=["format", "detail", "preserve", "method", "creator-type"],
+    ids=["format", "detail", "schema", "preserve", "method", "creator-type"],
 )
 def test_a_choice_text_lists_the_readers_choices(
     expected: str, choices: frozenset[str]
 ) -> None:
     assert EXPECTED[expected] == "one of " + ", ".join(sorted(choices))
+
+
+def test_the_known_schemas_are_the_encoders() -> None:
+    """A schema the config and ``ProvenanceConfig`` accept has an encoder,
+    and every encoder's schema is accepted."""
+    assert set(_ENCODERS) == KNOWN_PROVENANCE_SCHEMAS
 
 
 def test_the_budget_minimum_is_the_providers() -> None:

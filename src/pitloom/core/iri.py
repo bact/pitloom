@@ -12,7 +12,8 @@ that a text can be a document namespace (:func:`namespace_problem`,
 :func:`require_namespace_iri`), a credential in it included.
 
 See also: :mod:`pitloom.core.untrusted_text` (the invisible and bidi
-controls percent-encoded here).
+controls percent-encoded here), :mod:`pitloom.core.namespace_problems`
+(the problem texts).
 """
 
 from __future__ import annotations
@@ -20,8 +21,17 @@ from __future__ import annotations
 import re
 import string
 
+from pitloom.core.namespace_problems import (
+    NAMESPACE_CHARACTER,
+    NAMESPACE_CREDENTIALS,
+    NAMESPACE_EMPTY,
+    NAMESPACE_FRAGMENT,
+    NAMESPACE_PROBLEMS,
+    NAMESPACE_RELATIVE,
+)
 from pitloom.core.untrusted_text import DISPLAY_CONTROLS
-from pitloom.core.url_masking import holds_url_credentials, masked_given_path
+from pitloom.core.url_masking import holds_url_credentials
+from pitloom.messages.options import namespace_invalid
 
 __all__ = [
     "NAMESPACE_CHARACTER",
@@ -37,25 +47,6 @@ __all__ = [
     "namespace_problem",
     "require_namespace_iri",
 ]
-
-#: Why a text cannot be a document namespace (:func:`namespace_problem`).
-NAMESPACE_EMPTY = "is empty"
-NAMESPACE_FRAGMENT = "must not contain '#'"
-NAMESPACE_RELATIVE = (
-    "is not an absolute IRI (a scheme is needed, as in https://example.org/ns)"
-)
-NAMESPACE_CHARACTER = "has a character an IRI cannot hold"
-NAMESPACE_CREDENTIALS = (
-    "holds user information, a secret query value or an access token, or a "
-    "query nested or encoded too deeply to read"
-)
-NAMESPACE_PROBLEMS = (
-    NAMESPACE_EMPTY,
-    NAMESPACE_FRAGMENT,
-    NAMESPACE_RELATIVE,
-    NAMESPACE_CHARACTER,
-    NAMESPACE_CREDENTIALS,
-)
 
 #: Base IRI of every Pitloom-minted SPDX document namespace.
 SPDX_DOCS_BASE = "https://spdx.org/spdxdocs/"
@@ -130,21 +121,21 @@ _EXTRA_ASCII = frozenset("/?[]")
 
 
 def require_namespace_iri(value: str) -> str:
-    """Return *value* when it can be a document namespace, else raise
-    ``ValueError``.
+    """Return *value* when it can be a document namespace, else raise.
 
     A namespace is an absolute IRI (RFC 3987): a scheme and something after
     it, only characters an IRI allows (a ``%`` followed by two hex digits),
     and no ``#``, because every ``spdxId`` appends its own ``#<fragment>``.
+
+    Raises:
+        pitloom.messages.CodedValueError: It cannot be one
+            (``option-invalid``, a ``ValueError``); a URL's credentials never
+            reach the text, which a library caller may log.
     """
     problem = namespace_problem(value)
     if problem is None:
         return value
-    # A URL's credentials never reach the text (a library caller logs it).
-    shown = masked_given_path(value)
-    raise ValueError(
-        f"namespace {shown!r} {problem}" if value else f"namespace {problem}"
-    )
+    raise namespace_invalid(value, problem)
 
 
 def namespace_problem(value: str) -> str | None:

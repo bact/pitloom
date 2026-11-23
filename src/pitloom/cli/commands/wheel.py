@@ -11,7 +11,7 @@ import argparse
 from pathlib import Path
 from typing import Any
 
-from pitloom._sbom_io import write_sbom_output
+from pitloom._embed_wheel import write_sbom_copy
 from pitloom.assemble import (
     embed_sbom_in_wheel,
     generate_wheel_sbom,
@@ -145,7 +145,7 @@ def _run_wheel_command(args: argparse.Namespace) -> int:
             identity=wheel_identity(wheel_metadata),
             allow_signed_wheel=args.allow_signed_wheel,
         )
-        write_sbom_output(sbom_json, output_path)
+        write_sbom_copy(sbom_json, output_path)
         report_embed_result(arcname, wheel_path.name, removed, floored, output_path)
 
     if output_path is not None:

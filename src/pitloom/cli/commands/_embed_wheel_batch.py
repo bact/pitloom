@@ -21,7 +21,7 @@ from typing import Any
 
 from pitloom._sbom_io import is_stdout
 from pitloom.assemble import ConfigOverrides, embed_wheel_sbom
-from pitloom.cli.commands.utils import report_error_line
+from pitloom.cli.commands.utils import report_error_line, report_wheel_failure
 from pitloom.cli.kv_output import log_kv, print_kv
 from pitloom.cli.options_config import (
     creation_flags_given,
@@ -261,7 +261,7 @@ def try_embed_one_wheel(
             file_cache=batch.file_cache,
         )
     except (ValueError, OSError) as exc:
-        report_error_line(exc)
+        report_wheel_failure(exc, wheel_path)
         return None
     report_embed_result(arcname, wheel_path.name, removed, floored, output_path)
     return embedded_wheel_path, arcname

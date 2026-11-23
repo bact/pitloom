@@ -5,11 +5,11 @@
 
 """Saying a catalogued message: as a log record (:func:`emit`) or as an
 exception (:class:`CodedValueError`, :class:`CodedImportError`,
-:class:`CodedFileNotFoundError`). Either way the catalogue writes the text
-from the message's line and the caller's values, and the code travels with
-it: on the record and on an exception of any class, as its
-:data:`~pitloom.logging_config.CODE_ATTR` attribute (:func:`code_of` reads
-it).
+:class:`CodedFileNotFoundError`, :class:`CodedRuntimeError`). Either way
+the catalogue writes the text from the message's line and the caller's
+values, and the code travels with it: on the record and on an exception
+of any class, as its :data:`~pitloom.logging_config.CODE_ATTR` attribute
+(:func:`code_of` reads it).
 
 See also: :mod:`pitloom.messages` (the catalogue) and
 :mod:`pitloom.logging_config` (which prints the code).
@@ -211,6 +211,30 @@ class CodedFileNotFoundError(_CodedError, FileNotFoundError):
 class CodedImportError(_CodedError, ImportError):
     """An :class:`ImportError` that says a catalogued *message*: a library
     Pitloom needs for a step is not installed (``library-missing``).
+
+    Raises:
+        ValueError: (a plain one) No ``ERROR`` line of *message* names
+            *values*, or a value does not have its field's shape.
+    """
+
+
+class CodedOSError(_CodedError, OSError):
+    """An :class:`OSError` that says a catalogued *message*: a file the
+    system would not let Pitloom write (``file-unwritable``) or read
+    (``file-unreadable``, where an ``OSError`` was documented). Its
+    ``errno``, ``strerror`` and ``filename`` are ``None``: the text says
+    them.
+
+    Raises:
+        ValueError: (a plain one) No ``ERROR`` line of *message* names
+            *values*, or a value does not have its field's shape.
+    """
+
+
+class CodedRuntimeError(_CodedError, RuntimeError):
+    """A :class:`RuntimeError` that says a catalogued *message*: a program
+    Pitloom runs failed, or printed what it cannot read
+    (``environment-unreadable``).
 
     Raises:
         ValueError: (a plain one) No ``ERROR`` line of *message* names

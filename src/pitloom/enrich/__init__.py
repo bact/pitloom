@@ -15,7 +15,6 @@ automatically as part of SBOM generation. See
 
 from __future__ import annotations
 
-import logging
 from pathlib import Path
 
 from pitloom.core.ai_metadata import AiModelFormatInfo, AiModelMetadata
@@ -23,9 +22,6 @@ from pitloom.core.enrich_config import EnrichConfig
 from pitloom.core.project import project_relative_or_fallback
 from pitloom.enrich.base import Enricher, EnrichmentResult
 from pitloom.enrich.readme import ReadmeEnricher
-from pitloom.logging_config import one_line
-
-log = logging.getLogger(__name__)
 
 
 def run_enrichers(
@@ -35,26 +31,19 @@ def run_enrichers(
 
     Each enricher mutates *model* in place; this returns one
     :class:`~pitloom.enrich.base.EnrichmentResult` per *enabled* source
-    (empty ``fields`` when that source found nothing to add). A source
-    that is enabled but raises is logged and skipped, so one failing source
-    does not prevent the others from running.
+    (empty ``fields`` when that source found nothing to add). Each source
+    says its own read problems (a card it cannot read or parse is one
+    ``WARNING:`` and adds nothing), so an exception that escapes one is a
+    bug and fails the run.
     """
     sources: list[tuple[bool, Enricher]] = [
         (config.local, ReadmeEnricher()),
     ]
-
-    results: list[EnrichmentResult] = []
-    for enabled, enricher in sources:
-        if not enabled:
-            continue
-        try:
-            results.append(enricher.enrich(model, model_dir=model_dir))
-        # pylint: disable-next=broad-exception-caught
-        except Exception as exc:
-            log.warning(
-                "Enricher %r failed, skipping: %s", enricher.name, one_line(exc)
-            )
-    return results
+    return [
+        enricher.enrich(model, model_dir=model_dir)
+        for enabled, enricher in sources
+        if enabled
+    ]
 
 
 def _resolve_model_search_dir(

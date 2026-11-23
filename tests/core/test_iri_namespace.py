@@ -25,7 +25,7 @@ from pitloom.core.iri import (
     require_namespace_iri,
 )
 from pitloom.id_registry import IdRegistry
-from pitloom.messages import code_of
+from pitloom.messages import code_of, trusted_message
 
 _VALID = [
     "https://example.org/ns/demo",
@@ -87,21 +87,30 @@ def test_registry_new_rejects_an_invalid_namespace(value: str) -> None:
     [
         ("", "namespace is empty"),
         # '#' is checked before the scheme: a relative text with one says '#'
-        ("rel#x", "namespace 'rel#x' must not contain '#'"),
-        ("rel", f"namespace 'rel' {NAMESPACE_RELATIVE}"),
+        ("rel#x", "namespace must not contain '#': rel#x"),
+        ("rel", f"namespace {NAMESPACE_RELATIVE}: rel"),
         (
             "https://u:SECRET@h/a b",
-            "namespace 'https://***:***@h/a b' has a character an IRI cannot hold",
+            "namespace has a character an IRI cannot hold: https://***:***@h/a b",
+        ),
+        (
+            "urn:x\nWARNING: y \x1b[31m",
+            "namespace has a character an IRI cannot hold: "
+            "'urn:x\\nWARNING: y \\x1b[31m'",
         ),
     ],
-    ids=["empty", "fragment-first", "relative", "masked"],
+    ids=["empty", "fragment-first", "relative", "masked", "controls"],
 )
 def test_the_refusal_says_one_reason_and_masks_credentials(
     value: str, message: str
 ) -> None:
+    """``option-invalid``, one line, the value last (escaped when it holds a
+    control character), a ``ValueError`` as before."""
     with pytest.raises(ValueError) as caught:
         require_namespace_iri(value)
     assert str(caught.value) == message
+    assert code_of(caught.value) == "option-invalid"
+    assert trusted_message(f"ERROR: {message} [option-invalid]") is not None
     assert namespace_problem(value) in NAMESPACE_PROBLEMS
 
 

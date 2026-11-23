@@ -17,7 +17,6 @@ See also:
 
 from __future__ import annotations
 
-import logging
 from collections.abc import Callable
 from pathlib import Path
 
@@ -52,7 +51,6 @@ from pitloom.core.models import get_wheel_files
 from pitloom.core.no_effect import warn_no_effect
 from pitloom.core.project import FilesOrigin, ProjectMetadata
 from pitloom.core.provenance import ProvenanceConfig
-from pitloom.core.quote_source import quote_source
 from pitloom.core.walk_rules import without_registry_copies
 from pitloom.enrich import run_enrichers_for_models
 from pitloom.extract.project import resolve_project_with_lockfile
@@ -69,8 +67,6 @@ from pitloom.id_registry import (
 )
 from pitloom.logging_config import configure_logging
 
-log = logging.getLogger(__name__)
-
 
 def _warn_if_metadata_without_config(
     project_metadata: ProjectMetadata | None,
@@ -86,11 +82,10 @@ def _warn_if_metadata_without_config(
     """
     if project_metadata is None or pitloom_config is not None:
         return
-    log.warning(
-        "generate_project_sbom(): project_metadata needs pitloom_config "
-        "supplied with it -- the project_metadata you passed alone is "
-        "being discarded and re-read from %s",
-        quote_source(target_path),
+    warn_no_effect(
+        target_path,
+        ["project_metadata"],
+        "without pitloom_config (the project's metadata is read again from it)",
     )
 
 
