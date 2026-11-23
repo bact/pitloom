@@ -183,12 +183,16 @@ LID-2), and the full text of the four MIT files of LID-4.
 
 Read at the draft's base 257b7260 unless a row says `main`. Each needs a
 second look on `main` before work starts: 135 commits lie between.
+Read again on `main` dd31412b on 2026-11-23, for the prompt at the end
+of this section: PIT-1, PIT-2 (one of its five sites), PIT-3, PIT-4,
+PIT-7, PIT-8, PIT-9 and PIT-12. The prompt gives the file and line of
+each, and marks every other item as read at the base or to check.
 
 ### Groundwork the code stage needs, with no change of output
 
 | # | Finding | Seen | On `main` |
 | --- | --- | --- | --- |
-| PIT-1 | **Provenance segments built by hand.** About 75 f-strings and suffix constants write ` \| Field: ...` or ` \| Method: ...` without `provenance_segment`, most in `extract/ai_model/`; the rule and its lint test say every string goes through the builders. To check with it: whether any value put into such a segment comes from a file (a `\|` in it would forge a segment) | read on `main` dd31412b, 2026-11-23 (a search; the values were not traced) | no |
+| PIT-1 | **Provenance segments built by hand.** About 75 f-strings and suffix constants write ` \| Field: ...` or ` \| Method: ...` without `provenance_segment`, most in `extract/ai_model/`. The lint test (`tests/test_provenance_builders_lint.py`) allows it: it is strict for every key but `Field:` and `Method:`, and for those two it refuses only an interpolated name that looks external (`entry`, `path`, `url`, `name` and the like). So no test shows that a value put into such a segment holds no `\|` (one would forge a segment). Three interpolations were traced (Safetensors, CRFsuite): each comes from a fixed list. To do: trace the rest, send all through the builders, then make the test strict for the two keys | read on `main` dd31412b, 2026-11-23: the lint test in full; three values traced, the rest not | no |
 | PIT-2 | **Provenance strings used as data.** Five sites compare or parse one again (`_setuptools_options.py`, `_optional_dependencies.py`, `_setuptools_dynamic.py`, `lock/cascade.py`, `scanner.py`). A change of wording changes behaviour. Carry a typed value beside the string | read at the base | no |
 | PIT-3 | **The document id hangs on a provenance string.** The provenance of `locked_dependencies` is hashed into the document UUID, so a reworded label changes every SPDX id of such a document. Seed it by a function of its own that keeps today's text | read at the base; still passed to the document model on `main` | no |
 
@@ -223,6 +227,196 @@ second look on `main` before work starts: 135 commits lie between.
 | PIT-17 | Whether a card's `model-index` is read | two examples are marked "to check" ([examples/originator.md](examples/originator.md), OD-11; [examples/other-party.md](examples/other-party.md), PT-9) |
 | PIT-18 | Whether the licence conflict of the main package still writes no warning | read at the base; `main` has a `license-conflict` message for another case |
 | PIT-19 | The order in which setuptools merges `setup.py` and `setup.cfg` | taken from the code (#287), not read again |
+
+### Prompt for the Pitloom fixes (written 2026-11-23)
+
+The prompt orders the work in five pull requests and names four points
+that need the user's ruling before code (PIT-4, PIT-8, PIT-9, PIT-12).
+The release to target is open.
+
+```text
+Handoff: Pitloom fixes to land before the provenance-taxonomy code stage
+
+Context
+- Source page: working-docs/design/provenance-taxonomy/
+  findings-to-fix-first.md (on main). Ids PIT-n below are that page's.
+- The taxonomy redesign (same folder, README.md) is agreed as a design
+  and NOT built. Do not start it: no new provenance keys, labels,
+  licence relationships or schema versions here. These fixes only clear
+  the ground.
+- Line numbers are from main at dd31412b (2026-11-23). Main has moved:
+  find each place again by symbol before editing.
+- Evidence level per item:
+  [main]  read on main dd31412b
+  [base]  read at 257b7260 only (135 commits older): confirm first
+  [check] not confirmed: reproduce before any fix
+- If an item no longer reproduces on main, say so and skip it.
+
+Rules
+- Fresh worktree from current main; one PR per group below; the user
+  decides every merge. Ask the user which release the PRs target (0.25.0
+  is about to be cut).
+- Every fix: a regression test that fails on the base tree. Gates A and
+  B of AGENTS.md. Messages go through pitloom.messages (catalogue,
+  generated reference and any SKILL.md that quotes them, in one change).
+- An item marked "ruling" needs the user's answer before code: put the
+  options with a recommendation, do not pick.
+- Never edit LicenseID. PIT-13 is tracked elsewhere: leave it.
+
+PR 1. CI flake (do first, it blocks every other PR)
+PIT-20 [main, CI log]. tests/extract/remote/test_hub_loopback.py: 4
+  tests failed on "Test on Python 3.13 (macos-latest)" with
+  `ResourceWarning: unclosed socket.socket` raised at
+  huggingface_hub/utils/_detect_agent.py (line 204 in that run), made a
+  failure by filterwarnings = error. Seen on run 45168805298 of a
+  docs-only PR; the same workflow passed minutes earlier. The library
+  version in CI was not found in the log: find it first.
+  Fix shapes: (a) switch the library's agent detection off in tests
+  (read its source for the supported switch, do not guess an env var);
+  (b) a narrow, module-qualified `ignore::ResourceWarning` entry with a
+  comment. Prefer (a) if a public switch exists.
+  A rerun proves nothing: reproduce by forcing the warning (for example
+  gc.collect() after the call with the socket left open), then show the
+  fix holds under that.
+
+PR 2. Groundwork: zero change of output
+Proof for the whole PR: SBOM, stderr and --json diff against main empty
+on the manual CLI checks and the parity/determinism harness.
+
+PIT-1 [main]. About 75 f-strings and suffix constants write
+  ` | Field: ...` or ` | Method: ...` without provenance_segment, most
+  in src/pitloom/extract/ai_model/.
+  The lint does not forbid this.
+  tests/test_provenance_builders_lint.py has R1 (strict, every key but
+  Field:/Method:), R2 (heuristic: a Field:/Method: string interpolates
+  no name matching entry|prefix|member|label|path|raw|url|archive|name)
+  and R3 (" | ".join). So these sites pass by design.
+  Traced: three interpolations (safetensors `found[0]`, crfsuite
+  `location`), all from fixed lists; no forged segment found. The rest
+  are not traced.
+  Do: trace every interpolated value to its origin; route all sites
+  through the builders; then make the lint strict for Field:/Method:
+  too. Check first that the builder gives byte-identical text for each
+  site (escaping of `|`); where it does not, stop and report.
+
+PIT-2 [main for one site, base for four]. Provenance strings used as
+  data. Confirmed: src/pitloom/extract/project/_setuptools_options.py
+  :456 `py_wins = metadata.provenance.get("license") == py_licence[1]`.
+  Named at the base, not found again by a search on main:
+  _optional_dependencies.py, _setuptools_dynamic.py, lock/cascade.py,
+  scanner.py. Find them (comparisons, startswith, split, `in` on a
+  provenance value).
+  Do: carry a typed value beside the string (which source won), compare
+  that. Test per site: reword the provenance text in the test, behaviour
+  unchanged.
+
+PIT-3 [main]. src/pitloom/core/models.py:190-197 adds
+  "\x00" + locked_dependencies_provenance to the document UUID seed;
+  the default text is `_DEFAULT_LOCKED_PROVENANCE = "Source: lock file |
+  Method: resolved_lockfile"` at assemble/spdx3/deps_installed.py:74.
+  A reworded label would change every SPDX id of such a document.
+  Do: a seed function of its own that returns today's exact text for
+  each case, frozen and commented as an id input. Test: pin the UUID of
+  a fixture for each provenance variant; a second test rewords the
+  label and asserts the same ids.
+
+PR 3. Licence and embed
+PIT-9 [main]. assemble/spdx3/_provenance_encoders.py:81-89
+  `is_license_concluded` returns `not source or source in
+  THIRD_PARTY_SOURCES`: a licence with no source at all is written as
+  hasConcludedLicense. Ruling of 2026-11-23: Pitloom alone writes no
+  concluded licence.
+  Do: first find which reader hands over a licence without a source
+  (that is the bug to fix at its origin). Ruling: what the encoder does
+  with a source-less value afterwards (declared, dropped with a
+  WARNING:, or InternalError). Run a probe corpus through main and the
+  tree and list every relationship that changes.
+
+PIT-8 [main]. `embed-wheel --project-dir`: src/pitloom/embed.py:131
+  `_enforce_sbom_name_version` compares a supplied SBOM with the wheel;
+  nothing compares the project directory with the wheel, and the
+  directory's metadata is taken.
+  Do: compare name (PEP 503) and version (PEP 440) of the directory
+  with the wheel's; on a mismatch a WARNING: through the catalogue.
+  Ruling: warn only, or refuse.
+
+PIT-14 [base docs, spec read 2026-11-23]. docs/metadata-provenance-
+  licences.md says PEP 639 forbids an SPDX `license` beside licence
+  classifiers. The pyproject.toml specification says a build tool MAY
+  raise an error. Read the page on main and the specification text,
+  then correct the sentence. Docs only.
+
+PR 4. Remote sources: which state was read
+PIT-4 [main]. extract/remote/git.py:116 `class GitCheckout` resolves
+  the commit; no reader of it outside git.py (searched extract/remote,
+  assemble, _generators.py, __main__.py). `loom project` on a Git URL
+  gives an SBOM with no commit, ref or host.
+  Ruling: where the commit goes with today's means (the taxonomy's
+  Location key is not built). Then carry it from GitCheckout to the
+  assembler; test through the CLI on a local repository.
+
+PIT-5 [base]. When Hub `model_info` fails or states no `sha`, the card,
+  config and licence files are read with no revision (one WARNING:
+  each) and may come from different commits. On main only the licence
+  file list was read again (it now comes from `siblings`).
+  Confirm on main. Fix shape: resolve one revision once and pass it to
+  every read; if none can be resolved, one message that says the files
+  are read at no fixed state.
+
+PIT-7 [main]. extract/remote/huggingface_field.py:371-382 takes
+  `hub_info.get("last_modified")` as "the revision's commit time". The
+  Hub documents it as the date of the last commit to the repository.
+  Nuance: for a read of the default branch head the two are equal; the
+  value is wrong only when another revision is read. Read the Hub API
+  documentation for a per-revision date before choosing: use that, or
+  write the time only when the head was read.
+
+PIT-6 [check]. A dependency with no version takes the latest release's
+  licence and originator. extract/remote/pypi.py has RELEASE_UNPINNED*
+  messages for it on main. Not checked: whether the provenance of those
+  fields names the release that was read. If it does not, add it.
+
+PR 5. Reader gaps
+PIT-11 [base]. Three provenance gaps: the wheel reader records none for
+  description, requires_python, urls (the sdist reader does); Hub
+  licence detection writes no Tool (in-package detection does); ONNX
+  type_of_model has no entry. Confirm each on main; fix with the
+  sibling's wording, through the builders.
+
+PIT-10 [check]. A model whose header exceeds the read cap raises
+  extract/ai_model/limits.py:77 `ModelOverCap` and, as reported, gives
+  no field at all (a 10 GB GGUF, header read stopped at 64 MiB). By the
+  evidence rule a cap bounds reading, not reporting: file size and
+  digest are measurable. Reproduce on main with a synthetic GGUF (main
+  has its own header reader since #517, with a partial read marked
+  truncated: behaviour may differ now). Not checked either: whether a
+  parameter count over the cap writes `over-cap`.
+
+PIT-12 [main]. assemble/spdx3/_document_locked_deps.py:196-209
+  `_locked_dependencies_completeness` does `del metadata; return None`;
+  no relationship carries completeness.
+  Ruling before code: which relationships can honestly say `complete`
+  (a lock file read in full?) and which stay unset. Propose a table of
+  relationship kinds with evidence; no code until answered.
+
+Investigations (report findings, no fix asked)
+PIT-15 Hub parameter total differs from Pitloom's own sum (15 of 128
+  repositories measured 2026-11-12). Find the cause on three examples.
+PIT-16 Does a Magika package version fix its model? `Tool: magika==x`
+  is written as if it did.
+PIT-17 Is a model card's `model-index` read at all?
+PIT-18 Does a licence conflict of the main package still write no
+  warning? Main has a `license-conflict` message for another case.
+PIT-19 The order in which setuptools merges setup.py and setup.cfg:
+  read setuptools' source, do not rely on Pitloom's comment (#287).
+
+Deliver
+Per item: confirmed or not on main (with the command or the lines),
+what was fixed, the regression test's name, any output that changes
+(before and after), what was left and why. For each "ruling" item: the
+question, the options, a recommendation. In each PR, mark the row of
+findings-to-fix-first.md done with the PR number.
+```
 
 ## What is not here
 
