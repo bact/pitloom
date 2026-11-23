@@ -6,7 +6,8 @@
 """``input-not-found``: a path named for Pitloom to read does not exist, on
 disk or in the repository a Git URL names. ``ERROR``: the read raises, or
 the command stops. ``input-not-found/fragment``: a configured SBOM fragment
-does not exist, a ``WARNING:``: the merge goes on without it.
+does not exist, a ``WARNING:`` naming it as configured (``FILE=``): the
+merge goes on without it.
 
 See also: :mod:`pitloom.messages._input_not_found_say` (the helpers),
 :mod:`pitloom.extract._model_named` (a model file named on its own),
@@ -18,6 +19,7 @@ from __future__ import annotations
 
 from typing import Final
 
+from pitloom.messages._fragments import fragment_lines
 from pitloom.messages._types import ASK_FIRST, Line, Message
 
 #: The release that first prints ``input-not-found/fragment``, and the lines
@@ -128,15 +130,10 @@ INPUT_NOT_FOUND: Final = Message(
     since="0.23.4",
 )
 
-#: A configured fragment that does not exist; it is left out of the merge.
-FRAGMENT_LINE: Final = Line(
-    level="WARNING", template="SBOM fragment not found: %(path)s; not merged"
-)
-#: The same, for a fragment marked required: the merge fails after.
-REQUIRED_FRAGMENT_LINE: Final = Line(
-    level="WARNING",
-    template="required SBOM fragment not found: %(path)s; the merge will fail",
-)
+#: A configured fragment that does not exist: it is left out of the merge,
+#: or, marked required, the merge fails after
+#: (:func:`~pitloom.messages._fragments.fragment_lines`).
+FRAGMENT_LINE, REQUIRED_FRAGMENT_LINE = fragment_lines("SBOM fragment not found")
 
 INPUT_NOT_FOUND_FRAGMENT: Final = Message(
     code="input-not-found/fragment",
@@ -145,8 +142,8 @@ INPUT_NOT_FOUND_FRAGMENT: Final = Message(
     summary="An SBOM fragment the project configures ([tool.pitloom.fragment]) "
     "does not exist.",
     did="Merged the SBOM without it, and wrote it (the build hook builds the "
-    "wheel). For a fragment marked required, the merge then fails with an "
-    "uncoded ERROR: and no SBOM is written: the command exits 1, the hook "
+    "wheel). For a fragment marked required, the merge then fails with "
+    "fragment-missing and no SBOM is written: the command exits 1, the hook "
     "fails the build, the library raises FragmentMergeError. 'loom fragment "
     "list' lists it with EXISTS=false, and exits 1 for a required one.",
     effect="thinner",
@@ -155,6 +152,7 @@ INPUT_NOT_FOUND_FRAGMENT: Final = Message(
     "They create it (run the enrichment that writes it), fix its path in the "
     "configuration, or remove the entry, and run again. Do not edit the "
     f"configuration for them; {ASK_FIRST}",
+    subject_key="FILE",
     since=_SINCE,
 )
 

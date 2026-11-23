@@ -260,7 +260,7 @@ def test_known_keys_in_both_spellings_are_silent(
         },
         "fragment": {
             "files": [
-                {"path": "p", "role": "r", "link_to_main": "x", "sha256": "0"},
+                {"path": "p", "role": "r", "link_to_main": "x", "sha256": "0" * 64},
                 "q",
             ]
         },

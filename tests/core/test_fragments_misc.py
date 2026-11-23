@@ -273,7 +273,10 @@ class TestHashFallbackUnification:
             if d["name"] == "data/train.txt"
         ]
         assert len(datasets) == 2
-        assert any("two different SHA-256" in r.message for r in caplog.records)
+        assert any(
+            "has SHA-256 " in r.message and "another of that name" in r.message
+            for r in caplog.records
+        )
 
 
 def _make_ci() -> spdx3.CreationInfo:

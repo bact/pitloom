@@ -7,7 +7,7 @@
 
 A fragment's text value that is a JSON object or array (the input/output
 description of a model) may hold the same JSON as another with other spacing or
-key order. The merge reads those as one value: no ``Merge: conflicting``
+key order. The merge reads those as one value: no ``fragment-conflict``
 warning and no second value. A fragment is untrusted input, so the comparison
 is bounded (:data:`MAX_JSON_DEPTH`) and exact: ``1``, ``1.0`` and ``true`` are
 three values, a float is its text (``[0.0]`` and ``[-0.0]`` differ, as ``1E2``

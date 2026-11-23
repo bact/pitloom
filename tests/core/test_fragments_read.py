@@ -59,7 +59,11 @@ def test_an_unserialisable_optional_fragment_is_skipped(
     merged = merge_fragments(tmp_path, [FragmentConfig(path=frag.name)], exporter)
     assert merged == 0
     assert len(caplog.messages) == 1
-    assert caplog.messages[0].startswith(f"Failed to read SBOM fragment '{frag}': ")
+    assert caplog.messages[0].startswith(
+        f"FILE={frag.name}: SBOM fragment is not SPDX 3 JSON-LD Pitloom can merge ("
+    )
+    assert caplog.messages[0].endswith("); not merged")
+    assert getattr(caplog.records[0], "pitloom_code", None) == "fragment-invalid"
     exporter.to_json(pretty=pretty)
 
 
@@ -88,7 +92,7 @@ def test_a_lone_surrogate_is_written_as_text(
     )
     assert merged == 1
     assert [m for m in caplog.messages if "lone surrogates" in m] == [
-        f"FILE={frag}: lone surrogates written as \\uXXXX"
+        f"FILE={frag.name}: lone surrogates written as \\uXXXX"
     ]
     out = json.loads(exporter.to_json(pretty=pretty))
     names = [n.get("name") for n in out["@graph"]]
@@ -134,7 +138,13 @@ def test_the_cli_names_an_unserialisable_fragment(
     code = __main__.main()
     err = capsys.readouterr().err.splitlines()
     assert (code == 1) is required
-    assert len([ln for ln in err if "bad.json" in ln and "Failed to read" in ln]) == 1
+    said = [ln for ln in err if "bad.json" in ln and "SBOM fragment is not" in ln]
+    assert len(said) == 1
+    assert said[0].endswith(
+        "; required, so the merge will fail [fragment-invalid]"
+        if required
+        else "; not merged [fragment-invalid]"
+    )
     assert len([ln for ln in err if ln.startswith("ERROR: ")]) == int(required)
     if not required:
         assert "dataset_datasetSize" not in (tmp_path / "o.json").read_text("utf-8")
@@ -154,4 +164,4 @@ def test_the_hook_names_an_unserialisable_fragment(
         else:
             hook.initialize("standard", build_data)
             hook.finalize("standard", build_data, "")
-    assert len([m for m in caplog.messages if "Failed to read" in m]) == 1
+    assert len([m for m in caplog.messages if "SBOM fragment is not" in m]) == 1

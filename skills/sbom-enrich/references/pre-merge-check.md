@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-29
-Last-Modified: 2026-11-14
+Last-Modified: 2026-11-23
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -16,8 +16,9 @@ deserialiser `merge_fragments()` itself uses. It catches malformed JSON and
 many SPDX-shape errors (an unknown property on a known type, a wrongly typed
 value, an element without an `spdxId`, a misspelled type that carries
 properties) before registration. Otherwise a fragment that fails to read is
-skipped with only a `WARNING:` (the merge fails if it is registered with
-`required = true`), a wasted `loom` run. It does not catch a bare unrecognised
+left out with only a `WARNING:` that ends `; not merged` (the merge fails with
+`[fragment-missing]` if it is registered with `required = true`), a wasted
+`loom` run. It does not catch a bare unrecognised
 type with no other key, not even `spdxId` (read as an extensible object), or a
 missing required property (step 10 does). Exit 0 is a pass. This is the one
 home of the snippet.

@@ -23,7 +23,7 @@ from __future__ import annotations
 from _order_capture import LOOM_SURFACES, Captured, duplicate_ids
 from _order_ops import BAD_JSON, V2_REGISTRY
 
-_FORBIDDEN = ("shares spdxId", "another run saved")
+_FORBIDDEN = ("[fragment-id-conflict]", "another run saved")
 _ID_COMMANDS = frozenset({"gen", "gen-ds", "gen-min", "import", "import0"})
 #: The one failed-save wording on every surface (``file-unwritable``), after
 #: ``FILE=<path>``, and its code.

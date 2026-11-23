@@ -168,7 +168,9 @@ def test_earlier_sbom_required_fails(
     with pytest.raises(AssertionError if cli else FragmentMergeError) as raised:
         run(tmp_path / "b", project, monkeypatch)
     message = capsys.readouterr().err if cli else str(raised.value)
-    assert "1 required fragment(s) could not be merged" in message
+    assert "1 required SBOM fragment(s) not merged: " in message
+    assert "; fix each as its WARNING says" in message
+    assert ("[fragment-missing]" in message) is cli
 
 
 @pytest.mark.parametrize("surface", sorted(_SURFACES))
@@ -247,4 +249,7 @@ def test_fragment_list_goes_on_when_the_project_is_unreadable(
     assert __main__.main() == 0
     out, err = capsys.readouterr()
     assert "SAME_DOCUMENT=-" in out
-    assert len([x for x in err.splitlines() if "SAME_DOCUMENT unknown" in x]) == 1
+    said = [x for x in err.splitlines() if "not valid [project] metadata" in x]
+    assert len(said) == 1
+    assert said[0].startswith("WARNING: ")
+    assert said[0].endswith(" [metadata-invalid]")

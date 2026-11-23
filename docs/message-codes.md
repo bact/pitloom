@@ -44,6 +44,7 @@ the table of prefixes.
 - [ID registry](message-codes-id-registry.md): 5 codes
 - [ID registry ids and keys](message-codes-id-registry-ids.md): 15 codes
 - [Licences](message-codes-licences.md): 8 codes
+- [SBOM fragments](message-codes-fragments.md): 11 codes
 - [Values](message-codes-values.md): what each `<name>` in a line is
 
 | Code | Level | Since |
@@ -67,6 +68,7 @@ the table of prefixes.
 | [`credentials-unsafe/refused`](message-codes-url-credentials.md#credentials-unsaferefused) | ERROR | 0.25.0 |
 | [`credentials-unsafe/registry`](message-codes-url-credentials.md#credentials-unsaferegistry) | ERROR, WARNING | 0.25.0 |
 | [`credentials-unsafe/written`](message-codes-url-credentials.md#credentials-unsafewritten) | WARNING | 0.25.0 |
+| [`datetime-missing`](message-codes-fragments.md#datetime-missing) | WARNING | 0.25.0 |
 | [`datetime-unpinned`](message-codes-config.md#datetime-unpinned) | INFO | 0.25.0 |
 | [`dependency-name-ambiguous`](message-codes-dependencies.md#dependency-name-ambiguous) | INFO | 0.25.0 |
 | [`dependency-pin-conflict`](message-codes-dependencies.md#dependency-pin-conflict) | WARNING | 0.25.0 |
@@ -88,6 +90,15 @@ the table of prefixes.
 | [`file-unreadable/outside-project`](message-codes-files.md#file-unreadableoutside-project) | WARNING | 0.22.0 |
 | [`file-unreadable/outside-repository`](message-codes-files.md#file-unreadableoutside-repository) | WARNING | 0.23.4 |
 | [`file-unwritable`](message-codes-files.md#file-unwritable) | ERROR, WARNING | 0.25.0 |
+| [`fragment-conflict`](message-codes-fragments.md#fragment-conflict) | WARNING | 0.25.0 |
+| [`fragment-digest-invalid`](message-codes-fragments.md#fragment-digest-invalid) | WARNING | 0.25.0 |
+| [`fragment-hash-conflict`](message-codes-fragments.md#fragment-hash-conflict) | WARNING | 0.25.0 |
+| [`fragment-id-conflict`](message-codes-fragments.md#fragment-id-conflict) | WARNING | 0.25.0 |
+| [`fragment-invalid`](message-codes-fragments.md#fragment-invalid) | WARNING | 0.25.0 |
+| [`fragment-missing`](message-codes-fragments.md#fragment-missing) | ERROR | 0.25.0 |
+| [`fragment-unreadable`](message-codes-fragments.md#fragment-unreadable) | WARNING | 0.25.0 |
+| [`fragment-unusable`](message-codes-fragments.md#fragment-unusable) | WARNING | 0.25.0 |
+| [`generated-value-conflict`](message-codes-fragments.md#generated-value-conflict) | INFO | 0.25.0 |
 | [`git-filter-unusable`](message-codes-git.md#git-filter-unusable) | INFO | 0.25.0 |
 | [`git-link-unsafe`](message-codes-git.md#git-link-unsafe) | INFO | 0.25.0 |
 | [`git-missing`](message-codes-git.md#git-missing) | ERROR | 0.25.0 |
@@ -155,6 +166,7 @@ the table of prefixes.
 | [`query-no-effect`](message-codes-network.md#query-no-effect) | INFO | 0.24.0 |
 | [`reader-unsafe`](message-codes-models.md#reader-unsafe) | INFO | 0.22.0 |
 | [`reader-unsafe/remote`](message-codes-models.md#reader-unsaferemote) | INFO | 0.23.4 |
+| [`reference-not-found`](message-codes-fragments.md#reference-not-found) | ERROR, WARNING | 0.25.0 |
 | [`registry-conflict`](message-codes-id-registry-ids.md#registry-conflict) | WARNING | 0.25.0 |
 | [`registry-conflict/concurrent`](message-codes-id-registry-ids.md#registry-conflictconcurrent) | WARNING | 0.25.0 |
 | [`registry-conflict/file-set`](message-codes-id-registry-ids.md#registry-conflictfile-set) | WARNING | 0.25.0 |

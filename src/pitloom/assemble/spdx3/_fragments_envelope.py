@@ -32,13 +32,16 @@ from pitloom.core.creation import CreationMetadata, resolve_source_date_epoch
 from pitloom.core.file_hash import sha256_digest
 from pitloom.core.models import PITLOOM_NS, _clear_doc_counters, generate_spdx_id
 from pitloom.export.spdx3_json import Spdx3JsonExporter
+from pitloom.messages import emit
+from pitloom.messages.fragments import DATETIME_MISSING
 
 log = logging.getLogger(__name__)
 
 #: ``doc_name`` of every merged document's ids.
 MERGED_DOC_NAME = "merged"
 
-#: ``created`` when neither ``SOURCE_DATE_EPOCH`` nor any fragment gives one.
+#: The placeholder ``created`` of the envelope, before the merge sets it, and
+#: when neither ``SOURCE_DATE_EPOCH`` nor any fragment gives one.
 _NO_CREATED = datetime(1970, 1, 1, tzinfo=timezone.utc)
 
 
@@ -111,9 +114,7 @@ def finish_merge_document(exporter: Spdx3JsonExporter) -> None:
     own = cast(spdx3.CreationInfo, document.creationInfo)
     created = resolve_source_date_epoch() or _latest_fragment_created(exporter, own)
     if created is None:
-        log.warning(
-            "merge: no fragment states a creation time; created set to %s",
-            _NO_CREATED.isoformat().replace("+00:00", "Z"),
-        )
+        # Fragments with no creation info at all (an empty @graph, []).
+        emit(log, DATETIME_MISSING, logging.WARNING, datetime=_NO_CREATED)
         created = _NO_CREATED
     own.created = created.astimezone(timezone.utc).replace(microsecond=0)

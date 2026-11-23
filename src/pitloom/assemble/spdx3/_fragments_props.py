@@ -25,6 +25,8 @@ from pitloom.core.model_parameters import (
     with_parameter_count_note,
 )
 from pitloom.export.spdx3_describe import describe_value, property_names
+from pitloom.export.spdx3_json import require_spdx_id
+from pitloom.messages.fragments import DescribedValue, warn_property_conflict
 
 log = logging.getLogger(__name__)
 
@@ -35,6 +37,15 @@ _KEYED_DICT_PROPS = frozenset({"ai_hyperparameter", "ai_metric"})
 def _class_properties(obj: spdx3.SHACLObject) -> Iterable[str]:
     """Return the declared Python property names on *obj*'s class."""
     return property_names(obj)
+
+
+def merge_value(value: Any) -> str | DescribedValue:
+    """*value*, a merged property value, as a ``kept``/``dropped`` argument of
+    a merge line: a ``str`` as it is (the line quotes it), anything else
+    described (:func:`~pitloom.export.spdx3_describe.describe_value`)."""
+    if isinstance(value, str):
+        return value
+    return DescribedValue(describe_value(value))
 
 
 def _normalize_value(value: Any) -> Any:
@@ -118,12 +129,12 @@ def _merge_scalar(
                 canonical_val,
             )
             return
-        log.warning(
-            "Merge: conflicting %r on %s: keeping %s, dropping %s.",
-            pyname,
-            describe_value(canonical),
-            describe_value(canonical_val),
-            describe_value(dup_val),
+        warn_property_conflict(
+            log,
+            spdx_id=require_spdx_id(canonical),
+            prop=pyname,
+            kept=merge_value(canonical_val),
+            dropped=merge_value(dup_val),
         )
 
 
@@ -192,13 +203,13 @@ def _merge_colliding_entry(
         and same_json(kept_val, dropped_val)
     ):
         return
-    log.warning(
-        "Merge: conflicting %r key %r on %s: keeping %s, dropping %s.",
-        pyname,
-        kept.key,
-        describe_value(canonical),
-        describe_value(kept_val),
-        describe_value(dropped_val),
+    warn_property_conflict(
+        log,
+        spdx_id=require_spdx_id(canonical),
+        prop=pyname,
+        key=str(kept.key),
+        kept=merge_value(kept_val),
+        dropped=merge_value(dropped_val),
     )
 
 

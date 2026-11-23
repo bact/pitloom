@@ -16,11 +16,8 @@ import pytest
 
 from pitloom.core.internal_error import InternalError
 from pitloom.messages import CodedValueError
-from pitloom.messages.metadata import (
-    PROJECT_NAME_MISSING,
-    SETUP_CFG_NAME_LINE,
-    relay_coded_warning,
-)
+from pitloom.messages.metadata import relay_coded_warning
+from pitloom.messages.targets import PROJECT_NOT_FOUND, PROJECT_NOT_FOUND_LINE
 
 _FILE = Path("proj") / "pyproject.toml"
 _LOG = logging.getLogger("pitloom.test_relays")
@@ -30,8 +27,8 @@ _LOG = logging.getLogger("pitloom.test_relays")
     ("exc", "named"),
     [
         (
-            CodedValueError(PROJECT_NAME_MISSING, line=SETUP_CFG_NAME_LINE, file=_FILE),
-            "project-name-missing",
+            CodedValueError(PROJECT_NOT_FOUND, line=PROJECT_NOT_FOUND_LINE, path=_FILE),
+            "project-not-found",
         ),
         (RuntimeError("not coded"), "RuntimeError"),
     ],

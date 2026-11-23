@@ -150,8 +150,8 @@ METADATA_INVALID: Final = Message(
         TYPE_ERROR_LINE,
         Line(level="WARNING", template=TYPE_ERROR_LINE.template),
         TYPE_LINE,
-        PROJECT_LINE,
-        NUMBER_LINE,
+        # Twinned: 'loom fragment list' says them as a WARNING and goes on.
+        *warning_twins((PROJECT_LINE, NUMBER_LINE)),
         PROJECT_NO_NAME_LINE,
         KEYWORD_UNPACKED_LINE,
         KEYWORD_NOT_LITERAL_LINE,
@@ -174,7 +174,9 @@ METADATA_INVALID: Final = Message(
     "lower-priority source may give the field; a [project] with no name "
     "leaves setup.cfg and setup.py to name the project; a listed file not "
     "there gives no requirements; a [tool.poetry] relayed from a Poetry read "
-    "skips Poetry's gap-fill, while poetry.lock's pins still apply.",
+    "skips Poetry's gap-fill, while poetry.lock's pins still apply. 'loom "
+    "fragment list' says a refused [project] or too long a number as a "
+    "WARNING too, and lists the fragments with SAME_DOCUMENT=-.",
     effect="not-written",
     actor="user",
     advice="Tell the user which value is refused or ignored and what was "
@@ -211,9 +213,8 @@ PROJECT_NAME_MISSING: Final = Message(
     condition="missing",
     lines=(
         *warning_twins((POETRY_NAME_LINE,)),
-        SETUPTOOLS_NAME_LINE,
-        SETUP_CFG_NAME_LINE,
-        SETUP_PY_NAME_LINE,
+        # Twinned: 'loom fragment list' says them as a WARNING and goes on.
+        *warning_twins((SETUPTOOLS_NAME_LINE, SETUP_CFG_NAME_LINE, SETUP_PY_NAME_LINE)),
     ),
     summary="No project name is found where the project's build backend "
     "reads it: a Poetry project names it in neither [tool.poetry] nor "
@@ -222,7 +223,8 @@ PROJECT_NAME_MISSING: Final = Message(
     "A setup.py that does not parse says metadata-malformed first.",
     did=f"{_NOT_WRITTEN} The setuptools line raises FileNotFoundError, also "
     "carrying the code. As a WARNING, a Poetry read for poetry.lock's pins "
-    "skipped Poetry's gap-fill and still applied the pins.",
+    "skipped Poetry's gap-fill and still applied the pins; 'loom fragment "
+    "list' says any of them and lists the fragments with SAME_DOCUMENT=-.",
     effect="not-written",
     actor="user",
     advice="Tell the user that the project has no name Pitloom can read, and "

@@ -162,7 +162,7 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
 - **SBOM effect**: thinner: the SBOM says less than reading the input would.
 - **Pitloom did**: Merged the SBOM without it, and wrote it (the build hook
   builds the wheel). For a fragment marked required, the merge then fails with
-  an uncoded ERROR: and no SBOM is written: the command exits 1, the hook fails
+  fragment-missing and no SBOM is written: the command exits 1, the hook fails
   the build, the library raises FragmentMergeError. 'loom fragment list' lists
   it with EXISTS=false, and exits 1 for a required one.
 - **Tell the user**: which fragment was not found, as the line names it. They
@@ -172,8 +172,8 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
 - **Lines**:
 
   ```text
-  WARNING: SBOM fragment not found: '<path>'; not merged [input-not-found/fragment]
-  WARNING: required SBOM fragment not found: '<path>'; the merge will fail [input-not-found/fragment]
+  WARNING: FILE=<file>: SBOM fragment not found; not merged [input-not-found/fragment]
+  WARNING: FILE=<file>: SBOM fragment not found; required, so the merge will fail [input-not-found/fragment]
   ```
 
 ### `model-ambiguous`

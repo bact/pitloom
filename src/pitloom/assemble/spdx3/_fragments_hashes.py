@@ -16,6 +16,8 @@ import logging
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.export.hashes import sha256_of
+from pitloom.export.spdx3_json import require_spdx_id
+from pitloom.messages.fragments import warn_hash_conflict
 
 log = logging.getLogger(__name__)
 
@@ -59,12 +61,12 @@ def warn_if_same_name_different_hash(
             continue
         existing_hash = sha256_of(existing)
         if existing_hash is not None and existing_hash != obj_hash:
-            log.warning(
-                "Merge: %s %r appears with two different SHA-256 hashes "
-                "(%s vs %s); keeping both as separate elements.",
-                type(obj).__name__,
-                name,
-                existing_hash,
-                obj_hash,
+            warn_hash_conflict(
+                log,
+                spdx_id=require_spdx_id(obj),
+                element_type=type(obj).__name__,
+                name=name,
+                digest=obj_hash,
+                other_digest=existing_hash,
             )
             return

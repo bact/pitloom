@@ -58,7 +58,8 @@ def _find_dangling_references(
     a legitimate external reference either (an id declared via the main
     document's own ``import_`` -- see
     :func:`pitloom.assemble.spdx3.fragments._add_fragment_imports`) or a
-    named individual of the SPDX 3 model.
+    named individual of the SPDX 3 model. Sorted, so the same graph gives
+    the same list whatever order its objects are held in.
 
     Catches, among other causes, a fragment merged against a stale base
     SBOM -- e.g. one generated before a Pitloom upgrade changed file
@@ -75,7 +76,8 @@ def _find_dangling_references(
     for obj in exporter.object_set.objects:
         dangling.extend(_dangling_refs_for_object(obj, known_ids, external_ids))
         dangling.extend(_dangling_custom_ids(obj, known_ids, namespace))
-    return dangling
+    # The graph is a set: sorted, the lines come in one order on every run.
+    return sorted(dangling)
 
 
 def _document_namespace(exporter: Spdx3JsonExporter) -> str | None:

@@ -196,8 +196,10 @@ def say_input_not_found(kind: str, path: str | os.PathLike[str]) -> None:
 def warn_fragment_not_found(
     log: logging.Logger, path: str | os.PathLike[str], *, required: bool
 ) -> None:
-    """The one ``WARNING:`` on *log* for the configured SBOM fragment
-    *path* that is not there, ``input-not-found/fragment``: left out of the
-    merge, or, *required*, the merge will fail."""
+    """The one ``WARNING:`` on *log* for the SBOM fragment *path* that is
+    not there, ``input-not-found/fragment``: left out of the merge, or,
+    *required*, the merge will fail. *path* is the fragment as configured
+    (``[tool.pitloom.fragment]``), or, for ``loom merge``, the directory as
+    given joined with its file name."""
     line = REQUIRED_FRAGMENT_LINE if required else FRAGMENT_LINE
-    emit(log, INPUT_NOT_FOUND_FRAGMENT, logging.WARNING, line=line, path=path)
+    emit(log, INPUT_NOT_FOUND_FRAGMENT, logging.WARNING, line=line, file=path)

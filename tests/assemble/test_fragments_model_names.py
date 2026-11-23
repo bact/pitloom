@@ -6,7 +6,7 @@
 """A fragment's ``ai_AIPackage`` folding into the base document's model:
 the name the fragments agree on wins with one ``INFO:``, and the base's
 provenance for its own name goes; fragments that disagree keep the base's
-name with today's ``Merge: conflicting`` warnings, whatever their order.
+name with today's ``fragment-conflict`` warnings, whatever their order.
 
 See also: tests/test_loom_model_name_surfaces.py (the
 surfaces, with a real ``loom.run``), tests/assemble/test_fragments_count_note.py.
@@ -136,16 +136,15 @@ def _annotations(graph: list[dict[str, Any]]) -> list[str]:
 def _info(kept: str, dropped: str) -> tuple[int, str]:
     return (
         logging.INFO,
-        f"Merge: 'name' on ai_AIPackage {_MODEL}: keeping the fragment's "
-        f"{kept!r}, dropping the project's {dropped!r}.",
+        f"Merge: ELEMENT={_MODEL}: name replaced by the one the fragments "
+        f"agree on; kept {kept!r}, dropped {dropped!r}",
     )
 
 
 def _warning(kept: str, dropped: str) -> tuple[int, str]:
     return (
         logging.WARNING,
-        f"Merge: conflicting 'name' on ai_AIPackage {_MODEL} {kept!r}: "
-        f"keeping {kept!r}, dropping {dropped!r}.",
+        f"Merge: ELEMENT={_MODEL}: name differs; kept {kept!r}, dropped {dropped!r}",
     )
 
 
@@ -240,7 +239,7 @@ def test_no_base_model_keeps_the_field_merge(
     model, records, _ = _merge(tmp_path, caplog, ["m", "loomed"], no_model)
     assert model["name"] == "m"
     assert [level for level, _ in records] == [logging.WARNING]
-    assert "conflicting 'name'" in records[0][1]
+    assert ": name differs; kept 'm', dropped 'loomed'" in records[0][1]
 
 
 def test_a_fragment_only_model_is_kept_silently(

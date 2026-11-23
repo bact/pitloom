@@ -11,11 +11,15 @@ readers) and :mod:`pitloom.core._config_read` (read primitives).
 
 from __future__ import annotations
 
-from typing import Any
+import re
+from typing import Any, Final
 
 from pitloom.core._config_read import _optional_str, _read_bool_setting, _read_table
 from pitloom.core._config_types import FragmentConfig
 from pitloom.messages.config import MISSING, ConfigPlace, config_invalid
+
+#: A SHA-256 in hex, in either case.
+_SHA256_RE: Final = re.compile(r"[0-9A-Fa-f]{64}")
 
 _FRAGMENT = ConfigPlace("tool.pitloom.fragment")
 _FILES = ConfigPlace("tool.pitloom.fragment", "files")
@@ -26,7 +30,8 @@ def _read_fragments(pitloom_data: dict[str, Any]) -> list[FragmentConfig]:
 
     Each entry is either a plain path string (shorthand for
     ``FragmentConfig(path=...)``) or an inline table with ``path`` plus any
-    of ``role``, ``description``, ``required``, ``sha256``, ``link-to-main``.
+    of ``role``, ``description``, ``required``, ``sha256`` (64 hex digits,
+    kept in lower case), ``link-to-main``.
     """
     raw = _read_table(pitloom_data, "fragment", _FRAGMENT).get("files", [])
     if not isinstance(raw, list):
@@ -64,6 +69,10 @@ def _read_fragment_entry(entry: dict[str, Any], place: ConfigPlace) -> FragmentC
     description = _optional_str(entry, "description", place)
     required = _read_bool_setting(entry, "required", False, place)
     sha256 = _optional_str(entry, "sha256", place)
+    if sha256 is not None:
+        if _SHA256_RE.fullmatch(sha256) is None:
+            raise config_invalid(place.at("sha256"), "sha-256", got=sha256)
+        sha256 = sha256.lower()
     link_key = "link-to-main" if "link-to-main" in entry else "link_to_main"
     link_to_main = _optional_str(entry, link_key, place)
     return FragmentConfig(

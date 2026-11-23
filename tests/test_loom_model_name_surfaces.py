@@ -53,8 +53,8 @@ id-registry = "{_REGISTRY}"
 _INIT = b'"""Demo."""\n'
 _FRAGMENT_TABLE = f'\n[tool.pitloom.fragment]\nfiles = ["{_FRAGMENT}"]\n'
 _INFO = (
-    "INFO: Merge: 'name' on ai_AIPackage {id}: keeping the fragment's "
-    f"'{_LOOMED}', dropping the project's 'tiny'."
+    "INFO: Merge: ELEMENT={id}: name replaced by the one the fragments agree "
+    f"on; kept '{_LOOMED}', dropped 'tiny' [generated-value-conflict]"
 )
 
 
@@ -240,5 +240,7 @@ def test_loom_merge_keeps_the_earlier_fragment_name(
     merged = (tmp_path / "merged.json").read_text(encoding="utf-8")
     assert list(_models(merged)) == [kept]
     (line,) = _merge_lines(capsys.readouterr().err)
-    assert line.startswith("WARNING: Merge: conflicting 'name' on ai_AIPackage")
-    assert line.endswith(f"keeping {kept!r}, dropping {dropped!r}.")
+    assert line.startswith("WARNING: Merge: ELEMENT=")
+    assert line.endswith(
+        f": name differs; kept {kept!r}, dropped {dropped!r} [fragment-conflict]"
+    )

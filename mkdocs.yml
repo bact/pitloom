@@ -68,6 +68,7 @@ nav:
           - ID registry: message-codes-id-registry.md
           - ID registry ids and keys: message-codes-id-registry-ids.md
           - Licences: message-codes-licences.md
+          - SBOM fragments: message-codes-fragments.md
           - Values: message-codes-values.md
       - Resources: resources.md
 

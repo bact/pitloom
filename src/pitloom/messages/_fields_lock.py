@@ -24,10 +24,15 @@ from collections.abc import Mapping
 from types import MappingProxyType
 from typing import Final
 
-from pitloom.logging_config import excerpt
+from pitloom.logging_config import EXCERPT_CHARS, excerpt, one_line
 from pitloom.messages._field_tables import LOCK_KEYS, SOURCE_KINDS, VALUE_TYPES
 from pitloom.messages._field_type import Field
-from pitloom.messages._field_writers import free_text, plain_text, whole
+from pitloom.messages._field_writers import (
+    DescribedValue,
+    free_text,
+    plain_text,
+    whole,
+)
 
 #: How a value read from a file is written, for the reference.
 EXCERPT_MEANING: Final = (
@@ -35,12 +40,22 @@ EXCERPT_MEANING: Final = (
     "(`...` after it when cut), in quotes, escaped when it holds a control "
     "character"
 )
+#: How a value merged from SBOM fragments that is not a text is written.
+_DESCRIBED_MEANING: Final = (
+    "a value merged from SBOM fragments that is not a text: an element "
+    "(`ai_AIPackage <spdx-id> 'name'`), a structure (`Hash(algorithm=..., "
+    "hashValue='...')`) or a number, not in quotes"
+)
 
 
 def excerpt_text(value: object) -> str:
     """A value read from a file or a declaration, as
     :func:`~pitloom.logging_config.excerpt` writes it: a string in quotes,
-    any other value (a Poetry table, a missing name's ``None``) its repr."""
+    any other value (a Poetry table, a missing name's ``None``) its repr; a
+    :class:`~pitloom.messages._field_writers.DescribedValue` as it is, not
+    in quotes, on one line, masked and cut alike."""
+    if isinstance(value, DescribedValue):
+        return one_line(str(value), EXCERPT_CHARS, ellipsis=True)
     return excerpt(value)
 
 
@@ -53,11 +68,11 @@ def excerpts_text(value: object) -> str:
         ValueError: It is none of these, or holds anything but text.
     """
     if isinstance(value, str):
-        return excerpt(value)
+        return excerpt_text(value)
     if not isinstance(value, (list, tuple, set, frozenset)):
         raise ValueError(f"not a text or a collection: {value!r}")
     texts = [plain_text(item) for item in value]
-    return ", ".join(excerpt(text) for text in sorted(texts))
+    return ", ".join(excerpt_text(text) for text in sorted(texts))
 
 
 def line_number_text(value: object) -> str:
@@ -123,7 +138,7 @@ LOCK_FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
             excerpts_text,
             "<dropped>",
             "what a conflict left out (versions, a lock file, a value), sorted, "
-            f"comma-separated, each {EXCERPT_MEANING}",
+            f"comma-separated, each {EXCERPT_MEANING}; {_DESCRIBED_MEANING}",
             free=True,
         ),
         "extra_name": Field(
@@ -138,7 +153,7 @@ LOCK_FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
             excerpt_text,
             "<kept>",
             "what a conflict kept (a lock file, a version, a value), "
-            f"{EXCERPT_MEANING}",
+            f"{EXCERPT_MEANING}; {_DESCRIBED_MEANING}",
             free=True,
         ),
         "line_number": Field(

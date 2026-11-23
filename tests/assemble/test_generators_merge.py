@@ -50,8 +50,8 @@ def test_input_errors(
 def test_no_creation_time_anywhere_is_the_epoch_start(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """``created`` is never the current time: with no fragment stating one,
-    it is 1970-01-01, said once."""
+    """``created`` is never the current time: with no fragment stating one
+    (an empty one still merges), it is 1970-01-01, said once."""
     write_fragment(
         tmp_path / "f.json",
         {"@context": "https://spdx.org/rdf/3.0.1/spdx-context.jsonld", "@graph": []},
@@ -60,10 +60,8 @@ def test_no_creation_time_anywhere_is_the_epoch_start(
         graph = json.loads(generate_merged_sbom(tmp_path))["@graph"]
     info = next(e for e in graph if e.get("@id") == _document(graph)["creationInfo"])
     assert info["created"] == "1970-01-01T00:00:00Z"
-    assert [
-        r
-        for r in caplog.records
-        if "no fragment states a creation time" in r.getMessage()
+    assert [getattr(r, "pitloom_code", None) for r in caplog.records] == [
+        "datetime-missing"
     ]
 
 

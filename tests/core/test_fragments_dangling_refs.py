@@ -182,13 +182,46 @@ def test_raise_on_dangling_references_logs_and_raises(
     exporter.add_relationship(rel)
 
     with caplog.at_level(logging.WARNING):
-        with pytest.raises(FragmentMergeError, match="1 dangling reference"):
+        with pytest.raises(
+            FragmentMergeError,
+            match="1 reference\\(s\\) to elements not in the merged document",
+        ) as raised:
             _raise_on_dangling_references(exporter)
 
-    assert len(caplog.records) == 1
-    message = caplog.records[0].getMessage()
-    assert "https://spdx.org/spdxdocs/x-1#Relationship-1" in message
-    assert "https://spdx.org/spdxdocs/x-0#Package-1" in message
+    assert raised.value.pitloom_code == "reference-not-found"
+    assert [r.getMessage() for r in caplog.records] == [
+        "Merge: ELEMENT=https://spdx.org/spdxdocs/x-1#Relationship-1: to names "
+        "https://spdx.org/spdxdocs/x-0#Package-1, which is not in the merged "
+        "document; regenerate the base SBOM, then run the enrichment again"
+    ]
+
+
+@pytest.mark.parametrize("reverse", [False, True], ids=["fwd", "rev"])
+def test_dangling_references_are_said_sorted_whatever_the_order_added(
+    reverse: bool, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Six dangling relationships print in id order, the same lines in any
+    order the objects were added (the graph is a set)."""
+    ci = _creation_info()
+    exporter = Spdx3JsonExporter()
+    exporter.add_creation_info(ci)
+    ids = [f"https://spdx.org/spdxdocs/x-1#Relationship-{n}" for n in range(6)]
+    for spdx_id in reversed(ids) if reverse else ids:
+        exporter.add_relationship(
+            spdx3.Relationship(
+                spdxId=spdx_id,
+                from_="https://spdx.org/spdxdocs/x-1#Package-1",
+                to=["https://spdx.org/spdxdocs/x-0#Package-1"],
+                relationshipType=spdx3.RelationshipType.dependsOn,
+                creationInfo=ci,
+            )
+        )
+    with caplog.at_level(logging.WARNING):
+        with pytest.raises(FragmentMergeError, match="12 reference"):
+            _raise_on_dangling_references(exporter)
+    said = [r.getMessage().split(": ")[1] for r in caplog.records]
+    assert said == sorted(said)
+    assert {m.removeprefix("ELEMENT=") for m in said} == set(ids)
 
 
 def test_find_dangling_references_excludes_declared_external_imports() -> None:
@@ -331,5 +364,8 @@ def test_merging_a_fragment_that_references_an_individual_succeeds(
 def test_merging_a_fragment_with_a_truly_dangling_target_still_raises(
     tmp_path: Path,
 ) -> None:
-    with pytest.raises(FragmentMergeError, match="dangling reference"):
+    with pytest.raises(
+        FragmentMergeError,
+        match="1 reference\\(s\\) to elements not in the merged document",
+    ):
         merged_fragment(tmp_path, f"{_TERMS}/Core/NoSuchIndividual")

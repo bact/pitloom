@@ -71,6 +71,7 @@ from pitloom.messages.metadata import (
     TYPE_ERROR_LINE,
     relay_coded_warning,
 )
+from pitloom.messages.targets import PROJECT_NOT_FOUND, PROJECT_NOT_FOUND_LINE
 from tests._code_records import coded
 from tests._unreadable_path import unreadable
 
@@ -152,10 +153,10 @@ def test_a_quiet_relay_says_nothing(
     assert not caplog.records
 
 
+# The setuptools name lines have twins since PR 15 ('loom fragment list'
+# relays them); project-not-found has none (see test_metadata_fragment_relay).
 _TWINLESS = [
-    CodedFileNotFoundError(PROJECT_NAME_MISSING, line=SETUPTOOLS_NAME_LINE, dir=_FILE),
-    CodedValueError(PROJECT_NAME_MISSING, line=SETUP_CFG_NAME_LINE, file=_FILE),
-    CodedValueError(PROJECT_NAME_MISSING, line=SETUP_PY_NAME_LINE, file=_FILE),
+    CodedFileNotFoundError(PROJECT_NOT_FOUND, line=PROJECT_NOT_FOUND_LINE, path=_FILE),
     ValueError("not coded"),
     RuntimeError("not coded"),
 ]
@@ -165,7 +166,7 @@ _TWINLESS = [
 @pytest.mark.parametrize(
     "exc",
     _TWINLESS,
-    ids=["setuptools-name", "cfg-name", "py-name", "uncoded-value", "uncoded-runtime"],
+    ids=["project-not-found", "uncoded-value", "uncoded-runtime"],
 )
 def test_a_relay_without_a_twin_is_an_internal_error_even_when_quiet(
     exc: BaseException, quiet: bool, caplog: pytest.LogCaptureFixture

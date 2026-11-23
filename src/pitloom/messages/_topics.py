@@ -48,6 +48,7 @@ TOPIC_TITLES: Final[Mapping[str, str]] = MappingProxyType(
         "id-registry": "ID registry",
         "id-registry-ids": "ID registry ids and keys",
         "licences": "Licences",
+        "fragments": "SBOM fragments",
     }
 )
 
@@ -206,6 +207,19 @@ _TOPIC_FAMILIES: Final[Mapping[str, tuple[str, ...]]] = MappingProxyType(
             "license-expression-invalid",
             "license-expression-malformed",
             "license-relationship-invalid",
+        ),
+        "fragments": (
+            "datetime-missing",
+            "fragment-conflict",
+            "fragment-digest-invalid",
+            "fragment-hash-conflict",
+            "fragment-id-conflict",
+            "fragment-invalid",
+            "fragment-missing",
+            "fragment-unreadable",
+            "fragment-unusable",
+            "generated-value-conflict",
+            "reference-not-found",
         ),
     }
 )
