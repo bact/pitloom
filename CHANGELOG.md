@@ -30,7 +30,7 @@ and this project adheres to
   fragment, wheel, embedded SBOM and `loom env` messages carry a message code,
   and a configuration error names the file; see `docs/message-codes.md`
   ([#482], [#485], [#486], [#492], [#496], [#497], [#498], [#501], [#503], [#506],
-  [#508], [#511], [#513], [#515], [#520])
+  [#508], [#511], [#513], [#515], [#524])
 - A credential in an SBOM URL field is warned of; `url-credentials = "refuse"`
   or `--refuse-url-credentials` refuse the SBOM ([#489], [#490])
 - `embed-wheel --sbom` (every string) and `merge` check an SBOM for such
@@ -131,13 +131,13 @@ and this project adheres to
 - A GGUF header over a bound is read in part: one `[over-cap]` `WARNING:`,
   annotation `truncated`, a cut array's length `Evidence: declared` ([#517])
 - `ProvenanceConfig` and `PitloomConfig.provenance` refuse a bad format, schema,
-  detail or `preserve_source_metadata` when built ([#520])
+  detail or `preserve_source_metadata` when built ([#524])
 - An unknown `[tool.pitloom.provenance] schema` is `config-invalid`; a
-  namespace error puts the value last ([#520])
+  namespace error puts the value last ([#524])
 - An exception from an enricher fails the run instead of being skipped; a
-  fickling stderr line reads `fickling: <text>` ([#520])
+  fickling stderr line reads `fickling: <text>` ([#524])
 - An embed's refused write of the wheel or `-o` copy is a coded `OSError`
-  (`file-unwritable`) naming that file ([#520])
+  (`file-unwritable`) naming that file ([#524])
 
 ### Fixed
 
@@ -206,7 +206,7 @@ and this project adheres to
 [#513]: https://github.com/bact/pitloom/pull/513
 [#515]: https://github.com/bact/pitloom/pull/515
 [#517]: https://github.com/bact/pitloom/pull/517
-[#520]: https://github.com/bact/pitloom/pull/520
+[#524]: https://github.com/bact/pitloom/pull/524
 
 ## [0.24.0] - 2026-11-11
 
