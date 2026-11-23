@@ -87,6 +87,7 @@ Python type; the Action's 15 shell annotations (a roadmap item).
    cases; no schema change. A 26,992-test run against 0.9.1 showed no
    behaviour regression. T14 (per-operand licence provenance) and option G's
    code stage stay deferred (they wait on the taxonomy and `--provenance`).
+   Ruling (user, 2026-11-23): the upgrade is the pin only.
 7. **0.25.0 cut** (user): raise the skills' floor, `plugin.json`,
    `__about__.py`; the paper re-run follows.
 8. **Rescan** (section 4), fixes in follow-up PRs; wording renames before the
