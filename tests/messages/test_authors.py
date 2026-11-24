@@ -21,13 +21,18 @@ import re
 import pytest
 
 from pitloom.core.internal_error import InternalError
+from pitloom.extract.authors import AUTHOR_KEYS as extract_author_keys
 from pitloom.logging_config import CODE_ATTR, EXCERPT_CHARS
 from pitloom.messages import trusted_message
+from pitloom.messages._config import CONFIG_MALFORMED
 from pitloom.messages._field_writers import NAME_CHARACTERS
 from pitloom.messages._fields_authors import AUTHOR_FIELDS
+from pitloom.messages._file_unreadable import FILE_UNREADABLE_NOT_UTF8
+from pitloom.messages._types import Message
 from pitloom.messages.authors import (
     ADDRESS_SPLIT_LINE,
     AUTHOR_AMBIGUOUS,
+    AUTHOR_FIELD_KEYS,
     AUTHOR_INVALID,
     DEPENDENCY_ADDRESS_SPLIT_LINE,
     DEPENDENCY_NAME_SPLIT_LINE,
@@ -281,3 +286,22 @@ def test_a_key_or_count_writer_writes_its_pattern(
     field = AUTHOR_FIELDS[name]
     assert field.write(value) == text
     assert re.fullmatch(field.pattern, text)
+
+
+def test_every_key_a_project_reads_can_be_named_by_a_line() -> None:
+    """The project route's keys are a subset of the keys a line may name,
+    the dependency route's ``MAINTAINER`` pair included."""
+    assert set(extract_author_keys) <= set(AUTHOR_FIELD_KEYS)
+    assert {"MAINTAINER", "MAINTAINER_EMAIL"} <= set(AUTHOR_FIELD_KEYS)
+
+
+@pytest.mark.parametrize(
+    "entry",
+    [CONFIG_MALFORMED, FILE_UNREADABLE_NOT_UTF8],
+    ids=["config-malformed", "not-utf8"],
+)
+def test_an_authors_only_pyproject_read_names_its_consequence(entry: Message) -> None:
+    """An sdist's pyproject.toml read only for its declared authors, when it
+    cannot be read, leaves the authors to PKG-INFO: the entry says so, not
+    that the project loses its fields."""
+    assert "declared authors" in entry.did and "PKG-INFO" in entry.did

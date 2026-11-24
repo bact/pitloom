@@ -35,13 +35,13 @@ from pitloom.messages._authors_say import (
     warn_not_addresses,
     warn_project_unreadable,
 )
-from pitloom.messages._fields_authors import AUTHOR_KEYS, authors_text
+from pitloom.messages._fields_authors import AUTHOR_FIELD_KEYS, authors_text
 
 __all__ = [
     "ADDRESS_SPLIT_LINE",
     "AUTHOR_AMBIGUOUS",
     "AUTHOR_INVALID",
-    "AUTHOR_KEYS",
+    "AUTHOR_FIELD_KEYS",
     "DEPENDENCY_ADDRESS_SPLIT_LINE",
     "DEPENDENCY_NAME_SPLIT_LINE",
     "EMAIL_INVALID_COUNT_LINE",

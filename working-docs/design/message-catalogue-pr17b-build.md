@@ -108,6 +108,23 @@ PR number #527 is a guess until the PR is opened.
   `FILE=...: could not read for the model hash; File name too long
   [file-unreadable]` line (probed).
 
+## 5b. Post-PR review fixes (PR 527 review, 2026-11-24)
+
+- `config-malformed` and `file-unreadable/not-utf8` say what an sdist
+  `pyproject.toml` read only for its declared authors costs (authors from
+  `PKG-INFO`, order lost), not "no fields".
+- A non-text `input_datasets` item is shown as `a value of type X`, never
+  `str()` of it (it may raise or be huge).
+- The messages' author keys are `AUTHOR_FIELD_KEYS` (four), apart from
+  `pitloom.extract.authors.AUTHOR_KEYS` (the project route's two); a test
+  pins the subset.
+- The registry variants of the model lines read `loom model ...`, so a
+  reader can tell a loom call; the two prefixes stay (the registry frame
+  matches `ID registry: `).
+- `local-model` expectation names no library function (test pins it).
+- Author split lines by a `(dependency, named)` table; `entity` and
+  `package` share `cut_and_escaped`.
+
 ## 6. Lessons
 
 - A fail-on-base run in this repository needs `-o pythonpath=`: the

@@ -245,8 +245,8 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
 
   ```text
   WARNING: ID registry: <kind> <entity>: the entry records a SHA-256 but no content was hashed; minting a new spdxId [registry-hash-missing]
-  WARNING: ID registry: model <entity> has no path=; looked up ungated: not hashed [registry-hash-missing]
-  WARNING: ID registry: model <entity>: path= '<path>' is not a file at exit; looked up ungated: not hashed [registry-hash-missing]
+  WARNING: ID registry: loom model <entity> has no path=; looked up ungated: not hashed [registry-hash-missing]
+  WARNING: ID registry: loom model <entity>: path= '<path>' is not a file at exit; looked up ungated: not hashed [registry-hash-missing]
   INFO: ID registry: dataset <entity> looked up ungated: not hashed [registry-hash-missing]
   INFO: ID registry: dataset <entity> matched a pin without SHA-256; content not checked [registry-hash-missing]
   INFO: ID registry: dataset <entity> pinned without SHA-256: <why> [registry-hash-missing]

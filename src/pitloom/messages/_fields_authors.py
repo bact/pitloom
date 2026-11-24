@@ -29,9 +29,12 @@ from pitloom.messages._field_writers import plain_text, whole
 #: The fields an ``authors`` value shows before ``...``.
 SHOWN_FIELDS: Final = 3
 
-#: The keys an author field is named by, as the lines spell them: a core
+#: Every key an author field is named by, as the lines spell them: a core
 #: metadata field (or a dependency record's) in upper case, ``-`` as ``_``.
-AUTHOR_KEYS: Final = ("AUTHOR", "AUTHOR_EMAIL", "MAINTAINER", "MAINTAINER_EMAIL")
+#: A project's own lines name only the first two
+#: (:data:`pitloom.extract.authors.AUTHOR_KEYS`); a dependency's may name the
+#: ``MAINTAINER`` pair too.
+AUTHOR_FIELD_KEYS: Final = ("AUTHOR", "AUTHOR_EMAIL", "MAINTAINER", "MAINTAINER_EMAIL")
 
 
 def authors_text(value: object) -> str:
@@ -55,12 +58,12 @@ def authors_text(value: object) -> str:
 
 
 def author_key_text(value: object) -> str:
-    """One of :data:`AUTHOR_KEYS`.
+    """One of :data:`AUTHOR_FIELD_KEYS`.
 
     Raises:
         ValueError: It is not.
     """
-    if value not in AUTHOR_KEYS:
+    if value not in AUTHOR_FIELD_KEYS:
         raise ValueError(f"not an author key: {value!r}")
     return plain_text(value)
 
@@ -101,11 +104,11 @@ AUTHOR_FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
             free=True,
         ),
         "author_key": Field(
-            "|".join(AUTHOR_KEYS),
+            "|".join(AUTHOR_FIELD_KEYS),
             author_key_text,
             "<author-key>",
             "the dependency's field the authors were read from: "
-            + ", ".join(f"`{key}`" for key in AUTHOR_KEYS),
+            + ", ".join(f"`{key}`" for key in AUTHOR_FIELD_KEYS),
         ),
         "entry_count": Field(
             _ENTRIES_PATTERN,

@@ -72,14 +72,14 @@ def _registry(project: Path) -> Path:
         (
             True,
             "gone.pt",
-            "WARNING: ID registry: model m: path= 'gone.pt' is not a file at exit; "
-            "looked up ungated: not hashed [registry-hash-missing]",
+            "WARNING: ID registry: loom model m: path= 'gone.pt' is not a file at "
+            "exit; looked up ungated: not hashed [registry-hash-missing]",
             "registry-hash-missing",
         ),
         (
             True,
             None,
-            "WARNING: ID registry: model m has no path=; looked up ungated: not "
+            "WARNING: ID registry: loom model m has no path=; looked up ungated: not "
             "hashed [registry-hash-missing]",
             "registry-hash-missing",
         ),
@@ -136,6 +136,33 @@ def test_an_output_naming_an_undeclared_input_is_coded(
     assert line.startswith("WARNING: loom SDK: add_output_dataset('out\\nWARNING: x')")
     assert "input_datasets='https://***:***@h/x'" in line and _SECRET not in line
     assert trusted_message(line) is not None
+
+
+class _Exploding:
+    """An input name whose text cannot be made."""
+
+    def __str__(self) -> str:
+        raise RuntimeError("no text")
+
+
+def test_an_input_name_of_another_type_is_shown_by_its_type(
+    project: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Never ``str()`` of a caller's value: it may raise or be huge; two
+    different values of one type read alike, and the run still writes."""
+    with caplog.at_level(logging.WARNING, logger="pitloom"):
+        with loom.run(project / "out.json"):
+            loom.add_input_dataset("a.txt")
+            loom.add_output_dataset(
+                "o",
+                input_datasets=[_Exploding(), 5, "5"],  # type: ignore[list-item]
+            )
+    lines = [line for line, _ in _coded(caplog)]
+    assert len(lines) == 3
+    assert "input_datasets='a value of type _Exploding'" in lines[0]
+    assert "input_datasets='a value of type int'" in lines[1]
+    assert "input_datasets='5'" in lines[2]
+    assert (project / "out.json").exists()
 
 
 @pytest.mark.parametrize(

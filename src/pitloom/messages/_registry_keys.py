@@ -41,13 +41,13 @@ UNHASHED_LINE: Final = _line(
 )
 #: A loom model declared without ``path=``, a registry loaded.
 MODEL_NO_PATH_LINE: Final = _line(
-    "WARNING", "model %(entity)s has no path=; looked up ungated: not hashed"
+    "WARNING", "loom model %(entity)s has no path=; looked up ungated: not hashed"
 )
 #: A loom model whose ``path=`` is no regular file at run exit, a registry
 #: loaded (with none, ``model-file-missing``).
 MODEL_NOT_A_FILE_LINE: Final = _line(
     "WARNING",
-    "model %(entity)s: path= %(path)s is not a file at exit; looked up "
+    "loom model %(entity)s: path= %(path)s is not a file at exit; looked up "
     "ungated: not hashed",
 )
 #: A dataset looked up with no hash.

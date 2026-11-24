@@ -387,15 +387,20 @@ class _ActiveRun:
         for wanted_name in wanted_names:
             input_id = input_ids_by_name.get(wanted_name)
             if input_id is None:
-                # An untyped caller may name an input by any value: shown as
-                # text, ``None`` as Python shows it.
+                # An untyped caller may name an input by any value: a text
+                # as given, ``None`` as Python shows it, any other value by
+                # its type (never ``str()`` of it: that may raise or be huge).
                 given: object = wanted_name
                 emit(
                     log,
                     REFERENCE_NOT_FOUND_DATASET,
                     logging.WARNING,
                     dataset=output_ds_name,
-                    dataset_input=None if given is None else str(given),
+                    dataset_input=(
+                        given
+                        if given is None or isinstance(given, str)
+                        else f"a value of type {type(given).__name__}"
+                    ),
                 )
                 continue
             input_ids.append(input_id)

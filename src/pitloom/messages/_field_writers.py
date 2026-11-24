@@ -167,6 +167,13 @@ def cut_name(text: str) -> str:
     return cut_masked(masked(text), NAME_CHARACTERS)
 
 
+def cut_and_escaped(masked_text: str) -> str:
+    """*masked_text*, already :func:`masked`, cut to :data:`NAME_CHARACTERS`
+    characters (:func:`cut_masked`), then escaped when it holds a control
+    character: the last two steps every cut name writer shares."""
+    return loggable(cut_masked(masked_text, NAME_CHARACTERS))
+
+
 def quoted_name_text(value: object) -> str:
     """A name in quotes (:func:`quoted_text`), masked and cut first
     (:func:`cut_name`), the mark inside the quotes."""
@@ -182,7 +189,7 @@ def free_name_text(value: object) -> str:
     """A name as free text (:func:`free_text`), masked and cut first
     (:func:`cut_name`): a package name read from a file can be as long as
     the file."""
-    return loggable(cut_name(plain_text(value)))
+    return cut_and_escaped(masked(plain_text(value)))
 
 
 def failure_text(value: object) -> str:
@@ -241,8 +248,7 @@ def cut_entity_text(value: object) -> str:
     Raises:
         ValueError: It is not a ``str``.
     """
-    masked_value = given_path_text(plain_text(value))
-    return loggable(cut_masked(masked_value, NAME_CHARACTERS))
+    return cut_and_escaped(given_path_text(plain_text(value)))
 
 
 def entities_text(value: object) -> str:

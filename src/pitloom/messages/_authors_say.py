@@ -43,6 +43,16 @@ _INVALID_LINES = {
 }
 
 
+#: The ``author-ambiguous`` split lines by whether the field is a
+#: dependency's and whether it is a name field.
+_SPLIT_LINES = {
+    (False, True): NAME_SPLIT_LINE,
+    (False, False): ADDRESS_SPLIT_LINE,
+    (True, True): DEPENDENCY_NAME_SPLIT_LINE,
+    (True, False): DEPENDENCY_ADDRESS_SPLIT_LINE,
+}
+
+
 def warn_author_split(
     log: logging.Logger, fields: Sequence[str], entries: int, *, named: bool
 ) -> None:
@@ -54,7 +64,7 @@ def warn_author_split(
         log,
         AUTHOR_AMBIGUOUS,
         logging.WARNING,
-        line=NAME_SPLIT_LINE if named else ADDRESS_SPLIT_LINE,
+        line=_SPLIT_LINES[(False, named)],
         authors=list(fields),
         entry_count=entries,
     )
@@ -86,7 +96,7 @@ def warn_dependency_split(
         log,
         AUTHOR_AMBIGUOUS,
         logging.WARNING,
-        line=DEPENDENCY_NAME_SPLIT_LINE if named else DEPENDENCY_ADDRESS_SPLIT_LINE,
+        line=_SPLIT_LINES[(True, named)],
         package=package,
         author_key=key,
         authors=field,
