@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-03
-Last-Modified: 2026-11-23
+Last-Modified: 2026-11-24
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -11,7 +11,7 @@ SPDX-License-Identifier: CC0-1.0
 See also: [README.md](README.md) (index of these notes),
 [platform-and-toolchain.md](platform-and-toolchain.md) (section 3, the
 first test-harness items),
-[recurring-bug-patterns-platform.md](../recurring-bug-patterns-platform.md),
+[recurring-bug-patterns-test-harness.md](../recurring-bug-patterns-test-harness.md),
 [testing-ci-followups.md](../../design/testing-ci-followups.md).
 
 Ways a test passes, fails or floods the log for the wrong reason.
@@ -46,7 +46,7 @@ Ways a test passes, fails or floods the log for the wrong reason.
   deep-JSON fixture gave about 1 MB node ids and 4.0 MB of `-v` CI output
   for one file, 25 KB after adding `id=` (#270). On Windows a long id also
   fails setup, via the 32,767-character `PYTEST_CURRENT_TEST`; see
-  [recurring-bug-patterns-platform.md](../recurring-bug-patterns-platform.md)
+  [recurring-bug-patterns-test-harness.md](../recurring-bug-patterns-test-harness.md)
   (#276).
   Do: give every large or generated parameter an explicit short `id=`.
 - **`tracemalloc.start()` is a no-op when tracing is already on.** Under

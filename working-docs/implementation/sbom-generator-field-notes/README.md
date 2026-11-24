@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-02
-Last-Modified: 2026-11-23
+Last-Modified: 2026-11-24
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -13,7 +13,8 @@ See also:
 (the AI-model half of the same paper notes: hostile model files, archive
 bombs, Git LFS pointers),
 [recurring-bug-patterns.md](../recurring-bug-patterns.md) and
-[recurring-bug-patterns-platform.md](../recurring-bug-patterns-platform.md)
+[recurring-bug-patterns-platform.md](../recurring-bug-patterns-platform.md) and
+[recurring-bug-patterns-test-harness.md](../recurring-bug-patterns-test-harness.md)
 (the full war stories behind many items here).
 
 Small, concrete, non-obvious details for anyone starting an SBOM

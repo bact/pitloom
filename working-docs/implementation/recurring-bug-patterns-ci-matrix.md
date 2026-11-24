@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-10
-Last-Modified: 2026-11-10
+Last-Modified: 2026-11-24
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -9,7 +9,8 @@ SPDX-License-Identifier: CC0-1.0
 # Recurring bug patterns: what the CI matrix shows and a local run does not (from PR #464)
 
 See also: [recurring-bug-patterns-platform.md](recurring-bug-patterns-platform.md)
-(the main platform and CI list, at its size limit),
+(the main platform and CI list; test-harness items are in
+[recurring-bug-patterns-test-harness.md](recurring-bug-patterns-test-harness.md)),
 [recurring-bug-patterns-platform-windows.md](recurring-bug-patterns-platform-windows.md)
 (Windows-only findings), [recurring-bug-patterns.md](recurring-bug-patterns.md),
 [CLAUDE.md](../../CLAUDE.md) ("Recurring bug patterns" -- the short summary),

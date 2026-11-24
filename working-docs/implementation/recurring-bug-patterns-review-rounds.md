@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-15
-Last-Modified: 2026-11-06
+Last-Modified: 2026-11-24
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -11,6 +11,7 @@ SPDX-License-Identifier: CC0-1.0
 See also: [recurring-bug-patterns.md](recurring-bug-patterns.md) (the main
 list; split here for size),
 [recurring-bug-patterns-platform.md](recurring-bug-patterns-platform.md),
+[recurring-bug-patterns-test-harness.md](recurring-bug-patterns-test-harness.md),
 [AGENTS.md](../../AGENTS.md) ("Recurring bug patterns", the one-line summaries).
 
 ## From PR #300 (extras, authors, copyright on every route)
