@@ -53,6 +53,8 @@ _JWT = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.sIg_-x9"
             "Bearer%20abcd%2Fefgh%2B12", "Bearer%20***", id="percent-encoded-run"
         ),
         pytest.param("Basic dXNlcjpw%3D%3D", "Basic ***", id="percent-encoded-pad"),
+        pytest.param("Basic dXNlcjpw+YXNzd29y", "Basic ***", id="basic-plus"),
+        pytest.param("Basic dXNlcjpw/YXNzd29y", "Basic ***", id="basic-slash"),
         pytest.param("x:Bearer  abcd1234", "x:Bearer  ***", id="two-spaces"),
         pytest.param("Bearer eyJh.eyJz.", "Bearer ***.", id="dot-kept"),
         pytest.param(
@@ -82,8 +84,29 @@ def test_the_credential_after_a_scheme_word_is_masked(text: str, shown: str) -> 
         "Bearer\ns3cr3tvalue99",
         "Bearer\r\ns3cr3tvalue99",
         "Basic\x0bdXNlcjpwYXNz",
+        "Bearer\x1cs3cr3tvalue99",
+        "Bearer\x85s3cr3tvalue99",
+        "Bearer\u2028s3cr3tvalue99",
+        "Bearer\u3000s3cr3tvalue99",
+        "Authorization: token\tabcdefghij",
+        "Authorization: token\xa0abcdefghij",
     ],
-    ids=["header", "bearer", "basic", "nbsp", "header-nbsp", "lf", "crlf", "vt"],
+    ids=[
+        "header",
+        "bearer",
+        "basic",
+        "nbsp",
+        "header-nbsp",
+        "lf",
+        "crlf",
+        "vt",
+        "fs",
+        "nel",
+        "ls",
+        "ideographic",
+        "token-tab",
+        "token-nbsp",
+    ],
 )
 def test_an_escaped_separator_once_or_doubled_is_a_separator(raw: str) -> None:
     """A tab, a no-break space or a line break after the scheme, escaped once
@@ -175,6 +198,61 @@ def test_an_escaped_separator_once_or_doubled_is_a_separator(raw: str) -> None:
             'Authorization: Digest response=\\"abc123\\"',
             'Authorization: Digest response=\\"***\\"',
             id="digest-escaped-quote",
+        ),
+        pytest.param(
+            'Authorization: Digest response = "abc123"',
+            'Authorization: Digest response = "***"',
+            id="digest-spaced-equals",
+        ),
+        pytest.param(
+            "Authorization: Digest response=abc123 qop=auth",
+            "Authorization: Digest response=*** qop=auth",
+            id="digest-unquoted-stops-at-space",
+        ),
+        pytest.param(
+            'Authorization: Digest response=\\\\\\"abc123\\\\\\"',
+            'Authorization: Digest response=\\\\\\"***\\\\\\"',
+            id="digest-twice-escaped-quote",
+        ),
+        pytest.param(
+            "Authorization: Bearer abcdefgh%2zz",
+            "Authorization: Bearer ***%2zz",
+            id="percent-needs-two-hex",
+        ),
+        pytest.param(
+            "Authorization: token\xa0abcdefghij",
+            "Authorization: token\xa0***",
+            id="token-nbsp",
+        ),
+        pytest.param(
+            "Authorization: abcd!1234efgh", "Authorization: ***", id="no-scheme-bang"
+        ),
+        pytest.param(
+            "Authorization: abcd$1234efgh", "Authorization: ***", id="no-scheme-dollar"
+        ),
+        pytest.param(
+            "Authorization: abcd.1234efgh", "Authorization: ***", id="no-scheme-dot"
+        ),
+        pytest.param(
+            "Authorization: abcd~1234efgh", "Authorization: ***", id="no-scheme-tilde"
+        ),
+        pytest.param(
+            "Authorization: abcd+1234efgh", "Authorization: ***", id="no-scheme-plus"
+        ),
+        pytest.param(
+            "Authorization: Negotiate YIIGhgYGKwYBBQUC.",
+            "Authorization: Negotiate ***.",
+            id="unknown-scheme-dot-kept",
+        ),
+        pytest.param(
+            "Authorization: sk-live-abcdefgh12345678.",
+            "Authorization: ***.",
+            id="no-scheme-dot-kept",
+        ),
+        pytest.param(
+            "Bearer s3cr3tvalue99 then Authorization: Bearer abcdefghij",
+            "Bearer *** then Authorization: Bearer ***",
+            id="scheme-word-before-header",
         ),
         pytest.param(
             "Authorization: Digest response=Bearer%20s3cr3t99x~/:abc, x=1",
@@ -335,3 +413,16 @@ def test_a_digest_header_is_read_up_to_the_next_header_only(
     text = "Authorization: Digest a=1, " * 200 + 'response="r1"'
     assert _auth_schemes.mask_auth_schemes(text).endswith('response="***"')
     assert len(searched) == 200 and sum(searched) <= len(text)
+
+
+def test_a_basic_credential_is_decoded_before_the_base64_test() -> None:
+    """``%3D`` is ``=``: this pass alone reads the run as base64 (other
+    masking rules also see the text through ``masked_text``)."""
+    assert _auth_schemes.mask_auth_schemes("Basic dXNlcjpw%3D%3D") == "Basic ***"
+
+
+def test_a_value_with_no_separator_is_no_parameter_list() -> None:
+    """A parameter is looked for after a scheme and its separators only
+    (this pass alone: another rule masks ``signature=`` anywhere)."""
+    text = "Authorization: Foo;signature=ok"
+    assert _auth_schemes.mask_auth_schemes(text) == text

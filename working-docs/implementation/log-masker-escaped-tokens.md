@@ -267,6 +267,23 @@ headers): all under the bound.
   words (`t5-small`, `eCommerceSite`) and the missed ones (`passw0rd`,
   `mySecretPassword`). F8: this file's date. F9: the spy test patches
   `_SECRET_PARAM`, which it still names.
+- Mutation pass after the third review (166 mutants of `_auth_schemes.py`
+  and `excerpt()`: AST operators plus regex edits): 131 killed at first, 35
+  survived. 24 were test gaps, now killed by new cases (a `Basic` value with
+  `+` or `/`, `response = "x"` spaced, an unquoted `response=` that stops at
+  a space, a thrice-escaped quote, `%2zz` after a run, `.` after an unknown
+  scheme or a scheme-less value, a scheme word before a header, raw
+  no-break space after `token`, the escapes `\x1c`, `\x85`, `\u2028`,
+  `\u3000`, the tchar `! $ . ~ +` in a scheme-less value, the second mask
+  of `excerpt()`, `unquote` and the no-separator rule, each tested on
+  `mask_auth_schemes` alone because another rule masks the same text
+  through `masked_text`). 11 are equivalent: `return False` to `None`
+  (3), `line_end < 0` to `<= 0` (the search starts after the header, so
+  never 0), `start <= done` to `<` (spans never touch: a separator lies
+  between), dropping the early return when nothing is masked, `{2}` to `{1}`
+  hex digits in the credential mark (the run already needs two), the
+  scheme-less test with the scheme name (never `basic` there), and one
+  malformed mutant.
 - About 50 call sites still escape before the formatter masks:
   `log.warning(..., loggable(x))` across `extract/`, `core/`, `assemble/`
   (`grep -rn "loggable(" src/pitloom`), and the free-field writers

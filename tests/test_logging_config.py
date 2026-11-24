@@ -298,6 +298,12 @@ def test_excerpt_masks_a_scheme_credential_split_by_a_line_break(raw: str) -> No
     assert excerpt(raw) == "'Bearer ***'"
 
 
+def test_excerpt_masks_a_header_value_moved_up_by_the_collapse() -> None:
+    """A header's own separators hold no line break: the value reads as one
+    only once the line break is a space, so it is masked after collapsing."""
+    assert excerpt("Authorization: Bearer\nabc") == "'Authorization: Bearer ***'"
+
+
 @pytest.mark.parametrize(
     ("text", "escaped"),
     [
