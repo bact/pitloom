@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-15
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-24
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -11,6 +11,7 @@ SPDX-License-Identifier: CC0-1.0
 See also: [AGENTS.md](../../AGENTS.md) (the compact rules, which link here),
 [recurring-bug-patterns.md](recurring-bug-patterns.md),
 [recurring-bug-patterns-platform.md](recurring-bug-patterns-platform.md),
+[recurring-bug-patterns-test-harness.md](recurring-bug-patterns-test-harness.md),
 [recurring-bug-patterns-review-rounds.md](recurring-bug-patterns-review-rounds.md)
 (the detail behind the bug-pattern one-liners).
 

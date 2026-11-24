@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-09
-Last-Modified: 2026-11-06
+Last-Modified: 2026-11-24
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -11,7 +11,7 @@ SPDX-License-Identifier: CC0-1.0
 See also: [ci-install-composite-action.md](ci-install-composite-action.md)
 (the uv install switch, its cache and interpreter decisions),
 [windows-macos-ci.md](windows-macos-ci.md) (the matrix),
-[recurring-bug-patterns-platform.md](recurring-bug-patterns-platform.md)
+[recurring-bug-patterns-test-harness.md](recurring-bug-patterns-test-harness.md)
 (the env leak `worksteal` exposed),
 [testing-ci-followups.md](../design/testing-ci-followups.md) (open items).
 
