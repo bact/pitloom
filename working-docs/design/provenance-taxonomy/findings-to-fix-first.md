@@ -208,9 +208,9 @@ model; every line it quoted that is named here was then read.
 
 | # | Finding | Seen | On `main` |
 | --- | --- | --- | --- |
-| PIT-1 | **Provenance segments built by hand.** About 75 f-strings and suffix constants write ` \| Field: ...` or ` \| Method: ...` without `provenance_segment`, most in `extract/ai_model/`. The lint test (`tests/test_provenance_builders_lint.py`) allows it: it is strict for every key but `Field:` and `Method:`, and for those two it refuses only an interpolated name that looks external (`entry`, `path`, `url`, `name` and the like). So no test shows that a value put into such a segment holds no `\|` (one would forge a segment). Three interpolations were traced (Safetensors, CRFsuite): each comes from a fixed list. To do: trace the rest, send all through the builders, then make the test strict for the two keys | read on `main` dd31412b, 2026-11-23: the lint test in full; three values traced, the rest not | no |
+| PIT-1 | **Provenance segments built by hand.** About 75 f-strings and suffix constants write ` \| Field: ...` or ` \| Method: ...` without `provenance_segment`, most in `extract/ai_model/`. The lint test (`tests/test_provenance_builders_lint.py`) allows it: it is strict for every key but `Field:` and `Method:`, and for those two it refuses only an interpolated name that looks external (`entry`, `path`, `url`, `name` and the like). So no test shows that a value put into such a segment holds no `\|` (one would forge a segment). Three interpolations were traced (Safetensors, CRFsuite): each comes from a fixed list. One hand-written string feeds the document id (PIT-3): the `poetry.lock` provenance at `extract/project/pyproject.py:358`. To do: trace the rest, send all through the builders, then make the test strict for the two keys | read on `main` dd31412b, 2026-11-23: the lint test in full; three values traced, the rest not. The `pyproject.py` site read on `main` 6cb6183f, 2026-11-24 | no |
 | PIT-2 | **Provenance strings used as data.** Five sites compare or parse one again (`_setuptools_options.py`, `_optional_dependencies.py`, `_setuptools_dynamic.py`, `lock/cascade.py`, `scanner.py`). A change of wording changes behaviour. Carry a typed value beside the string | read at the base | no |
-| PIT-3 | **The document id hangs on a provenance string.** The provenance of `locked_dependencies` is hashed into the document UUID, so a reworded label changes every SPDX id of such a document. Seed it by a function of its own that keeps today's text | read at the base; still passed to the document model on `main` | no |
+| PIT-3 | **The document id hangs on a provenance string.** The provenance of `locked_dependencies` is hashed into the document UUID, so a reworded label changes every SPDX id of such a document. The strings that reach the seed are those of the lock cascade (`extract/lock/cascade.py`) and the hand-written `poetry.lock` string of `pyproject.py:358`; `_DEFAULT_LOCKED_PROVENANCE` does not reach it. Today's ids are pinned by tests since 2026-11-24 (`tests/core/test_models.py`, branch `doc-uuid-pin-tests`; the poetry string had no test that a rewording would fail). Left: seed it by a function of its own that keeps today's text | the call from `document.py` and the `pyproject.py` string read on `main` 6cb6183f, 2026-11-24; the cascade's strings and the tests from the session that wrote them, not read here | no |
 
 ### Readers and output
 
@@ -348,15 +348,19 @@ PIT-2 [main for one site, base for four]. Provenance strings used as
   that. Test per site: reword the provenance text in the test, behaviour
   unchanged.
 
-PIT-3 [main]. src/pitloom/core/models.py:190-197 adds
-  "\x00" + locked_dependencies_provenance to the document UUID seed;
-  the default text is `_DEFAULT_LOCKED_PROVENANCE = "Source: lock file |
-  Method: resolved_lockfile"` at assemble/spdx3/deps_installed.py:74.
+PIT-3 [main]. compute_doc_uuid in src/pitloom/core/models.py adds
+  "\x00" + locked_dependencies_provenance to the document UUID seed
+  (called with it from assemble/spdx3/document.py). The strings that
+  reach it: those of the lock cascade (extract/lock/cascade.py) and the
+  hand-written poetry.lock string in extract/project/pyproject.py.
+  `_DEFAULT_LOCKED_PROVENANCE` (assemble/spdx3/deps_installed.py) does
+  NOT reach the seed; it labels installed dependencies only.
   A reworded label would change every SPDX id of such a document.
-  Do: a seed function of its own that returns today's exact text for
-  each case, frozen and commented as an id input. Test: pin the UUID of
-  a fixture for each provenance variant; a second test rewords the
-  label and asserts the same ids.
+  Test half DONE 2026-11-24 (branch doc-uuid-pin-tests): today's ids
+  are pinned per variant in tests/core/test_models.py, the pylock and
+  poetry routes too. Left to do: a seed function of its own that
+  returns today's exact text for each case, frozen and commented as an
+  id input; then a test that rewords a label and asserts the same ids.
 
 PR 3. Licence and embed
 PIT-9 [main]. assemble/spdx3/_provenance_encoders.py:81-89
