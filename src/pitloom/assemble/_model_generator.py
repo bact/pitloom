@@ -39,7 +39,6 @@ from pitloom.core.models import compute_doc_uuid, generate_spdx_id, get_wheel_fi
 from pitloom.core.path_probe import is_missing_errno
 from pitloom.core.project import ProjectMetadata, is_sdist_archive
 from pitloom.core.provenance import ProvenanceConfig
-from pitloom.core.url_masking import sanitize_url
 from pitloom.enrich import run_enrichers
 from pitloom.enrich.base import EnrichmentResult
 from pitloom.extract.model_target import model_path_of, read_model_file
@@ -56,8 +55,8 @@ from pitloom.id_registry import (
     resolve_registry,
 )
 from pitloom.id_registry.import_keys import name_key_reason
-from pitloom.logging_config import configure_logging, loggable
-from pitloom.messages import CodedValueError
+from pitloom.logging_config import configure_logging
+from pitloom.messages import CodedValueError, url_text
 from pitloom.messages.config import Parameter, invalid_value
 from pitloom.messages.files import warn_file_unreadable
 from pitloom.messages.id_registry_ids import info_name_key
@@ -223,7 +222,7 @@ def _refuse_pypi_url(source: Path | str) -> None:
     error = CodedValueError(
         PYPI_URL_UNUSABLE,
         line=MODEL_URL_LINE,
-        url=loggable(sanitize_url(source.strip())),
+        url=url_text(source.strip()),
     )
     log.warning("%s", error)
     raise error

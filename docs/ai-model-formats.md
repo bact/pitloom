@@ -540,6 +540,15 @@ requests, each with a 30-second socket timeout (per connect or read, no total
 deadline), and pass through neither the cap nor the library's `check_url=`,
 which every file download does.
 
+`huggingface_hub` also makes one request of its own, which Pitloom does not
+ask for and does not read: on the first Hub request of a process it asks the
+Hub (`HF_ENDPOINT`, if set) for `/api/agent-harnesses`, a list it uses to tell
+whether an AI coding agent runs it, for its own user agent. It sends no token
+with it, waits 3 seconds at most, and keeps the answer in
+`.agent_harnesses.json` under `HF_HOME` for 24 hours. It is not made with
+`HF_HUB_OFFLINE` set, and `HF_HUB_DISABLE_TELEMETRY=1` stops it for Pitloom's
+requests (seen with `huggingface_hub` 2.2.0 and 2.4.0).
+
 A failed model or dataset information request is one `WARNING:` that says
 what is lost, with the same codes: a request that failed or timed out
 (`download-network-failed`, `download-timeout`), `HF_HUB_OFFLINE`

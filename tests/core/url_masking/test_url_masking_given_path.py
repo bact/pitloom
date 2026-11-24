@@ -390,6 +390,13 @@ _ADVERSARIAL: dict[str, Callable[[int], str]] = {
     "secret-space-chain": lambda n: "'hx:/" + "&token= '@" * (n // 10),
     "skipped-stops": lambda n: "ab:/?a=?token=" * (n // 14) + "&/x@",
     "quote-tails": lambda n: "'ab:/" + "x'." * (n // 3),
+    "escape-runs": lambda n: "\\t" * (n // 2),
+    "escaped-near-tokens": lambda n: ("\\x1bglpat-" + "Ab1" * 6) * (n // 28),
+    "scheme-separators": lambda n: "Bearer" + "\\t" * (n // 2) + "!",
+    "scheme-short-runs": lambda n: "bearer abc\\t" * (n // 12),
+    "scheme-long-run": lambda n: "Bearer " + "aB3" * (n // 3),
+    "header-runs": lambda n: "Authorization: Bearer x " * (n // 24),
+    "header-gaps": lambda n: "authorization" + " " * n + "x",
 }
 
 

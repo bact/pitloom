@@ -15,8 +15,9 @@ See also:
 (the short rule, with the other test harness patterns),
 [testing-and-review-policy.md](testing-and-review-policy.md).
 
-**Status:** fixed by pull request 528, merged 2026-11-24. One matter of
-production behaviour is open (the last section but one).
+**Status:** fixed by pull request 528, merged 2026-11-24. The matter of
+production behaviour it brought up (the last section but one) was ruled on
+2026-11-24 and is PIT-21 of the findings page.
 
 Each fact says how it is known: *run here* (2026-11-24, Python 3.10.18),
 *read here* (the library's source, `huggingface_hub` 2.2.0, in the
@@ -148,7 +149,7 @@ failure and added a workaround to the `hub` fixture of
 one test file of two: the two tests of `test_huggingface_api_timeout.py`
 still failed on demand. Pull request 528 removed it.
 
-## Production behaviour, open
+## Production behaviour (PIT-21, ruled 2026-11-24)
 
 Measured with a loopback server as `HF_ENDPOINT` and no test guard,
 through `pitloom.extract.remote.huggingface_fetch._load_model_info`
@@ -166,9 +167,15 @@ through `pitloom.extract.remote.huggingface_fetch._load_model_info`
 - Pitloom's own requests carry `unknown/None; hf_hub/<version>; ...` as
   user agent (no `library_name` is passed).
 
-Not decided: whether Pitloom switches this off for its own Hub reads,
-says so in the documentation, or leaves it. It is a case of the rule
-that a check on the URL does not cover every client a fetch starts.
+Ruled by the user on 2026-11-24: the documentation says so now
+(`docs/ai-model-formats.md`, with the Hub requests); after the 0.25.0
+cut, the CLI, the build hook and the Action switch it off
+(`HF_HUB_DISABLE_TELEMETRY`), keeping a value the user set, and the
+library API leaves it to the caller. Not taken: an `INFO:` on every
+first Hub read. To read before that change: where the variable has to be
+set (the library reads it when it is imported) and what else the switch
+turns off. It is a case of the rule that a check on the URL does not
+cover every client a fetch starts.
 The tests still make the library try a DNS lookup of the real Hub from
 loopback and unmarked tests; switching telemetry off for the whole
 suite would stop that and was not done.

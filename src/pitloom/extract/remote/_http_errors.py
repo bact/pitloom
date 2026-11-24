@@ -18,14 +18,13 @@ import urllib.error
 from typing import Any
 
 from pitloom.core.internal_error import InternalError
-from pitloom.core.url_masking import sanitize_url
 from pitloom.extract.remote._http_watch import Watch
 from pitloom.extract.remote.errors import RemoteSourceError
-from pitloom.logging_config import loggable
 from pitloom.messages import (
     Line,
     Message,
     emit,
+    url_text,
 )
 from pitloom.messages.files import OVER_CAP
 from pitloom.messages.network import (
@@ -62,8 +61,9 @@ class CutShortError(ConnectionError):
 
 
 def shown_url(url: str) -> str:
-    """*url* as a message writes it: without credentials, escaped."""
-    return loggable(sanitize_url(url))
+    """*url* as a message writes it: without credentials, then escaped
+    (:func:`pitloom.messages.url_text`)."""
+    return url_text(url)
 
 
 def remote_error(

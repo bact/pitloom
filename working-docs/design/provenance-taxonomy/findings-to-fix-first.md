@@ -188,13 +188,29 @@ of this section: PIT-1, PIT-2 (one of its five sites), PIT-3, PIT-4,
 PIT-7, PIT-8, PIT-9 and PIT-12. The prompt gives the file and line of
 each, and marks every other item as read at the base or to check.
 
+### Second look on `main` (2026-11-24, 6cb6183f)
+
+No code was changed and nothing was run: the items the prompt marks
+"base" or "check" were read again. "Agent" is a search by a cheaper
+model; every line it quoted that is named here was then read.
+
+| # | State on `main` | How known |
+| --- | --- | --- |
+| PIT-2 | The five sites stand: `_setuptools_options.py:456` (the whole string compared), `_optional_dependencies.py:60-62`, `_setuptools_dynamic.py:286` and `lock/cascade.py:240-242` (each parses the string again), `scanner.py:218` (a prefix test, to rewrite a copied path). More of the kind, so the work is wider than five sites: `core/evidence.py:223` reads the `Evidence` level back, and the encoders decide from the parsed string (`_provenance_encoders.py:87` and `:95`, `deps_license.py:204`, `_license_elements.py:379`) | agent; the five sites read |
+| PIT-5 | Stands, narrower. With no `sha` the revision is none, and the card, the three config files and the licence files are each fetched at `main` (`huggingface_fetch.py:314-324`, `_hub_files.py:150`), with one `WARNING:` (`hub-revision-unpinned`). When `model_info` fails there is no list of licence files, so none is fetched; when it answers without a `sha` they are. Not read: whether the file reader resolves `main` once | agent; three places read |
+| PIT-6 | Stands. The provenance is `Source: PyPI JSON API \| Package: <name>` (`deps_installed.py:83`, `deps.py:142` and `:150`); the version of the release read is in no segment and is not kept (`info["version"]` is not read). The PyPI URL target does record it (`Method: latest-release` with a `Value`): the same shape would do | agent; the builder read |
+| PIT-9 | The test is unchanged (`_provenance_encoders.py:79-87`, used at `deps_license.py:204`). No reader was found that hands over a licence with no source: the main package, a PyPI dependency, an installed dependency, a model and a dataset each pass a `Source:` or a default. Not traced: fragments and enrichment. The branch may be reachable from outside input only | read |
+| PIT-10 | Out of date for GGUF: since #517 a header over a bound is read in part, the fields read are kept, and one `over-cap` warning says where it stopped (`gguf.py`, `_warn_partial`); tensor shapes are then absent. For NumPy, PyTorch, Safetensors and an archive member, `ModelOverCap` gives a stub (the file and its format) and one warning, not an error (`scanner.py:333-342`). Open: whether the stub's file carries its size and digest, and what a parameter count says then | read, not run |
+| PIT-11 | All three stand: `wheel.py:134`, `:136` and `:151` against `sdist.py:101`, `:105` and `:110`; `huggingface_fetch.py:289-292` and `:378` against `_license.py:93`; `onnx.py:444` against `fasttext.py` and `numpy.py:296` | agent; the lines read |
+| PIT-14 | The sentence on the page is corrected (2026-11-24). The same claim stands in the message catalogue: the summary of `license-conflict` (`messages/_license_expression.py:191`) and the pages generated from it in `docs/` and in two skills. That needs a change of source and the reference generated again | read |
+
 ### Groundwork the code stage needs, with no change of output
 
 | # | Finding | Seen | On `main` |
 | --- | --- | --- | --- |
-| PIT-1 | **Provenance segments built by hand.** About 75 f-strings and suffix constants write ` \| Field: ...` or ` \| Method: ...` without `provenance_segment`, most in `extract/ai_model/`. The lint test (`tests/test_provenance_builders_lint.py`) allows it: it is strict for every key but `Field:` and `Method:`, and for those two it refuses only an interpolated name that looks external (`entry`, `path`, `url`, `name` and the like). So no test shows that a value put into such a segment holds no `\|` (one would forge a segment). Three interpolations were traced (Safetensors, CRFsuite): each comes from a fixed list. To do: trace the rest, send all through the builders, then make the test strict for the two keys | read on `main` dd31412b, 2026-11-23: the lint test in full; three values traced, the rest not | no |
+| PIT-1 | **Provenance segments built by hand.** About 75 f-strings and suffix constants write ` \| Field: ...` or ` \| Method: ...` without `provenance_segment`, most in `extract/ai_model/`. The lint test (`tests/test_provenance_builders_lint.py`) allows it: it is strict for every key but `Field:` and `Method:`, and for those two it refuses only an interpolated name that looks external (`entry`, `path`, `url`, `name` and the like). So no test shows that a value put into such a segment holds no `\|` (one would forge a segment). Three interpolations were traced (Safetensors, CRFsuite): each comes from a fixed list. One hand-written string feeds the document id (PIT-3): the `poetry.lock` provenance at `extract/project/pyproject.py:358`. To do: trace the rest, send all through the builders, then make the test strict for the two keys | read on `main` dd31412b, 2026-11-23: the lint test in full; three values traced, the rest not. The `pyproject.py` site read on `main` 6cb6183f, 2026-11-24 | no |
 | PIT-2 | **Provenance strings used as data.** Five sites compare or parse one again (`_setuptools_options.py`, `_optional_dependencies.py`, `_setuptools_dynamic.py`, `lock/cascade.py`, `scanner.py`). A change of wording changes behaviour. Carry a typed value beside the string | read at the base | no |
-| PIT-3 | **The document id hangs on a provenance string.** The provenance of `locked_dependencies` is hashed into the document UUID, so a reworded label changes every SPDX id of such a document. Seed it by a function of its own that keeps today's text | read at the base; still passed to the document model on `main` | no |
+| PIT-3 | **The document id hangs on a provenance string.** The provenance of `locked_dependencies` is hashed into the document UUID, so a reworded label changes every SPDX id of such a document. The strings that reach the seed are those of the lock cascade (`extract/lock/cascade.py`) and the hand-written `poetry.lock` string of `pyproject.py:358`; `_DEFAULT_LOCKED_PROVENANCE` does not reach it. Today's ids are pinned by tests since 2026-11-24 (`tests/core/test_models.py`, branch `doc-uuid-pin-tests`; the poetry string had no test that a rewording would fail). Left: seed it by a function of its own that keeps today's text | the call from `document.py` and the `pyproject.py` string read on `main` 6cb6183f, 2026-11-24; the cascade's strings and the tests from the session that wrote them, not read here | no |
 
 ### Readers and output
 
@@ -211,6 +227,7 @@ each, and marks every other item as read at the base or to check.
 | PIT-12 | **No `completeness` on any relationship.** One `contains` per child; the one function that could give completeness returns none | read at the base, 2026-11-23 | no |
 | PIT-13 | **`simplelicensing_licenseListVersion` is not set.** | read at the base | yes: `known-bugs/licences-and-licenseid.md`, the roadmap |
 | PIT-14 | **The page on licence provenance says PEP 639 forbids an SPDX `license` beside licence classifiers.** The `pyproject.toml` specification says a build tool may raise an error | `docs/metadata-provenance-licences.md` on `main`; the specification's source read 2026-11-23 | no |
+| PIT-21 | **The Hub library makes a request of its own on the first Hub read of a process**: `GET {HF_ENDPOINT}/api/agent-harnesses`, with no token, and a cache file under `HF_HOME` for 24 hours. Ruled 2026-11-24: the documentation says so now (`docs/ai-model-formats.md`); after the 0.25.0 cut the CLI, the build hook and the Action switch it off (`HF_HUB_DISABLE_TELEMETRY`), keeping a value the user set, and the library API leaves it to the caller. To read first: where the variable has to be set (the library reads it at import) and what else the switch turns off | measured by the session that fixed PIT-20, with `huggingface_hub` 2.4.0; the fetch function and the gate read in 2.2.0; notes in [hub-loopback-socket-flake.md](../../implementation/hub-loopback-socket-flake.md) | no |
 
 ### Tests and CI
 
@@ -331,15 +348,19 @@ PIT-2 [main for one site, base for four]. Provenance strings used as
   that. Test per site: reword the provenance text in the test, behaviour
   unchanged.
 
-PIT-3 [main]. src/pitloom/core/models.py:190-197 adds
-  "\x00" + locked_dependencies_provenance to the document UUID seed;
-  the default text is `_DEFAULT_LOCKED_PROVENANCE = "Source: lock file |
-  Method: resolved_lockfile"` at assemble/spdx3/deps_installed.py:74.
+PIT-3 [main]. compute_doc_uuid in src/pitloom/core/models.py adds
+  "\x00" + locked_dependencies_provenance to the document UUID seed
+  (called with it from assemble/spdx3/document.py). The strings that
+  reach it: those of the lock cascade (extract/lock/cascade.py) and the
+  hand-written poetry.lock string in extract/project/pyproject.py.
+  `_DEFAULT_LOCKED_PROVENANCE` (assemble/spdx3/deps_installed.py) does
+  NOT reach the seed; it labels installed dependencies only.
   A reworded label would change every SPDX id of such a document.
-  Do: a seed function of its own that returns today's exact text for
-  each case, frozen and commented as an id input. Test: pin the UUID of
-  a fixture for each provenance variant; a second test rewords the
-  label and asserts the same ids.
+  Test half DONE 2026-11-24 (branch doc-uuid-pin-tests): today's ids
+  are pinned per variant in tests/core/test_models.py, the pylock and
+  poetry routes too. Left to do: a seed function of its own that
+  returns today's exact text for each case, frozen and commented as an
+  id input; then a test that rewords a label and asserts the same ids.
 
 PR 3. Licence and embed
 PIT-9 [main]. assemble/spdx3/_provenance_encoders.py:81-89

@@ -96,8 +96,7 @@ from pitloom.extract.remote.huggingface_field import (
     hub_producer_and_count,
     hub_revision,
 )
-from pitloom.logging_config import loggable
-from pitloom.messages import CodedValueError, emit
+from pitloom.messages import CodedValueError, emit, url_text
 from pitloom.messages.network import (
     OFFLINE_LINE,
     OFFLINE_UNUSABLE,
@@ -332,7 +331,7 @@ def _read_repository(hub: HubFiles, model_id: str, hf_url: str) -> AiModelMetada
     extra_lists = _build_extra_lists(hf_data, tag_data.arxiv_ids, provenance)
     library_name = _get_library_name(hf_data)
     producer = hub_producer_and_count(
-        hf_data.get("hub_info") or {}, provenance, loggable(hf_url)
+        hf_data.get("hub_info") or {}, provenance, url_text(hf_url)
     )
     revision = hub_revision(hf_data.get("hub_info") or {}, provenance)
 
@@ -364,5 +363,5 @@ def _read_repository(hub: HubFiles, model_id: str, hf_url: str) -> AiModelMetada
         extra_data=extra_data,
         extra_lists=extra_lists,
     )
-    settle_read_text(meta, "huggingface", loggable(hf_url))
+    settle_read_text(meta, "huggingface", url_text(hf_url))
     return meta

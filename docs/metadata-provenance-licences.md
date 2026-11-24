@@ -244,8 +244,9 @@ a name LicenseID reads as one licence (`MIT License` is `MIT`), else a
 `SimpleLicensingText` of the name as written; AND is assumed, with one
 `WARNING:` (`several licence classifiers; recorded as ... assuming AND`,
 `license-ambiguous`), as they may offer a choice. A `pyproject.toml` whose
-SPDX `project.license` sits beside `License ::` classifiers (PEP 639 forbids
-both) keeps the expression and drops the classifiers, with one `WARNING:`
+SPDX `project.license` sits beside `License ::` classifiers (PEP 639
+deprecates the classifiers, and a build tool may raise an error on both)
+keeps the expression and drops the classifiers, with one `WARNING:`
 (`an SPDX license expression and License :: classifiers both state a
 licence`, `license-conflict`). So a directory, its sdist, its wheel and
 the build hook record the same declared licence, except a licence file or text

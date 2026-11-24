@@ -247,17 +247,20 @@ EXCERPT_CHARS = 120
 
 
 def excerpt(value: object) -> str:
-    """*value* for a warning as one literal, escaped once: on one line, the
-    credentials of a URL in it masked
-    (:func:`~pitloom.log_masking.masked_text`), then at most
-    :data:`EXCERPT_CHARS` characters, ``...`` after it when cut. Masked
-    before it is cut, so a cut never takes away the end of a URL's user
-    information and shows its start. A string is its ``repr`` when
+    """*value* for a warning as one literal, escaped once: the credentials
+    of a URL in it masked (:func:`~pitloom.log_masking.masked_text`), then
+    on one line, then at most :data:`EXCERPT_CHARS` characters, ``...``
+    after it when cut. Masked before its white space is collapsed, so a
+    password holding a line break or a tab is masked whole, and before it
+    is cut, so a cut never takes away the end of a URL's user information
+    and shows its start. A string is its ``repr`` when
     printable, else its ASCII-escaped literal (:func:`loggable`); any other
     value is its ``repr``, escaped alike."""
     is_text = isinstance(value, str)
     raw = value if isinstance(value, str) else repr(value)
-    text = masked_text(" ".join(raw.split()))
+    # Masked again once collapsed: a scheme word and its credential split by
+    # a line break read as one run only after it.
+    text = masked_text(" ".join(masked_text(raw).split()))
     cut = text[:EXCERPT_CHARS]
     escaped = loggable(cut)
     literal = repr(cut) if is_text and escaped == cut else escaped
