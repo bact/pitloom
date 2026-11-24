@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-17
-Last-Modified: 2026-11-20
+Last-Modified: 2026-11-23
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -221,11 +221,10 @@ unmasked `folders_text` (both fixed).
 
 ### Open (found in round 4, not fixed)
 
-- Root cause of the leak: `TOKEN_RE` should allow a token after an escape
-  sequence (as after `%XX`); `shown_url` (`_http_errors.py:66`) and
-  `git_target.py:116` (`files` of `project-not-found/model-files`) escape
-  before masking too (pre-existing; a file or ref name holding `\x1b` +
-  token prints raw).
+- Fixed in #526: root cause of the leak (`TOKEN_RE` now allows a token
+  after an escape sequence, as after `%XX`); `shown_url` and `git_target.py`
+  (`files` of `project-not-found/model-files`) mask before they escape. See
+  [log-masker-escaped-tokens.md](log-masker-escaped-tokens.md).
 - `pypi_url._refuse` relays its refusal as an uncoded `WARNING:` (PR 14).
 - `ref` is written unquoted: a whitespace-only ref prints invisibly, and one
   holding `; ` reads as an extra clause (only a typed URL can cause it).
@@ -265,7 +264,7 @@ Open (found in round 5, not fixed):
 - Over-trust not tied to a frame: `AI model scan: received SIGTERM during the
   build` is trusted (frame and `activity` are not tied); `Build: Build: /p:
   ...` is trusted as `option-no-effect` through the free `name` field.
-- `Bearer <jwt>` in a build's output is not masked (masker scope,
-  pre-existing).
+- Fixed in #526: `Bearer <jwt>` in a build's output is masked
+  (`Bearer ***`).
 - The `DIR=<checkout>` placeholder on a leftover directory gives the user
   nothing to delete (pre-existing).

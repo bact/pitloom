@@ -35,6 +35,7 @@ from __future__ import annotations
 
 import re
 
+from pitloom.core.url_masking._boundary import word_start
 from pitloom.core.url_masking._tokens import TOKEN_PREFIXES
 
 __all__ = [
@@ -219,9 +220,11 @@ def is_account_name(scheme: str, userinfo: str) -> bool:
 #: password (a drive or a path), and the host is followed by ``:`` and a path.
 #: A host of two characters or more may be followed by an absolute path
 #: (``host:/srv/r``); a one-character one is a drive (``C:\\``). An image
-#: reference (``python:3.11@sha256:abc``) is not an address.
+#: reference (``python:3.11@sha256:abc``) is not an address. It may start
+#: right after an escape sequence (``x:\\talice:pw@host:o/r``,
+#: :func:`~pitloom.core.url_masking._boundary.word_start`).
 SCP_USERINFO_RE = re.compile(
-    r"(?<![\w.+:@/\\-])[\w.+-]+:[^\s@/\\:]+@"
+    word_start(r"\w.+:@/\\-") + r"[\w.+-]+:[^\s@/\\:]+@"
     r"(?!(?i:sha\d+|md5|blake\w+):)"
     r"(?=[\w.-]{2,}:(?!//)|[\w.-]:(?![/\\]))"
 )

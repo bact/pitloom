@@ -163,7 +163,6 @@ and this project adheres to
   `setup.cfg`/`setup.py` that does not parse are coded errors, not tracebacks ([#501])
 - A project file that does not parse or read is `config-malformed` or
   `file-unreadable`, whether Pitloom reads its metadata or its `[tool.pitloom]` ([#501])
-- A token after a tab in git's own error text is masked ([#503])
 - Hugging Face `model_info()` and `dataset_info()` requests time out after 30 s;
   licence file names come from `model_info()`, not a separate listing ([#507])
 - A Hub revision warning is said once per model read, not per file; a refused
@@ -187,6 +186,8 @@ and this project adheres to
 - Rotate any credential an SBOM, wheel, registry file or log held (warn mode
   writes it); remove it from git credential stores (`git credential reject`)
   ([#487])
+- Log lines mask a token, scp password or PURL after an escape (`\t`, `\x1b`),
+  an `Authorization`, `Bearer` or `Basic` credential ([#503], [#526])
 
 [#481]: https://github.com/bact/pitloom/pull/481
 [#482]: https://github.com/bact/pitloom/pull/482
@@ -214,6 +215,7 @@ and this project adheres to
 [#515]: https://github.com/bact/pitloom/pull/515
 [#517]: https://github.com/bact/pitloom/pull/517
 [#524]: https://github.com/bact/pitloom/pull/524
+[#526]: https://github.com/bact/pitloom/pull/526
 [#527]: https://github.com/bact/pitloom/pull/527
 
 ## [0.24.0] - 2026-11-11

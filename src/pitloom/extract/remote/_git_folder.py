@@ -17,9 +17,8 @@ from pitloom.core.path_confine import (
     spelled_as_on_disk,
 )
 from pitloom.core.project_markers import PROJECT_MARKERS
-from pitloom.core.url_masking import masked_given_path
 from pitloom.extract.remote.errors import RemoteSourceError
-from pitloom.logging_config import loggable
+from pitloom.messages import escaped_name
 from pitloom.messages.targets import (
     GIT_FOLDER_NOT_FOUND_LINE,
     INPUT_NOT_FOUND,
@@ -113,8 +112,8 @@ def subproject_hint(folder: str) -> tuple[list[str], int]:
 
 def folders_text(names: list[str], more: int) -> str:
     """The ``folders`` value of a hint line: *names* comma-separated, each
-    escaped when it holds a control character, then ``and N more`` when
+    masked, then escaped when it holds a control character
+    (:func:`pitloom.messages.escaped_name`), then ``and N more`` when
     *more* folders are left out."""
-    # Masked before the escape, as a tab would hide a bare token's boundary.
-    shown = ", ".join(loggable(masked_given_path(name, line=True)) for name in names)
+    shown = ", ".join(escaped_name(name) for name in names)
     return f"{shown} and {more} more" if more else shown

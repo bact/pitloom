@@ -49,11 +49,7 @@ from pitloom.core.clone_mark import reading_remote_clone
 from pitloom.core.fetch_policy import RemoteFetchPolicy
 from pitloom.core.internal_error import InternalError
 from pitloom.core.temp_dirs import temp_dir
-from pitloom.core.url_masking import (
-    CHECKOUT_DIR_PREFIX,
-    sanitize_url,
-    sanitize_url_credentials,
-)
+from pitloom.core.url_masking import CHECKOUT_DIR_PREFIX
 from pitloom.extract.remote._git_credentials import host_is_plain
 from pitloom.extract.remote._git_folder import subproject_hint
 from pitloom.extract.remote._git_redirect import resolve_git_url
@@ -75,8 +71,7 @@ from pitloom.extract.remote.git_url import (
     split_ref,
 )
 from pitloom.extract.remote.pypi_url import is_pypi_url
-from pitloom.logging_config import loggable
-from pitloom.messages import GIT_FRAME, code_of, emit
+from pitloom.messages import GIT_FRAME, code_of, emit, url_text
 from pitloom.messages.git import (
     GIT_EMPTY_LINE,
     GIT_FILTER_UNUSABLE,
@@ -230,8 +225,7 @@ def _prepare(
     url: str, work_dir: str, runner: GitRunner, policy: RemoteFetchPolicy
 ) -> GitCheckout:
     """Fetch what *url* names into *work_dir* and describe it."""
-    # The second pass masks what is no URL: an scp-style address.
-    shown = loggable(sanitize_url_credentials(sanitize_url(url)))
+    shown = url_text(url)
     if is_pypi_url(url):
         # PyPI is no Git host: refused, never cloned.
         raise RemoteSourceError(

@@ -36,11 +36,11 @@ from urllib.parse import quote, unquote, urlsplit
 from packaging.utils import canonicalize_name
 
 from pitloom.core.pep440 import parse_version
-from pitloom.core.url_masking import sanitize_url
 from pitloom.logging_config import loggable
 from pitloom.messages import (
     CodedValueError,
     Line,
+    url_text,
 )
 from pitloom.messages.pypi import (
     PYPI_FILE_LINK_LINE,
@@ -182,9 +182,7 @@ def _refuse(text: str, line: Line, **values: str) -> CodedValueError:
     """The error for *text* refused with *line*. It is raised, not logged:
     the CLI prints it once as ``ERROR:`` and a library caller gets it as the
     exception."""
-    return CodedValueError(
-        PYPI_URL_INVALID, line=line, url=loggable(sanitize_url(text)), **values
-    )
+    return CodedValueError(PYPI_URL_INVALID, line=line, url=url_text(text), **values)
 
 
 def _segments(path: str) -> list[str] | None:
