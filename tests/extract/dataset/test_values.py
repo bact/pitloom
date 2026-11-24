@@ -34,6 +34,23 @@ def _warned(caplog: pytest.LogCaptureFixture) -> list[str]:
     return [r.getMessage() for r in caplog.records if r.levelno >= logging.WARNING]
 
 
+def _codes(caplog: pytest.LogCaptureFixture) -> set[str | None]:
+    """The ``pitloom_code`` of each warning the check said."""
+    return {
+        getattr(r, "pitloom_code", None)
+        for r in caplog.records
+        if r.levelno >= logging.WARNING
+    }
+
+
+def _said_a_code(caplog: pytest.LogCaptureFixture, warns: bool) -> bool:
+    """Whether the check's warnings, if any, carry a dataset code: the
+    field line, or ``over-cap`` for a number over the largest safe one."""
+    return _codes(caplog) <= {"dataset-field-invalid", "over-cap"} and (
+        bool(_codes(caplog)) is warns
+    )
+
+
 @pytest.mark.parametrize(
     ("value", "expected", "warns"),
     [
@@ -59,6 +76,7 @@ def test_stated_text(
 ) -> None:
     assert stated_text(value, _SRC, "f") == expected
     assert bool(_warned(caplog)) is warns
+    assert _codes(caplog) == ({"dataset-field-invalid"} if warns else set())
 
 
 @pytest.mark.parametrize(
@@ -79,6 +97,7 @@ def test_stated_texts(
 ) -> None:
     assert stated_texts(value, _SRC, "f") == expected
     assert len(_warned(caplog)) == int(warns)
+    assert _codes(caplog) == ({"dataset-field-invalid"} if warns else set())
 
 
 @pytest.mark.parametrize(
@@ -112,6 +131,11 @@ _HUGE = 10**MAX_VERSION_DIGITS
     ("value", "numbers", "expected", "warns"),
     [
         (None, False, None, False),
+        ("", False, None, False),
+        ([], False, None, False),
+        ([None], False, None, False),
+        ("unknown", False, None, False),
+        ("N/A", False, None, False),
         ("1.10", False, "1.10", False),
         (["2"], False, "2", False),
         (2, True, "2", False),
@@ -126,7 +150,8 @@ _HUGE = 10**MAX_VERSION_DIGITS
         (int("f" * 5000, 16), True, None, True),
     ],
     ids=[
-        "none", "text", "one-item", "json-int", "longest", "yaml-int", "base-60",
+        "none", "empty", "empty-list", "none-item", "unknown", "n-a", "text",
+        "one-item", "json-int", "longest", "yaml-int", "base-60",
         "json-float", "yaml-float", "bool", "huge", "-huge", "hex",
     ],
 )  # fmt: skip
@@ -142,6 +167,7 @@ def test_stated_version(
     assert stated_version(value, _SRC, numbers=numbers) == expected
     messages = _warned(caplog)
     assert len(messages) == int(warns)
+    assert _said_a_code(caplog, warns)
     if warns and not numbers:
         assert "quote it to keep it as written" in messages[0]
 
@@ -179,6 +205,9 @@ def test_stated_count(
     """A count is at most the largest integer canonical JSON can write."""
     assert stated_count(value, _SRC, "size") == expected
     assert len(_warned(caplog)) == int(warns)
+    assert _said_a_code(caplog, warns)
+    if warns:
+        assert "size" in _warned(caplog)[0]
 
 
 @pytest.mark.parametrize(

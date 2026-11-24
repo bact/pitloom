@@ -148,5 +148,6 @@ def test_read_croissant_unreadable_json_names_the_file(
 
 
 def test_read_croissant_a_missing_file_is_named_as_croissant(tmp_path: Path) -> None:
-    with pytest.raises(ValueError, match="^Cannot read Croissant source "):
+    with pytest.raises(ValueError, match="^Croissant document not found: ") as raised:
         read_croissant(tmp_path / "absent.json")
+    assert code_of(raised.value) == "input-not-found"

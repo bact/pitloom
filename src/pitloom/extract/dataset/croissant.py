@@ -28,6 +28,7 @@ from pathlib import Path
 from typing import Any
 
 from pitloom.core.dataset_metadata import DatasetMetadata
+from pitloom.core.internal_error import InternalError
 from pitloom.core.quote_source import quote_source
 from pitloom.core.untrusted_text import escape_lone_surrogates_in
 from pitloom.extract._extract_utils import fetch_json, get_first
@@ -60,7 +61,12 @@ from pitloom.extract.dataset.values import (
     stated_version,
     text_of,
 )
-from pitloom.logging_config import one_line
+from pitloom.messages import CodedValueError
+from pitloom.messages.datasets import (
+    DATASET_NAME_MISSING,
+    NAME_ABSENT_LINE,
+    NAME_NOT_TEXT_LINE,
+)
 from pitloom.messages.files import Cap
 from pitloom.messages.text import warn_lone_surrogates
 
@@ -241,29 +247,34 @@ def read_croissant(source: str | Path, *, label: str | None = None) -> DatasetMe
 
     Raises:
         ValueError: *source* cannot be read, is not a Croissant document,
-            nests over :data:`CROISSANT_MAX_NESTING` levels,
-            or reading it fails in any other way; the message names it. A
-            read that fails on the file or its JSON carries its
+            nests over :data:`CROISSANT_MAX_NESTING` levels, or states no
+            dataset name; the message names it and carries its
             ``pitloom_code`` (:func:`pitloom.messages.code_of`):
-            ``file-unreadable``, ``over-cap`` or ``json-malformed``.
+            ``file-unreadable``, ``over-cap``, ``json-malformed`` or
+            ``dataset-name-missing``.
+        pitloom.core.internal_error.InternalError: (a ``ValueError``)
+            reading the document failed in a way no input is known to
+            reach; it names the exception's type and *source*.
     """
     data = fetch_json(
         source,
         max_nesting=CROISSANT_NESTING_CAP,
         use="for the Croissant document",
-        subject="Croissant source",
+        input_kind="Croissant document",
     )
     src_label = str(source) if label is None else label
     try:
         return _metadata(data, source, src_label)
     except ValueError:
         raise
-    # A hostile document must fail as the documented ValueError, naming it.
+    # No input is known to reach this (60,000 fuzzed documents did not): a
+    # bug, said as one, still the documented ValueError. Its text names the
+    # type only: an exception's text may quote the document.
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
-        raise ValueError(
-            f"Croissant source {quote_source(source)} cannot be read: "
-            f"{type(exc).__name__}: {one_line(exc)}"
+        raise InternalError(
+            f"reading Croissant source {quote_source(source)} raised "
+            f"{type(exc).__name__}"
         ) from exc
 
 
@@ -271,19 +282,20 @@ def _name(data: dict[str, Any], source: str | Path) -> str:
     """The document's ``name``.
 
     Raises:
-        ValueError: it has none, or one that is not text.
+        pitloom.messages.CodedValueError: It has none, or one that is not
+            text (``dataset-name-missing``).
     """
     raw = get_first(data, *NAME_KEYS)
     name, holds_text = text_of(raw)
     if not holds_text:
-        raise ValueError(
-            f"Croissant source {quote_source(source)} field 'name' is of type "
-            f"{type(raw).__name__}, not text."
+        raise CodedValueError(
+            DATASET_NAME_MISSING,
+            line=NAME_NOT_TEXT_LINE,
+            file=source,
+            dataset_value_type=raw,
         )
     if name is None:
-        raise ValueError(
-            f"Croissant source {quote_source(source)} has no 'name' field."
-        )
+        raise CodedValueError(DATASET_NAME_MISSING, line=NAME_ABSENT_LINE, file=source)
     return name
 
 

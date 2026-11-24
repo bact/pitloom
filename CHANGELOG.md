@@ -1,5 +1,5 @@
 ---
-Last-Modified: 2026-11-23
+Last-Modified: 2026-11-24
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -27,10 +27,11 @@ and this project adheres to
 - Input, option, SBOM, target, ID registry file, id, key, save, file-set, lock
   file, dependency, configuration, licence, project metadata, file discovery,
   Git URL, Hugging Face Hub, build, temporary directory, signal, build hook, SBOM
-  fragment, wheel, embedded SBOM, `loom env`, author, loom SDK and SBOM base
-  name messages carry a message code, and a configuration error names the file;
-  see `docs/message-codes.md` ([#482], [#485], [#486], [#492], [#496], [#497],
-  [#498], [#501], [#503], [#506], [#508], [#511], [#513], [#515], [#524], [#527])
+  fragment, wheel, embedded SBOM, `loom env`, author, loom SDK, SBOM base name
+  and dataset messages carry a message code, and a configuration error names the
+  file; see `docs/message-codes.md` ([#482], [#485], [#486], [#492], [#496],
+  [#497], [#498], [#501], [#503], [#506], [#508], [#511], [#513], [#515], [#524],
+  [#527], [#534])
 - A credential in an SBOM URL field is warned of; `url-credentials = "refuse"`
   or `--refuse-url-credentials` refuse the SBOM ([#489], [#490])
 - `embed-wheel --sbom` (every string) and `merge` check an SBOM for such
@@ -143,6 +144,8 @@ and this project adheres to
 - Author lines drop the ` -- only authors ...` hint; a dependency split starts
   `PACKAGE=`; a bad sdist `pyproject.toml` relays its reader's code ([#527])
 - A library `sbom_basename` refusal names `sbom_basename`, not `--sbom-basename` ([#527])
+- Dataset field, Croissant name, display-text and metadata-budget lines carry
+  codes; dataset lines name `SOURCE=` and `FIELD=` ([#534])
 
 ### Fixed
 
@@ -177,6 +180,8 @@ and this project adheres to
   hostile file no longer costs minutes of CPU ([#517])
 - A loom model whose `path=` is no file at exit no longer claims a name-only
   lookup when no ID registry is loaded (`model-file-missing`) ([#527])
+- A missing `croissant=` file is `input-not-found`; an unreachable Croissant URL
+  is `download-network-failed` or `download-timeout` ([#534])
 
 ### Security
 
@@ -217,6 +222,7 @@ and this project adheres to
 [#524]: https://github.com/bact/pitloom/pull/524
 [#526]: https://github.com/bact/pitloom/pull/526
 [#527]: https://github.com/bact/pitloom/pull/527
+[#534]: https://github.com/bact/pitloom/pull/534
 
 ## [0.24.0] - 2026-11-11
 

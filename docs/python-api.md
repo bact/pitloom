@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-11-23
+Last-Modified: 2026-11-24
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -425,13 +425,16 @@ parse: an impossible date such as `2024-02-30`, a number of thousands of digits,
 nesting thousands of levels deep) is skipped with one `WARNING:`, and the
 declaration goes on with its other sources: the card is read because the dataset
 is a directory, not because you named it. A `croissant=` file you name is
-different: a URL, a missing file, one that is not a regular file (a FIFO), one
-that is not Croissant, one that nests more than 64 levels of arrays and objects
-or one that fails to be read in any other way raises `ValueError` naming it, at
-the call (a URL: `loom SDK: croissant: must be a local file, not a URL,
-got ... [option-invalid]`): loom reads no network source. A source file is opened as given and
-named in provenance by its path from the current directory, or by its bare name
-when it lies outside it. Hashing and the registry do not change: the sources add
+different: a URL, a missing file (`input-not-found`), one that is not a regular
+file (a FIFO), one that is not Croissant or has no name (`dataset-name-missing`),
+or one nesting more than 64 levels of arrays and objects raises `ValueError`
+naming it, at the call (a URL: `loom SDK: croissant: must be a local file, not a
+URL` `[option-invalid]`): loom reads no network source. Any other
+failure is an `InternalError`, also a `ValueError`. For the
+library's `read_croissant`, a URL that cannot be reached is
+`download-network-failed` or `download-timeout`. A source file is opened as given
+and named in provenance by its path from the current directory, or its bare name
+when outside it. Hashing and the registry do not change: the sources add
 fields, not identity.
 
 These `generates` edges are scoped `build` -- they describe a build-time

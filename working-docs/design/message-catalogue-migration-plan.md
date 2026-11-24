@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-30
-Last-Modified: 2026-11-23
+Last-Modified: 2026-11-24
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -115,7 +115,7 @@ read-only Opus plan settles them. Actor and effect are as decision G.
 | 14 | done: 14a #506, Hub timeout #507, 14b #508, 14c #511 (ratchet 108) | 3 PRs (see [message-catalogue-pr14-plan.md](message-catalogue-pr14-plan.md)): 14a build 6, temp dirs, signals, frames (132 to 120, `Build: `, `AI model scan: `, hook leftover line); 14b Hub 7 (the listing site went with the Hub-timeout PR) + PyPI relay; 14c hook status lines 4 | 14a: `build-code-unsafe`, `build-failed`, `build-timeout`, `build-processes-unsafe`, `temp-dir-unwritable`, `interrupted`, `library-missing` kept; frames `BUILD_FRAME`, `HF_FRAME`, `PYPI_FRAME`, `SCAN_FRAME`, `HOOK_STEP_FRAME` match exact codes; 14b `download-timeout`, `download-network-failed` reuse, `hub-revision-unpinned`, `hub-response-invalid` | user / not-written | 14a -12, 14b -7, 14c -4 | M; Opus plan, Sonnet |
 | 15 | next | fragment-unusable 13; merge-conflict-kept 9; source-conflict-kept 9 | `fragment-unusable` or `-malformed`; `fragment-conflict`, `source-conflict` (merged if the advice is equal) | user / weaker | -31, now -31; 22 in scope by the 2026-11-14 survey | M; Opus |
 | 16 | next | wheel-sbom-check 13; wheel-embed-action 4; archive-member-refused 10; `archive_member_names.py` passthrough 1 | `wheel-sbom-missing`, `-invalid`; `archive-member-unsafe`; embed actions per R1 | user or caller / not-written | -28, now -28 | M; Sonnet, Opus review |
-| 17 | 17a #524, 17b built (#527 guessed); 17c next | author-split 6; escaped-text 3 in scope (`_embed_generate.py`, `_loom_dataset_meta.py`, `_ai_package.py`; plan: 6, then 5); dataset-field-invalid 7; over-cap in `provenance.py` 2; library-api-misuse 4; `_loom_active_run.py` passthrough 1; internal 1 (`provenance.py:414`, becomes `InternalError`, R7) | `author-ambiguous`, `text-escaped`?, `dataset-field-invalid`, `over-cap`, `call-invalid` (caller) | mixed | -27, now -26 | M; Sonnet |
+| 17 | 17a #524, 17b #527, 17c built (#534) | author-split 6; escaped-text 3 in scope (`_embed_generate.py`, `_loom_dataset_meta.py`, `_ai_package.py`; plan: 6, then 5); dataset-field-invalid 7; over-cap in `provenance.py` 2; library-api-misuse 4; `_loom_active_run.py` passthrough 1; internal 1 (`provenance.py:414`, becomes `InternalError`, R7) | `author-ambiguous`, `text-escaped`?, `dataset-field-invalid`, `over-cap`, `call-invalid` (caller) | mixed | -27, now -26 | M; Sonnet |
 | 18 | next | licence 8 (`_license_classify.py` 3, `_license_text_match.py` 2, `_core_metadata.py` 1, `_license_resolve.py` 1, `pyproject.py` 1; the two `licenseid database` lines, 97 and 107, are among these 8, not extra) | `expression-malformed` (redesigns the ported broken-expression warning), `license-not-recordable`, `license-ambiguous`, `license-db-missing`? (working names; codes are spelt `license-*` as identifiers, like the shipped `license-relationship-invalid`) | user / weaker | -8, now -8 | M; Opus; after the adoption (done) |
 | T14 | next | none (the licence provenance mapping, [licence-resolution-provenance.md](licence-resolution-provenance.md); not a catalogue PR) | none | none | 0 | after PR 18 |
 

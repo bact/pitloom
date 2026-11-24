@@ -33,19 +33,29 @@ from pitloom.messages._text_malformed_warning import (
     warn_registry_file_name,
     warn_registry_name_skipped,
 )
+from pitloom.messages._text_unsafe import (
+    DATASET_TEXT_LINE,
+    MODEL_TEXT_LINE,
+    TEXT_UNSAFE,
+)
+from pitloom.messages._text_unsafe_say import warn_text_unsafe
 
 __all__ = [
     "BOM_DROPPED_LINE",
     "CARD_MALFORMED",
+    "DATASET_TEXT_LINE",
     "JSON_MALFORMED",
     "JSON_MALFORMED_BOM",
+    "MODEL_TEXT_LINE",
     "NOT_JSON_LINE",
     "NOT_OBJECT_LINE",
     "TEXT_MALFORMED",
     "TEXT_MALFORMED_REGISTRY",
+    "TEXT_UNSAFE",
     "registry_name_error",
     "warn_license_surrogates",
     "warn_lone_surrogates",
     "warn_registry_file_name",
     "warn_registry_name_skipped",
+    "warn_text_unsafe",
 ]

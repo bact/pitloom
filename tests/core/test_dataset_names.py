@@ -76,7 +76,24 @@ def test_the_version_is_part_of_a_dataset_s_identity(
         kept = distinct_datasets(entries, CARD_DATASETS_CAP, "m.gguf")
     assert kept == [("O/D", "1"), ("o/d", "2"), ("O/D", None)]
     assert caplog.messages == [
-        "dataset O/D and o/d name one dataset; the first spelling is kept"
+        "DATASET='O/D': 'o/d' names it too; kept the first spelling"
+    ]
+    assert [getattr(r, "pitloom_code", None) for r in caplog.records] == [
+        "dataset-conflict/spelling"
+    ]
+
+
+def test_a_spelling_folded_into_another_dataset_is_said_for_each(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The same other spelling folded into two datasets (two versions) is
+    said for each, not once for the name."""
+    entries = [("A/b", "1"), ("a/b", "1"), ("A/B", "2"), ("a/b", "2")]
+    with caplog.at_level(logging.INFO, logger="pitloom"):
+        distinct_datasets(entries, CARD_DATASETS_CAP, "m.gguf")
+    assert caplog.messages == [
+        "DATASET='A/b': 'a/b' names it too; kept the first spelling",
+        "DATASET='A/B': 'a/b' names it too; kept the first spelling",
     ]
 
 

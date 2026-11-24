@@ -152,6 +152,7 @@ MODEL_OUTCOMES: Final = {
     "library-unusable": "a stub",
     "lfs-pointer": "no `ai_AIPackage`",
     "lfs-pointer-malformed": "no `ai_AIPackage`",
+    "model-field-invalid": "read, without the release time",
     "model-field-unreadable": "read, without the fields the line names",
     "model-unreadable": "a stub",
     "model-wrong-format": "no `ai_AIPackage`",

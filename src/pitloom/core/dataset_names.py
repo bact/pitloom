@@ -24,7 +24,7 @@ import logging
 import re
 from collections.abc import Iterable
 
-from pitloom.logging_config import loggable
+from pitloom.messages.datasets import say_one_dataset
 from pitloom.messages.files import (
     Cap,
     warn_over_cap,
@@ -89,11 +89,7 @@ def log_one_dataset(kept: str, spelling: str) -> None:
     """One ``INFO:`` that *spelling* was read as the dataset *kept*, which
     names it (the first spelling wins). Every route that folds two spellings
     says it through here, so none does it silently."""
-    log.info(
-        "dataset %s and %s name one dataset; the first spelling is kept",
-        loggable(kept),
-        loggable(spelling),
-    )
+    say_one_dataset(log, kept, spelling)
 
 
 def distinct_datasets(
@@ -104,15 +100,15 @@ def distinct_datasets(
     stripped, a blank one none), the first ``cap.limit`` of them; one
     ``WARNING:`` naming *where* when more were listed."""
     seen: dict[DatasetIdentity, tuple[str, str | None]] = {}
-    said: set[str] = set()
+    said: set[tuple[str, str]] = set()
     cut = False
     for listed, version in entries:
         name = listed.strip()
         identity = dataset_identity(name, version)
         if identity in seen:
             kept = seen[identity][0]
-            if name != kept and name not in said:
-                said.add(name)
+            if name != kept and (kept, name) not in said:
+                said.add((kept, name))
                 log_one_dataset(kept, name)
             continue
         if not identity[0]:

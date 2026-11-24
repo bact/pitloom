@@ -122,6 +122,17 @@ _MARKERS: dict[str, tuple[str, ...]] = {
         "caller script path not determined",
     ),
     "model-file-missing": ("is not a file at exit; not hashed",),
+    "dataset-conflict": (
+        "references differ; kept the first",
+        "names it too; kept the first spelling",
+    ),
+    "dataset-field-invalid": ("dataset metadata: SOURCE=",),
+    "dataset-name-missing": (
+        "no dataset name: the Croissant name",
+        "Croissant document has no name",
+    ),
+    "model-field-invalid": ("release time is not ISO 8601",),
+    "text-unsafe": ("invisible or bidi control characters written as",),
     "project-unreadable": ("project metadata not read; authors from",),
     "sbom-name-invalid": ("is not a bare file name",),
     "dynamic-field-unusable": (
@@ -499,9 +510,13 @@ _NOT_QUOTED: frozenset[str] = frozenset(
     {
         "archive-member-conflict",
         "caller-info-unreadable",
+        "dataset-conflict",
+        "dataset-field-invalid",
+        "dataset-name-missing",
         "datetime-not-recordable",
         "dist-info-ambiguous",
         "environment-unreadable",
+        "model-field-invalid",
         "project-unreadable",
         "sbom-name-invalid",
         "wheel-sbom-ambiguous",

@@ -7,11 +7,13 @@
 
 from __future__ import annotations
 
+import http.client
 import io
 import os
 import re
 import threading
 import urllib.request
+from collections.abc import Callable
 from email.message import Message
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -26,8 +28,11 @@ from pitloom.extract._extract_utils import (
     filename_from_url,
     json_nests_over,
 )
+from pitloom.messages import Message as Entry
 from pitloom.messages import code_of
 from pitloom.messages.files import FILE_UNREADABLE, OVER_CAP, Cap
+from pitloom.messages.network import DOWNLOAD_FAILED, DOWNLOAD_TIMEOUT
+from pitloom.messages.targets import INPUT_NOT_FOUND
 from pitloom.messages.text import JSON_MALFORMED
 from tests._bounded import run_bounded_in_child
 from tests._message_drift import raised_as
@@ -131,14 +136,15 @@ def test_fetch_json_non_dict(tmp_path: Path) -> None:
     assert raised_as(raised.value, JSON_MALFORMED)
 
 
-def test_fetch_json_read_error(tmp_path: Path) -> None:
-    """An absent file is not unreadable: no code yet, its own subject."""
+def test_fetch_json_absent_file_is_input_not_found(tmp_path: Path) -> None:
+    """An absent file is not unreadable: ``input-not-found``, named as the
+    caller's input kind, still a ``ValueError``."""
     path = tmp_path / "nonexistent.json"
-    with pytest.raises(ValueError, match="Cannot read source") as raised:
-        fetch_json(path, use=_USE)
-    assert code_of(raised.value) is None
-    with pytest.raises(ValueError, match="^Cannot read Croissant source '"):
-        fetch_json(path, use=_USE, subject="Croissant source")
+    with pytest.raises(ValueError) as raised:
+        fetch_json(path, use=_USE, input_kind="Croissant document")
+    assert str(raised.value) == f"Croissant document not found: {quote_source(path)}"
+    assert raised_as(raised.value, INPUT_NOT_FOUND)
+    assert not isinstance(raised.value, OSError)
 
 
 def test_fetch_json_names_what_stopped_a_read_never_the_path_twice(
@@ -231,9 +237,55 @@ def test_fetch_json_url_http_error_is_closed() -> None:
     exc = _http_error()
     assert not exc.fp.closed
     with patch.object(urllib.request, "urlopen", side_effect=exc):
-        with pytest.raises(ValueError, match="Cannot read source"):
+        with pytest.raises(ValueError) as raised:
             fetch_json("https://example.com/missing.json", use=_USE)
+    assert raised_as(raised.value, DOWNLOAD_FAILED)
     assert exc.fp.closed
+
+
+_URL = "https://u:pw@example.com/c.json?token=abc"
+_MASKED = "https://***:***@example.com/c.json?token=***"
+
+
+@pytest.mark.parametrize(
+    ("make", "entry", "said"),
+    [
+        (_http_error, DOWNLOAD_FAILED, "HTTP Error 404: Not Found; not read"),
+        (
+            lambda: TimeoutError("timed out"),
+            DOWNLOAD_TIMEOUT,
+            "no complete answer within 3 seconds; not read",
+        ),
+        (
+            lambda: URLError(TimeoutError("timed out")),
+            DOWNLOAD_TIMEOUT,
+            "no complete answer within 3 seconds; not read",
+        ),
+        (
+            lambda: http.client.IncompleteRead(b"abc", 10),
+            DOWNLOAD_FAILED,
+            "IncompleteRead(3 bytes read, 10 more expected); not read",
+        ),
+        (
+            lambda: URLError("refused"),
+            DOWNLOAD_FAILED,
+            "<urlopen error refused>; not read",
+        ),
+    ],
+    ids=["http-404", "timeout", "url-error-timeout", "incomplete-read", "refused"],
+)
+def test_fetch_json_url_failure_is_a_download_line_with_the_url_masked(
+    make: Callable[[], BaseException], entry: Entry, said: str
+) -> None:
+    """A URL that cannot be fetched: ``download-timeout`` when a socket
+    operation timed out (the seconds a whole number, rounded up), else
+    ``download-network-failed``; the URL's credentials masked."""
+    with patch.object(urllib.request, "urlopen", side_effect=make()):
+        with pytest.raises(ValueError) as raised:
+            fetch_json(_URL, timeout=2.5, use=_USE)
+    assert str(raised.value) == f"URL={_MASKED}: {said}"
+    assert raised_as(raised.value, entry)
+    assert "pw" not in str(raised.value)
 
 
 @pytest.mark.parametrize(
@@ -293,9 +345,10 @@ def test_fetch_json_error_names_the_source_as_the_os_writes_it(
     """The message holds ``str(source)`` once, quoted: ``repr`` would double a
     backslash (a ``str``) or turn it into ``/`` (a Windows ``Path``)."""
     source = str(tmp_path / name)
-    with pytest.raises(ValueError, match="Cannot read source") as excinfo:
+    with pytest.raises(ValueError) as excinfo:
         fetch_json(source, use=_USE)
-    assert f"'{source}'" in str(excinfo.value)
+    assert str(excinfo.value) == f"PATH not found: '{source}'"
+    assert code_of(excinfo.value) == "input-not-found"
 
 
 @pytest.mark.parametrize(

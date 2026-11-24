@@ -22,6 +22,7 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
 | [`field-not-recordable`](#field-not-recordable) | INFO | A model holds a value for a G7 SBOM for AI element that SPDX 3.0.1 has no property for (the model architecture). | 0.23.0 |
 | [`hyperparameter-conflict`](#hyperparameter-conflict) | WARNING | A model states a hyperparameter named parameters, the key the SBOM holds its parameter count under. | 0.22.0 |
 | [`model-field-conflict`](#model-field-conflict) | WARNING | A model states one key twice: a GGUF file states the length of an array as a key of its own, or an ONNX file repeats a metadata_props key. | 0.23.0 |
+| [`model-field-invalid`](#model-field-invalid) | WARNING | A model states a value its SBOM property cannot hold: a release time (a Hugging Face revision's, or a library caller's AiModelMetadata.release_time) that is not an ISO 8601 time. The line does not print the value. | 0.25.0 |
 | [`model-field-unreadable`](#model-field-unreadable) | WARNING | A model reader read the file but not one of its parts (a fastText call, a PyTorch pickle, a PT2 archive member, a Keras or HDF5 attribute or config): the fields the line names are not recorded, or are recorded weaker. | 0.23.0 |
 | [`parameter-count-invalid`](#parameter-count-invalid) | WARNING | A model's parameter count cannot be had: a tensor dimension in the file, or the count its metadata or the Hugging Face Hub states, is not a non-negative integer. | 0.22.0 |
 
@@ -78,6 +79,25 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
   ```text
   WARNING: GGUF key <entry> is in the file; the length of array <name> is not a property [model-field-conflict]
   WARNING: ONNX metadata_props: <number> key(s) appear more than once; kept the last value of each: <name> [model-field-conflict]
+  ```
+
+### `model-field-invalid`
+
+- **Level**: WARNING.
+- **Means**: A model states a value its SBOM property cannot hold: a release
+  time (a Hugging Face revision's, or a library caller's
+  AiModelMetadata.release_time) that is not an ISO 8601 time. The line does not
+  print the value.
+- **SBOM effect**: thinner: the SBOM says less than reading the input would.
+- **Pitloom did**: Left the property out (no releaseTime); the rest of the model
+  is recorded. FORMAT=unknown names a library caller's model of no format.
+- **Tell the user**: which model's release time was left out. A library caller
+  may pass an ISO 8601 time (2024-01-31T12:00:00Z) and generate again; a value
+  read from a model or the Hub is the source's. Do not edit the source for them.
+- **Lines**:
+
+  ```text
+  WARNING: FORMAT=<format> FILE=<file>: release time is not ISO 8601; left out [model-field-invalid]
   ```
 
 ### `model-field-unreadable`

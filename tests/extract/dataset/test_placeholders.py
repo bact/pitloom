@@ -24,6 +24,7 @@ import pytest
 from pitloom.extract.dataset import read_croissant, read_dataset_card
 from pitloom.extract.dataset.licence import dataset_licence
 from pitloom.extract.dataset.values import is_placeholder, stated_url
+from tests._code_records import coded
 
 _LINK = "https://example.org/licence"
 _PLACEHOLDERS = ["unknown", "UNKNOWN", " Unknown ", "NOASSERTION", "N/A", "n/a"]
@@ -129,7 +130,10 @@ def test_a_croissant_non_url_is_not_a_download_location(
     assert meta.download_url is None and "download_url" not in meta.provenance
     assert meta.license == "MIT"  # the other fields stay
     (message,) = _warnings(caplog)
-    assert "field url is " in message
+    assert (
+        "FIELD=url: not a URL" if isinstance(url, str) else "FIELD=url: a value of type"
+    ) in message
+    assert [code for code, _ in coded(caplog)] == ["dataset-field-invalid"]
 
 
 def test_stated_url_is_silent_for_nothing_and_placeholders() -> None:

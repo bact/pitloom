@@ -34,7 +34,11 @@ holds the value there. The table lists every name a line or a prefix uses.
 | `<config-key>` | where the value sits: its table as the file spells it (`[tool.pitloom]`, `[tool:pitloom]` in setup.cfg, `[[tool.pitloom.creator]]`), then its key, the entry of an array counted from 0 and the entry's key, each when there is one (`[tool.pitloom.fragment] files entry 2 role`) |
 | `<count>` | the number of files in brackets, `(N files)`, after a space when there are two or more; else nothing |
 | `'<dataset>'` | a dataset by the name it was declared under, in quotes, a URL's credentials masked, cut to 500 characters with `...` before the closing quote, escaped when it holds a control character; `None` for a dataset declared without a name |
+| `<dataset-field>` | the dataset field as its source names it (`license`, `version`, `general.dataset.0.repo_url`, `rai:dataBiases`, `creator name`), or a dataset metadata field (`byte_size`, `download_url`) |
 | `'<dataset-input>'` | a name given in add_output_dataset's input_datasets, in quotes, a URL's credentials masked, cut to 500 characters with `...` before the closing quote, escaped when it holds a control character; `None` for a dataset declared without a name |
+| `'<dataset-source>'` | where a dataset value was read, in quotes: a card or Croissant file as named (`'corpus/README.md'`), a GGUF file name, `'Hugging Face model card'`, or the dataset's name for a value a library caller set; a URL's credentials masked, cut to 500 characters (then `...`) |
+| `'<dataset-spelling>'` | another spelling of the dataset's name read as the same dataset (a Hub id in other case or spacing), in quotes, a URL's credentials masked, cut to 500 characters |
+| `<dataset-value-type>` | the type of the value that is not text, as Python names it: `NoneType`, `bool`, `bytes`, `date`, `datetime`, `dict`, `float`, `int`, `list`, `object`, `set`, `str`, `time`, `tuple` |
 | `<datetime>` | a date and time in UTC as an SBOM states created (`1970-01-01T00:00:00Z`) |
 | `<declared>` | the SHA-256 a source declares, in hex |
 | `<declared-in>` | where the dependency is declared: `Poetry`, `optional-dependencies`, `extras_require`, or the setting that lists a requirements file; escaped when it holds a control character |
@@ -77,7 +81,7 @@ holds the value there. The table lists every name a line or a prefix uses.
 | `'<holder-type>'` | the SPDX 3 type of the element that already holds the id, in quotes (`'software_Package'`), escaped when it holds a control character |
 | `<hosts>` | the hosts Pitloom fetches PyPI files from, comma-separated (`files.pythonhosted.org`) |
 | `<part>` | the part of a wheel's identity: `name` or `version` |
-| `<input>` | what the path was named as: `config file`, `fragments directory`, `ID registry file`, `PATH`, `project directory`, `project path`, `pyproject.toml`, `SBOM file`, `sdist archive`, `setup.cfg`, `setup.py`, `wheel file` |
+| `<input>` | what the path was named as: `config file`, `Croissant document`, `fragments directory`, `ID registry file`, `PATH`, `project directory`, `project path`, `pyproject.toml`, `SBOM file`, `sdist archive`, `setup.cfg`, `setup.py`, `wheel file` |
 | `'<install-name>'` | the name a member installs under, separators as `/`, empty and `.` segments dropped; in quotes, a URL's credentials masked, cut to 500 characters with `...` before the closing quote, escaped when it holds a control character |
 | `<kept>` | what a conflict kept (a lock file, a version, a value), on one line, a URL's credentials masked, cut to 120 characters (`...` after it when cut), in quotes, escaped when it holds a control character; a value merged from SBOM fragments that is not a text: an element (`ai_AIPackage <spdx-id> 'name'`), a structure (`Hash(algorithm=..., hashValue='...')`) or a number, not in quotes |
 | `<key>` | the key naming the input: `FILE`, `DIR`, `FIELD` (a metadata field or table), `DATASET`, `MARKER` or `REQUIREMENT` |
@@ -114,6 +118,7 @@ holds the value there. The table lists every name a line or a prefix uses.
 | `<process-group>` | the process group of the build (POSIX), which its leftover processes share |
 | `<project-paths>` | project paths, each shown as a member is, comma-separated, at most 10 then `and N more` |
 | `<project-value>` | the name a project directory's metadata states (an embed with --project-dir), exactly as stated (a value not text as sorted ASCII JSON), never collapsed, in quotes: masked whole (a URL's credentials, a secret-named parameter), cut to 120 characters with `...` before the closing quote, backslashes doubled, white space other than a plain space and control characters escaped; when the two sides would look alike (equal up to the cut, or either not ASCII), each also shows `(from character N: '<rest>')`, N counting characters of the masked value and the rest an ASCII literal. Raw text is compared, so a difference PEP 503 or PEP 440 ignores in the first characters can hide one past the cut |
+| `<properties>` | the SBOM properties escaped, sorted and comma-separated, each after the element it belongs to (`dataset name`, `base model description`); a model's own property alone (`name`) |
 | `<property>` | a property of an SPDX 3 element as the JSON-LD document names it (`description`, `software_downloadLocation`, `from`) |
 | `<provenance-field>` | the field a provenance entry is about, as Pitloom's provenance names it (`byte_size`, `verified_using`) |
 | `<cap>` | the cap's name; a setting's name when a setting sets it (`max-model-extract-bytes`) |

@@ -61,12 +61,14 @@ def test_the_entries() -> None:
         "model-field-unreadable",
         "model-field-conflict",
         "field-not-recordable",
+        "model-field-invalid",
     ]
-    assert {m.since for m in ENTRIES} == {"0.23.0"}
+    assert [m.since for m in ENTRIES] == ["0.23.0"] * 3 + ["0.25.0"]
     assert [(m.effect, m.actor) for m in ENTRIES] == [
         ("thinner", "user"),
         ("none", "none"),
         ("weaker", "none"),
+        ("thinner", "user"),
     ]
     assert FIELD_NOT_RECORDABLE.levels == {"INFO"}
 

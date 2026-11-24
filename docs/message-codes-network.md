@@ -20,8 +20,8 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
 
 | Code | Level | Means | Since |
 | --- | --- | --- | --- |
-| [`download-network-failed`](#download-network-failed) | ERROR, WARNING | A request to a remote source failed. PyPI or a Hugging Face file: an HTTP status other than 404 (a 401 or 403 for a private or gated repository read without access), a refused or reset connection, a name that did not resolve, or an answer cut short. The Hugging Face Hub API (model_info(), dataset_info()): any HTTP error status, a 404 for a repository that does not exist or is private included, or a connection that failed. Git: git could not reach the repository (a name that did not resolve, a refused, reset or timed-out connection, a TLS failure, an HTTP 5xx answer); a git failure with any other cause is git-repository-unusable. | 0.24.0 |
-| [`download-timeout`](#download-timeout) | ERROR, WARNING | A request to PyPI, to the host that serves a file or to the Hugging Face Hub (a file, or the API's model_info() or dataset_info()), or the git calls that fetch a repository, did not finish within the time Pitloom allows. | 0.24.0 |
+| [`download-network-failed`](#download-network-failed) | ERROR, WARNING | A request to a remote source failed. PyPI, a Hugging Face file: an HTTP status other than 404 (a 401 or 403 for a private or gated repository read without access), a refused or reset connection, a name that did not resolve, or an answer cut short. A Croissant document a library caller names by URL (read_croissant): the same, any HTTP error status, a 404 included. The Hugging Face Hub API (model_info(), dataset_info()): any HTTP error status, a 404 for a repository that does not exist or is private included, or a connection that failed. Git: git could not reach the repository (a name that did not resolve, a refused, reset or timed-out connection, a TLS failure, an HTTP 5xx answer); a git failure with any other cause is git-repository-unusable. | 0.24.0 |
+| [`download-timeout`](#download-timeout) | ERROR, WARNING | A request to PyPI, to the host that serves a file (a Croissant document a library caller names by URL included) or to the Hugging Face Hub (a file, or the API's model_info() or dataset_info()), or the git calls that fetch a repository, did not finish within the time Pitloom allows. | 0.24.0 |
 | [`hub-response-invalid`](#hub-response-invalid) | WARNING | The Hugging Face Hub answered model_info() or dataset_info() with something huggingface_hub or Pitloom could not read: not JSON, or JSON without the shape the API gives. | 0.25.0 |
 | [`hub-revision-unpinned`](#hub-revision-unpinned) | WARNING | model_info() stated no revision (commit hash) of a Hugging Face model: the request failed, or the Hub (a mirror, a private Hub) sent none. Its files (config.json, the model card, a licence file) are read at the default branch as it is at the time of the run, which can change between runs. | 0.25.0 |
 | [`offline-unusable`](#offline-unusable) | ERROR, WARNING | Offline mode is on and the target must be fetched: a Git URL, a PyPI URL or a Hugging Face repository. Offline mode is --offline, the offline key of --config, or offline=True; for a file of a Hugging Face repository, or the Hub API's model_info() and dataset_info(), also huggingface_hub's own HF_HUB_OFFLINE. | 0.24.0 |
@@ -36,20 +36,23 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
 
 - **Level**: ERROR, WARNING. As an ERROR, the command stops for that input and
   writes nothing for it (exit 1).
-- **Means**: A request to a remote source failed. PyPI or a Hugging Face file:
-  an HTTP status other than 404 (a 401 or 403 for a private or gated repository
+- **Means**: A request to a remote source failed. PyPI, a Hugging Face file: an
+  HTTP status other than 404 (a 401 or 403 for a private or gated repository
   read without access), a refused or reset connection, a name that did not
-  resolve, or an answer cut short. The Hugging Face Hub API (model_info(),
-  dataset_info()): any HTTP error status, a 404 for a repository that does not
-  exist or is private included, or a connection that failed. Git: git could not
-  reach the repository (a name that did not resolve, a refused, reset or
-  timed-out connection, a TLS failure, an HTTP 5xx answer); a git failure with
-  any other cause is git-repository-unusable.
+  resolve, or an answer cut short. A Croissant document a library caller names
+  by URL (read_croissant): the same, any HTTP error status, a 404 included. The
+  Hugging Face Hub API (model_info(), dataset_info()): any HTTP error status, a
+  404 for a repository that does not exist or is private included, or a
+  connection that failed. Git: git could not reach the repository (a name that
+  did not resolve, a refused, reset or timed-out connection, a TLS failure, an
+  HTTP 5xx answer); a git failure with any other cause is
+  git-repository-unusable.
 - **SBOM effect**: not-written: no SBOM is written for the input.
 - **Pitloom did**: Wrote no SBOM (the error: pypi.download-failed,
-  git.clone-failed); for a Hugging Face file, left that file out and read the
-  rest; for a Hub API request, recorded none of what it states, as the line's
-  outcome names, and read the rest (the warning).
+  git.clone-failed; read_croissant raises ValueError carrying the code); for a
+  Hugging Face file, left that file out and read the rest; for a Hub API
+  request, recorded none of what it states, as the line's outcome names, and
+  read the rest (the warning).
 - **Tell the user**: the request failed, with the reason the line gives. They
   check the network and run again; for a private or gated Hugging Face
   repository (HTTP 401 or 403) they sign in with an account that has access
@@ -67,14 +70,16 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
 
 - **Level**: ERROR, WARNING. As an ERROR, the command stops for that input and
   writes nothing for it (exit 1).
-- **Means**: A request to PyPI, to the host that serves a file or to the Hugging
-  Face Hub (a file, or the API's model_info() or dataset_info()), or the git
-  calls that fetch a repository, did not finish within the time Pitloom allows.
+- **Means**: A request to PyPI, to the host that serves a file (a Croissant
+  document a library caller names by URL included) or to the Hugging Face Hub (a
+  file, or the API's model_info() or dataset_info()), or the git calls that
+  fetch a repository, did not finish within the time Pitloom allows.
 - **SBOM effect**: not-written: no SBOM is written for the input.
 - **Pitloom did**: Stopped the request and wrote no SBOM (the error:
-  pypi.download-timeout, git.timeout); for a Hugging Face file, left that file
-  out and read the rest; for a Hub API request, recorded none of what it states,
-  as the line's outcome names, and read the rest (the warning).
+  pypi.download-timeout, git.timeout; read_croissant raises ValueError carrying
+  the code); for a Hugging Face file, left that file out and read the rest; for
+  a Hub API request, recorded none of what it states, as the line's outcome
+  names, and read the rest (the warning).
 - **Tell the user**: the request timed out. They check the network and run
   again, or fetch the file or repository themselves and run Pitloom on the local
   copy. Do not retry in a loop; ask first, and with nobody to ask, report it

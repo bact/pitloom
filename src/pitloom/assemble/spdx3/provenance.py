@@ -52,8 +52,12 @@ from pitloom.core.provenance import (
 )
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 from pitloom.messages.config import Parameter
+from pitloom.messages.files import Cap, warn_over_cap
 
 log = logging.getLogger(__name__)
+
+_BUDGET = "max-source-metadata-bytes"
+_EMPTIED = "every metadata key left out of the artifact-metadata annotation"
 
 #: Statement-schema URL for a fragment-unification process Annotation (A1).
 UNIFICATION_SCHEMA_URL = "https://pitloom.dev/provenance/unification/1"
@@ -317,6 +321,7 @@ def build_source_metadata_annotation(
     max_metadata_bytes: int = 0,
     value_types: Mapping[str, str] | None = None,
     left_out: KeysLeftOut = NONE_LEFT_OUT,
+    where: str | None = None,
 ) -> spdx3.Annotation | None:
     """Return an Annotation embedding verbatim original metadata (P1).
 
@@ -326,6 +331,9 @@ def build_source_metadata_annotation(
     *left_out* (:class:`KeysLeftOut`), the keys the reader left out, marks
     the result ``truncated`` with that ``truncatedKeyCount``, without naming
     the keys; ``maxEntries`` when some are over the entry cap.
+
+    *where* names the model in the ``over-cap`` line (``FILE=``); by
+    default the subject's spdxId.
 
     ``max_metadata_bytes`` (0 = unlimited, the default) caps the serialised
     Annotation's size: when exceeded, the largest metadata entries are
@@ -345,27 +353,17 @@ def build_source_metadata_annotation(
     dropped_keys: list[str] = []
     kept_metadata = metadata
     if max_metadata_bytes:
+        cap = Cap.of_model(max_metadata_bytes, "byte", _BUDGET, source_format)
+        where = subject_spdx_id if where is None else where
         result = _truncate_metadata_for_budget(
             metadata, source_format, max_metadata_bytes, types, left_out
         )
         if result is None:
-            log.warning(
-                "Artifact-metadata Annotation for %r dropped entirely: "
-                "max-source-metadata-bytes=%d is too small to hold even an "
-                "empty metadata envelope.",
-                subject_spdx_id,
-                max_metadata_bytes,
-            )
+            warn_over_cap(log, cap, where, "artifact-metadata annotation left out")
             return None
         kept_metadata, dropped_keys = result
         if dropped_keys and not kept_metadata:
-            log.warning(
-                "Artifact-metadata Annotation for %r had all %d metadata "
-                "keys dropped to fit max-source-metadata-bytes=%d.",
-                subject_spdx_id,
-                len(dropped_keys),
-                max_metadata_bytes,
-            )
+            warn_over_cap(log, cap, where, _EMPTIED)
 
     statement = _artifact_metadata_envelope(
         source_format,

@@ -19,12 +19,16 @@ import logging
 
 import pytest
 
+from pitloom.assemble.spdx3.document import build_model
 from pitloom.assemble.spdx3.provenance import (
     KeysLeftOut,
     build_source_metadata_annotation,
 )
+from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
 from pitloom.core.models import _clear_doc_counters
+from pitloom.core.provenance import ProvenanceConfig
 from pitloom.messages import code_of
+from tests._author_routes import CREATED
 
 from .conftest import _DOC_NAME, _DOC_UUID, _make_ci
 
@@ -124,7 +128,12 @@ def test_budget_drops_every_key_but_envelope_still_fits(
     assert statement["metadata"] == {}
     assert sorted(statement["truncatedKeys"]) == sorted(metadata)
     assert statement["truncatedKeyCount"] == len(metadata)
-    assert "all" in caplog.text and "dropped" in caplog.text
+    assert [r.getMessage() for r in caplog.records] == [
+        "FORMAT=gguf FILE=urn:doc#ai_AIPackage-1: larger than the 230-byte "
+        "max-source-metadata-bytes cap; every metadata key left out of the "
+        "artifact-metadata annotation"
+    ]
+    assert [getattr(r, "pitloom_code", None) for r in caplog.records] == ["over-cap"]
 
 
 def test_budget_too_small_for_empty_envelope_returns_none(
@@ -142,7 +151,76 @@ def test_budget_too_small_for_empty_envelope_returns_none(
             max_metadata_bytes=8,
         )
     assert ann is None
-    assert "dropped entirely" in caplog.text
+    assert [r.getMessage() for r in caplog.records] == [
+        "FORMAT=gguf FILE=urn:doc#ai_AIPackage-1: larger than the 8-byte "
+        "max-source-metadata-bytes cap; artifact-metadata annotation left out"
+    ]
+    assert [getattr(r, "pitloom_code", None) for r in caplog.records] == ["over-cap"]
+
+
+def test_the_budget_line_names_the_file_a_caller_passes(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """``where`` names the model file in the line; without it, the subject."""
+    with caplog.at_level(logging.WARNING):
+        build_source_metadata_annotation(
+            "urn:doc#ai_AIPackage-1",
+            "gguf",
+            _small_metadata(),
+            _make_ci(),
+            _DOC_NAME,
+            _DOC_UUID,
+            max_metadata_bytes=8,
+            where="models/m.gguf",
+        )
+    assert caplog.records[0].getMessage().startswith("FORMAT=gguf FILE=models/m.gguf: ")
+    assert getattr(caplog.records[0], "pitloom_code", None) == "over-cap"
+
+
+@pytest.mark.parametrize("fmt", ["My-Format", ""], ids=["upper-hyphen", "empty"])
+def test_a_format_of_no_model_names_the_file_only(
+    caplog: pytest.LogCaptureFixture, fmt: str
+) -> None:
+    """A library caller's own ``source_format`` is no ``FORMAT=``: a budget
+    that drops nothing never fails over it, and one that drops everything
+    names the file only."""
+    args = ("urn:doc#ai_AIPackage-1", fmt, _small_metadata(), _make_ci())
+    big = build_source_metadata_annotation(
+        *args, _DOC_NAME, _DOC_UUID, max_metadata_bytes=100_000
+    )
+    assert big is not None
+    with caplog.at_level(logging.WARNING):
+        none = build_source_metadata_annotation(
+            *args, _DOC_NAME, _DOC_UUID, max_metadata_bytes=8
+        )
+    assert none is None
+    assert caplog.records[0].getMessage().startswith("FILE=urn:doc#ai_AIPackage-1: ")
+    assert getattr(caplog.records[0], "pitloom_code", None) == "over-cap"
+
+
+def test_a_model_route_names_the_model_file_in_the_budget_line(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The model's file, not the package's SPDX id, is the ``FILE=`` value."""
+    model = AiModelMetadata(
+        name="m",
+        raw_metadata=_small_metadata(),
+        format_info=AiModelFormatInfo(
+            file_name="m.gguf",
+            physical_path="models/m.gguf",
+            model_format=AiModelFormat.GGUF,
+        ),
+    )
+    config = ProvenanceConfig(max_source_metadata_bytes=8)
+    with caplog.at_level(logging.WARNING):
+        build_model(model, CREATED, provenance=config)
+    budget = [
+        r for r in caplog.records if getattr(r, "pitloom_code", None) == "over-cap"
+    ]
+    assert [r.getMessage() for r in budget] == [
+        "FORMAT=gguf FILE=models/m.gguf: larger than the 8-byte "
+        "max-source-metadata-bytes cap; artifact-metadata annotation left out"
+    ]
 
 
 def test_truncated_keys_sorted_alphabetically_regardless_of_drop_order() -> None:

@@ -19,6 +19,7 @@ discovery's), :mod:`pitloom.messages._fields_git` (the Git URL lines'),
 :mod:`pitloom.messages._fields_wheels` (the wheel and embedded-SBOM lines'),
 :mod:`pitloom.messages._fields_authors` (the author lines'),
 :mod:`pitloom.messages._fields_datasets` (the dataset and loom run lines'),
+:mod:`pitloom.messages._fields_text` (the ``text-unsafe`` lines'),
 :mod:`pitloom.messages._field_type` (:class:`Field`),
 :mod:`pitloom.messages._field_tables` (the closed tables),
 :mod:`pitloom.messages._types` (the templates),
@@ -73,6 +74,7 @@ from pitloom.messages._fields_licence import LICENCE_FIELDS
 from pitloom.messages._fields_lock import LOCK_FIELDS
 from pitloom.messages._fields_metadata import METADATA_FIELDS
 from pitloom.messages._fields_registry import REGISTRY_FIELDS
+from pitloom.messages._fields_text import TEXT_FIELDS
 from pitloom.messages._fields_wheels import WHEEL_FIELDS
 
 #: The names of every family but the ID registry's.
@@ -198,7 +200,7 @@ _GENERAL: Final[Mapping[str, Field]] = MappingProxyType(
             free=True,
         ),
         "format": Field(
-            r"[a-z][a-z0-9_]*", str, "<format>", "the model format (`gguf`)"
+            r"[a-z][a-z0-9_]{0,31}", str, "<format>", "the model format (`gguf`)"
         ),
         "formats": Field(
             r"[a-z][a-z0-9_]*(?:, [a-z][a-z0-9_]*)*",
@@ -490,4 +492,5 @@ FIELDS: Final[Mapping[str, Field]] = _merged(
     WHEEL_FIELDS,
     AUTHOR_FIELDS,
     DATASET_FIELDS,
+    TEXT_FIELDS,
 )

@@ -21,6 +21,7 @@ from pitloom.messages import (
     _card_malformed,
     _config,
     _config_unsafe,
+    _datasets,
     _dependency,
     _environment,
     _file_discovery,
@@ -59,6 +60,7 @@ from pitloom.messages import (
     _sbom_target,
     _target_input,
     _text_malformed,
+    _text_unsafe,
     _url_credentials,
     _url_credentials_git,
     _usage_unparseable,
@@ -144,6 +146,8 @@ MESSAGES: Final = _by_code(
         *_authors.ENTRIES,
         *_loom_sdk.ENTRIES,
         *_sbom_name.ENTRIES,
+        *_datasets.ENTRIES,
+        *_text_unsafe.ENTRIES,
     )
 )
 

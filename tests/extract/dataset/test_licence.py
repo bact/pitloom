@@ -18,6 +18,7 @@ import pytest
 
 from pitloom.core.dataset_metadata import FurtherLicences
 from pitloom.extract.dataset.licence import dataset_licence
+from tests._code_records import coded
 
 _SRC = "card.md"
 _LINK = "https://example.org/terms"
@@ -142,9 +143,10 @@ def test_dataset_licence_wrong_type_warns(
         assert dataset_licence(value, source=_SRC, name=name) is None
     messages = [r.getMessage() for r in caplog.records]
     assert messages == [
-        f"dataset metadata: {_SRC} field {field} is of type {type_name}, "
-        "not text; skipped"
+        f"dataset metadata: SOURCE='{_SRC}' FIELD={field}: a value of type "
+        f"{type_name}, not text; skipped"
     ]
+    assert [code for code, _ in coded(caplog)] == ["dataset-field-invalid"]
 
 
 @pytest.mark.parametrize(
@@ -191,8 +193,10 @@ def test_dataset_licence_list_non_text_kept_rest(
     assert found is not None
     assert (found.text, found.further) == ("mit", FurtherLicences(("gfdl",), "source"))
     assert [r.getMessage() for r in caplog.records] == [
-        f"dataset metadata: {_SRC} field license is of type int, not text; skipped"
+        f"dataset metadata: SOURCE='{_SRC}' FIELD=license: a value of type int, "
+        "not text; skipped"
     ]
+    assert [code for code, _ in coded(caplog)] == ["dataset-field-invalid"]
     assert found.further is not None
     assert found.further.comment == (
         "The source lists several licences; it does not say whether they "

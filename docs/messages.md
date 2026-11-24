@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-29
-Last-Modified: 2026-11-20
+Last-Modified: 2026-11-24
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -183,8 +183,9 @@ except Exception as exc:
   `read_croissant()`) that cannot be read, is over a cap, is not valid JSON
   or is not a JSON object raises a `ValueError` whose `pitloom_code` is
   `file-unreadable`, `over-cap` or `json-malformed` (its text: `FILE=<file>:
-  not valid JSON for the Croissant document; <failure>`). A file that is
-  absent, or a URL that cannot be fetched, raises one with no code.
+  not valid JSON for the Croissant document; <failure>`); a document with no
+  name, `dataset-name-missing`; a file that is absent, `input-not-found`; a URL
+  that cannot be fetched, `download-network-failed` or `download-timeout`.
 
 The command line prints the code of the exception it reports at the end of its
 `ERROR:` line.
