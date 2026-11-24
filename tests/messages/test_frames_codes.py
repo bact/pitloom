@@ -45,9 +45,10 @@ from pitloom.messages import (
     emit,
     trusted_message,
 )
-from pitloom.messages.files import OVER_CAP, TEXT_MALFORMED
+from pitloom.messages.files import OVER_CAP
 from pitloom.messages.git import GIT_COMMAND, GIT_FILTER_UNUSABLE, GIT_URL_INVALID
 from pitloom.messages.targets import CONFIG_UNSAFE, CONFIG_UNSAFE_REMOTE_LINE
+from pitloom.messages.text import TEXT_MALFORMED
 from tests._message_drift import SAMPLES, source_modules
 
 _LOG = logging.getLogger("pitloom.test_frames_codes")

@@ -21,7 +21,7 @@ from pitloom.id_registry._credentials import (
     key_holds_credentials,
 )
 from pitloom.id_registry._types import RegistryEntry, is_utf8_text
-from pitloom.messages.files import warn_registry_name_skipped
+from pitloom.messages.text import warn_registry_name_skipped
 from pitloom.messages.url_credentials import (
     registry_file_refused_error,
     warn_registry_file_entry_kept,

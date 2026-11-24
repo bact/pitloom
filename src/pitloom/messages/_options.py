@@ -22,6 +22,7 @@ from typing import Final
 from pitloom.messages._config_place import FINGERPRINT_SHAPE
 from pitloom.messages._field_writers import entity_text
 from pitloom.messages._frames import BUILD_PREFIX
+from pitloom.messages._loom_sdk import LOOM_SDK_PREFIX
 from pitloom.messages._registry_file import REGISTRY_PREFIX
 from pitloom.messages._types import Line, Message
 
@@ -150,6 +151,12 @@ URL_CREDENTIALS_MODE_ARGUMENT_LINE: Final = Line(
 VALUE_LINE: Final = Line(
     level="ERROR", template="%(option)s: must be %(expected)s, got %(got)s"
 )
+#: The same, for a value given to a loom SDK call inside a ``loom.run()``
+#: (``add_dataset(croissant=...)``).
+LOOM_SDK_VALUE_LINE: Final = Line(
+    level="ERROR",
+    template=f"{LOOM_SDK_PREFIX}%(option)s: must be %(expected)s, got %(got)s",
+)
 #: A document namespace given to the library (``IdRegistry(namespace=...)``)
 #: or as ``--namespace`` (the detail of :data:`ARGUMENT_LINE`) that cannot
 #: be one: the value last, a URL's credentials masked.
@@ -178,6 +185,7 @@ OPTION_INVALID: Final = Message(
         URL_CREDENTIALS_MODE_ARGUMENT_LINE,
         REFUSE_ARGUMENT_LINE,
         VALUE_LINE,
+        LOOM_SDK_VALUE_LINE,
         NAMESPACE_INVALID_LINE,
         NAMESPACE_EMPTY_LINE,
     ),
@@ -314,6 +322,11 @@ REGISTRY_REQUIRED_LINE: Final = Line(
     template="no ID registry declared: pass --id-registry FILE or set "
     "id-registry in %(table)s",
 )
+#: ``loom.set_model_hyperparameters()`` before any model of the run.
+NO_MODEL_LINE: Final = Line(
+    level="ERROR",
+    template=f"{LOOM_SDK_PREFIX}no model set; call set_model() or use_model() first",
+)
 
 OPTION_MISSING: Final = Message(
     code="option-missing",
@@ -323,11 +336,15 @@ OPTION_MISSING: Final = Message(
         MISSING_VALUE_LINE,
         OUTPUT_REQUIRED_LINE,
         REGISTRY_REQUIRED_LINE,
+        NO_MODEL_LINE,
     ),
     summary="The command line lacks an argument or option the command needs "
     "(a subcommand, -o/--output for 'loom generate', an ID registry for 'loom "
-    "id'), or the value of an option given (-o with nothing after it).",
-    did="Ran nothing: the command exits 2 (a parse error) or 1.",
+    "id'), or the value of an option given (-o with nothing after it). The "
+    "loom SDK line is a call that needs one made before it in the run.",
+    did="Ran nothing: the command exits 2 (a parse error) or 1; the loom SDK "
+    "raises RuntimeError carrying the code (a with block it leaves writes "
+    "nothing).",
     effect="not-written",
     actor="caller",
     advice="The caller may add what the line names and run again. Tell the "

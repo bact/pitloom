@@ -37,13 +37,13 @@ from pitloom.messages.files import (
     file_unreadable_error,
     warn_dir_unlistable,
     warn_file_unreadable,
-    warn_registry_file_name,
 )
 from pitloom.messages.id_registry_ids import (
     INDEX_PATH_NO_EFFECT,
     SKIPPED_PATH_LINE,
 )
 from pitloom.messages.targets import input_not_found
+from pitloom.messages.text import warn_registry_file_name
 
 log = logging.getLogger("pitloom.id_registry")
 

@@ -24,10 +24,14 @@ from pitloom.core.ai_metadata import AiModelFormat
 from pitloom.core.given_path import GivenPath, TypedPath
 from pitloom.core.lfs_pointer import size_text as lfs_size_text
 from pitloom.messages import FIELDS, FRAMES, RELAY_FRAME, Frame, Line, size_text
+from pitloom.messages._config_place import EXPECTED
 from pitloom.messages._field_writers import (
     FAILURE_CHARACTERS,
+    NAME_CHARACTERS,
+    cut_entity_text,
     entities_text,
     failure_text,
+    free_name_text,
 )
 from pitloom.messages._fields import _merged
 from pitloom.messages._fields_licence import LICENCE_FIELDS
@@ -366,3 +370,22 @@ def test_a_value_of_a_type_no_lock_reader_loads_is_refused() -> None:
     that TOML and JSON cannot load (a set, a path)."""
     with pytest.raises(ValueError, match="not a type a lock file holds"):
         value_type_text({1})
+
+
+def test_the_two_cut_name_writers_cut_alike() -> None:
+    """``entity`` and ``package`` both mask, cut at :data:`NAME_CHARACTERS`
+    and escape; one helper does the last two."""
+    for name in ("m" * (NAME_CHARACTERS + 50), "x\ny", f"https://u:pw@h/{'a' * 300}"):
+        assert free_name_text(name) == cut_entity_text(name)
+    assert free_name_text("m" * (NAME_CHARACTERS + 1)).endswith("...")
+
+
+def test_no_expectation_names_a_library_function() -> None:
+    """The table is read on every surface: a snake_case function name in it
+    (``generate_model_sbom``) means nothing to a command line user."""
+    named = {
+        key: text
+        for key, text in EXPECTED.items()
+        if re.search(r"\b[a-z]+_[a-z_]+\b", text)
+    }
+    assert not named

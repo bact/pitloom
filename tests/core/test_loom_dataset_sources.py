@@ -218,7 +218,11 @@ def test_a_later_declaration_adds_its_sources(project: Path) -> None:
 @pytest.mark.parametrize(
     ("croissant", "match", "code"),
     [
-        ("https://example.org/c.json", "only a local file is read", None),
+        (
+            "https://example.org/c.json",
+            "^loom SDK: croissant: must be a local file, not a URL, got",
+            "option-invalid",
+        ),
         ("missing.json", "Cannot read Croissant source 'missing.json'", None),
         (
             "bad.json",
@@ -238,9 +242,21 @@ def test_a_later_declaration_adds_its_sources(project: Path) -> None:
             "not a regular file$",
             "file-unreadable",
         ),
-        ("HTTPS://example.org/c.json", "only a local file is read", None),
-        (Path("https://example.org/c.json"), "only a local file is read", None),
-        ("ftp://u:SECRET@h/c.json", r"'ftp://\*\*\*:\*\*\*@h/c.json' is a URL", None),
+        (
+            "HTTPS://example.org/c.json",
+            "must be a local file, not a URL",
+            "option-invalid",
+        ),
+        (
+            Path("https://example.org/c.json"),
+            "must be a local file, not a URL",
+            "option-invalid",
+        ),
+        (
+            "ftp://u:SECRET@h/c.json",
+            r"'ftp://\*\*\*:\*\*\*@h/c.json'$",
+            "option-invalid",
+        ),
     ],
     ids=[
         "url",

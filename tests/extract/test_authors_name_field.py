@@ -30,7 +30,7 @@ _B = {"name": "Bob", "email": "b@x.org"}
 _AE = {"email": "a@x.org"}
 _BE = {"email": "b@x.org"}
 _TWO = "Ann <a@x.org>; Bob <b@x.org>"
-_CUT = "; a name field is never cut between names -- HINT"
+_CUT = "; a name field is never cut between names"
 
 
 @pytest.mark.parametrize(
@@ -155,7 +155,7 @@ def test_name_field_cut_only_after_a_mailbox(
     after a name is never a cut unless a bare address follows; a part that
     is no mailbox warns."""
     with caplog.at_level(logging.WARNING):
-        assert read_author_fields(author, None, hint=" -- HINT") == expected
+        assert read_author_fields(author, None) == expected
     lines = [f"AUTHOR={e!r}: not an email address; not recorded" for e in unread]
     if cut:
         shown = excerpt(author)

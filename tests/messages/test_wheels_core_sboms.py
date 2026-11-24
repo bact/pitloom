@@ -30,7 +30,7 @@ from pitloom.logging_config import CODE_ATTR
 from pitloom.messages import MESSAGES, code_of, trusted_message
 from pitloom.messages import wheel_sboms as s
 from pitloom.messages._templates import template_names
-from pitloom.messages.files import BOM_DROPPED_LINE, MODE_NOT_RESTORED_LINE
+from pitloom.messages.files import MODE_NOT_RESTORED_LINE
 from pitloom.messages.models import (
     HATCHLING_TOO_OLD_LINE,
     HATCHLING_VERSION_UNKNOWN_LINE,
@@ -42,6 +42,7 @@ from pitloom.messages.targets import (
     say_validation_findings,
     say_validator_failure,
 )
+from pitloom.messages.text import BOM_DROPPED_LINE
 from tests._message_drift import SAMPLES
 
 _LOG = logging.getLogger("pitloom.cli.commands.verify_wheel")

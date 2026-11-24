@@ -20,7 +20,11 @@ import pytest
 
 from pitloom.extract.project._sdist_scan import CONFIG_MEMBER_MAX_BYTES
 from pitloom.extract.project.sdist import _declared_authors, read_sdist
+from pitloom.logging_config import CODE_ATTR
+from pitloom.messages import trusted_message
 from tests.assemble.conftest import _make_sdist
+
+pytestmark = pytest.mark.platform
 
 _PKG_INFO = (
     b"Metadata-Version: 2.4\nName: demo\nVersion: 1.0.0\nAuthor: Bob\n"
@@ -142,32 +146,38 @@ def test_pyproject_fallback_warning_names_the_member(
 
 
 @pytest.mark.parametrize(
-    ("pyproject", "key", "start", "end"),
+    ("pyproject", "start", "end", "code"),
     [
-        (b"[project\n", "", " project metadata not read (", "); authors"),
+        (b"[project\n", ": not valid TOML; ", None, "config-malformed"),
+        (
+            b'[project]\nname = "caf\xe9"\n',
+            ": could not read for the project metadata; not UTF-8: ",
+            None,
+            "file-unreadable/not-utf8",
+        ),
         (
             b"#" * (CONFIG_MEMBER_MAX_BYTES + 1),
-            "FILE=",
-            f" larger than the {CONFIG_MEMBER_MAX_BYTES}-byte config-member cap;"
+            f": larger than the {CONFIG_MEMBER_MAX_BYTES}-byte config-member cap;"
             " project metadata not read,",
-            " authors",
+            " authors from the PKG-INFO",
+            "over-cap",
         ),
     ],
-    ids=["invalid-toml", "over-cap"],
+    ids=["invalid-toml", "not-utf8", "over-cap"],
 )
 # pylint: disable-next=too-many-arguments,too-many-positional-arguments
 def test_unreadable_pyproject_keeps_pkg_info_authors(
     tmp_path: Path,
     caplog: pytest.LogCaptureFixture,
     pyproject: bytes,
-    key: str,
     start: str,
-    end: str,
+    end: str | None,
+    code: str,
 ) -> None:
     """With the config replaced (``read_config=False``), a ``pyproject.toml``
     read only for the declared authors that cannot be read leaves
-    ``PKG-INFO``'s, with one ``WARNING:`` worded as ``embed-wheel
-    --project-dir``'s (or, over its cap, as every cap): the declared order
+    ``PKG-INFO``'s, with one coded ``WARNING:``: the TOML or UTF-8 line of
+    the reader, relayed (or, over its cap, as every cap): the declared order
     is lost, and name-only authors joined into one ``Author`` read as one."""
     sdist = _make_sdist(
         tmp_path, members={"PKG-INFO": _PKG_INFO, "pyproject.toml": pyproject}
@@ -176,9 +186,15 @@ def test_unreadable_pyproject_keeps_pkg_info_authors(
         metadata = read_sdist(sdist, read_config=False).metadata
     assert metadata.authors == [_ANN, {"name": "Bob"}]
     assert "PKG-INFO" in metadata.provenance["authors"]
-    (line,) = caplog.messages
-    assert line.startswith(f"{key}{sdist}:pyproject.toml:{start}")
-    assert line.endswith(f"{end} from the PKG-INFO")
+    (record,) = caplog.records
+    line = record.getMessage()
+    assert line.startswith(f"FILE={sdist}:pyproject.toml{start}")
+    if end is None:  # the parser's own text follows: present, not pinned
+        assert len(line) > len(f"FILE={sdist}:pyproject.toml{start}")
+    else:
+        assert line.endswith(end)
+    assert getattr(record, CODE_ATTR) == code
+    assert trusted_message(f"WARNING: {line} [{code}]") is not None
 
 
 @pytest.mark.parametrize(

@@ -27,10 +27,10 @@ and this project adheres to
 - Input, option, SBOM, target, ID registry file, id, key, save, file-set, lock
   file, dependency, configuration, licence, project metadata, file discovery,
   Git URL, Hugging Face Hub, build, temporary directory, signal, build hook, SBOM
-  fragment, wheel, embedded SBOM and `loom env` messages carry a message code,
-  and a configuration error names the file; see `docs/message-codes.md`
-  ([#482], [#485], [#486], [#492], [#496], [#497], [#498], [#501], [#503], [#506],
-  [#508], [#511], [#513], [#515], [#524])
+  fragment, wheel, embedded SBOM, `loom env`, author, loom SDK and SBOM base
+  name messages carry a message code, and a configuration error names the file;
+  see `docs/message-codes.md` ([#482], [#485], [#486], [#492], [#496], [#497],
+  [#498], [#501], [#503], [#506], [#508], [#511], [#513], [#515], [#524], [#527])
 - A credential in an SBOM URL field is warned of; `url-credentials = "refuse"`
   or `--refuse-url-credentials` refuse the SBOM ([#489], [#490])
 - `embed-wheel --sbom` (every string) and `merge` check an SBOM for such
@@ -138,6 +138,11 @@ and this project adheres to
   fickling stderr line reads `fickling: <text>` ([#524])
 - An embed's refused write of the wheel or `-o` copy is a coded `OSError`
   (`file-unwritable`) naming that file ([#524])
+- loom SDK lines start `loom SDK: `, a model's registry lines `ID registry: `;
+  no model, a `croissant=` URL or an `enrich_model()` Hub source are coded ([#527])
+- Author lines drop the ` -- only authors ...` hint; a dependency split starts
+  `PACKAGE=`; a bad sdist `pyproject.toml` relays its reader's code ([#527])
+- A library `sbom_basename` refusal names `sbom_basename`, not `--sbom-basename` ([#527])
 
 ### Fixed
 
@@ -171,6 +176,8 @@ and this project adheres to
   no model name ([#517])
 - A GGUF tensor of more than 4 dimensions is refused, as llama.cpp does: a
   hostile file no longer costs minutes of CPU ([#517])
+- A loom model whose `path=` is no file at exit no longer claims a name-only
+  lookup when no ID registry is loaded (`model-file-missing`) ([#527])
 
 ### Security
 
@@ -207,6 +214,7 @@ and this project adheres to
 [#515]: https://github.com/bact/pitloom/pull/515
 [#517]: https://github.com/bact/pitloom/pull/517
 [#524]: https://github.com/bact/pitloom/pull/524
+[#527]: https://github.com/bact/pitloom/pull/527
 
 ## [0.24.0] - 2026-11-11
 

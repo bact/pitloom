@@ -28,7 +28,9 @@ from pitloom.logging_config import EXCERPT_CHARS, excerpt, one_line
 from pitloom.messages._field_tables import LOCK_KEYS, SOURCE_KINDS, VALUE_TYPES
 from pitloom.messages._field_type import Field
 from pitloom.messages._field_writers import (
+    NAME_CHARACTERS,
     DescribedValue,
+    free_name_text,
     free_text,
     plain_text,
     whole,
@@ -178,10 +180,12 @@ LOCK_FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
         ),
         "package": Field(
             r".+",
-            free_text,
+            free_name_text,
             "<package>",
             "a package as the lock file or the declaration names it (a valid "
-            "distribution name); escaped when it holds a control character",
+            "distribution name), a URL's credentials masked, cut to "
+            f"{NAME_CHARACTERS} characters (`...` after it when cut); escaped "
+            "when it holds a control character",
             free=True,
         ),
         "source_kind": Field(

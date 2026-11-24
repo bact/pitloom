@@ -30,6 +30,7 @@ from types import ModuleType
 
 import pytest
 
+from pitloom.core.internal_error import InternalError
 from pitloom.messages import (
     ACTOR_HEADINGS,
     FAMILY_TOPICS,
@@ -41,6 +42,7 @@ from pitloom.messages import (
 )
 from pitloom.messages import _model_field as model_field
 from pitloom.messages import _model_stub as model_stub
+from pitloom.messages._topics import family_topics
 
 _ROOT = Path(__file__).resolve().parents[2]
 _SCRIPT = _ROOT / "scripts" / "generate_message_reference.py"
@@ -327,6 +329,29 @@ def test_every_family_has_one_topic_and_no_topic_is_empty() -> None:
     assert families == set(FAMILY_TOPICS), "map each new family in _topics.py"
     assert set(FAMILY_TOPICS.values()) == set(TOPIC_TITLES)
     assert all(re.fullmatch(r"[a-z]+(-[a-z]+)*", t) for t in TOPIC_TITLES)
+
+
+@pytest.mark.parametrize(
+    "table",
+    [
+        {"files": ("json-malformed",), "text": ("json-malformed",)},
+        {"text": ("json-malformed", "json-malformed")},
+    ],
+    ids=["two-topics", "twice-in-one"],
+)
+def test_a_family_under_two_topics_is_refused(
+    table: dict[str, tuple[str, ...]],
+) -> None:
+    with pytest.raises(InternalError, match="json-malformed"):
+        family_topics(table)
+
+
+def test_each_family_maps_to_its_topic() -> None:
+    assert family_topics({"a": ("x", "y"), "b": ("z",)}) == {
+        "x": "a",
+        "y": "a",
+        "z": "b",
+    }
 
 
 @pytest.mark.parametrize("topic", sorted(TOPIC_TITLES))

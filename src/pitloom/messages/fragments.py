@@ -74,6 +74,10 @@ from pitloom.messages._fragments_say import (
     warn_reference_not_found,
     warn_same_document,
 )
+from pitloom.messages._loom_sdk import (
+    DATASET_REFERENCE_LINE,
+    REFERENCE_NOT_FOUND_DATASET,
+)
 
 __all__ = [
     "DATETIME_MISSING",
@@ -110,6 +114,8 @@ __all__ = [
     "REFERENCES_LINE",
     "REFERENCE_LINE",
     "REFERENCE_NOT_FOUND",
+    "REFERENCE_NOT_FOUND_DATASET",
+    "DATASET_REFERENCE_LINE",
     "REQUIRED_MISSING_LINE",
     "REQUIRED_NOT_JSON_LINE",
     "REQUIRED_NOT_SPDX_LINE",

@@ -167,6 +167,13 @@ def cut_name(text: str) -> str:
     return cut_masked(masked(text), NAME_CHARACTERS)
 
 
+def cut_and_escaped(masked_name: str) -> str:
+    """*masked_name*, already :func:`masked`, cut to :data:`NAME_CHARACTERS`
+    characters (:func:`cut_masked`), then escaped when it holds a control
+    character: the last two steps every cut name writer shares."""
+    return loggable(cut_masked(masked_name, NAME_CHARACTERS))
+
+
 def quoted_name_text(value: object) -> str:
     """A name in quotes (:func:`quoted_text`), masked and cut first
     (:func:`cut_name`), the mark inside the quotes."""
@@ -176,6 +183,13 @@ def quoted_name_text(value: object) -> str:
 def free_text(value: object) -> str:
     """A free text value: as it is when printable, else escaped."""
     return loggable(plain_text(value))
+
+
+def free_name_text(value: object) -> str:
+    """A name as free text (:func:`free_text`), masked and cut first
+    (:func:`cut_name`): a package name read from a file can be as long as
+    the file."""
+    return cut_and_escaped(masked(plain_text(value)))
 
 
 def failure_text(value: object) -> str:
@@ -222,6 +236,19 @@ def entity_text(value: object) -> str:
         ValueError: It is not a ``str``.
     """
     return loggable(given_path_text(plain_text(value)))
+
+
+def cut_entity_text(value: object) -> str:
+    """An element's name or registry key as :func:`entity_text` writes it,
+    cut to :data:`NAME_CHARACTERS` characters (then :data:`NAME_CUT_MARK`)
+    after masking and before escaping: a caller's model or dataset name can
+    be as long as it likes. :func:`entity_text` stays uncut, as a
+    comparison of two written values needs.
+
+    Raises:
+        ValueError: It is not a ``str``.
+    """
+    return cut_and_escaped(given_path_text(plain_text(value)))
 
 
 def entities_text(value: object) -> str:

@@ -45,8 +45,9 @@ from pitloom.core.models import build_relationship
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 from pitloom.id_registry import IdRegistry, IdRegistrySession, resolve_registry
 from pitloom.logging_config import configure_logging
-from pitloom.messages import CodedValueError, recoded
+from pitloom.messages import CodedValueError, emit, recoded
 from pitloom.messages.config import Parameter, invalid_value
+from pitloom.messages.fragments import REFERENCE_NOT_FOUND_DATASET
 
 log = logging.getLogger("pitloom.loom")
 
@@ -386,13 +387,20 @@ class _ActiveRun:
         for wanted_name in wanted_names:
             input_id = input_ids_by_name.get(wanted_name)
             if input_id is None:
-                log.warning(
-                    "loom: add_output_dataset(%r) names input_datasets=%r "
-                    "as a source, but no add_input_dataset(%r) was "
-                    "declared in this run; skipping it.",
-                    output_ds_name,
-                    wanted_name,
-                    wanted_name,
+                # An untyped caller may name an input by any value: a text
+                # as given, ``None`` as Python shows it, any other value by
+                # its type (never ``str()`` of it: that may raise or be huge).
+                given: object = wanted_name
+                emit(
+                    log,
+                    REFERENCE_NOT_FOUND_DATASET,
+                    logging.WARNING,
+                    dataset=output_ds_name,
+                    dataset_input=(
+                        given
+                        if given is None or isinstance(given, str)
+                        else f"a value of type {type(given).__name__}"
+                    ),
                 )
                 continue
             input_ids.append(input_id)

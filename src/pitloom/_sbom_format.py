@@ -33,7 +33,7 @@ from pitloom.core.given_file import read_given_bytes
 from pitloom.core.pep440 import parse_version
 from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
 from pitloom.messages import CodedValueError
-from pitloom.messages.files import JSON_MALFORMED, SBOM_USE, file_unreadable_error
+from pitloom.messages.files import SBOM_USE, file_unreadable_error
 from pitloom.messages.targets import (
     SBOM_DUPLICATE_KEY_LINE,
     SBOM_GRAPH_ELEMENT_LINE,
@@ -41,6 +41,7 @@ from pitloom.messages.targets import (
     SBOM_INVALID,
     SBOM_WRONG_FORMAT,
 )
+from pitloom.messages.text import JSON_MALFORMED
 from pitloom.messages.wheel_sboms import (
     GAP_BOTH_PART_MISSING,
     GAP_NO_DOCUMENT,

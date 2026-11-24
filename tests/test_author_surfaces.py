@@ -277,7 +277,8 @@ def test_embed_project_dir_adopts_authors_of_same_project_only(
     names = _main_authors(_embedded(wheel), wheel_name)
     assert names == (_DECLARED if adopted else _WHEEL_ORDER)
     err = capsys.readouterr().err
-    assert err.count("is not the wheel's") == (0 if adopted else 1)
+    assert err.count("not the wheel's") == (0 if adopted else 1)
+    assert err.count("[metadata-conflict]") == (0 if adopted else 1)
 
 
 @pytest.mark.parametrize(

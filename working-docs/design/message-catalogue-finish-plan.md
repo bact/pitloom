@@ -19,10 +19,10 @@ b0e43ccf. User instruction: finish the catalogue, then upgrade LicenseID to
 
 ## 1. Measured state (V)
 
-- Inventory: 1,131 sites; in scope and uncoded 27 after 17a (17b's 12 and
-  17c's 15). The ratchet check passes.
+- Inventory: in scope and uncoded 15 after 17b (17c's 15); 27 after 17a. The ratchet check passes.
 - Sites the exemption lists keep out of the ratchet (`scripts/message_inventory/_scope.py`):
-  `INTERNAL_PAT` hides 28 raises; `LIBRARY_PAT` 11; `DETAIL_EXC` 28 classes
+  `INTERNAL_PAT` hides 28 raises; `LIBRARY_EXC` (was `LIBRARY_PAT` 11;
+  17b keeps only `_no_active_run`); `DETAIL_EXC` 28 classes
   (151 sites, 7 never named in an `except`); `PASSTHROUGH_PAT` 5 `%s` sites.
   The 17a review found two real uncoded lines hidden by these lists.
 - Runtime probe: a root-logger plugin over 26,992 tests found 62 distinct
@@ -61,8 +61,9 @@ Python type; the Action's 15 shell annotations (a roadmap item).
 ## 3. Order of work
 
 1. **17a** (built, in review fixes): gates, merge main in (user), `test-all-os`.
-2. **17b** (authors, loom SDK, `sbom-basename`; 27 to 15), from main after
-   17a merges. Step 0: split the `files` topic page. Also move the
+2. **17b** (built, #527 guessed; authors, loom SDK, `sbom-basename`; 27 to
+   15), from main after 17a merges. See
+   [message-catalogue-pr17b-build.md](message-catalogue-pr17b-build.md). Step 0: split the `files` topic page. Also move the
    `_loom_dataset_meta.py:135,167` `loom: ` raises to `loom SDK: `.
 3. **17c** (datasets, display text, metadata budget; 15 to 0), from main
    after 17b. Re-read the `_ai_package.py` and `provenance.py` sites: #517

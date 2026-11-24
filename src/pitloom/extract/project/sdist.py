@@ -24,7 +24,6 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any, NamedTuple, TypeVar
 
-from pitloom._toml_io import load_toml_bytes
 from pitloom.core._project_toml import decode_member_text, load_project_toml_bytes
 from pitloom.core.config import (
     PitloomConfig,
@@ -42,7 +41,7 @@ from pitloom.extract._core_metadata import (
     parse_project_urls,
 )
 from pitloom.extract._license import apply_in_package_license_files
-from pitloom.extract.authors import collapse_whitespace, warn_project_authors_unread
+from pitloom.extract.authors import collapse_whitespace
 from pitloom.extract.project._sdist_pyproject import metadata_from_pyproject
 from pitloom.extract.project._sdist_scan import (
     PKG_INFO,
@@ -257,18 +256,19 @@ def _apply_declared_authors(
 
 def _optional_pyproject(raw: bytes | Cap, sdist_name: str) -> Any:
     """The root ``pyproject.toml`` parsed only for the declared authors, or
-    ``None`` with one ``WARNING:`` when it cannot be: the authors then come
-    from ``PKG-INFO``, without their declared order, name-only authors
-    joined into one ``Author`` field read as one."""
+    ``None`` with one ``WARNING:`` when it cannot be (``config-malformed``
+    or ``file-unreadable/not-utf8``, relayed): the authors then come from
+    ``PKG-INFO``, without their declared order, name-only authors joined
+    into one ``Author`` field read as one."""
     where = f"{sdist_name}:{PYPROJECT}"
     if isinstance(raw, Cap):
         outcome = f"project metadata not read, authors from the {PKG_INFO}"
         warn_over_cap(log, raw, where, outcome)
         return None
     try:
-        return load_toml_bytes(raw)
-    except ValueError as exc:  # TOMLDecodeError, UnicodeDecodeError
-        warn_project_authors_unread(where, exc, PKG_INFO)
+        return _load_pyproject(raw, sdist_name)
+    except ValueError as exc:  # config-malformed or file-unreadable/not-utf8
+        relay_coded_warning(log, exc, quiet=False)
         return None
 
 

@@ -263,9 +263,9 @@ _CHMOD_FILE = pytest.param(
     ("case", "needle"),
     [
         ("none", "has no path="),
-        ("missing", "gone.bin is not a file at exit"),
-        ("directory", "sub is not a file at exit"),
-        ("raced", "m.bin is not a file at exit"),
+        ("missing", "path= 'gone.bin' is not a file at exit"),
+        ("directory", "path= 'sub' is not a file at exit"),
+        ("raced", "path= 'm.bin' is not a file at exit"),
         ("stat", "could not read for the model hash"),
         _CHMOD_FILE,
     ],
@@ -526,6 +526,6 @@ def test_model_path_with_nul_warns_not_a_file_and_run_ends(
     assert out.exists()
     (warning,) = [r for r in caplog.records if r.levelno == logging.WARNING]
     assert "is not a file at exit" in warning.getMessage()
-    assert getattr(warning, CODE_ATTR, None) is None
+    assert getattr(warning, CODE_ATTR, None) == "model-file-missing"
     # pylint: disable-next=protected-access
     assert loom._active_run is None

@@ -17,8 +17,9 @@ import unicodedata
 
 from pitloom.core.untrusted_text import DISPLAY_CONTROLS
 from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
-from pitloom.logging_config import warn_once
+from pitloom.messages import emit
 from pitloom.messages.config import ConfigPlace, Parameter, invalid_value
+from pitloom.messages.options import SBOM_NAME_INVALID
 
 log = logging.getLogger(__name__)
 
@@ -69,7 +70,8 @@ def sbom_base_name(value: str, where: ConfigPlace | Parameter) -> str:
     one trailing ``.spdx3.json`` (any case), which every writer appends
     itself. A strip is announced with one ``WARNING:`` naming *where*, however
     often the same value is read in a run (config is parsed more than once).
-    *where* is the stage: a :class:`~pitloom.messages.config.ConfigPlace`
+    *where* is the stage (``sbom-name-invalid``'s line, and the code of a
+    refusal): a :class:`~pitloom.messages.config.ConfigPlace`
     (a configuration file) or a :class:`~pitloom.messages.config.Parameter`
     (a library caller's value, or ``--sbom-basename``).
 
@@ -81,7 +83,6 @@ def sbom_base_name(value: str, where: ConfigPlace | Parameter) -> str:
             ``..``, a path): the extension was all that named the file
             (a :class:`~pitloom.messages.CodedValueError`).
     """
-    label = where.text if isinstance(where, ConfigPlace) else where.name
     clean = value.strip()
     if clean.lower().endswith(SPDX3_JSONLD_EXTENSION):
         base = clean[: -len(SPDX3_JSONLD_EXTENSION)].strip()
@@ -91,17 +92,35 @@ def sbom_base_name(value: str, where: ConfigPlace | Parameter) -> str:
         return value
     if not is_plain_file_name(base):
         raise invalid_value(where, "bare-file-name", got=value)
-    warn_once(
-        log,
-        f"{label} {value!r}",
-        "%s %r is not a bare file name (surrounding white space or a trailing "
-        "%s); using %r",
-        label,
-        value,
-        SPDX3_JSONLD_EXTENSION,
-        base,
-    )
+    _warn_not_bare(where, value, base)
     return base
+
+
+def _warn_not_bare(where: ConfigPlace | Parameter, value: str, base: str) -> None:
+    """The one ``WARNING:`` (``sbom-name-invalid``) per stage and value of
+    a run that *value*, given at *where*, is used as *base*: a configuration
+    file's place, or an option's or a parameter's name."""
+    once = f"{where.text if isinstance(where, ConfigPlace) else where.name} {value!r}"
+    if isinstance(where, ConfigPlace):
+        emit(
+            log,
+            SBOM_NAME_INVALID,
+            logging.WARNING,
+            once=once,
+            config_key=where,
+            got=value,
+            base_name=base,
+        )
+    else:
+        emit(
+            log,
+            SBOM_NAME_INVALID,
+            logging.WARNING,
+            once=once,
+            option=where.name,
+            got=value,
+            base_name=base,
+        )
 
 
 def sbom_file_name(

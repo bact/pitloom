@@ -21,8 +21,8 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 from pitloom._sbom_format import read_given_sbom
 from pitloom.id_registry._harvest import _sorted_by_spdx_id
 from pitloom.messages import CodedValueError, emit
-from pitloom.messages.files import JSON_MALFORMED_BOM
 from pitloom.messages.targets import SBOM_INVALID, SBOM_UNREADABLE_LINE
+from pitloom.messages.text import JSON_MALFORMED_BOM
 
 log = logging.getLogger(__name__)
 

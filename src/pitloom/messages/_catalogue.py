@@ -16,6 +16,7 @@ from typing import Final
 
 from pitloom.messages import (
     _archive_members,
+    _authors,
     _build,
     _card_malformed,
     _config,
@@ -39,6 +40,7 @@ from pitloom.messages import (
     _license_relationship_invalid,
     _lock_entry,
     _lock_file,
+    _loom_sdk,
     _metadata_dynamic,
     _metadata_read,
     _model_field,
@@ -53,6 +55,7 @@ from pitloom.messages import (
     _registry_save,
     _remote_fetch,
     _sbom_input,
+    _sbom_name,
     _sbom_target,
     _target_input,
     _text_malformed,
@@ -138,6 +141,9 @@ MESSAGES: Final = _by_code(
         *_wheels.ENTRIES,
         *_archive_members.ENTRIES,
         *_wheel_sboms.ENTRIES,
+        *_authors.ENTRIES,
+        *_loom_sdk.ENTRIES,
+        *_sbom_name.ENTRIES,
     )
 )
 

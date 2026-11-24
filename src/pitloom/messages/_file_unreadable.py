@@ -149,7 +149,9 @@ FILE_UNREADABLE_NOT_UTF8: Final = Message(
     f"(an ERROR:, which prints since {_SINCE_SBOM}), or a configuration file "
     "(an ERROR:).",
     did="Went on without what the file holds: the field is not set from it, "
-    "or the usage scan records no model reference from it. For an SBOM, "
+    "or the usage scan records no model reference from it; an sdist's "
+    "pyproject.toml read only for its declared authors gives them from "
+    "PKG-INFO, without their declared order. For an SBOM, "
     "wrote nothing: to embed, no wheel is changed; to import, the ID "
     "registry is not written. For an ID registry file or a configuration "
     "file, wrote nothing: no registry and no SBOM.",

@@ -30,8 +30,8 @@ from pitloom.extract._license_resolve import (
     resolve_value,
     say_resolved,
 )
-from pitloom.messages.files import warn_license_surrogates
 from pitloom.messages.licences import warn_license_refused
+from pitloom.messages.text import warn_license_surrogates
 
 _logger = logging.getLogger(__name__)
 

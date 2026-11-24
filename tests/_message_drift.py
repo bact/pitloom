@@ -142,6 +142,7 @@ SAMPLES: dict[str, object] = {
     "root": "proj",
     "sbom_filename": "demo.spdx3.json",
     "sbom_value": "other-project",
+    "project_value": "other",
     "purpose": "per-wheel model-scan budget",
     "python": "3.10",
     "reason": "GGUF header declares 1000000 tensors",
@@ -172,6 +173,13 @@ SAMPLES: dict[str, object] = {
     "wheel_value": "demo",
     "when": "without --allow-build",
     "why": "not https",
+    "authors": ["Doe, Jane", "Ann and Bob"],
+    "base_name": "sbom",
+    "author_key": "MAINTAINER_EMAIL",
+    "entry_count": 2,
+    "dependency_count": 3,
+    "dataset": "imdb-clean",
+    "dataset_input": "imdb",
 }
 
 

@@ -43,20 +43,21 @@ from pitloom.assemble.spdx3.dataset import (
 from pitloom.core.ai_metadata import MODEL_NAME_CAP, cap_model_name
 from pitloom.core.dataset_metadata import FOLLOWER_FIELDS, DatasetMetadata
 from pitloom.core.provenance import ProvenanceConfig
-from pitloom.core.url_masking import URL_AS_PATH_RE, masked_given_path
+from pitloom.core.url_masking import URL_AS_PATH_RE
 from pitloom.enrich.readme import DATASET_CARD
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 from pitloom.extract.dataset import read_croissant, read_dataset_card
 from pitloom.extract.dataset.licence import dataset_licence
 from pitloom.logging_config import loggable
 from pitloom.messages import emit
+from pitloom.messages.config import Parameter, loom_sdk_invalid_value
+from pitloom.messages.datasets import LOOM_SDK_PREFIX
 from pitloom.messages.files import DIR_READ_LINE, FILE_UNREADABLE, warn_over_cap
 
 log = logging.getLogger("pitloom.loom")
 
 __all__ = [
     "CONTROL_CHARACTERS_WARNING",
-    "CROISSANT_URL_ERROR",
     "DECLARED_LICENSE_TYPE_ERROR",
     "DatasetDoc",
     "DatasetSources",
@@ -66,12 +67,9 @@ __all__ = [
     "write_metadata",
 ]
 
-#: ``ValueError`` text for a ``croissant=`` URL. Argument: the URL.
-CROISSANT_URL_ERROR = "loom: croissant=%r is a URL; only a local file is read"
-
 #: ``TypeError`` text for a ``declared_license=`` that is not a string.
 #: Argument: the value's type name.
-DECLARED_LICENSE_TYPE_ERROR = "loom: declared_license must be a str, not %s"
+DECLARED_LICENSE_TYPE_ERROR = f"{LOOM_SDK_PREFIX}declared_license must be a str, not %s"
 
 #: ``log.warning()`` format for display text escaped in a dataset's
 #: elements. Arguments: the dataset's name, the properties changed.
@@ -152,7 +150,8 @@ def read_sources(
 
     Raises:
         TypeError: *declared_license* is not a string.
-        ValueError: *croissant* is a URL, or cannot be read as Croissant.
+        ValueError: *croissant* is a URL (``option-invalid``), or cannot be
+            read as Croissant.
     """
     sources = DatasetSources()
     licence = _declared_licence(declared_license)
@@ -164,7 +163,9 @@ def read_sources(
     if croissant is not None:
         location = os.fspath(croissant)
         if _URL_RE.match(location):
-            raise ValueError(CROISSANT_URL_ERROR % masked_given_path(location))
+            raise loom_sdk_invalid_value(
+                Parameter("croissant"), "local-file", got=location
+            )
         label = cwd_relative_label(location)
         sources.read.append(read_croissant(location, label=label))
     if os.path.isdir(name):

@@ -29,11 +29,8 @@ from pitloom.messages import (
     Message,
     code_of,
 )
-from pitloom.messages.files import (
-    FILE_UNREADABLE,
-    JSON_MALFORMED,
-    OVER_CAP,
-)
+from pitloom.messages.files import FILE_UNREADABLE, OVER_CAP
+from pitloom.messages.text import JSON_MALFORMED
 from tests._message_drift import raised_as
 from tests._unreadable import deny
 

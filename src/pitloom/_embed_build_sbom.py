@@ -43,7 +43,7 @@ from pitloom.core.models import get_wheel_files, merkle_root_of_files
 from pitloom.core.project import ProjectFile, ProjectMetadata
 from pitloom.core.walk_rules import warn_registry_left_out, without_registry_copies
 from pitloom.enrich import run_enrichers_for_models
-from pitloom.extract.authors import CORE_METADATA_HINT, AuthorSplit, warn_author_splits
+from pitloom.extract.authors import AuthorSplit, warn_author_splits
 from pitloom.extract.binary import find_phantom_dependencies
 from pitloom.extract.scanner_project import scan_project_for_ai_models
 from pitloom.extract.wheel import wheel_document_identity
@@ -409,7 +409,7 @@ def _build_sbom_from_project_and_wheel(
             Path(project_dir),
             quiet=not cache.first_use(("adopt-authors", str(project_dir))),
         ):
-            warn_author_splits(author_splits or [], hint=CORE_METADATA_HINT)
+            warn_author_splits(author_splits or [])
         merkle_root = merkle_root_of_files(merged_files)
         ai_models = scan_project_for_ai_models(
             project_dir,

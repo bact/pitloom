@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-30
-Last-Modified: 2026-11-17
+Last-Modified: 2026-11-23
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -109,7 +109,8 @@ same commit.
   - `loom: model %r has no path=; not hashed, looked up by name only`
     (8.4, only with a registry loaded);
   - `loom: model %r: %s is not a file at exit; not hashed, looked up by
-    name only` (8.4);
+    name only` (8.4) (both reworded in catalogue PR 17b:
+    `registry-hash-missing` / `model-file-missing`);
   - `Merge: %s %r shares spdxId %s with a %s; keeping both, it gets new
     id %s` (D11).
 - **New ERRORs:** the D10 version message (section 6); `ID registry file

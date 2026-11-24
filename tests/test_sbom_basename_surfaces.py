@@ -12,6 +12,7 @@ See also: :mod:`tests.core.test_file_names` (the helper itself).
 
 from __future__ import annotations
 
+import logging
 import sys
 import tempfile
 import zipfile
@@ -26,7 +27,9 @@ from pitloom.cli.options_resolve import _resolve_output_path
 from pitloom.core.config import PitloomConfig
 from pitloom.core.project import ProjectMetadata
 from pitloom.embed import embed_wheel_sbom
-from pitloom.logging_config import configure_logging
+from pitloom.logging_config import CODE_ATTR, configure_logging
+from pitloom.messages import trusted_message
+from pitloom.messages.options import SBOM_NAME_INVALID
 from tests.assemble.conftest import _make_dummy_wheel
 from tests.extract.conftest import make_hook
 from tests.warning_helpers import logged_warnings, stderr_warnings
@@ -251,12 +254,36 @@ def test_base_name_with_the_extension_is_not_doubled(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """One ``x.spdx3.json`` and one ``WARNING:`` naming the stripped value."""
+    """One ``x.spdx3.json`` and one coded ``WARNING:`` naming the stripped
+    value (``sbom-name-invalid``), whatever the surface."""
     names, warnings = _SURFACES[surface](tmp_path, base, monkeypatch, capsys)
     assert names == ["x.spdx3.json"]
     assert len(warnings) == 1
     assert repr(base) in warnings[0]
-    assert ".spdx3.json" in warnings[0]
+    assert warnings[0].endswith("; using x [sbom-name-invalid]")
+    assert trusted_message(warnings[0]) is SBOM_NAME_INVALID
+
+
+@pytest.mark.parametrize(
+    ("surface", "label"),
+    [
+        ("library-kwarg", "sbom_basename"),
+        ("embed-wheel-flag", "--sbom-basename"),
+        ("embed-wheel-flag-project-dir", "--sbom-basename"),
+    ],
+)
+def test_the_line_names_the_parameter_as_the_surface_spells_it(
+    surface: str,
+    label: str,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A library caller's ``sbom_basename``, the command line's
+    ``--sbom-basename``: once, not again by the library the command calls."""
+    _, warnings = _SURFACES[surface](tmp_path, " x ", monkeypatch, capsys)
+    assert len(warnings) == 1
+    assert warnings[0].startswith(f"WARNING: {label}: a string ' x ' ")
 
 
 @pytest.mark.parametrize("surface", sorted(_SURFACES))
@@ -287,6 +314,9 @@ def test_hatchling_hook_strips_the_extension(
         assert [Path(p).name for p in build_data["sbom_files"]] == ["x.spdx3.json"]
         hook.finalize("standard", build_data, "")
     assert len(logged_warnings(caplog)) == 1
+    (record,) = [r for r in caplog.records if r.levelno == logging.WARNING]
+    assert getattr(record, CODE_ATTR) == SBOM_NAME_INVALID.code
+    assert record.getMessage().startswith("[tool.pitloom] sbom-basename: ")
 
 
 @pytest.mark.parametrize("flag", ["config", "flag"])

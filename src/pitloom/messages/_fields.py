@@ -17,6 +17,8 @@ discovery's), :mod:`pitloom.messages._fields_git` (the Git URL lines'),
 :mod:`pitloom.messages._fields_build` (the build lines'),
 :mod:`pitloom.messages._fields_fragments` (the SBOM fragment lines'),
 :mod:`pitloom.messages._fields_wheels` (the wheel and embedded-SBOM lines'),
+:mod:`pitloom.messages._fields_authors` (the author lines'),
+:mod:`pitloom.messages._fields_datasets` (the dataset and loom run lines'),
 :mod:`pitloom.messages._field_type` (:class:`Field`),
 :mod:`pitloom.messages._field_tables` (the closed tables),
 :mod:`pitloom.messages._types` (the templates),
@@ -48,19 +50,23 @@ from pitloom.messages._field_tables import (
 )
 from pitloom.messages._field_type import QUOTED, Field
 from pitloom.messages._field_writers import (
+    NAME_CHARACTERS,
     bytes_text,
     count_text,
     failure_text,
     file_text,
+    free_name_text,
     free_text,
     joined,
     number_text,
     path_text,
     plain_text,
 )
+from pitloom.messages._fields_authors import AUTHOR_FIELDS
 from pitloom.messages._fields_build import BUILD_FIELDS
 from pitloom.messages._fields_config import CONFIG_FIELDS
 from pitloom.messages._fields_credentials import CREDENTIAL_FIELDS
+from pitloom.messages._fields_datasets import DATASET_FIELDS
 from pitloom.messages._fields_fragments import FRAGMENT_FIELDS
 from pitloom.messages._fields_git import GIT_FIELDS
 from pitloom.messages._fields_licence import LICENCE_FIELDS
@@ -404,6 +410,15 @@ _GENERAL: Final[Mapping[str, Field]] = MappingProxyType(
             "what the file was read or written for, or the directory listed for: "
             + ", ".join(f"`{use}`" for use in READ_USES),
         ),
+        "base_name": Field(
+            r".+",
+            free_name_text,
+            "<base-name>",
+            "the SBOM base name used (the file is named <base-name>.spdx3.json), "
+            f"cut to {NAME_CHARACTERS} characters (`...` after it when cut); "
+            "escaped when it holds a control character",
+            free=True,
+        ),
         "value": Field(
             r".*",
             free_text,
@@ -473,4 +488,6 @@ FIELDS: Final[Mapping[str, Field]] = _merged(
     BUILD_FIELDS,
     FRAGMENT_FIELDS,
     WHEEL_FIELDS,
+    AUTHOR_FIELDS,
+    DATASET_FIELDS,
 )
