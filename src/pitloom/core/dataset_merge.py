@@ -30,7 +30,7 @@ from pitloom.core.dataset_metadata import (
     is_placeholder,
 )
 from pitloom.core.dataset_names import dataset_key, log_one_dataset
-from pitloom.logging_config import loggable
+from pitloom.messages.datasets import warn_dataset_conflict
 
 log = logging.getLogger(__name__)
 
@@ -99,11 +99,7 @@ def merge_dataset_into(
             _fill(target, other, item.name)
         elif _differ(item.name, mine, theirs) and item.name not in warned:
             warned.add(item.name)
-            log.warning(
-                "FIELD=%s: references to dataset %s differ; the first is kept",
-                item.name,
-                loggable(target.name),
-            )
+            warn_dataset_conflict(log, target.name, item.name)
 
 
 def merge_dataset_references(

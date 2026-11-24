@@ -27,7 +27,7 @@ each `<name>` (the values page says what each is), after at most one prefix from
 the table of prefixes.
 
 - [AI models](message-codes-models.md): 13 codes
-- [Model fields](message-codes-model-fields.md): 5 codes
+- [Model fields](message-codes-model-fields.md): 6 codes
 - [Targets](message-codes-targets.md): 16 codes
 - [Options](message-codes-options.md): 6 codes
 - [Configuration](message-codes-config.md): 6 codes
@@ -36,7 +36,7 @@ the table of prefixes.
 - [File discovery](message-codes-file-discovery.md): 3 codes
 - [Builds and temporary directories](message-codes-build.md): 7 codes
 - [Files and size caps](message-codes-files.md): 9 codes
-- [Text and documents](message-codes-text.md): 5 codes
+- [Text and documents](message-codes-text.md): 6 codes
 - [Lock files](message-codes-lock-files.md): 7 codes
 - [Dependencies](message-codes-dependencies.md): 7 codes
 - [PyPI](message-codes-pypi.md): 13 codes
@@ -49,7 +49,7 @@ the table of prefixes.
 - [SBOM fragments](message-codes-fragments.md): 12 codes
 - [Wheels](message-codes-wheels.md): 10 codes
 - [Embedded SBOMs](message-codes-wheel-sboms.md): 8 codes
-- [Datasets and loom runs](message-codes-datasets.md): 2 codes
+- [Datasets and loom runs](message-codes-datasets.md): 6 codes
 - [Values](message-codes-values.md): what each `<name>` in a line is
 
 | Code | Level | Since |
@@ -79,6 +79,10 @@ the table of prefixes.
 | [`credentials-unsafe/refused`](message-codes-url-credentials.md#credentials-unsaferefused) | ERROR | 0.25.0 |
 | [`credentials-unsafe/registry`](message-codes-url-credentials.md#credentials-unsaferegistry) | ERROR, WARNING | 0.25.0 |
 | [`credentials-unsafe/written`](message-codes-url-credentials.md#credentials-unsafewritten) | WARNING | 0.25.0 |
+| [`dataset-conflict`](message-codes-datasets.md#dataset-conflict) | WARNING | 0.25.0 |
+| [`dataset-conflict/spelling`](message-codes-datasets.md#dataset-conflictspelling) | INFO | 0.25.0 |
+| [`dataset-field-invalid`](message-codes-datasets.md#dataset-field-invalid) | WARNING | 0.25.0 |
+| [`dataset-name-missing`](message-codes-datasets.md#dataset-name-missing) | ERROR | 0.25.0 |
 | [`datetime-missing`](message-codes-fragments.md#datetime-missing) | WARNING | 0.25.0 |
 | [`datetime-not-recordable`](message-codes-wheel-sboms.md#datetime-not-recordable) | INFO | 0.25.0 |
 | [`datetime-unpinned`](message-codes-config.md#datetime-unpinned) | INFO | 0.25.0 |
@@ -165,6 +169,7 @@ the table of prefixes.
 | [`model-ambiguous`](message-codes-targets.md#model-ambiguous) | ERROR, INFO | 0.23.4 |
 | [`model-ambiguous/over-cap`](message-codes-targets.md#model-ambiguousover-cap) | ERROR | 0.23.4 |
 | [`model-field-conflict`](message-codes-model-fields.md#model-field-conflict) | WARNING | 0.23.0 |
+| [`model-field-invalid`](message-codes-model-fields.md#model-field-invalid) | WARNING | 0.25.0 |
 | [`model-field-unreadable`](message-codes-model-fields.md#model-field-unreadable) | WARNING | 0.23.0 |
 | [`model-file-missing`](message-codes-datasets.md#model-file-missing) | WARNING | 0.25.0 |
 | [`model-unreadable`](message-codes-models.md#model-unreadable) | WARNING | 0.22.0 |
@@ -232,6 +237,7 @@ the table of prefixes.
 | [`temp-dir-unwritable`](message-codes-build.md#temp-dir-unwritable) | WARNING | 0.25.0 |
 | [`text-malformed`](message-codes-text.md#text-malformed) | WARNING | 0.23.0 |
 | [`text-malformed/registry`](message-codes-text.md#text-malformedregistry) | ERROR, WARNING | 0.25.0 |
+| [`text-unsafe`](message-codes-text.md#text-unsafe) | WARNING | 0.25.0 |
 | [`url-moved`](message-codes-network.md#url-moved) | INFO | 0.24.0 |
 | [`url-moved/hf-endpoint`](message-codes-network.md#url-movedhf-endpoint) | INFO | 0.24.0 |
 | [`url-unsafe`](message-codes-network.md#url-unsafe) | ERROR, WARNING | 0.24.0 |

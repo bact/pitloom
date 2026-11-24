@@ -314,7 +314,11 @@ def test_spellings_share_one_registered_id(
 
 
 def _said(caplog: pytest.LogCaptureFixture) -> list[str]:
-    return [r.getMessage() for r in caplog.records if "name one dataset" in r.message]
+    return [
+        r.getMessage()
+        for r in caplog.records
+        if getattr(r, "pitloom_code", None) == "dataset-conflict/spelling"
+    ]
 
 
 def test_a_folded_spelling_is_said_once_by_every_route(
@@ -326,9 +330,7 @@ def test_a_folded_spelling_is_said_once_by_every_route(
     same ``INFO:`` for ``Org/Data``/``org/data``, the SDK once however often
     the pair is declared; an identical spelling says nothing."""
     monkeypatch.chdir(tmp_path)
-    expected = (
-        "dataset Org/Data and org/data name one dataset; the first spelling is kept"
-    )
+    expected = "DATASET='Org/Data': 'org/data' names it too; kept the first spelling"
     with caplog.at_level(logging.INFO, logger="pitloom"):
         with loom.run(tmp_path / "frag.json"):
             loom.set_model("m")

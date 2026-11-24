@@ -154,17 +154,21 @@ DOWNLOAD_FAILED: Final = Message(
     code="download-network-failed",
     condition="network-failed",
     lines=(DOWNLOAD_FAILED_LINE, GIT_NETWORK_FAILED_LINE, DOWNLOAD_FAILED_WARNING_LINE),
-    summary="A request to a remote source failed. PyPI or a Hugging Face "
-    "file: an HTTP status other than 404 (a 401 or 403 for a private or gated "
-    "repository read without access), a refused or reset connection, a name "
-    "that did not resolve, or an answer cut short. The Hugging Face Hub API "
+    summary="A request to a remote source failed. PyPI, a Hugging Face "
+    "file: an HTTP status other than 404 (a 401 or 403 for a private or "
+    "gated repository read without access), a refused or reset connection, "
+    "a name that did not resolve, or an answer cut short. A Croissant "
+    "document a library caller names by URL (read_croissant): the same, any "
+    "HTTP error status, a 404 included. The "
+    "Hugging Face Hub API "
     "(model_info(), dataset_info()): any HTTP error status, a 404 for a "
     "repository that does not exist or is private included, or a connection "
     "that failed. Git: git could not reach "
     "the repository (a name that did not resolve, a refused, reset or "
     "timed-out connection, a TLS failure, an HTTP 5xx answer); a git failure "
     "with any other cause is git-repository-unusable.",
-    did="Wrote no SBOM (the error: pypi.download-failed, git.clone-failed); "
+    did="Wrote no SBOM (the error: pypi.download-failed, git.clone-failed; "
+    "read_croissant raises ValueError carrying the code); "
     "for a Hugging Face file, left that file out and read the rest; for a "
     "Hub API request, recorded none of what it states, as the line's outcome "
     "names, and read the rest (the warning).",
@@ -200,12 +204,14 @@ DOWNLOAD_TIMEOUT: Final = Message(
     code="download-timeout",
     condition="timeout",
     lines=(DOWNLOAD_TIMEOUT_LINE, GIT_TIMEOUT_LINE, DOWNLOAD_TIMEOUT_WARNING_LINE),
-    summary="A request to PyPI, to the host that serves a file or to the "
+    summary="A request to PyPI, to the host that serves a file (a Croissant "
+    "document a library caller names by URL included) or to the "
     "Hugging Face Hub (a file, or the API's model_info() or dataset_info()), "
     "or the git calls that fetch a repository, did not finish within the "
     "time Pitloom allows.",
     did="Stopped the request and wrote no SBOM (the error: "
-    "pypi.download-timeout, git.timeout); for a Hugging Face file, left that "
+    "pypi.download-timeout, git.timeout; read_croissant raises ValueError "
+    "carrying the code); for a Hugging Face file, left that "
     "file out and read the rest; for a Hub API request, recorded none of "
     "what it states, as the line's outcome names, and read the rest (the "
     "warning).",

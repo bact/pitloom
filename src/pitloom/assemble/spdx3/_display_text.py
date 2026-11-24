@@ -18,7 +18,7 @@ See also: :func:`pitloom.assemble.spdx3._ai_package.finish_ai_package`
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from typing import Any
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
@@ -38,7 +38,10 @@ __all__ = [
     "LICENSE",
     "MODEL_ORIGINATOR",
     "MODEL_SUPPLIER",
+    "LABELS",
+    "PROPERTIES",
     "escape_element_display_text",
+    "escaped_properties",
 ]
 
 #: Labels naming, in the warning, the element a property belongs to.
@@ -50,6 +53,17 @@ DATASET_RELATIONSHIP = "dataset relationship"
 LICENSE = "license"
 MODEL_ORIGINATOR = "model originator"
 MODEL_SUPPLIER = "model supplier"
+#: Every label, for the catalogue's drift test.
+LABELS = (
+    BASE_MODEL,
+    BASE_MODEL_RELATIONSHIP,
+    DATASET,
+    DATASET_CREATOR,
+    DATASET_RELATIONSHIP,
+    LICENSE,
+    MODEL_ORIGINATOR,
+    MODEL_SUPPLIER,
+)
 
 _Escape = Callable[[str], str]
 _text = escape_display_controls
@@ -87,6 +101,9 @@ _ENTRY_FIELDS: dict[str, tuple[tuple[str, _Escape, bool], ...]] = {
         ("identifierLocator", _iri, True),
     ),
 }
+
+#: Every property name a warning gives, for the catalogue's drift test.
+PROPERTIES = (*(prop for prop, _, _ in _FIELDS), *_ENTRY_FIELDS)
 
 
 def _escape_field(obj: Any, prop: str, escape: _Escape, is_list: bool) -> bool:
@@ -136,3 +153,21 @@ def escape_element_display_text(element: spdx3.Element) -> list[str]:
         if any(entries_changed):
             changed.add(prop)
     return sorted(changed)
+
+
+def escaped_properties(
+    elements: Iterable[tuple[str, spdx3.Element]],
+) -> tuple[str, ...]:
+    """Escape the display text of each of *elements*
+    (:func:`escape_element_display_text`), each labelled for the warning
+    (``""`` for a model's own package); return the properties changed, each
+    after its label, sorted and once each (``dataset name``, ``name``)."""
+    return tuple(
+        sorted(
+            {
+                f"{label} {prop}" if label else prop
+                for label, element in elements
+                for prop in escape_element_display_text(element)
+            }
+        )
+    )

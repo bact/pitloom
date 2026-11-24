@@ -30,10 +30,7 @@ from pathlib import Path
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom._loom_caller import cwd_relative_label
-from pitloom.assemble.spdx3._display_text import (
-    DATASET,
-    escape_element_display_text,
-)
+from pitloom.assemble.spdx3._display_text import DATASET, escaped_properties
 from pitloom.assemble.spdx3.dataset import (
     add_dataset_creator_agent,
     add_dataset_license,
@@ -48,16 +45,15 @@ from pitloom.enrich.readme import DATASET_CARD
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 from pitloom.extract.dataset import read_croissant, read_dataset_card
 from pitloom.extract.dataset.licence import dataset_licence
-from pitloom.logging_config import loggable
 from pitloom.messages import emit
 from pitloom.messages.config import Parameter, loom_sdk_invalid_value
 from pitloom.messages.datasets import LOOM_SDK_PREFIX
 from pitloom.messages.files import DIR_READ_LINE, FILE_UNREADABLE, warn_over_cap
+from pitloom.messages.text import warn_text_unsafe
 
 log = logging.getLogger("pitloom.loom")
 
 __all__ = [
-    "CONTROL_CHARACTERS_WARNING",
     "DECLARED_LICENSE_TYPE_ERROR",
     "DatasetDoc",
     "DatasetSources",
@@ -70,12 +66,6 @@ __all__ = [
 #: ``TypeError`` text for a ``declared_license=`` that is not a string.
 #: Argument: the value's type name.
 DECLARED_LICENSE_TYPE_ERROR = f"{LOOM_SDK_PREFIX}declared_license must be a str, not %s"
-
-#: ``log.warning()`` format for display text escaped in a dataset's
-#: elements. Arguments: the dataset's name, the properties changed.
-CONTROL_CHARACTERS_WARNING = (
-    "loom: dataset %r: invisible or bidi control characters written as \\uXXXX in %s"
-)
 
 #: Fields the loom call itself sets: never taken from a source.
 _DECLARED_FIELDS = frozenset({"name", "dataset_types", "provenance"})
@@ -274,13 +264,7 @@ def write_metadata(
 def escape_display_text(name: str, elements: list[tuple[str, spdx3.Element]]) -> None:
     """Escape the invisible and bidi controls in the display text of
     *elements*, written for the dataset *name*, and say once which
-    properties had one; quiet when none had."""
-    changed = sorted(
-        {
-            f"{label} {prop}"
-            for label, element in elements
-            for prop in escape_element_display_text(element)
-        }
-    )
+    properties had one (``text-unsafe``); quiet when none had."""
+    changed = escaped_properties(elements)
     if changed:
-        log.warning(CONTROL_CHARACTERS_WARNING, loggable(name), ", ".join(changed))
+        warn_text_unsafe(log, changed, dataset=name)

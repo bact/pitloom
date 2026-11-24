@@ -76,6 +76,7 @@ _TOPIC_FAMILIES: Final[Mapping[str, tuple[str, ...]]] = MappingProxyType(
             "field-not-recordable",
             "hyperparameter-conflict",
             "model-field-conflict",
+            "model-field-invalid",
             "model-field-unreadable",
             "parameter-count-invalid",
         ),
@@ -147,6 +148,7 @@ _TOPIC_FAMILIES: Final[Mapping[str, tuple[str, ...]]] = MappingProxyType(
             "card-malformed",
             "json-malformed",
             "text-malformed",
+            "text-unsafe",
         ),
         "lock-files": (
             "lock-entry-conflict",
@@ -259,6 +261,9 @@ _TOPIC_FAMILIES: Final[Mapping[str, tuple[str, ...]]] = MappingProxyType(
         ),
         "datasets": (
             "caller-info-unreadable",
+            "dataset-conflict",
+            "dataset-field-invalid",
+            "dataset-name-missing",
             "model-file-missing",
         ),
     }

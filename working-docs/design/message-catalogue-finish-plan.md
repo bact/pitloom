@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-23
-Last-Modified: 2026-11-23
+Last-Modified: 2026-11-24
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -61,13 +61,13 @@ Python type; the Action's 15 shell annotations (a roadmap item).
 ## 3. Order of work
 
 1. **17a** (built, in review fixes): gates, merge main in (user), `test-all-os`.
-2. **17b** (built, #527 guessed; authors, loom SDK, `sbom-basename`; 27 to
+2. **17b** (MERGED #527; authors, loom SDK, `sbom-basename`; 27 to
    15), from main after 17a merges. See
    [message-catalogue-pr17b-build.md](message-catalogue-pr17b-build.md). Step 0: split the `files` topic page. Also move the
    `_loom_dataset_meta.py:135,167` `loom: ` raises to `loom SDK: `.
-3. **17c** (datasets, display text, metadata budget; 15 to 0), from main
-   after 17b. Re-read the `_ai_package.py` and `provenance.py` sites: #517
-   changed them.
+3. **17c** (built, PR #534; datasets, display text, metadata budget; 15 to
+   0; ratchet baseline empty). See
+   [message-catalogue-pr17c-build.md](message-catalogue-pr17c-build.md).
 4. **Sweep PR** (D2-D7): exemption audit; bare `pypi-url-unusable`;
    `scanner.py:265`; `hatch.py:224`; `cwd_relative_label` traceback; the
    `report_wheel_failure` write misreport and `Creator.type`

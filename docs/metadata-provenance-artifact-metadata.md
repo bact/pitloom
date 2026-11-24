@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-15
-Last-Modified: 2026-11-23
+Last-Modified: 2026-11-24
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -161,10 +161,10 @@ always marked explicitly in the same envelope, never silent:
 
 If the budget is too small to hold even an empty `metadata: {}` plus the
 marker fields, no Annotation is emitted for that artefact at all (a
-`WARNING` is logged) -- an Annotation whose own `maxMetadataBytes` field
+`WARNING` `[over-cap]` is logged) -- an Annotation whose own `maxMetadataBytes` field
 claims a budget its own overhead violates would be worse than omitting
 it. A budget that forces every key to be dropped, but still fits the
-marker overhead, is emitted with `metadata: {}` and a `WARNING`.
+marker overhead, is emitted with `metadata: {}` and a `WARNING` `[over-cap]`.
 
 A model file with more than 1000 metadata keys keeps its first 1000 (the
 [entry cap](ai-model-scan-limits.md#size-and-count-caps)). The keys left

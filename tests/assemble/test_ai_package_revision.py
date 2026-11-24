@@ -75,6 +75,9 @@ def test_a_release_time_that_is_not_iso_8601_is_left_out_with_a_warning(
     assert "releaseTime" not in _package(sbom)
     messages = [r.getMessage() for r in caplog.records if r.levelno == logging.WARNING]
     assert messages == ["FORMAT=unknown FILE=m: release time is not ISO 8601; left out"]
+    assert [getattr(r, "pitloom_code", None) for r in caplog.records] == [
+        "model-field-invalid"
+    ]
 
 
 @pytest.mark.skipif(not hasattr(time, "tzset"), reason="needs time.tzset (POSIX)")

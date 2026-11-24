@@ -140,6 +140,7 @@ CARD_KINDS: Final = ("model card", "dataset card", "Hugging Face dataset card")
 #: What an ``input-not-found`` line names the missing path as: a closed table.
 INPUT_KINDS: Final = (
     "config file",
+    "Croissant document",
     "fragments directory",
     "ID registry file",
     "PATH",

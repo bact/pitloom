@@ -41,7 +41,6 @@ from pitloom.core.provenance import provenance_segment, provenance_source
 from pitloom.extract._license_classify import classify_license, is_weak_licence
 from pitloom.extract._license_names import same_licence
 from pitloom.extract.dataset.values import (
-    NOT_TEXT_WARNING,
     is_placeholder,
     stated_text,
     stated_texts,
@@ -51,7 +50,6 @@ __all__ = [
     "LICENSE_FIELD",
     "LICENSE_LINK_FIELD",
     "LICENSE_NAME_FIELD",
-    "NOT_TEXT_WARNING",
     "DatasetLicence",
     "apply_dataset_licence",
     "dataset_licence",

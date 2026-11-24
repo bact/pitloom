@@ -26,6 +26,7 @@ from pitloom.messages._model_field import (
     GGUF_LENGTH_LINE,
     KERAS_MEMBER_LINE,
     MODEL_FIELD_CONFLICT,
+    MODEL_FIELD_INVALID,
     MODEL_FIELD_UNREADABLE,
     ONNX_REPEATED_LINE,
     PICKLE_MEMBER_LINE,
@@ -34,6 +35,7 @@ from pitloom.messages._model_field import (
     PT2_META_LINE,
     PT2_TAGS_LINE,
     PT2_VERSION_LINE,
+    RELEASE_TIME_LINE,
     TRAINING_CONFIG_LINE,
 )
 from pitloom.messages._model_stub import (
@@ -69,6 +71,7 @@ __all__ = [
     "HYPERPARAMETER_CONFLICT",
     "KERAS_MEMBER_LINE",
     "MODEL_FIELD_CONFLICT",
+    "MODEL_FIELD_INVALID",
     "MODEL_FIELD_UNREADABLE",
     "ONNX_REPEATED_LINE",
     "PARAMETER_COUNT_INVALID",
@@ -79,6 +82,7 @@ __all__ = [
     "PT2_META_LINE",
     "PT2_TAGS_LINE",
     "PT2_VERSION_LINE",
+    "RELEASE_TIME_LINE",
     "STATED_COUNT_REASON",
     "TRAINING_CONFIG_LINE",
 ]

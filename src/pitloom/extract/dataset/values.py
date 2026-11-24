@@ -27,7 +27,13 @@ from urllib.parse import urlsplit
 
 from pitloom.core.canonical_json import MAX_SAFE_INTEGER
 from pitloom.core.dataset_metadata import is_placeholder
-from pitloom.logging_config import loggable
+from pitloom.messages.datasets import (
+    NOT_A_COUNT,
+    NOT_A_URL,
+    NOT_TEXT,
+    UNQUOTED_VERSION,
+    warn_dataset_field,
+)
 from pitloom.messages.files import (
     Cap,
     warn_over_cap,
@@ -37,10 +43,6 @@ log = logging.getLogger(__name__)
 
 __all__ = [
     "MAX_VERSION_DIGITS",
-    "NOT_A_COUNT_WARNING",
-    "NOT_A_URL_WARNING",
-    "NOT_TEXT_WARNING",
-    "UNQUOTED_VERSION_WARNING",
     "is_placeholder",
     "is_stated_count",
     "stated_count",
@@ -52,29 +54,6 @@ __all__ = [
     "text_of",
     "warn_not_text",
 ]
-
-#: ``log.warning()`` format for a dataset field holding no text.
-#: Arguments: the source, the field, the value's type name.
-NOT_TEXT_WARNING = "dataset metadata: %s field %s is of type %s, not text; skipped"
-
-#: ``log.warning()`` format for a card ``version`` YAML did not read as text
-#: (``1.10`` reads as ``1.1``, ``1:1:1`` as ``3661``, ``010`` as ``8``).
-#: Arguments: the source, the value's type name.
-UNQUOTED_VERSION_WARNING = (
-    "dataset metadata: %s field version is of type %s, not text; "
-    "quote it to keep it as written; skipped"
-)
-
-#: ``log.warning()`` format for a size or count that is not a whole number
-#: of zero or more. Arguments: the source, the field.
-NOT_A_COUNT_WARNING = (
-    "dataset metadata: %s field %s is not a whole number of zero or more; skipped"
-)
-
-#: ``log.warning()`` format for a URL field holding text that is not a URL.
-#: Arguments: the source, the field.
-NOT_A_URL_WARNING = "dataset metadata: %s field %s is not a URL; skipped"
-
 
 #: A URL a download can name: a scheme, then a host (``https://``, ``s3://``,
 #: ``hf://``), and no whitespace or control character.
@@ -91,9 +70,9 @@ _VERSION_CAP = Cap(MAX_VERSION_DIGITS, "digit", "dataset-version", "FIELD")
 
 
 def warn_not_text(source: str, field: str, value: object) -> None:
-    """The one ``WARNING:`` for a *field* of *source* holding *value*, of a
-    type that is not text."""
-    log.warning(NOT_TEXT_WARNING, loggable(source), field, type(value).__name__)
+    """The one ``WARNING:`` (``dataset-field-invalid``) for a *field* of
+    *source* holding *value*, of a type that is not text."""
+    warn_dataset_field(log, NOT_TEXT, source, field, value)
 
 
 def _is_blank(item: object) -> bool:
@@ -204,7 +183,7 @@ def stated_url(value: object, source: str, field: str) -> str | None:
     except ValueError:
         valid = False
     if not valid or any(c.isspace() or not c.isprintable() for c in text):
-        log.warning(NOT_A_URL_WARNING, loggable(source), field)
+        warn_dataset_field(log, NOT_A_URL, source, field)
         return None
     return text
 
@@ -228,7 +207,8 @@ def stated_version(
     if numbers:
         warn_not_text(source, field, value)
     else:
-        log.warning(UNQUOTED_VERSION_WARNING, loggable(source), type(value).__name__)
+        # The quoting advice only for a scalar YAML read from unquoted text.
+        warn_dataset_field(log, UNQUOTED_VERSION, source, field, value)
     return None
 
 
@@ -264,7 +244,7 @@ def _warn_count(reason: str, source: str, field: str) -> None:
     if reason == "cap":
         warn_over_cap(log, _COUNT_CAP, f"{source} {field}")
     else:
-        log.warning(NOT_A_COUNT_WARNING, loggable(source), field)
+        warn_dataset_field(log, NOT_A_COUNT, source, field)
 
 
 def stated_count(value: object, source: str, field: str) -> int | None:

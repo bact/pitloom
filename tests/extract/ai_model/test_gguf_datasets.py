@@ -63,6 +63,15 @@ def _read(tmp_path: Path, *pairs: bytes) -> AiModelMetadata:
     return read_gguf(path)
 
 
+def _codes(caplog: pytest.LogCaptureFixture) -> list[object]:
+    """The ``pitloom_code`` of each ``WARNING`` record captured so far."""
+    return [
+        getattr(r, "pitloom_code", None)
+        for r in caplog.records
+        if r.levelno == logging.WARNING
+    ]
+
+
 def _names(meta: AiModelMetadata) -> list[str]:
     return [ref.metadata.name for ref in meta.datasets]
 
@@ -398,7 +407,11 @@ def test_a_repo_url_that_is_no_url_is_warned_and_left_out(
         )
     assert _names(meta) == ["d"]
     assert meta.datasets[0].metadata.download_url is None
-    assert [w for w in logged_warnings(caplog) if "is not a URL" in w]
+    assert logged_warnings(caplog) == [
+        "dataset metadata: SOURCE='m.gguf' FIELD=general.dataset.0.repo_url: "
+        "not a URL; skipped"
+    ]
+    assert _codes(caplog) == ["dataset-field-invalid"]
 
 
 def test_the_spec_array_names_datasets_and_a_link_is_a_download_location(
@@ -417,7 +430,10 @@ def test_the_spec_array_names_datasets_and_a_link_is_a_download_location(
     assert link.provenance == {"name": _LISTED, "download_url": _LISTED}
     # a link with a space is a name only, with the not-a-URL warning
     assert broken.download_url is None
-    assert [w for w in logged_warnings(caplog) if "is not a URL" in w]
+    assert logged_warnings(caplog) == [
+        "dataset metadata: SOURCE='m.gguf' FIELD=general.datasets: not a URL; skipped"
+    ]
+    assert _codes(caplog) == ["dataset-field-invalid"]
     assert meta.provenance["datasets"] == _LISTED
 
 
@@ -522,8 +538,9 @@ def test_one_name_at_one_version_is_one_dataset_and_a_dropped_fact_is_said(
         "Second",
     )
     assert logged_warnings(caplog) == [
-        "FIELD=download_url: references to dataset d differ; the first is kept"
+        "DATASET='d' FIELD=download_url: references differ; kept the first"
     ]
+    assert _codes(caplog) == ["dataset-conflict"]
 
 
 def test_two_versions_reach_the_sbom_as_one_package_with_a_warning(
@@ -537,10 +554,11 @@ def test_two_versions_reach_the_sbom_as_one_package_with_a_warning(
         graph = json.loads(build_model(meta, creation).to_json())["@graph"]
     (package,) = [e for e in graph if e["type"] == "dataset_DatasetPackage"]
     assert package["software_packageVersion"] == "1"
-    assert [w for w in logged_warnings(caplog) if "dataset d" in w] == [
-        "FIELD=version: references to dataset d differ; the first is kept",
-        "FIELD=download_url: references to dataset d differ; the first is kept",
+    assert [w for w in logged_warnings(caplog) if "DATASET='d'" in w] == [
+        "DATASET='d' FIELD=version: references differ; kept the first",
+        "DATASET='d' FIELD=download_url: references differ; kept the first",
     ]
+    assert _codes(caplog) == ["dataset-conflict"] * 2
 
 
 def test_a_field_differing_in_three_entries_of_one_dataset_is_said_once(
@@ -556,8 +574,9 @@ def test_a_field_differing_in_three_entries_of_one_dataset_is_said_once(
         meta = _read(tmp_path, *pairs)
     assert [ref.metadata.download_url for ref in meta.datasets] == ["https://x.org/0"]
     assert logged_warnings(caplog) == [
-        "FIELD=download_url: references to dataset d differ; the first is kept"
+        "DATASET='d' FIELD=download_url: references differ; kept the first"
     ]
+    assert _codes(caplog) == ["dataset-conflict"]
 
 
 def test_an_element_joins_the_first_entry_of_its_name_in_any_spelling(

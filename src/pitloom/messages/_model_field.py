@@ -5,8 +5,9 @@
 
 """A model read whole but for some of its fields: a part the reader could
 not read (``model-field-unreadable``), a key the file states twice
-(``model-field-conflict``), and a field SPDX 3.0.1 has no property for
-(``field-not-recordable``).
+(``model-field-conflict``), a field SPDX 3.0.1 has no property for
+(``field-not-recordable``), and a value its property cannot hold
+(``model-field-invalid``).
 
 A reader's line names no model: the scan puts
 :data:`~pitloom.messages.RELAY_FRAME` (``FORMAT=<fmt> FILE=<path>: ``)
@@ -173,4 +174,36 @@ FIELD_NOT_RECORDABLE: Final = Message(
     since="0.23.0",
 )
 
-ENTRIES: Final = (MODEL_FIELD_UNREADABLE, MODEL_FIELD_CONFLICT, FIELD_NOT_RECORDABLE)
+#: A release time stated (a Hub revision's, or a library caller's
+#: ``AiModelMetadata.release_time``) that is not an ISO 8601 time.
+RELEASE_TIME_LINE: Final = Line(
+    level="WARNING",
+    template="FORMAT=%(format)s FILE=%(file)s: release time is not ISO 8601; left out",
+)
+
+MODEL_FIELD_INVALID: Final = Message(
+    code="model-field-invalid",
+    condition="invalid",
+    lines=(RELEASE_TIME_LINE,),
+    summary="A model states a value its SBOM property cannot hold: a release "
+    "time (a Hugging Face revision's, or a library caller's "
+    "AiModelMetadata.release_time) that is not an ISO 8601 time. The line "
+    "does not print the value.",
+    did="Left the property out (no releaseTime); the rest of the model is "
+    "recorded. FORMAT=unknown names a library caller's model of no format.",
+    effect="thinner",
+    actor="user",
+    advice="Tell the user which model's release time was left out. A library "
+    "caller may pass an ISO 8601 time (2024-01-31T12:00:00Z) and generate "
+    "again; a value read from a model or the Hub is the source's. Do not edit "
+    "the source for them.",
+    subject_key="FILE",
+    since="0.25.0",
+)
+
+ENTRIES: Final = (
+    MODEL_FIELD_UNREADABLE,
+    MODEL_FIELD_CONFLICT,
+    FIELD_NOT_RECORDABLE,
+    MODEL_FIELD_INVALID,
+)

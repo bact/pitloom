@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-29
-Last-Modified: 2026-11-23
+Last-Modified: 2026-11-24
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -225,7 +225,7 @@ from a scan and from `loom model FILE` (exit 0). Beyond that:
   bidi or control characters, a URL percent-encoded (U+202E can make
   `txt.exe` read `exe.txt`):
   `WARNING: FORMAT=<fmt> FILE=<path>: invisible or bidi control characters
-  written as \uXXXX in <properties>`. The escape is not reversible on its own:
+  written as \uXXXX in <properties> [text-unsafe]`. The escape is not reversible on its own:
   a `\u202e` the file held as text looks the same, so check the
   `artifact-metadata` annotation's `metadata` (kept as read; not every
   field, e.g. an ONNX graph name) or the model file. Which fields are escaped:

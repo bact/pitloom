@@ -21,6 +21,10 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
 | Code | Level | Means | Since |
 | --- | --- | --- | --- |
 | [`caller-info-unreadable`](#caller-info-unreadable) | WARNING | The loom SDK could not inspect the call stack (inspect.stack raised: a sandboxed or frozen interpreter) to name the script and function that made a loom call, or the script that opened the run. Said once per process. | 0.25.0 |
+| [`dataset-conflict`](#dataset-conflict) | WARNING | Two references to one dataset (a model's card and its file, or a model listing it twice) state different values of one field. Said once per dataset and field. | 0.25.0 |
+| [`dataset-conflict/spelling`](#dataset-conflictspelling) | INFO | Two references name one dataset in different spellings (a Hub id in other case, or other spacing), which name one dataset. | 0.25.0 |
+| [`dataset-field-invalid`](#dataset-field-invalid) | WARNING | A dataset source (a dataset card, a Croissant document, a GGUF file's dataset keys, a Hugging Face model card's datasets) or a library caller's DatasetMetadata states a value its field cannot hold: a value that is not text, text in a URL field that is not a URL, or a size that is not a whole number of zero or more. A card version YAML read as a number, a Boolean or a date was written unquoted (1.10 reads as 1.1). | 0.25.0 |
+| [`dataset-name-missing`](#dataset-name-missing) | ERROR | A Croissant document (read for a loom dataset's croissant=, or by the library's read_croissant) states no name for its dataset, or one that is not text. | 0.25.0 |
 | [`model-file-missing`](#model-file-missing) | WARNING | A model declared with loom.set_model or loom.use_model names a path= that is no regular file when the run ends: it is gone, a directory, or a name holding a NUL. No ID registry is loaded (with one, registry-hash-missing says the lookup is ungated). | 0.25.0 |
 
 ### `caller-info-unreadable`
@@ -43,6 +47,85 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
   ```text
   WARNING: loom SDK: caller info not determined: <failure> | Field(s) affected (degraded): provenance Source (falls back to 'unknown'; Method: inspect_caller is still recorded) [caller-info-unreadable]
   WARNING: loom SDK: caller script path not determined: <failure> | Field(s) affected (skipped): caller_script_path [caller-info-unreadable]
+  ```
+
+### `dataset-conflict`
+
+- **Level**: WARNING.
+- **Means**: Two references to one dataset (a model's card and its file, or a
+  model listing it twice) state different values of one field. Said once per
+  dataset and field.
+- **SBOM effect**: weaker: what the SBOM says is less sure.
+- **Pitloom did**: Recorded the first reference's value; the other is left out.
+  The dataset is recorded once, with the roles of every reference.
+- **Tell the user**: which dataset and field the references disagree on; the
+  SBOM states the first value read. They may correct the source that is wrong
+  and generate again. Do not edit a source for them.
+- **Lines**:
+
+  ```text
+  WARNING: DATASET='<dataset>' FIELD=<dataset-field>: references differ; kept the first [dataset-conflict]
+  ```
+
+### `dataset-conflict/spelling`
+
+- **Level**: INFO.
+- **Means**: Two references name one dataset in different spellings (a Hub id in
+  other case, or other spacing), which name one dataset.
+- **SBOM effect**: none: the SBOM states what the input holds.
+- **Pitloom did**: Recorded one dataset, named by the first spelling read.
+- **Nothing to do**: Nothing to do: the spellings name one dataset, recorded
+  once under the first.
+- **Lines**:
+
+  ```text
+  INFO: DATASET='<dataset>': '<dataset-spelling>' names it too; kept the first spelling [dataset-conflict/spelling]
+  ```
+
+### `dataset-field-invalid`
+
+- **Level**: WARNING.
+- **Means**: A dataset source (a dataset card, a Croissant document, a GGUF
+  file's dataset keys, a Hugging Face model card's datasets) or a library
+  caller's DatasetMetadata states a value its field cannot hold: a value that is
+  not text, text in a URL field that is not a URL, or a size that is not a whole
+  number of zero or more. A card version YAML read as a number, a Boolean or a
+  date was written unquoted (1.10 reads as 1.1).
+- **SBOM effect**: thinner: the SBOM says less than reading the input would.
+- **Pitloom did**: Left that value out of the dataset (for a list, that item);
+  the dataset and its other fields are recorded.
+- **Tell the user**: which source and field the SBOM lacks, as the line names
+  them. They may correct the value in the source (quote a card version, give a
+  URL with its scheme and host, a size in whole bytes) and generate again. Do
+  not edit the source for them.
+- **Lines**:
+
+  ```text
+  WARNING: dataset metadata: SOURCE='<dataset-source>' FIELD=<dataset-field>: a value of type <dataset-value-type>, not text; skipped [dataset-field-invalid]
+  WARNING: dataset metadata: SOURCE='<dataset-source>' FIELD=<dataset-field>: a value of type <dataset-value-type>, not text; quote it to keep it as written; skipped [dataset-field-invalid]
+  WARNING: dataset metadata: SOURCE='<dataset-source>' FIELD=<dataset-field>: not a URL; skipped [dataset-field-invalid]
+  WARNING: dataset metadata: SOURCE='<dataset-source>' FIELD=<dataset-field>: not a whole number of zero or more; skipped [dataset-field-invalid]
+  ```
+
+### `dataset-name-missing`
+
+- **Level**: ERROR. As an ERROR, the command stops for that input and writes
+  nothing for it (exit 1).
+- **Means**: A Croissant document (read for a loom dataset's croissant=, or by
+  the library's read_croissant) states no name for its dataset, or one that is
+  not text.
+- **SBOM effect**: not-written: no SBOM is written for the input.
+- **Pitloom did**: Read nothing from the document: read_croissant and a loom
+  declaration with croissant= raise ValueError carrying the code; the dataset is
+  not declared, so a run the exception leaves writes nothing.
+- **Tell the user**: which document has no usable name. They give the document a
+  name (schema.org name, as text) or name another document, and run again. Do
+  not edit the document for them.
+- **Lines**:
+
+  ```text
+  ERROR: FILE=<file>: no dataset name: the Croissant name is a value of type <dataset-value-type>, not text; not read [dataset-name-missing]
+  ERROR: FILE=<file>: Croissant document has no name; not read [dataset-name-missing]
   ```
 
 ### `model-file-missing`

@@ -7,7 +7,8 @@
 code, through both library entry points (``read_croissant`` and a loom
 dataset's ``croissant=``): ``json-malformed`` (not JSON, not an object),
 ``over-cap`` (nesting), ``file-unreadable`` (a directory, a file the system
-refuses). An absent file and a URL that cannot be fetched carry none yet.
+refuses), ``input-not-found`` (an absent file); a URL that cannot be fetched
+carries ``download-network-failed``.
 
 See also: tests/extract/test_extract_utils.py (the reader, its byte cap
 and its URL branch).
@@ -25,11 +26,10 @@ import pytest
 
 from pitloom import loom
 from pitloom.extract.dataset import read_croissant
-from pitloom.messages import (
-    Message,
-    code_of,
-)
+from pitloom.messages import Message
 from pitloom.messages.files import FILE_UNREADABLE, OVER_CAP
+from pitloom.messages.network import DOWNLOAD_FAILED
+from pitloom.messages.targets import INPUT_NOT_FOUND
 from pitloom.messages.text import JSON_MALFORMED
 from tests._message_drift import raised_as
 from tests._unreadable import deny
@@ -105,21 +105,24 @@ def test_a_croissant_that_does_not_read_raises_its_code(
 
 
 @pytest.mark.parametrize("entry", sorted(_ENTRIES))
-def test_an_absent_croissant_carries_no_code(
+def test_an_absent_croissant_is_input_not_found(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, entry: str
 ) -> None:
     monkeypatch.chdir(tmp_path)
-    with pytest.raises(ValueError, match="^Cannot read Croissant source 'a.json'"):
+    with pytest.raises(ValueError) as raised:
         _ENTRIES[entry]("a.json")
+    assert str(raised.value) == "Croissant document not found: 'a.json'"
+    assert raised_as(raised.value, INPUT_NOT_FOUND)
 
 
-def test_a_url_that_cannot_be_fetched_carries_no_code() -> None:
+def test_a_url_that_cannot_be_fetched_is_a_download_failure() -> None:
     with patch("urllib.request.urlopen", side_effect=URLError("refused")):
-        with pytest.raises(
-            ValueError, match="^Cannot read Croissant source "
-        ) as raised:
+        with pytest.raises(ValueError) as raised:
             read_croissant("https://example.org/c.json")
-    assert code_of(raised.value) is None
+    assert str(raised.value) == (
+        "URL=https://example.org/c.json: <urlopen error refused>; not read"
+    )
+    assert raised_as(raised.value, DOWNLOAD_FAILED)
 
 
 def test_every_entry_is_raised_as_an_error_line() -> None:

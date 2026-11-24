@@ -21,6 +21,7 @@ from pitloom.core.dataset_metadata import FurtherLicences
 from pitloom.enrich.readme import MODEL_CARD_MAX_BYTES
 from pitloom.extract.dataset import read_dataset_card
 from pitloom.logging_config import loggable
+from tests._code_records import coded
 
 
 def _card(directory: Path, body: bytes, filename: str = "README.md") -> Path:
@@ -61,8 +62,10 @@ def test_full_card(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
         "keywords": f"Source: {src} | Field: tags",
     }
     assert _messages(caplog) == [
-        f"dataset metadata: {src} field tags is of type int, not text; skipped"
+        f"dataset metadata: SOURCE='{src}' FIELD=tags: a value of type int, "
+        "not text; skipped"
     ]
+    assert [code for code, _ in coded(caplog)] == ["dataset-field-invalid"]
 
 
 @pytest.mark.parametrize(
@@ -153,16 +156,31 @@ def test_no_metadata_for_a_missing_directory(tmp_path: Path) -> None:
             b"---\nlicense: [mit\n---\n",
             "README.md: dataset card frontmatter is not valid YAML; while parsing",
         ),
-        (b"---\nversion: true\n---\n", "field version is of type bool, not text"),
-        (b"---\nversion: 1.10\n---\n", "version is of type float, not text; quote"),
-        (b"---\nversion: 2\n---\n", "version is of type int, not text; quote"),
-        (b"---\nversion: 1:1:1\n---\n", "version is of type int, not text; quote"),
-        (b"---\nversion: 0x1F\n---\n", "version is of type int, not text; quote"),
-        (b"---\nversion: 010\n---\n", "version is of type int, not text; quote"),
-        (b"---\ntags: [a, [b]]\n---\n", "field tags is of type list, not text"),
+        (b"---\nversion: true\n---\n", "FIELD=version: a value of type bool, not text"),
+        (
+            b"---\nversion: 1.10\n---\n",
+            "FIELD=version: a value of type float, not text; quote",
+        ),
+        (
+            b"---\nversion: 2\n---\n",
+            "FIELD=version: a value of type int, not text; quote",
+        ),
+        (
+            b"---\nversion: 1:1:1\n---\n",
+            "FIELD=version: a value of type int, not text; quote",
+        ),
+        (
+            b"---\nversion: 0x1F\n---\n",
+            "FIELD=version: a value of type int, not text; quote",
+        ),
+        (
+            b"---\nversion: 010\n---\n",
+            "FIELD=version: a value of type int, not text; quote",
+        ),
+        (b"---\ntags: [a, [b]]\n---\n", "FIELD=tags: a value of type list, not text"),
         (
             b"---\nlicense: 3\n---\n",
-            "field license is of type int, not text; skipped",
+            "FIELD=license: a value of type int, not text; skipped",
         ),
     ],
     ids=[
@@ -186,6 +204,9 @@ def test_unusable_card_warns(
     messages = _messages(caplog)
     assert len(messages) == 1
     assert expected in messages[0]
+    if "FIELD=" in expected:
+        (record,) = [r for r in caplog.records if r.levelno >= logging.WARNING]
+        assert getattr(record, "pitloom_code", None) == "dataset-field-invalid"
 
 
 @pytest.mark.parametrize("label", ["ds", "d\ts"], ids=["plain", "tab"])

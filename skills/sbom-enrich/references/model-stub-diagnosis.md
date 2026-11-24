@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-29
-Last-Modified: 2026-11-23
+Last-Modified: 2026-11-24
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -34,6 +34,7 @@ user, and this table what the code leaves of the model:
 | [`lfs-pointer-malformed`](messages-models.md#lfs-pointer-malformed) | no `ai_AIPackage` | A file starts with the Git LFS pointer line but is not a valid pointer: damaged, cut short, or 1 KiB or larger. |
 | [`library-missing`](messages-models.md#library-missing) | a stub | A library Pitloom needs for a step is not installed: an optional extra for a model reader, the Hugging Face Hub, SPDX 3 validation, --allow-build or magika content types. |
 | [`library-unusable`](messages-models.md#library-unusable) | a stub | A library Pitloom needs for a step is installed but fails to import: a broken or partial install, a library it needs in turn missing, or a build for another Python or platform. The API line (since 0.25.0) is poetry-core, which Pitloom depends on, installed at a release that moved a function Pitloom calls. |
+| [`model-field-invalid`](messages-model-fields.md#model-field-invalid) | read, without the release time | A model states a value its SBOM property cannot hold: a release time (a Hugging Face revision's, or a library caller's AiModelMetadata.release_time) that is not an ISO 8601 time. The line does not print the value. |
 | [`model-field-unreadable`](messages-model-fields.md#model-field-unreadable) | read, without the fields the line names | A model reader read the file but not one of its parts (a fastText call, a PyTorch pickle, a PT2 archive member, a Keras or HDF5 attribute or config): the fields the line names are not recorded, or are recorded weaker. |
 | [`model-unreadable`](messages-models.md#model-unreadable) | a stub | A file whose header is a model format's could not be read: its reader failed (a truncated or corrupt file, a format version the reader does not know), or the file declares more than it can hold. |
 | [`model-wrong-format`](messages-models.md#model-wrong-format) | no `ai_AIPackage` | A file named as an AI model is not one: its header is not the format its suffix names, it is empty, or (a file named on its own) it is no model of a supported format. |

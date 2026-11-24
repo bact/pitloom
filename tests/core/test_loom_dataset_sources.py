@@ -223,14 +223,27 @@ def test_a_later_declaration_adds_its_sources(project: Path) -> None:
             "^loom SDK: croissant: must be a local file, not a URL, got",
             "option-invalid",
         ),
-        ("missing.json", "Cannot read Croissant source 'missing.json'", None),
+        (
+            "missing.json",
+            "^Croissant document not found: 'missing.json'$",
+            "input-not-found",
+        ),
         (
             "bad.json",
             "^FILE=bad.json: not valid JSON for the Croissant document; ",
             "json-malformed",
         ),
-        ("noname.json", "has no 'name' field", None),
-        ("listname.json", "field 'name' is of type list, not text", None),
+        (
+            "noname.json",
+            "^FILE=noname.json: Croissant document has no name; not read$",
+            "dataset-name-missing",
+        ),
+        (
+            "listname.json",
+            "^FILE=listname.json: no dataset name: the Croissant name is a value "
+            "of type list, not text; not read$",
+            "dataset-name-missing",
+        ),
         (
             "latin1.json",
             "^FILE=latin1.json: not valid JSON for the Croissant document; ",

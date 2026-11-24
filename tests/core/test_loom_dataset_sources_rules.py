@@ -27,6 +27,7 @@ import pytest
 from pitloom import loom
 from pitloom.core.ai_metadata import MAX_MODEL_NAME_CHARS
 from pitloom.core.creation import CreationMetadata
+from pitloom.core.internal_error import InternalError
 from pitloom.extract.dataset.croissant import CROISSANT_MAX_NESTING, read_croissant
 from pitloom.messages import code_of
 from tests._spdx3_validate import assert_spdx3_valid
@@ -397,16 +398,20 @@ def test_a_deep_croissant_is_read_or_refused_by_its_cap(
 
 
 def test_any_croissant_failure_is_a_value_error_naming_it(project: Path) -> None:
+    """An unforeseen failure while reading is an ``InternalError`` (a
+    ``ValueError``) naming the source and the exception's type, not its
+    text."""
     croissant_file(project / "c.json", license="MIT")
     with patch(
         "pitloom.extract.dataset.croissant._extract_croissant_rai_fields",
         side_effect=RecursionError("deep"),
     ):
         with pytest.raises(
-            ValueError,
-            match="^Croissant source 'c.json' cannot be read: RecursionError: deep",
-        ):
+            ValueError, match="^reading Croissant source 'c.json' raised RecursionError"
+        ) as raised:
             run_graph(
                 project / "out.json",
                 lambda: loom.add_dataset("t.txt", croissant="c.json"),
             )
+    assert isinstance(raised.value, InternalError)
+    assert "deep" not in str(raised.value)

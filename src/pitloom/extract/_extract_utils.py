@@ -10,6 +10,7 @@ from __future__ import annotations
 import email.message
 import http.client
 import json
+import math
 import os
 import re
 import stat
@@ -25,10 +26,15 @@ from pitloom.core.given_file import FETCH_MAX_BYTES
 from pitloom.core.path_confine import NotRegularFileError
 from pitloom.core.path_probe import is_missing_errno
 from pitloom.core.provenance import provenance_segment
-from pitloom.core.quote_source import quote_source
-from pitloom.logging_config import failure_reason
-from pitloom.messages import CodedValueError
+from pitloom.messages import CodedValueError, recoded, url_text
 from pitloom.messages.files import OVER_CAP, SOURCE_LINE, Cap, file_unreadable_error
+from pitloom.messages.network import (
+    DOWNLOAD_FAILED,
+    DOWNLOAD_FAILED_LINE,
+    DOWNLOAD_TIMEOUT,
+    DOWNLOAD_TIMEOUT_LINE,
+)
+from pitloom.messages.targets import input_not_found
 from pitloom.messages.text import JSON_MALFORMED, NOT_JSON_LINE, NOT_OBJECT_LINE
 
 if TYPE_CHECKING:
@@ -187,6 +193,26 @@ def json_nests_over(raw: bytes, limit: int) -> bool:
     return False
 
 
+def _download_error(url: str, exc: BaseException, timeout: float) -> CodedValueError:
+    """The error for *exc*, which stopped the fetch of *url*: ``download-
+    timeout`` when a socket operation timed out, else ``download-network-
+    failed``. *url* is attacker text: masked in the line."""
+    reason = getattr(exc, "reason", exc)
+    if isinstance(reason, TimeoutError):
+        return CodedValueError(
+            DOWNLOAD_TIMEOUT,
+            line=DOWNLOAD_TIMEOUT_LINE,
+            url=url_text(url),
+            seconds=max(math.ceil(timeout), 1),
+        )
+    return CodedValueError(
+        DOWNLOAD_FAILED,
+        line=DOWNLOAD_FAILED_LINE,
+        url=url_text(url),
+        failure=reason if isinstance(reason, BaseException) else exc,
+    )
+
+
 # pylint: disable-next=too-many-arguments
 def fetch_json(
     source: str | Path,
@@ -195,7 +221,7 @@ def fetch_json(
     max_nesting: Cap | None = None,
     *,
     use: str,
-    subject: str = "source",
+    input_kind: str = "PATH",
 ) -> dict[str, Any]:
     """Fetch and parse JSON from a local file path or an HTTP/HTTPS URL.
 
@@ -210,9 +236,8 @@ def fetch_json(
             nest (:func:`json_nests_over`); none by default.
         use: What *source* is read for, as its lines say it (one of
             :data:`pitloom.messages.READ_USES`).
-        subject: What *source* is, in the error for a URL that cannot be
-            fetched or a file that is absent (``Cannot read <subject>
-            '<source>': ...``).
+        input_kind: What a file that is absent is named as (one of
+            :data:`pitloom.messages.INPUT_KINDS`).
 
     Returns:
         Parsed JSON as a ``dict``.
@@ -221,8 +246,8 @@ def fetch_json(
         ValueError: If the data cannot be fetched, is not valid JSON or is
             over *max_bytes* or *max_nesting*, or if the top-level value is
             not a JSON object. Each carries its ``pitloom_code``
-            (``file-unreadable``, ``over-cap``, ``json-malformed``), but a
-            URL that cannot be fetched and a file that is absent.
+            (``input-not-found``, ``file-unreadable``, ``download-timeout``,
+            ``download-network-failed``, ``over-cap``, ``json-malformed``).
     """
     url: str | None = None
     if isinstance(source, str) and source.startswith(("http://", "https://")):
@@ -243,15 +268,13 @@ def fetch_json(
         # closes mid-response) is not an OSError subclass, so it needs its
         # own arm here -- without it, a transient network glitch would raise
         # out of what every caller treats as a "fetch failed" ValueError path.
-        # A URL that cannot be fetched and an absent file have no catalogued
-        # line yet; an absent file is never unreadable.
-        absent = isinstance(exc, OSError) and is_missing_errno(exc)
-        if url is not None or absent or not isinstance(exc, OSError):
-            where = quote_source(source)
-            # An exception names the URL it failed on: masked, since this
-            # text reaches a library caller that never passes the log sink.
-            why = failure_reason(exc)
-            raise ValueError(f"Cannot read {subject} {where}: {why}") from exc
+        # An absent file is never unreadable.
+        if url is not None or not isinstance(exc, OSError):
+            raise _download_error(str(source), exc, timeout) from exc
+        if is_missing_errno(exc):
+            raise recoded(
+                CodedValueError, input_not_found(input_kind, source)
+            ) from None
         raise file_unreadable_error(exc, file=source, use=use) from exc
 
     if len(raw) > max_bytes:

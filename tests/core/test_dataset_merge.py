@@ -116,8 +116,33 @@ def test_conflict_warns_once_per_field_and_keeps_the_first(
     merged = _one([_ref("trainedOn", version="1"), _ref("testedOn", version="2")])
     assert merged.metadata.version == "1"
     assert [r.getMessage() for r in caplog.records] == [
-        "FIELD=version: references to dataset o/d differ; the first is kept"
+        "DATASET='o/d' FIELD=version: references differ; kept the first"
     ]
+    assert [getattr(r, "pitloom_code", None) for r in caplog.records] == [
+        "dataset-conflict"
+    ]
+
+
+def test_a_conflict_names_the_kept_spelling_not_the_later_one(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Two spellings of one dataset: the first is kept, so the line names it."""
+    caplog.set_level(logging.WARNING)
+    merged = _one(
+        [
+            _ref("trainedOn", "Org/Data", version="1"),
+            _ref("testedOn", "org/data", version="2"),
+        ]
+    )
+    assert merged.metadata.name == "Org/Data"
+    conflicts = [
+        r.getMessage()
+        for r in caplog.records
+        if getattr(r, "pitloom_code", None) == "dataset-conflict"
+    ]
+    assert len(conflicts) == 1
+    assert "'Org/Data'" in conflicts[0]
+    assert "'org/data'" not in conflicts[0]
 
 
 def test_equal_values_do_not_warn(caplog: pytest.LogCaptureFixture) -> None:

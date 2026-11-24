@@ -66,6 +66,16 @@ class Cap:
         if self.model_format is not None and self.subject != "FILE":
             raise InternalError(f"a model's cap names its FILE, not {self.subject}")
 
+    @classmethod
+    def of_model(cls, limit: int, unit: str, purpose: str, model_format: str) -> Cap:
+        """A model's cap, named ``FORMAT=<model_format> FILE=<where>``; a
+        *model_format* that has not the shape of a format (a library
+        caller's own label) is left out, so the line names the file only."""
+        try:
+            return cls(limit, unit, purpose, model_format=model_format)
+        except InternalError:
+            return cls(limit, unit, purpose)
+
     def reason_values(self) -> dict[str, object]:
         """The values :data:`REASON` names."""
         return {"limit": self.limit, "unit": self.unit, "purpose": self.purpose}
@@ -134,7 +144,7 @@ OVER_CAP: Final = Message(
     effect="thinner",
     actor="user",
     advice="Tell the user which input was over which cap and what the SBOM "
-    "lacks for it. Three caps are settings, which they can raise for an input "
+    "lacks for it. Four caps are settings, which they can raise for an input "
     "they trust and then generate again: max-model-extract-bytes (and with it "
     "the per-wheel model-scan budget, four times it) by "
     "--max-model-extract-bytes or its [tool.pitloom] key; "
@@ -144,7 +154,10 @@ OVER_CAP: Final = Message(
     "own fixed cap, Hub-JSON, model-card, license-detection or dataset-card, "
     "which raising the setting does not lift); "
     "max-dataset-hash-bytes by its key, by --max-dataset-hash-bytes of loom id "
-    "generate or by the max_dataset_hash_bytes argument of loom.Run. "
+    "generate or by the max_dataset_hash_bytes argument of loom.Run; "
+    "max-source-metadata-bytes (the artifact-metadata annotation, the "
+    "model's metadata as read) by --max-source-metadata-bytes or its "
+    "[tool.pitloom.provenance] key, 0 for no cap. "
     "Every other cap is fixed. Do not raise a cap or generate again for them; "
     f"{ASK_FIRST}",
 )

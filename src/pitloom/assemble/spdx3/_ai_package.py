@@ -22,7 +22,7 @@ from pitloom.assemble.spdx3._ai_package_comment import package_comment
 from pitloom.assemble.spdx3._display_text import (
     BASE_MODEL,
     BASE_MODEL_RELATIONSHIP,
-    escape_element_display_text,
+    escaped_properties,
 )
 from pitloom.assemble.spdx3.creation_info import to_spdx3_datetime
 from pitloom.assemble.spdx3.provenance import (
@@ -56,10 +56,10 @@ from pitloom.export.spdx3_json import (
     require_spdx_id,
 )
 from pitloom.extract.ai_model.parameter_count import warn_parameter_count
-from pitloom.logging_config import loggable
 from pitloom.messages import emit
 from pitloom.messages.files import warn_over_cap
-from pitloom.messages.model_fields import HYPERPARAMETER_CONFLICT
+from pitloom.messages.model_fields import HYPERPARAMETER_CONFLICT, MODEL_FIELD_INVALID
+from pitloom.messages.text import warn_text_unsafe
 
 log = logging.getLogger(__name__)
 
@@ -135,6 +135,7 @@ def _emit_source_metadata(
         left_out=KeysLeftOut(
             ai_model.raw_metadata_dropped, ai_model.raw_metadata_unread
         ),
+        where=_model_where(ai_model)[1],
     )
     if annotation is not None:
         exporter.add_annotation(annotation)
@@ -192,12 +193,13 @@ class _LineageContext:
 
 
 def _model_where(ai_model: AiModelMetadata) -> tuple[str, str]:
-    """The ``FORMAT=``/``FILE=`` values naming *ai_model* in a warning."""
+    """The ``FORMAT=``/``FILE=`` values naming *ai_model* in a warning, as
+    read: the ``file`` field masks, then escapes."""
     info = ai_model.format_info
     where = info.physical_path or info.file_path_relative or info.file_name
     return (
         _source_metadata_blob(ai_model)[0],  # "huggingface" for a Hub model
-        loggable(where or ai_model.url or ai_model.resolve_name()[0]),
+        where or ai_model.url or ai_model.resolve_name()[0],
     )
 
 
@@ -382,22 +384,11 @@ def finish_display_text(
     """Escape the invisible and bidi controls in the display text of each
     of *elements*, built from *ai_model* and each labelled for the warning
     (``""`` for the model's own package), and say once which properties had
-    one; quiet when none had."""
-    changed = sorted(
-        {
-            f"{label} {prop}" if label else prop
-            for label, element in elements
-            for prop in escape_element_display_text(element)
-        }
-    )
-    if not changed:
-        return
-    log.warning(
-        "FORMAT=%s FILE=%s: invisible or bidi control characters written as "
-        "\\uXXXX in %s",
-        *_model_where(ai_model),
-        ", ".join(changed),
-    )
+    one (``text-unsafe``); quiet when none had."""
+    changed = escaped_properties(elements)
+    if changed:
+        fmt, where = _model_where(ai_model)
+        warn_text_unsafe(log, changed, format=fmt, file=where)
 
 
 def finish_ai_package(
@@ -423,10 +414,8 @@ def _release_time(ai_model: AiModelMetadata) -> datetime | None:
     parsed = iso_datetime_or_none(ai_model.release_time)
     if parsed is not None:
         return to_spdx3_datetime(parsed)
-    log.warning(
-        "FORMAT=%s FILE=%s: release time is not ISO 8601; left out",
-        *_model_where(ai_model),
-    )
+    fmt, where = _model_where(ai_model)
+    emit(log, MODEL_FIELD_INVALID, logging.WARNING, format=fmt, file=where)
     return None
 
 

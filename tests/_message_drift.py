@@ -180,6 +180,11 @@ SAMPLES: dict[str, object] = {
     "dependency_count": 3,
     "dataset": "imdb-clean",
     "dataset_input": "imdb",
+    "dataset_spelling": "Org/Imdb",
+    "dataset_source": "corpus/README.md",
+    "dataset_field": "version",
+    "dataset_value_type": 1.1,
+    "properties": ["dataset name", "name"],
 }
 
 

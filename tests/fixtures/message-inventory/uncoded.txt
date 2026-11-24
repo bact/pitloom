@@ -2,11 +2,3 @@
 # tests/test_message_ratchet.py. A count may fall, never rise.
 # Format: <module> <count>. A module with no uncoded site is absent.
 # Regenerate from the repository root: python -m scripts.message_inventory --write-baseline
-pitloom._loom_dataset_meta 1
-pitloom.assemble.spdx3._ai_package 2
-pitloom.assemble.spdx3.provenance 2
-pitloom.core.dataset_merge 1
-pitloom.core.dataset_names 1
-pitloom.extract._extract_utils 1
-pitloom.extract.dataset.croissant 3
-pitloom.extract.dataset.values 4

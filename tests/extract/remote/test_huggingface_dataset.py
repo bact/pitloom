@@ -37,6 +37,7 @@ from pitloom.extract.remote.huggingface_dataset import (
 )
 from pitloom.logging_config import CODE_ATTR
 from pitloom.messages.network import DOWNLOAD_FAILED
+from tests._code_records import coded
 from tests.conformance.g7ai_shared import without_licence_database
 from tests.extract.remote.hf_patches._hf_patches_base import (
     HubDataset,
@@ -314,9 +315,10 @@ def test_a_licence_list_of_no_text_warns_once(
     (meta,) = _read({"o/d": {"card_data": {"license": [1, {"id": "MIT"}]}}})
     assert (meta.license, meta.further_licenses) == (None, None)
     assert _warnings(caplog) == [
-        "dataset metadata: Hugging Face dataset o/d field license is of type int, "
-        "not text; skipped"
+        "dataset metadata: SOURCE='Hugging Face dataset o/d' FIELD=license: a value "
+        "of type int, not text; skipped"
     ]
+    assert [code for code, _ in coded(caplog)] == ["dataset-field-invalid"]
 
 
 def test_a_licence_of_the_wrong_shape_warns_naming_the_dataset(
@@ -325,9 +327,10 @@ def test_a_licence_of_the_wrong_shape_warns_naming_the_dataset(
     (meta,) = _read({"o/d": {"card_data": {"license": {"id": "MIT"}}}})
     assert meta.license is None
     assert _warnings(caplog) == [
-        "dataset metadata: Hugging Face dataset o/d field license is of type dict, "
-        "not text; skipped"
+        "dataset metadata: SOURCE='Hugging Face dataset o/d' FIELD=license: a value "
+        "of type dict, not text; skipped"
     ]
+    assert [code for code, _ in coded(caplog)] == ["dataset-field-invalid"]
 
 
 @pytest.mark.parametrize(

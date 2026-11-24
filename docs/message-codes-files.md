@@ -254,7 +254,7 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
 - **Pitloom did**: Kept what fits the cap and left the rest out, or did not read
   the input; the text after the semicolon says which.
 - **Tell the user**: which input was over which cap and what the SBOM lacks for
-  it. Three caps are settings, which they can raise for an input they trust and
+  it. Four caps are settings, which they can raise for an input they trust and
   then generate again: max-model-extract-bytes (and with it the per-wheel
   model-scan budget, four times it) by --max-model-extract-bytes or its
   [tool.pitloom] key; max-download-bytes (a wheel or sdist downloaded from a
@@ -263,9 +263,11 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
   has its own fixed cap, Hub-JSON, model-card, license-detection or
   dataset-card, which raising the setting does not lift); max-dataset-hash-bytes
   by its key, by --max-dataset-hash-bytes of loom id generate or by the
-  max_dataset_hash_bytes argument of loom.Run. Every other cap is fixed. Do not
-  raise a cap or generate again for them; ask first, and with nobody to ask,
-  report it only.
+  max_dataset_hash_bytes argument of loom.Run; max-source-metadata-bytes (the
+  artifact-metadata annotation, the model's metadata as read) by
+  --max-source-metadata-bytes or its [tool.pitloom.provenance] key, 0 for no
+  cap. Every other cap is fixed. Do not raise a cap or generate again for them;
+  ask first, and with nobody to ask, report it only.
 - **Lines**:
 
   ```text
