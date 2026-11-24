@@ -167,11 +167,11 @@ def cut_name(text: str) -> str:
     return cut_masked(masked(text), NAME_CHARACTERS)
 
 
-def cut_and_escaped(masked_text: str) -> str:
-    """*masked_text*, already :func:`masked`, cut to :data:`NAME_CHARACTERS`
+def cut_and_escaped(masked_name: str) -> str:
+    """*masked_name*, already :func:`masked`, cut to :data:`NAME_CHARACTERS`
     characters (:func:`cut_masked`), then escaped when it holds a control
     character: the last two steps every cut name writer shares."""
-    return loggable(cut_masked(masked_text, NAME_CHARACTERS))
+    return loggable(cut_masked(masked_name, NAME_CHARACTERS))
 
 
 def quoted_name_text(value: object) -> str:

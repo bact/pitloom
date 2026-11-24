@@ -138,6 +138,7 @@ def test_an_output_naming_an_undeclared_input_is_coded(
     assert trusted_message(line) is not None
 
 
+# pylint: disable-next=too-few-public-methods
 class _Exploding:
     """An input name whose text cannot be made."""
 
