@@ -24,6 +24,7 @@ import pytest
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.core.file_hash import HexDigests
+from pitloom.core.internal_error import InternalError
 from pitloom.export.hashes import file_digests_of, sha256_of
 from pitloom.export.spdx3_json import (
     Spdx3JsonExporter,
@@ -388,7 +389,7 @@ def test_to_json_raises_on_duplicate_spdx_id() -> None:
     exporter.add_package(pkg_a)
     exporter.add_package(pkg_b)
 
-    with pytest.raises(RuntimeError, match="Duplicate spdxId"):
+    with pytest.raises(InternalError, match="Duplicate spdxId"):
         exporter.to_json()
 
 

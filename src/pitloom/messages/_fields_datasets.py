@@ -135,8 +135,10 @@ DATASET_FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
             quoted_name_text,
             "'<dataset-source>'",
             "where a dataset value was read, in quotes: a card or Croissant file "
-            "as named (`'corpus/README.md'`), a GGUF file name, `'Hugging Face "
-            "model card'`, or the dataset's name for a value a library caller "
+            "as named (`'corpus/README.md'`), a GGUF file as its model's "
+            "`FILE=` names it (`'demo/m.gguf'`, its path in a wheel or "
+            "project), `'Hugging Face model card'`, or the dataset's name for "
+            "a value a library caller "
             f"set; a URL's credentials masked, cut to {NAME_CHARACTERS} "
             f"characters (then `{NAME_CUT_MARK}`)",
         ),

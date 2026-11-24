@@ -215,7 +215,8 @@ def _refuse_pypi_url(source: Path | str) -> None:
     otherwise be read as a missing local path.
 
     Raises:
-        CodedValueError: It is one (logged as well).
+        CodedValueError: It is one (raised, not logged: the caller says
+            it once, as the Git route does).
     """
     if not isinstance(source, str) or not is_pypi_url(source):
         return
@@ -224,7 +225,6 @@ def _refuse_pypi_url(source: Path | str) -> None:
         line=MODEL_URL_LINE,
         url=url_text(source.strip()),
     )
-    log.warning("%s", error)
     raise error
 
 
@@ -282,6 +282,9 @@ def generate_model_sbom(
         CodedValueError: ``pypi-url-unusable``: *source* is a PyPI URL (a
             release is not a model), refused as ``loom model`` refuses it,
             before anything is read or fetched; logged as well.
+        pitloom.messages.CodedOSError: The system refused a write
+            (``file-unwritable``): the ``-o`` copy at *output_path* (as
+            given).
     """
     configure_logging()
     _refuse_pypi_url(source)
@@ -391,6 +394,11 @@ def enrich_model(
     is the document the fragment will merge into, and the credentials its
     config accepts join those of *pitloom_config* and *credentials*
     (:class:`~pitloom.core.credential_policy.CredentialPolicy`).
+
+    Raises:
+        pitloom.messages.CodedOSError: The system refused a write
+            (``file-unwritable``): the fragment at *output_path* (as
+            given).
     """
     configure_logging()
     source_str = str(source)

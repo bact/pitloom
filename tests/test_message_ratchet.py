@@ -295,10 +295,25 @@ def test_the_documented_command_runs_the_ratchet() -> None:
             "print_error",
             None,
         ),
+        (
+            "src/pitloom/plugins/hatch.py",
+            "_report_failure",
+            "exception-param",
+            "print_error",
+            None,
+        ),
     ],
-    ids=["handler", "parser", "licenseid", "setuptools", "fickling", "reporter"],
+    ids=[
+        "handler",
+        "parser",
+        "licenseid",
+        "setuptools",
+        "fickling",
+        "reporter",
+        "hook",
+    ],
 )
-def test_the_six_relays_say_no_text_of_their_own(
+def test_the_seven_relays_say_no_text_of_their_own(
     records: list[dict[str, Any]],
     file: str,
     function: str,
@@ -306,17 +321,42 @@ def test_the_six_relays_say_no_text_of_their_own(
     emitter: str,
     template: str | None,
 ) -> None:
-    """The command handler and the per-wheel reporter say an exception's own
-    text and code, the parser argparse's, the ``licenseid: ``,
-    ``setuptools stderr: `` and ``fickling: `` relays those tools' own
-    words: none counts, known by the code's shape, not by a bare ``%s``
-    template. They are the only relays, so no other line leaves the count
-    this way."""
+    """The command handler, the per-wheel reporter and the build hook's
+    failure line say an exception's own text and code, the parser
+    argparse's, the ``licenseid: ``, ``setuptools stderr: `` and
+    ``fickling: `` relays those tools' own words: none counts, known by the
+    code's shape, not by a bare ``%s`` template. They are the only relays,
+    so no other line leaves the count this way."""
     relays = [(r["file"], r["function"], r["relays"]) for r in records if r["relays"]]
-    assert (file, function, kind) in relays and len(relays) == 6
+    assert (file, function, kind) in relays and len(relays) == 7
     (site,) = [r for r in records if (r["file"], r["function"]) == (file, function)]
     assert site["emitter"] == emitter and not load().in_scope(site)
     if kind == "prefixed":  # not left out as a bare "%s" passthrough
         scope = importlib.import_module(f"{load().__name__}._scope")
         assert site["template"] == template
         assert not scope.PASSTHROUGH_PAT.match(site["template"])
+
+
+def test_every_library_site_names_a_raise_of_the_tree(
+    records: list[dict[str, Any]],
+) -> None:
+    """Each ``LIBRARY_SITES`` entry is a raise of the tree, a library
+    caller's misuse, so no entry outlives its code (a renamed function or a
+    reworded text would leave its raise counted, and its entry stale); a
+    user-reachable raise beside one (``--build-timeout 0``, a registry file
+    past ``MAX_ID_NUMBER``) is not library."""
+    scope = importlib.import_module(f"{load().__name__}._scope")
+    raising = {
+        scope.library_site_key(r)
+        for r in records
+        if r["emitter"] == "raise" and load().reach(r) == "library"
+    }
+    assert scope.LIBRARY_SITES <= raising
+    beside = {
+        (r["function"], r["exc_class"]): load().reach(r)
+        for r in records
+        if r["emitter"] == "raise"
+        and r["function"] in ("validate_build_timeout", "IdRegistry._mint_id")
+    }
+    assert beside[("validate_build_timeout", "_out_of_range")] == "ERROR(raise)"
+    assert beside[("IdRegistry._mint_id", "CodedValueError")] == "ERROR(raise)"

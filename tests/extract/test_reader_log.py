@@ -155,3 +155,53 @@ def test_a_record_without_a_thread_id_is_captured_by_the_emitting_thread(
     (record,) = records
     assert record.thread is None  # the setup took effect
     assert record.getMessage() == "no thread id"
+
+
+class _Collect(logging.Handler):
+    def __init__(self) -> None:
+        super().__init__(level=logging.NOTSET)
+        self.said: list[str] = []
+
+    def emit(self, record: logging.LogRecord) -> None:
+        self.said.append(record.getMessage())
+
+
+_VALUES = "pitloom.extract.dataset.values"
+
+
+def test_a_non_capturing_record_goes_on_through_its_own_captured_logger() -> None:
+    """A dataset value check's record goes on to that logger's parent, not
+    to the readers' parent: a handler on ``pitloom.extract.dataset`` gets
+    it, one on ``pitloom.extract.ai_model``'s parent only once."""
+    dataset, extract = _Collect(), _Collect()
+    logging.getLogger("pitloom.extract.dataset").addHandler(dataset)
+    logging.getLogger("pitloom.extract").addHandler(extract)
+    a = _Worker("A")
+    a.start()
+    try:
+        a.step("enter")
+        logging.getLogger(_VALUES).warning("a value check, not captured")
+        logging.getLogger(f"{_VALUES}.sub").warning("a child, not captured")
+        a.step("exit")
+    finally:
+        logging.getLogger("pitloom.extract.dataset").removeHandler(dataset)
+        logging.getLogger("pitloom.extract").removeHandler(extract)
+    said = ["a value check, not captured", "a child, not captured"]
+    assert dataset.said == said
+    assert extract.said == said  # through the dataset logger, once each
+    assert a.tags() == []
+
+
+@pytest.mark.parametrize("propagate", [True, False])
+def test_every_captured_logger_is_restored(
+    propagate: bool, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    loggers = [_LOGGER, logging.getLogger(_VALUES)]
+    for logger in loggers:
+        monkeypatch.setattr(logger, "propagate", propagate)
+    before = [(lg.propagate, list(lg.handlers)) for lg in loggers]
+    with capture_reader_logs() as records:
+        assert [lg.propagate for lg in loggers] == [False, False]  # changed
+        logging.getLogger(_VALUES).warning("captured")
+    assert [r.getMessage() for r in records] == ["captured"]
+    assert [(lg.propagate, list(lg.handlers)) for lg in loggers] == before

@@ -61,6 +61,11 @@ def generate_env_sbom(
 
     *credentials* (:class:`~pitloom.core.credential_policy.CredentialPolicy`)
     adds to the credentials *pitloom_config* accepts.
+
+    Raises:
+        pitloom.messages.CodedOSError: The system refused a write
+            (``file-unwritable``): the ``-o`` copy at *output_path* (as
+            given).
     """
     configure_logging()
     cfg = resolve_standalone_config(

@@ -23,6 +23,7 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 from pitloom.core.canonical_json import canonical_json_indented
 from pitloom.core.credential_policy import CredentialPolicy
 from pitloom.core.file_hash import HexDigests
+from pitloom.core.internal_error import InternalError
 from pitloom.core.lfs_pointer import size_text
 from pitloom.core.license_individuals import INDIVIDUAL_BY_COMPACT_NAME
 from pitloom.core.untrusted_text import escape_lone_surrogates_in_elements
@@ -81,11 +82,12 @@ def require_spdx_id(element: spdx3.Element) -> str:
     element's ``spdxId`` on to APIs expecting a plain ``str``.
 
     Raises:
-        ValueError: If *element* has no ``spdxId`` assigned, which would
+        pitloom.core.internal_error.InternalError: If *element* has no
+            ``spdxId`` assigned, which would
             indicate a bug in how the element was constructed.
     """
     if element.spdxId is None:
-        raise ValueError(f"{describe_value(element)} has no spdxId assigned")
+        raise InternalError(f"{describe_value(element)} has no spdxId assigned")
     return str(element.spdxId)
 
 
@@ -273,7 +275,7 @@ def _deduplicate_named_elements(
 
 
 def _check_no_duplicate_spdx_ids(graph: list[dict[str, Any]]) -> None:
-    """Raise ``RuntimeError`` if two elements of *graph* share a
+    """Raise ``InternalError`` if two elements of *graph* share a
     ``spdxId`` after :func:`_deduplicate_named_elements` has run.
 
     Runs on that pass's output, not on :attr:`Spdx3JsonExporter.object_set`:
@@ -291,7 +293,7 @@ def _check_no_duplicate_spdx_ids(graph: list[dict[str, Any]]) -> None:
             continue
         first = seen.get(spdx_id)
         if first is not None:
-            raise RuntimeError(
+            raise InternalError(
                 f"Duplicate spdxId {spdx_id!r}: "
                 f"{describe_graph_element(first)} and "
                 f"{describe_graph_element(element)}"
@@ -587,7 +589,8 @@ class Spdx3JsonExporter:
             pitloom.messages.CodedValueError: ``credentials-unsafe/refused``
                 (the ``refuse`` mode), after one ``ERROR:`` line per refused
                 value.
-            RuntimeError: two elements share an ``spdxId`` (a construction
+            pitloom.core.internal_error.InternalError: two elements share
+                an ``spdxId`` (a construction
                 bug).
         """
         out_f = io.BytesIO()

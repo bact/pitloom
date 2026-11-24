@@ -31,7 +31,7 @@ VALID_CREATOR_TYPES: frozenset[str] = frozenset(
 )
 
 
-def _normalised_creator_type(value: str | None) -> str:
+def normalised_creator_type(value: str | None) -> str:
     """*value* as ``Creator.type`` keeps it: stripped, lower-case, and
     ``person`` for none or empty."""
     return (value or "person").strip().lower()
@@ -48,7 +48,7 @@ def creator_type_problem(value: object) -> str | None:
         return "string"
     return (
         None
-        if _normalised_creator_type(value) in VALID_CREATOR_TYPES
+        if normalised_creator_type(value) in VALID_CREATOR_TYPES
         else ("creator-type")
     )
 
@@ -113,7 +113,7 @@ class Creator:
         problem = creator_type_problem(self.type)
         if problem is not None:
             raise invalid_value(Parameter("Creator.type"), problem, got=self.type)
-        self.type = _normalised_creator_type(self.type)
+        self.type = normalised_creator_type(self.type)
 
 
 @dataclass

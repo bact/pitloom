@@ -18,6 +18,7 @@ line), tests/extract/remote/test_pypi_url.py (the URL itself).
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Callable, Iterator
 from pathlib import Path
 
@@ -156,11 +157,11 @@ def test_a_spelling_of_pypi_org_reads_pypi_org(
 def test_the_model_call_refuses_a_pypi_url_as_loom_model_does(
     url: str, offline: bool, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """Not read as a missing local path (``Model file not found``)."""
+    """Not read as a missing local path (``Model file not found``), and
+    raised without a record first (said once, as the Git route says it)."""
+    caplog.set_level(logging.DEBUG, logger="pitloom")
     with pytest.raises(ValueError) as info:
         generate_model_sbom(url, offline=offline)
     assert code_of(info.value) == PYPI_URL_UNUSABLE.code
     assert str(info.value) == MODEL_URL_LINE.render({"url": url})
-    assert [r.getMessage() for r in caplog.records if r.levelname == "WARNING"] == [
-        str(info.value)
-    ]
+    assert [r for r in caplog.records if r.levelno >= logging.INFO] == []

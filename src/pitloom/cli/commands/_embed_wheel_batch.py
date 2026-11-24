@@ -40,6 +40,7 @@ from pitloom.core.inert_options import (
     overridden_by_flags,
     settle_inert,
 )
+from pitloom.core.internal_error import InternalError
 from pitloom.embed import RECORD_SIGNATURES, EmbedFileCache
 from pitloom.extract.project import read_project
 from pitloom.id_registry import IdRegistry, registry_base_dir, resolve_registry
@@ -260,6 +261,8 @@ def try_embed_one_wheel(
             allow_signed_wheel=args.allow_signed_wheel,
             file_cache=batch.file_cache,
         )
+    except InternalError:
+        raise
     except (ValueError, OSError) as exc:
         report_wheel_failure(exc, wheel_path)
         return None

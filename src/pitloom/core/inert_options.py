@@ -36,6 +36,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from pitloom.core.build_options import EXTERNAL_SBOM_REASON, NO_PROJECT_DIR_REASON
+from pitloom.core.internal_error import InternalError
 from pitloom.core.no_effect import warn_no_effect
 
 if TYPE_CHECKING:
@@ -410,7 +411,8 @@ def forward_options(
     crosses.
 
     Raises:
-        ValueError: *callee* does not accept a given option that
+        pitloom.core.internal_error.InternalError: *callee* does not
+            accept a given option that
             :data:`INERT` does not declare inert for *kind* -- it would be
             dropped without a word, so this is a wiring bug, not user
             error. An option left ``None`` was not given and is dropped
@@ -427,7 +429,7 @@ def forward_options(
         if value is not None and name not in INERT[kind]
     )
     if undeclared:
-        raise ValueError(
+        raise InternalError(
             f"{getattr(callee, '__name__', callee)}() does not accept "
             f"{', '.join(undeclared)}, which INERT[{kind!r}] does not declare"
         )

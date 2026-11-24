@@ -15,6 +15,8 @@ from typing import TYPE_CHECKING, Final
 from hatchling.builders.config import BuilderConfig
 from hatchling.builders.hooks.plugin.interface import BuildHookInterface
 
+from pitloom.core.internal_error import InternalError
+
 #: Start of the error :func:`resolve_build_hook_base` raises when Hatchling's
 #: ``BuildHookInterface`` has an unexpected shape. The hook's frame
 #: (``Pitloom build hook: ``) goes before it on the ERROR line; the traceback
@@ -44,14 +46,17 @@ else:
         the subscription ``TypeError`` it works around.
 
         Raises:
-            RuntimeError: If the arity is neither 1 nor 2.
+            pitloom.core.internal_error.InternalError: If the arity is
+                neither 1 nor 2: a Hatchling release this build hook has
+                not been updated for, a Pitloom compatibility bug fixed by
+                a release, not a user's input.
         """
         param_count = len(BuildHookInterface.__parameters__)
         if param_count == 1:
             return BuildHookInterface[BuilderConfig]
         if param_count == 2:
             return BuildHookInterface[BuilderConfig, PluginManager]
-        raise RuntimeError(
+        raise InternalError(
             f"{HATCHLING_ERROR_PREFIX} BuildHookInterface has an "
             f"unexpected number of type parameters ({param_count}); "
             "Pitloom's Hatchling build hook may need updating for this "

@@ -40,6 +40,7 @@ from pitloom.core.build_signals import (
     TerminationGuard,
     TerminationSignal,
 )
+from pitloom.core.internal_error import InternalError
 from tests.build_and_read_shared import spied_raise_signal
 
 _Handler = Callable[[int, FrameType | None], object]
@@ -433,7 +434,7 @@ def test_entering_an_entered_guard_raises() -> None:
     """A nested exit of the same guard would end the outer block's
     protection early."""
     with TerminationGuard() as guard:
-        with pytest.raises(RuntimeError, match="already entered"), guard:
+        with pytest.raises(InternalError, match="already entered"), guard:
             pytest.fail("entered twice")
     # The failed entry left the owner intact: its exit released it.
     fresh = TerminationGuard()

@@ -21,7 +21,7 @@ from pathlib import Path
 
 import pytest
 
-from pitloom import __main__, _embed_wheel
+from pitloom import __main__, _embed_wheel, _sbom_io
 from pitloom.assemble import embed_sbom_in_wheel, embed_wheel_sbom
 from pitloom.messages import CodedOSError, code_of, trusted_message
 from pitloom.messages.targets import input_not_found
@@ -168,5 +168,5 @@ def test_a_coded_error_in_the_write_keeps_its_own_line(
 
 def test_no_copy_asked_writes_nothing(tmp_path: Path) -> None:
     before = sorted(tmp_path.iterdir())
-    _embed_wheel.write_sbom_copy(_SBOM, None)
+    _sbom_io.write_sbom_output(_SBOM, None)
     assert sorted(tmp_path.iterdir()) == before

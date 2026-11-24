@@ -15,6 +15,7 @@ import unicodedata
 from collections.abc import Callable, Mapping, Sequence
 from types import MappingProxyType
 
+from pitloom.core.internal_error import InternalError
 from pitloom.core.untrusted_text import escape_display_controls
 from pitloom.id_registry._registry import IdRegistry
 from pitloom.id_registry._types import PACKAGE_TYPE, _require_names, package_key
@@ -353,10 +354,11 @@ class IdRegistrySession:
         lookup hitting it in this session mints its own id.
 
         Raises:
-            ValueError: no registry is loaded in this session.
+            pitloom.core.internal_error.InternalError: no registry is
+                loaded in this session.
         """
         if self._registry is None:
-            raise ValueError("no ID registry loaded in this session")
+            raise InternalError("no ID registry loaded in this session")
         spdx_id = self._registry.register(type_name, name, sha256=sha256)
         return self._claim(claimant, spdx_id)
 

@@ -15,6 +15,8 @@ from __future__ import annotations
 import collections
 import json
 import logging
+import os
+import sys
 import tempfile
 from pathlib import Path
 from unittest.mock import patch
@@ -23,6 +25,9 @@ import pytest
 
 from pitloom import _loom_caller, loom
 from tests.registry_helpers import make_registry
+
+# A POSIX system lets a process keep a current directory that was removed.
+_POSIX = sys.platform != "win32"
 
 
 def test_loom_functions_raise_runtime_error_without_active_run() -> None:
@@ -249,6 +254,47 @@ def test_active_run_resolve_input_ids_missing_dataset_warning(
                 "add_input_dataset of this run declared" in r.message
                 for r in caplog.records
             )
+
+
+def test_active_run_no_inputs_output_naming_input_warns(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """An output naming an input is reported when the run declares no input."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        output_file = Path(tmpdir) / "no_input_ds.spdx3.json"
+        with caplog.at_level(logging.WARNING, logger="pitloom.loom"):
+            with loom.run(output_file) as run:
+                run.add_output_dataset("output_b.txt", input_datasets=["gone.txt"])
+            assert (
+                sum(
+                    "names input_datasets='gone.txt'" in r.message
+                    for r in caplog.records
+                )
+                == 1
+            )
+    caplog.clear()
+    with tempfile.TemporaryDirectory() as tmpdir:
+        with caplog.at_level(logging.WARNING, logger="pitloom.loom"):
+            with loom.run(Path(tmpdir) / "plain.spdx3.json") as run:
+                run.add_output_dataset("output_b.txt")
+    assert not [r for r in caplog.records if r.levelno >= logging.WARNING]
+
+
+@pytest.mark.skipif(not _POSIX, reason="a removed current directory is POSIX only")
+def test_cwd_relative_label_with_current_directory_removed(tmp_path: Path) -> None:
+    """A current directory gone leaves the bare name as label, not an error."""
+    gone = tmp_path / "gone"
+    gone.mkdir()
+    previous = os.getcwd()
+    os.chdir(gone)
+    try:
+        gone.rmdir()
+        with pytest.raises(OSError):
+            os.getcwd()
+        assert _loom_caller.cwd_relative_label("sub/data.csv") == "data.csv"
+        assert _loom_caller.cwd_relative_label("../up/data.csv") == "data.csv"
+    finally:
+        os.chdir(previous)
 
 
 def test_active_run_use_model_has_data_file_relationship() -> None:

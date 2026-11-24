@@ -37,7 +37,12 @@ _BAD: dict[str, tuple[str, bytes, tuple[str, str]]] = {
     "array": ("a.spdx3.json", b"[1, 2]", ("not a JSON object", "json-malformed")),
     "cyclonedx": ("a.spdx3.json", _CYCLONEDX.encode(), _NOT_SPDX3),
     "malformed-other-name": ("a.json", b"{oops", _NOT_JSON),
-    "nan": ("a.json", b'{"x": NaN}', _NOT_JSON),
+    # The constant's own text is the failure (the DETAIL) of the coded line.
+    "nan": (
+        "a.json",
+        b'{"x": NaN}',
+        (_NOT_JSON[0] + "NaN is not a JSON value", _NOT_JSON[1]),
+    ),
     "infinity": (
         "a.spdx3.json",
         b'{"@context": 1, "@graph": [], "x": Infinity}',

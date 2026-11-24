@@ -43,11 +43,13 @@ from pitloom.core.ai_metadata import (
     model_cap,
     model_file_suffixes,
 )
+from pitloom.core.internal_error import InternalError
 from pitloom.core.lfs_pointer import LfsPointer
 from pitloom.core.model_usage import merge_usages
 from pitloom.core.path_probe import is_missing_errno
 from pitloom.core.provenance import provenance_source
 from pitloom.extract._reader_log import capture_reader_logs
+from pitloom.extract._reader_relay import named_stably, relay
 from pitloom.extract._scanner_messages import (
     say_not_a_model,
     say_unread,
@@ -69,12 +71,11 @@ from pitloom.extract.ai_model.limits import (
     cap_and_warn,
 )
 from pitloom.extract.ai_model.reader_requirements import require_library
-from pitloom.logging_config import CODE_ATTR, loggable
+from pitloom.logging_config import loggable
 from pitloom.messages import (
     RELAY_FRAME,
     Message,
     emit,
-    relay_extra,
     say_summary,
 )
 from pitloom.messages.files import (
@@ -240,11 +241,13 @@ def _relog_reader_records(
 ) -> None:
     """Log what a reader logged, as the scanner's own messages: the stable
     ``FORMAT=``/``FILE=`` prefix on a warning (the catalogue's
-    :data:`~pitloom.messages.RELAY_FRAME`), the text escaped, the temporary
-    copy's path and name replaced by the model's. An over-cap warning is
-    said again through the shared helper, naming the model. A record's
-    catalogued code is kept while the new text is still one of its
-    message's lines (:func:`~pitloom.messages.relay_extra`)."""
+    :data:`~pitloom.messages.RELAY_FRAME`), the text escaped, the path and
+    name of the file the reader was handed replaced by the model's (a
+    ``FILE=``/``SOURCE=`` value by its physical path,
+    :func:`~pitloom.extract._reader_relay.named_stably`). An over-cap
+    warning is said again through the shared helper, naming the model. A
+    record's catalogued code is kept, unframed when the frame does not
+    allow it (:func:`~pitloom.extract._reader_relay.relay`)."""
     dist_name = PurePosixPath(candidate.distribution_path).name
     copied = provenance_source(path.name)
     prefix = RELAY_FRAME.render({"format": fmt, "file": candidate.physical_path})
@@ -254,15 +257,10 @@ def _relog_reader_records(
             cap, outcome = over
             warn_over_cap(log, model_cap(cap, fmt), candidate.physical_path, outcome)
             continue
-        text = record.getMessage()
+        text = named_stably(record.getMessage(), path.name, candidate.physical_path)
         if path.name != dist_name:
             text = text.replace(copied, provenance_source(dist_name))
-        text = scrub(text, path, candidate.physical_path)
-        if record.levelno >= logging.WARNING:
-            text = prefix + text
-        code = getattr(record, CODE_ATTR, None)
-        extra = relay_extra(code, record.levelname, text)
-        log.log(record.levelno, "%s", text, extra=extra)
+        relay(log, record, scrub(text, path, candidate.physical_path), prefix)
 
 
 def _read_materialized(
@@ -337,6 +335,8 @@ def read_model_candidate(candidate: ModelCandidate) -> AiModelMetadata:
         warn_over_cap(log, model_cap(e.cap, fmt), path_in, _METADATA_NOT_READ)
     except ScanBudgetExceeded:
         log.debug("Scan budget spent; %s kept without metadata", where)
+    except InternalError:
+        raise  # a programming error (a reader's record not relayable)
     # pylint: disable-next=broad-exception-caught
     except Exception as e:
         say_unread(log, fmt, candidate, e, path)
