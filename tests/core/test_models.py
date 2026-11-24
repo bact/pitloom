@@ -16,6 +16,7 @@ from pathlib import Path
 import pytest
 from hatchling.builders.wheel import WheelBuilder
 
+from pitloom.assemble import project_document_id
 from pitloom.core.models import (
     _build_merkle_tree,
     _clear_doc_counters,
@@ -26,6 +27,11 @@ from pitloom.core.models import (
     get_wheel_files,
     merkle_root,
     reserve_spdx_ids,
+)
+from tests.fixtures.locked_deps import (
+    PYLOCK_WITH_TRANSITIVE_IDNA,
+    PYPROJECT_WITH_REQUESTS_DEPENDENCY,
+    write_locked_deps_project,
 )
 
 
@@ -301,3 +307,183 @@ def test_get_wheel_files_normalizes_windows_style_distribution_path(
     )
     assert [f.distribution_path for f in posix_files] == ["pkg/zoo.py", "pkg0/a.py"]
     assert [f.distribution_path for f in windows_files] == ["pkg/zoo.py", "pkg0/a.py"]
+
+
+_LOCKED = ["requests==2.31.0", "idna==3.7"]
+
+
+def _lock_provenance(source: str, method: str = "resolved_lockfile") -> str:
+    return f"Source: {source} | Method: {method}"
+
+
+# Today's ids, pinned on purpose: the provenance string of the locked
+# dependencies is a seed input of compute_doc_uuid, so rewording a label
+# changes every SPDX id of a document with a lock. A failure here means
+# exactly that; change the literals only as a deliberate id break.
+# Each provenance shape is one a reader builds (extract/lock/cascade.py
+# `_LOCK_SOURCES` with `provenance_source`/`provenance_segment`,
+# extract/project/pyproject.py poetry.lock, deps_installed.py default).
+_PINNED_DOC_UUIDS = [
+    pytest.param(None, None, "941f9857-d3b0-59e6-ac6f-4682c38fee73", id="no-lock"),
+    pytest.param(
+        _LOCKED, None, "7bbd3b4a-5cda-5459-ad80-485c4f7d7a39", id="no-provenance"
+    ),
+    pytest.param(
+        _LOCKED,
+        _lock_provenance("lock file"),
+        "1fc24d64-bd8d-552c-8282-3c65de6fc874",
+        id="default",
+    ),
+    pytest.param(
+        _LOCKED,
+        _lock_provenance("pylock.toml"),
+        "f5442da8-76ae-5e87-9f89-0f60a76a5b2d",
+        id="pylock",
+    ),
+    pytest.param(
+        _LOCKED,
+        _lock_provenance("uv.lock"),
+        "edfc06bd-d6ee-5286-b28c-130f46833012",
+        id="uv",
+    ),
+    pytest.param(
+        _LOCKED,
+        _lock_provenance("poetry.lock"),
+        "bf2edfb5-0095-53d7-a448-e61f1fd6d7b1",
+        id="poetry",
+    ),
+    pytest.param(
+        _LOCKED,
+        _lock_provenance("pdm.lock"),
+        "b775aa51-9326-5572-ad4a-063cc6a15716",
+        id="pdm",
+    ),
+    pytest.param(
+        _LOCKED,
+        _lock_provenance("Pipfile.lock"),
+        "0f0aba83-6143-526e-b085-bb8d2596b801",
+        id="pipfile",
+    ),
+    pytest.param(
+        _LOCKED,
+        _lock_provenance("requirements.txt", "pinned_requirements"),
+        "65ab7efb-ef90-57de-be10-e672ceabc0ee",
+        id="requirements",
+    ),
+    pytest.param(
+        _LOCKED,
+        _lock_provenance("uv.lock") + " | Note: supersedes poetry.lock",
+        "4d187b2e-b3e0-5d47-bd31-e9ddd36aa2a4",
+        id="supersedes",
+    ),
+    pytest.param(
+        [],
+        _lock_provenance("pylock.toml"),
+        "21ccb408-ad3e-5440-870f-1ae164dd6dd6",
+        id="empty-lock",
+    ),
+]
+
+
+@pytest.mark.parametrize(("locked", "provenance", "expected"), _PINNED_DOC_UUIDS)
+def test_compute_doc_uuid_pinned_per_lock_provenance(
+    locked: list[str] | None, provenance: str | None, expected: str
+) -> None:
+    """Each locked-dependencies provenance shape keeps today's document id."""
+    assert (
+        compute_doc_uuid(
+            "demo",
+            "1.0",
+            ["requests>=2.0"],
+            locked_dependencies=locked,
+            locked_dependencies_provenance=provenance,
+        )
+        == expected
+    )
+
+
+def test_compute_doc_uuid_lock_gate_and_wording_are_id_inputs() -> None:
+    """An empty lock with a provenance differs from no lock, and two wordings
+    of one lock differ: the label text is an id input today."""
+    args = ("demo", "1.0", ["requests>=2.0"])
+    no_lock = compute_doc_uuid(*args)
+    empty_lock = compute_doc_uuid(
+        *args, locked_dependencies=[], locked_dependencies_provenance="Source: x"
+    )
+    reworded = [
+        compute_doc_uuid(
+            *args,
+            locked_dependencies=_LOCKED,
+            locked_dependencies_provenance=label,
+        )
+        for label in ("Source: pylock.toml", "Source: pylock.toml file")
+    ]
+    assert empty_lock != no_lock
+    assert reworded[0] != reworded[1]
+
+
+@pytest.mark.platform
+def test_project_document_id_pinned_through_real_lock_reader(
+    tmp_path: Path,
+) -> None:
+    """The pylock.toml reader's real provenance string yields today's id."""
+    root = write_locked_deps_project(tmp_path / "proj")
+    # write_bytes: the id covers file digests, so no CRLF on Windows.
+    for name, text in (
+        ("pyproject.toml", PYPROJECT_WITH_REQUESTS_DEPENDENCY),
+        ("pylock.toml", PYLOCK_WITH_TRANSITIVE_IDNA),
+    ):
+        (root / name).write_bytes(text.encode())
+    assert project_document_id(root) == (
+        "https://spdx.org/spdxdocs/locked-app-e3a81b9b-c82a-5658-ad0a-9f82a2758350"
+    )
+
+
+_POETRY_PYPROJECT = """
+[tool.poetry]
+name = "poetry-app"
+version = "0.1.0"
+description = "demo"
+authors = ["A <a@example.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+requests = "^2.0"
+""".strip()
+
+_POETRY_LOCK = """
+[[package]]
+name = "requests"
+version = "2.31.0"
+description = "demo"
+optional = false
+python-versions = ">=3.7"
+
+[[package]]
+name = "idna"
+version = "3.7"
+description = "demo"
+optional = false
+python-versions = ">=3.5"
+
+[metadata]
+lock-version = "2.0"
+python-versions = "^3.10"
+content-hash = "0"
+""".strip()
+
+
+@pytest.mark.platform
+def test_project_document_id_pinned_through_poetry_lock_route(
+    tmp_path: Path,
+) -> None:
+    """The hand-written poetry.lock provenance (extract/project/pyproject.py)
+    yields today's id; reading it needs the real poetry.lock reader."""
+    root = tmp_path / "proj"
+    root.mkdir()
+    # write_bytes: the id covers file digests, so no CRLF on Windows.
+    (root / "pyproject.toml").write_bytes(_POETRY_PYPROJECT.encode())
+    (root / "poetry.lock").write_bytes(_POETRY_LOCK.encode())
+    assert project_document_id(root) == (
+        "https://spdx.org/spdxdocs/poetry-app-19c9284a-4a45-5dc9-a4d7-507d9655d956"
+    )
