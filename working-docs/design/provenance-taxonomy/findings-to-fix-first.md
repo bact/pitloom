@@ -188,6 +188,22 @@ of this section: PIT-1, PIT-2 (one of its five sites), PIT-3, PIT-4,
 PIT-7, PIT-8, PIT-9 and PIT-12. The prompt gives the file and line of
 each, and marks every other item as read at the base or to check.
 
+### Second look on `main` (2026-11-24, 6cb6183f)
+
+No code was changed and nothing was run: the items the prompt marks
+"base" or "check" were read again. "Agent" is a search by a cheaper
+model; every line it quoted that is named here was then read.
+
+| # | State on `main` | How known |
+| --- | --- | --- |
+| PIT-2 | The five sites stand: `_setuptools_options.py:456` (the whole string compared), `_optional_dependencies.py:60-62`, `_setuptools_dynamic.py:286` and `lock/cascade.py:240-242` (each parses the string again), `scanner.py:218` (a prefix test, to rewrite a copied path). More of the kind, so the work is wider than five sites: `core/evidence.py:223` reads the `Evidence` level back, and the encoders decide from the parsed string (`_provenance_encoders.py:87` and `:95`, `deps_license.py:204`, `_license_elements.py:379`) | agent; the five sites read |
+| PIT-5 | Stands, narrower. With no `sha` the revision is none, and the card, the three config files and the licence files are each fetched at `main` (`huggingface_fetch.py:314-324`, `_hub_files.py:150`), with one `WARNING:` (`hub-revision-unpinned`). When `model_info` fails there is no list of licence files, so none is fetched; when it answers without a `sha` they are. Not read: whether the file reader resolves `main` once | agent; three places read |
+| PIT-6 | Stands. The provenance is `Source: PyPI JSON API \| Package: <name>` (`deps_installed.py:83`, `deps.py:142` and `:150`); the version of the release read is in no segment and is not kept (`info["version"]` is not read). The PyPI URL target does record it (`Method: latest-release` with a `Value`): the same shape would do | agent; the builder read |
+| PIT-9 | The test is unchanged (`_provenance_encoders.py:79-87`, used at `deps_license.py:204`). No reader was found that hands over a licence with no source: the main package, a PyPI dependency, an installed dependency, a model and a dataset each pass a `Source:` or a default. Not traced: fragments and enrichment. The branch may be reachable from outside input only | read |
+| PIT-10 | Out of date for GGUF: since #517 a header over a bound is read in part, the fields read are kept, and one `over-cap` warning says where it stopped (`gguf.py`, `_warn_partial`); tensor shapes are then absent. For NumPy, PyTorch, Safetensors and an archive member, `ModelOverCap` gives a stub (the file and its format) and one warning, not an error (`scanner.py:333-342`). Open: whether the stub's file carries its size and digest, and what a parameter count says then | read, not run |
+| PIT-11 | All three stand: `wheel.py:134`, `:136` and `:151` against `sdist.py:101`, `:105` and `:110`; `huggingface_fetch.py:289-292` and `:378` against `_license.py:93`; `onnx.py:444` against `fasttext.py` and `numpy.py:296` | agent; the lines read |
+| PIT-14 | The sentence on the page is corrected (2026-11-24). The same claim stands in the message catalogue: the summary of `license-conflict` (`messages/_license_expression.py:191`) and the pages generated from it in `docs/` and in two skills. That needs a change of source and the reference generated again | read |
+
 ### Groundwork the code stage needs, with no change of output
 
 | # | Finding | Seen | On `main` |
