@@ -148,14 +148,14 @@ and this project adheres to
 - Dataset field, Croissant name, display-text and metadata-budget lines carry
   codes; dataset lines name `SOURCE=` and `FIELD=` ([#534])
 - `generate_model_sbom()` on a PyPI URL raises `pypi-url-unusable` without an
-  uncoded `WARNING:` first; an `-o` or hook-staged SBOM the system refuses to write
-  is `file-unwritable` ([#536])
+  uncoded `WARNING:` first; a refused `-o` or hook-staged SBOM write is
+  `file-unwritable` (library: `CodedOSError`, not `PermissionError`) ([#536])
 - A model scanned from a wheel names its own path in `SOURCE=` and a relayed
   reader line keeps its code; the hook's error line is printed as the CLI's is ([#536])
 - `add_output_dataset(input_datasets=[...])` in a run with no inputs warns `[reference-not-found]`
   as with inputs; a removed current directory no longer crashes a `loom` path label ([#536])
-- A programming error is an `InternalError`, not a `RuntimeError`; a `content_type_method`
-  that is not a method is `option-invalid`; `Creator.type` that is not a string is too ([#536])
+- Former `RuntimeError` guards (`EmbedFileCache`, `TerminationGuard`, ...) raise `InternalError`;
+  a non-method `content_type_method` or non-string `Creator.type` is `option-invalid` ([#536])
 
 ### Fixed
 

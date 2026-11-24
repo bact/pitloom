@@ -233,5 +233,6 @@ __all__ = [
     "Tool",
     "creator_type_problem",
     "iso_datetime_or_none",
+    "normalised_creator_type",
     "resolve_source_date_epoch",
 ]

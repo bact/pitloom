@@ -503,7 +503,8 @@ build) once, on the batch's first call, and removes its temporary
 directories on exit -- including on SIGTERM/SIGHUP or Ctrl-C, via the
 same `TerminationGuard` the `--allow-build` docs describe. Every call
 in one batch must use the same *project_dir*, file-scan settings and
-build options -- a call that doesn't raises `ValueError`. Passing
+build options -- a call that doesn't raises
+`pitloom.core.internal_error.InternalError` (a `ValueError`). Passing
 `file_cache=` to `embed_wheel_sbom()` outside the `with` block raises
 `pitloom.core.internal_error.InternalError` (a `ValueError`, not a
 `RuntimeError`).

@@ -219,3 +219,21 @@ rounds; mutation of the inventory rules (12 mutants, all killed).
   looks for a forwarded code.
 - The docs-floor test reads the first `licenseid>=` match in `pyproject.toml`
   and does not scan `src/` docstrings.
+- The loom SDK's fragment write (`_loom_active_run.py` `finalize()`) is not
+  `file-unwritable`: a refused write raises a bare `PermissionError`. It needs
+  its own wording (the text says "for the SBOM", a fragment is not one).
+- Per-wheel `except (ValueError, OSError)` in `cli/commands/utils.py`
+  (`_locate_embedded_sbom_or_report`) and `verify_wheel.py` still swallow an
+  `InternalError` into an uncoded per-wheel `ERROR:`; not reachable today.
+- `_loom_active_run.py:153` `os.path.abspath(script_path)` raises when the
+  current directory is gone.
+- `test_usage_parse.py::test_no_other_thread_runs_while_the_parse_stack_size_is_set`
+  flakes under `--cov` with `-n 4` (a hang at 99%, or coverage's `RuntimeError:
+  Cannot install a trace function while another trace function is being
+  installed` from the 1 microsecond switch-interval watcher). Not in this PR's
+  diff; passes alone and without coverage.
+- Mutation pass on the PR (about 300 mutants): the survivors in code this PR
+  changed have tests (new files under `tests/`); survivors in older code
+  (`_loom_dataset_meta` merge helpers, `_sbom_io` stdout/replace helpers) were
+  left. `test_reader_log_interrupt.py` now undoes every captured logger: it had
+  left a dispatcher on the second one and leaked into later scanner tests.

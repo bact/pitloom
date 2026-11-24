@@ -245,6 +245,10 @@ def try_embed_one_wheel(
     a multi-wheel batch doesn't abort the others, matching how a failing
     `--verify`/`--validate` on one wheel already doesn't stop the loop
     in ``_run_embed_wheel_command``.
+
+    :class:`~pitloom.core.internal_error.InternalError` (a ``ValueError``
+    subclass) is a bug in Pitloom, not a bad wheel: it propagates and
+    aborts the batch.
     """
     try:
         embedded_wheel_path, arcname, _, removed, floored = embed_wheel_sbom(

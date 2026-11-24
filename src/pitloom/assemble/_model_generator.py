@@ -281,7 +281,7 @@ def generate_model_sbom(
     Raises:
         CodedValueError: ``pypi-url-unusable``: *source* is a PyPI URL (a
             release is not a model), refused as ``loom model`` refuses it,
-            before anything is read or fetched; logged as well.
+            before anything is read or fetched.
         pitloom.messages.CodedOSError: The system refused a write
             (``file-unwritable``): the ``-o`` copy at *output_path* (as
             given).
