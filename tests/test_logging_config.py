@@ -288,6 +288,17 @@ def test_excerpt_masks_a_password_before_it_collapses_white_space(space: str) ->
 
 
 @pytest.mark.parametrize(
+    "raw",
+    ["Bearer\ns3cr3tvalue99", "Bearer \n s3cr3tvalue99", "Bearer\r\n\ts3cr3tvalue99"],
+    ids=["lf", "spaced", "crlf-tab"],
+)
+def test_excerpt_masks_a_scheme_credential_split_by_a_line_break(raw: str) -> None:
+    """A scheme word and its credential on two lines read as one run only
+    once the white space is collapsed: masked again after it."""
+    assert excerpt(raw) == "'Bearer ***'"
+
+
+@pytest.mark.parametrize(
     ("text", "escaped"),
     [
         ("plain caf\u00e9 / path", "plain caf\u00e9 / path"),

@@ -96,9 +96,12 @@ HTTP credential, keeping the scheme:
 
 - after an `Authorization` or `Proxy-Authorization` header name and `:` or `=`
   (quoted or not), the credential after `Bearer`, `Basic` or `token`, whatever
-  its shape, and the `response=` value of a `Digest` header on that line. A
-  placeholder (`<token>`, `$GITHUB_TOKEN`) is kept; a word after the scheme is
-  masked too (`Authorization: Bearer token required` prints
+  its shape, and the `response=` (`Digest`) or `Signature=` (`AWS4-HMAC-SHA256`)
+  value on that line, also in escaped JSON. After another scheme (`Negotiate`,
+  `NTLM`, `ApiKey`), or none (`Authorization: sk-live-abcdefgh12345678`), a
+  value that looks random, as in the next point; `Authorization: denied for user
+  x` is kept. A placeholder (`<token>`, `$GITHUB_TOKEN`) is kept; a word after
+  the scheme is masked too (`Authorization: Bearer token required` prints
   `Authorization: Bearer *** required`).
 - after the word `Bearer` or `Basic` alone, a credential that looks random: 8
   characters or more holding a `~` or `+`, `=` padding, digits only, a word of
@@ -119,7 +122,8 @@ Over-masked, as a credential shown costs more than a word hidden: a backslash
 typed before a letter (a Windows folder `C:\tghp_...`) reads as an escape, so
 the name after it may be masked; after `Bearer` or `Basic`, a word that mixes
 letters and digits as a key does (`Bearer x86_64-linux`, `Bearer
-iPhone15Pro`) is masked.
+iPhone15Pro`, `Bearer t5-small`, `Bearer eCommerceSite`: one lower-case letter
+before capitals or digits) is masked.
 
 ## What you see
 
@@ -312,11 +316,13 @@ credentials out of URLs:
 - A file name in a URL field that is scp-shaped (`meet-10:30@ab:c.txt`) is
   found as a credential: accept its fingerprint.
 - In a log line, after `Bearer` or `Basic` with no `Authorization` header name
-  before it, a credential under 8 characters, of letters only with no single
-  lower-case letter among capitals (`abcdefghij`, `Abcdefghijklmnop`), or with
-  fewer digits at its end than letters; a `Basic` value that is not base64; a
-  `Digest` header spread over lines; a quoted credential (`Bearer 'x'`); a
-  `Cookie:` or `X-Api-Key:` value. A known token shape is masked anywhere.
+  before it (or after another scheme in one), a credential under 8 characters,
+  of letters only with no single lower-case letter among capitals
+  (`abcdefghij`, `Abcdefghijklmnop`), of one case or of words (`passw0rd`,
+  `mySecretPassword`, `qwertyUIOP`), or with fewer digits at its end than
+  letters; a `Basic` value that is not base64; a `Digest` or `AWS4-HMAC-SHA256`
+  header spread over lines; a quoted credential (`Bearer 'x'`); a `Cookie:` or
+  `X-Api-Key:` value. A known token shape is masked anywhere.
 - Logs that are not Pitloom's own: a third-party library's warning or log line
   and a Hatchling traceback are not masked (`urllib3` and `requests` log lines
   are, once Pitloom has set up its logging), and a line break in a password can

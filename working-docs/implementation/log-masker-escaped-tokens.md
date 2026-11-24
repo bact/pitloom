@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-23
-Last-Modified: 2026-11-23
+Last-Modified: 2026-11-24
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -127,7 +127,8 @@ abcdefgh`, a `Digest` `response="..."`.
 
 Missed (in `docs/url-credentials.md`): after a scheme word alone, a credential
 under 8 characters, of letters only without a single lower-case letter among
-other runs, or with fewer digits at its end than letters; a `Digest` header
+other runs, of one case or of words (`passw0rd`, `mySecretPassword`), or with
+fewer digits at its end than letters; a `Digest` or `AWS4-HMAC-SHA256` header
 over several lines; `Bearer 'x'`; `Cookie:` and `X-Api-Key:` values.
 
 ## Before and after
@@ -239,9 +240,33 @@ headers): all under the bound.
   headers 0.21. Mutation: the two passes run in sequence (killed by the
   `Basic Bearer` case), each pass dropped, the merge dropped, `={0,3}` and
   `={0,1}` padding, the `Digest` bound at the next header and at the line
-  end: killed. Equivalent: `start <= done` against `<` and `max(done, end)`
-  against `end` (spans start after a separator, so they only coincide or
-  stay apart), and dropping the early return when nothing is masked.
+  end: killed. Equivalent: `start <= done` against `<`, and dropping the
+  early return when nothing is masked. Not equivalent (third review):
+  `max(done, end)` against `end`: spans nest, as the `Digest` value class
+  holds `%20`, so a scheme span can sit inside a `response=` span
+  (`Authorization: Digest response=Bearer%20s3cr3t99x~/:abc, x=1`); with
+  `end` the value's tail `:abc` printed. Pinned by `digest-nested-spans`.
+- Third review (delta of the second fix, 2026-11-24, fresh Opus agent; 9
+  findings, all taken). F1: `excerpt()` masked before collapsing, so a
+  scheme word and a credential split by a line break (`Bearer\ns3cr3t...`)
+  printed; it now masks again after collapsing, and the scheme-word
+  separators are any white space and the escapes `ascii()` writes for it
+  (`\n`, `\r`, `\x0b`, `\u2028`), so `loggable()` text is masked too. A
+  header's separators stay without a line break (`Authorization: Bearer`
+  with no value, then another header, must not hide the next header's
+  name). F2: a `Digest` `response=\"x\"` in escaped JSON printed the hash;
+  the value class excludes `\` and the value may open with `\"`. F3:
+  `Negotiate`, `NTLM`, `ApiKey`, `AWS4-HMAC-SHA256 ... Signature=` and a
+  value with no scheme printed; the header pass reads any RFC 7235 token as
+  the first word, masks the run after an unknown scheme when it looks
+  random (a prose word after `Authorization:` stays), the word itself when
+  nothing follows and it looks random, and a `Signature=` value as it does
+  `response=`. F4: a `%XX` escape is a run character and a mark of a
+  credential (`Bearer%20abcd%2Fefgh%2B12`); a `Basic` value is decoded
+  before the base64 test. F5: above. F6, F7: the docs name the over-masked
+  words (`t5-small`, `eCommerceSite`) and the missed ones (`passw0rd`,
+  `mySecretPassword`). F8: this file's date. F9: the spy test patches
+  `_SECRET_PARAM`, which it still names.
 - About 50 call sites still escape before the formatter masks:
   `log.warning(..., loggable(x))` across `extract/`, `core/`, `assemble/`
   (`grep -rn "loggable(" src/pitloom`), and the free-field writers

@@ -45,6 +45,14 @@ _JWT = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.sIg_-x9"
         pytest.param("BEARER\tabcd1234", "BEARER\t***", id="tab"),
         pytest.param("Bearer\xa0abcd1234", "Bearer\xa0***", id="nbsp"),
         pytest.param("Bearer%20abcd1234", "Bearer%20***", id="pct20"),
+        pytest.param("Bearer\ns3cr3tvalue99", "Bearer\n***", id="newline"),
+        pytest.param("Basic\r\ndXNlcjpwYXNz", "Basic\r\n***", id="crlf"),
+        pytest.param("Bearer\x0bs3cr3tvalue99", "Bearer\x0b***", id="vertical-tab"),
+        pytest.param("Bearer\u3000s3cr3tvalue99", "Bearer\u3000***", id="ideographic"),
+        pytest.param(
+            "Bearer%20abcd%2Fefgh%2B12", "Bearer%20***", id="percent-encoded-run"
+        ),
+        pytest.param("Basic dXNlcjpw%3D%3D", "Basic ***", id="percent-encoded-pad"),
         pytest.param("x:Bearer  abcd1234", "x:Bearer  ***", id="two-spaces"),
         pytest.param("Bearer eyJh.eyJz.", "Bearer ***.", id="dot-kept"),
         pytest.param(
@@ -71,12 +79,15 @@ def test_the_credential_after_a_scheme_word_is_masked(text: str, shown: str) -> 
         "Basic\tdXNlcjpwYXNz",
         "Bearer\xa0s3cr3tvalue99",
         "Authorization: Basic\xa0abcdefghij",
+        "Bearer\ns3cr3tvalue99",
+        "Bearer\r\ns3cr3tvalue99",
+        "Basic\x0bdXNlcjpwYXNz",
     ],
-    ids=["header", "bearer", "basic", "nbsp", "header-nbsp"],
+    ids=["header", "bearer", "basic", "nbsp", "header-nbsp", "lf", "crlf", "vt"],
 )
 def test_an_escaped_separator_once_or_doubled_is_a_separator(raw: str) -> None:
-    """A tab or a no-break space after the scheme, escaped once or twice,
-    still separates the credential, which is masked."""
+    """A tab, a no-break space or a line break after the scheme, escaped once
+    or twice, still separates the credential, which is masked."""
     # loggable() leaves printable text as it is: ascii() escapes it again.
     for escaped in (loggable(raw), ascii(loggable(raw))):
         assert raw not in escaped
@@ -156,6 +167,53 @@ def test_an_escaped_separator_once_or_doubled_is_a_separator(raw: str) -> None:
             id="digest-twice",
         ),
         pytest.param(
+            '{"Authorization": "Digest username=\\"u\\", response=\\"6629fae4\\"}"}',
+            '{"Authorization": "Digest username=\\"u\\", response=\\"***\\"}"}',
+            id="digest-escaped-json",
+        ),
+        pytest.param(
+            'Authorization: Digest response=\\"abc123\\"',
+            'Authorization: Digest response=\\"***\\"',
+            id="digest-escaped-quote",
+        ),
+        pytest.param(
+            "Authorization: Digest response=Bearer%20s3cr3t99x~/:abc, x=1",
+            "Authorization: Digest response=***, x=1",
+            id="digest-nested-spans",
+        ),
+        pytest.param(
+            "Authorization: Negotiate YIIGhgYGKwYBBQUCoIIGfDCCBngw",
+            "Authorization: Negotiate ***",
+            id="negotiate",
+        ),
+        pytest.param(
+            "Authorization: NTLM TlRMTVNTUAABAAAA",
+            "Authorization: NTLM ***",
+            id="ntlm",
+        ),
+        pytest.param(
+            "Authorization: ApiKey s3cr3tvalue",
+            "Authorization: ApiKey ***",
+            id="apikey",
+        ),
+        pytest.param(
+            "Authorization: AWS4-HMAC-SHA256 Credential=AKIAIOSFODNN7EXAMPLE/20130524"
+            "/us-east-1/s3/aws4_request, SignedHeaders=host, Signature=fe5f80f77d5f",
+            "Authorization: AWS4-HMAC-SHA256 Credential=AKIA***/20130524"
+            "/us-east-1/s3/aws4_request, SignedHeaders=host, Signature=***",
+            id="aws4-signature",
+        ),
+        pytest.param(
+            "Authorization: sk-live-abcdefgh12345678",
+            "Authorization: ***",
+            id="no-scheme",
+        ),
+        pytest.param(
+            "curl -H Authorization:Bearer%20abcd%2Fefgh%2B12",
+            "curl -H Authorization:Bearer%20***",
+            id="percent-encoded",
+        ),
+        pytest.param(
             'Authorization: Digest a=1\nresponse="r1"',
             'Authorization: Digest a=1\nresponse="r1"',
             id="digest-next-line",
@@ -198,6 +256,11 @@ def test_the_credential_after_a_header_name_is_masked_whatever_its_shape(
         "Authorization: Bearer <token>",
         "Authorization: Bearer ${TOKEN}",
         "Authorization: Bearer $GITHUB_TOKEN",
+        "Authorization: Negotiate",
+        "Authorization: Bearer",
+        "authorization: denied for user x",
+        "Authorization: authentication required",
+        "Authorization: $GITHUB_TOKEN",
         "X-Authorization: Bearer abcdefghij",
         "Bearer $GITHUB_TOKEN",
         "Bearer access_token",
@@ -260,7 +323,7 @@ def test_a_digest_header_is_read_up_to_the_next_header_only(
     otherwise be read once per header)."""
     searched: list[int] = []
     # pylint: disable-next=protected-access
-    real = _auth_schemes._DIGEST_RESPONSE
+    real = _auth_schemes._SECRET_PARAM
 
     # pylint: disable-next=too-few-public-methods
     class _Spy:
@@ -268,7 +331,7 @@ def test_a_digest_header_is_read_up_to_the_next_header_only(
             searched.append(endpos - pos)
             return real.search(text, pos, endpos)
 
-    monkeypatch.setattr(_auth_schemes, "_DIGEST_RESPONSE", _Spy())
+    monkeypatch.setattr(_auth_schemes, "_SECRET_PARAM", _Spy())
     text = "Authorization: Digest a=1, " * 200 + 'response="r1"'
     assert _auth_schemes.mask_auth_schemes(text).endswith('response="***"')
     assert len(searched) == 200 and sum(searched) <= len(text)

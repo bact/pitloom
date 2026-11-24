@@ -258,7 +258,9 @@ def excerpt(value: object) -> str:
     value is its ``repr``, escaped alike."""
     is_text = isinstance(value, str)
     raw = value if isinstance(value, str) else repr(value)
-    text = " ".join(masked_text(raw).split())
+    # Masked again once collapsed: a scheme word and its credential split by
+    # a line break read as one run only after it.
+    text = masked_text(" ".join(masked_text(raw).split()))
     cut = text[:EXCERPT_CHARS]
     escaped = loggable(cut)
     literal = repr(cut) if is_text and escaped == cut else escaped
