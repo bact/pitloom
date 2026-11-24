@@ -227,6 +227,7 @@ model; every line it quoted that is named here was then read.
 | PIT-12 | **No `completeness` on any relationship.** One `contains` per child; the one function that could give completeness returns none | read at the base, 2026-11-23 | no |
 | PIT-13 | **`simplelicensing_licenseListVersion` is not set.** | read at the base | yes: `known-bugs/licences-and-licenseid.md`, the roadmap |
 | PIT-14 | **The page on licence provenance says PEP 639 forbids an SPDX `license` beside licence classifiers.** The `pyproject.toml` specification says a build tool may raise an error | `docs/metadata-provenance-licences.md` on `main`; the specification's source read 2026-11-23 | no |
+| PIT-21 | **The Hub library makes a request of its own on the first Hub read of a process**: `GET {HF_ENDPOINT}/api/agent-harnesses`, with no token, and a cache file under `HF_HOME` for 24 hours. Ruled 2026-11-24: the documentation says so now (`docs/ai-model-formats.md`); after the 0.25.0 cut the CLI, the build hook and the Action switch it off (`HF_HUB_DISABLE_TELEMETRY`), keeping a value the user set, and the library API leaves it to the caller. To read first: where the variable has to be set (the library reads it at import) and what else the switch turns off | measured by the session that fixed PIT-20, with `huggingface_hub` 2.4.0; the fetch function and the gate read in 2.2.0; notes in [hub-loopback-socket-flake.md](../../implementation/hub-loopback-socket-flake.md) | no |
 
 ### Tests and CI
 
