@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-02
-Last-Modified: 2026-11-23
+Last-Modified: 2026-11-24
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -9,7 +9,8 @@ SPDX-License-Identifier: CC0-1.0
 # Field notes: platform, toolchain and test harness
 
 See also: [README.md](README.md) (index of these notes),
-[recurring-bug-patterns-platform.md](../recurring-bug-patterns-platform.md)
+[recurring-bug-patterns-platform.md](../recurring-bug-patterns-platform.md),
+[recurring-bug-patterns-test-harness.md](../recurring-bug-patterns-test-harness.md)
 (full detail of most items below),
 [windows-macos-ci.md](../windows-macos-ci.md),
 [ci-install-composite-action.md](../ci-install-composite-action.md),

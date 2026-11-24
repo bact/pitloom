@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-10
-Last-Modified: 2026-11-10
+Last-Modified: 2026-11-24
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -9,8 +9,8 @@ SPDX-License-Identifier: CC0-1.0
 # Recurring bug patterns: Windows-only CI findings (from PRs #468 and #464)
 
 See also: [recurring-bug-patterns-platform.md](recurring-bug-patterns-platform.md)
-(the main platform, concurrency, test-harness and CI list, at its size
-limit), [recurring-bug-patterns.md](recurring-bug-patterns.md),
+(the main platform, concurrency and CI list; test-harness items are in
+[recurring-bug-patterns-test-harness.md](recurring-bug-patterns-test-harness.md)), [recurring-bug-patterns.md](recurring-bug-patterns.md),
 [CLAUDE.md](../../CLAUDE.md) ("Recurring bug patterns" -- the short summary),
 [pypi-url-targets.md](pypi-url-targets.md) (the feature whose tests found
 the first), [recurring-bug-patterns-ci-matrix.md](recurring-bug-patterns-ci-matrix.md)

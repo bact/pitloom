@@ -64,7 +64,8 @@ Surfaces: CLI, the Hatchling hook, the library API, the GitHub Action, the AI sk
 Failure modes that recurred across subsystems; check by name.
 Detail (war stories, PRs, code shapes), to read before extending or citing a
 one-liner: [data, semantics](working-docs/implementation/recurring-bug-patterns.md),
-[platform, concurrency, test harness, CI](working-docs/implementation/recurring-bug-patterns-platform.md),
+[platform, concurrency, CI](working-docs/implementation/recurring-bug-patterns-platform.md),
+[test harness](working-docs/implementation/recurring-bug-patterns-test-harness.md),
 [CI matrix: dependency and interpreter versions](working-docs/implementation/recurring-bug-patterns-ci-matrix.md),
 [review rounds](working-docs/implementation/recurring-bug-patterns-review-rounds.md);
 fuller wording:
@@ -127,6 +128,7 @@ Tests, platform and CI:
 - **For `A and B` in a derived rule, one test where only `A` fails and one where only `B` fails**; mutation testing finds the missing one.
 - **Mutation testing lies two ways**: an equivalent mutant proves nothing (reinstate the exact pre-fix shape); asserting a lazily installed side effect observes nothing.
 - **A test helper that normalises what it captures hides the bug class** (`text=True` turns CRLF into LF): decode bytes yourself; mutation-test shell/CI changes.
+- **A guard or mock raising inside a stdlib call must raise what that call cleans up on, or close the resource itself** (`create_connection` closes on `OSError` only): a third-party `ResourceWarning` in a flaky test is first suspect for our harness (#528).
 - **A test reaching the network via a subprocess/library bypasses the socket block**: mark it `network` (real host), route through `tests/_network.py`; a local server is `loopback`.
 - **Patching a function on a shared stdlib module patches it for every thread**: import the name into the module under test and patch that.
 - **A logging handler bound to `sys.stderr` under `capsys` outlives the capture stream**: `tests/conftest.py` resets the `pitloom` logger per test (a snapshot keeps a module fixture's configuration); new process-global state a test mutates needs the same.

@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-23
-Last-Modified: 2026-11-06
+Last-Modified: 2026-11-24
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -10,6 +10,7 @@ SPDX-License-Identifier: CC0-1.0
 
 See also: [recurring-bug-patterns.md](recurring-bug-patterns.md),
 [recurring-bug-patterns-platform.md](recurring-bug-patterns-platform.md),
+[recurring-bug-patterns-test-harness.md](recurring-bug-patterns-test-harness.md),
 [recurring-bug-patterns-review-rounds.md](recurring-bug-patterns-review-rounds.md),
 [agents-md-rationale.md](agents-md-rationale.md).
 
@@ -60,7 +61,8 @@ Pitloom runs from several surfaces: CLI (10+ subcommands), the Hatchling hook, t
 Failure modes that recurred across subsystems; check for them by name.
 Detail (war stories, PRs, code shapes) is in
 [recurring-bug-patterns.md](recurring-bug-patterns.md) (data and semantics),
-[recurring-bug-patterns-platform.md](recurring-bug-patterns-platform.md) (platform, concurrency, test harness, CI) and
+[recurring-bug-patterns-platform.md](recurring-bug-patterns-platform.md) (platform, concurrency, CI),
+[recurring-bug-patterns-test-harness.md](recurring-bug-patterns-test-harness.md) (test harness) and
 [recurring-bug-patterns-review-rounds.md](recurring-bug-patterns-review-rounds.md) (PR #300, #305, #306, #311 to #315 and path-key rounds): read them before extending or citing a one-liner.
 - **A presence-only check misfires when a key is genuinely boolean** (`Pipfile.lock` `"editable": false`).
 - **`dict.get(key, default)` guards absence, not a wrong type**: `isinstance`-check values from external files (`@graph` present but not a list).

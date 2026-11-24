@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-17
-Last-Modified: 2026-10-15
+Last-Modified: 2026-11-24
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -123,4 +123,4 @@ now used unconditionally and the gap above no longer applies.
 literal `b"data\n"` passed on macOS and Linux and failed on `windows-latest`
 only (loom dataset dedup, four cases). Write digest-bearing fixtures with
 `write_bytes`. Detail:
-[recurring-bug-patterns-platform.md](recurring-bug-patterns-platform.md).
+[recurring-bug-patterns-test-harness.md](recurring-bug-patterns-test-harness.md).

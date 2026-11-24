@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-17
-Last-Modified: 2026-11-11
+Last-Modified: 2026-11-24
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -11,8 +11,9 @@ SPDX-License-Identifier: CC0-1.0
 See also: [CLAUDE.md](../../CLAUDE.md) ("Recurring bug patterns" section --
 short summary list; this doc holds the full detail),
 [recurring-bug-patterns-platform.md](recurring-bug-patterns-platform.md)
-(the same kind of list for platform, concurrency, test-harness and CI
-traps -- this file keeps the data-and-semantics ones),
+(the same kind of list for platform, concurrency and CI traps),
+[recurring-bug-patterns-test-harness.md](recurring-bug-patterns-test-harness.md)
+(test-harness traps; this file keeps the data-and-semantics ones),
 [recurring-bug-patterns-review-rounds.md](recurring-bug-patterns-review-rounds.md)
 (the patterns found in PR #300 and PR #305's review rounds).
 
