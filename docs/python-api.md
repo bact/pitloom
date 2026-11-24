@@ -247,9 +247,9 @@ Pass `id_registry=` (a path, or an already-loaded `IdRegistry`) to reference
 a pinned entity id (a relative path resolves against `project_target`
 when it is a directory, else against the current directory) instead of
 one freshly computed from the model's own
-identity. Raises `ValueError` for a Hugging Face Hub source -- Hugging
-Face model cards are already parsed natively when generating the SBOM,
-so local enrichment doesn't apply there.
+identity. Raises `ValueError` (`option-invalid`) for a Hugging Face Hub
+source -- Hugging Face model cards are already parsed natively when
+generating the SBOM, so local enrichment doesn't apply there.
 
 `generate_model_sbom()` and `generate()` also take a folder that holds exactly
 one model file and no project. A folder with neither raises `ValueError`:
@@ -334,11 +334,14 @@ takes the name given to `set_model()`/`use_model()`, with one `INFO: Merge:
 'name' on ...`; its id and registry key do not change. Runs naming one file two
 ways keep the project's name, with a `WARNING:` (see
 [SBOM fragments](fragments.md#merge-fragments)).
-Without `path=` (one `WARNING:` when a registry is loaded), or when it is not
-a file when the run ends (one `WARNING:`), the model is matched by name only
-and gets no hash. The match hits an id held with no hash (a model with no
-file) and never one recorded with a SHA-256, which no content vouches for: a
-retrained model's id is not reused by a bare name. In the context-manager form,
+Without `path=`, or when it is not a file when the run ends, the model gets no
+hash. With a registry loaded, one `WARNING: ID registry: model ... looked up
+ungated: not hashed [registry-hash-missing]` says the model is looked up by its
+name alone; the match hits an id held with no hash (a model with no file) and
+never one recorded with a SHA-256, which no content vouches for: a retrained
+model's id is not reused by a bare name. With no registry, a `path=` that is no
+file is one `WARNING: loom SDK: model ...: path= ... is not a file at exit; not
+hashed [model-file-missing]`, and no `path=` says nothing. In the context-manager form,
 `run.model` is `None` until the block exits.
 A `path=` that cannot be read (a NUL in it included) gets the usual
 unreadable-model `WARNING:`. Leaving a block, by an exception too, restores
@@ -425,7 +428,8 @@ is a directory, not because you named it. A `croissant=` file you name is
 different: a URL, a missing file, one that is not a regular file (a FIFO), one
 that is not Croissant, one that nests more than 64 levels of arrays and objects
 or one that fails to be read in any other way raises `ValueError` naming it, at
-the call: loom reads no network source. A source file is opened as given and
+the call (a URL: `loom SDK: croissant: must be a local file, not a URL,
+got ... [option-invalid]`): loom reads no network source. A source file is opened as given and
 named in provenance by its path from the current directory, or by its bare name
 when it lies outside it. Hashing and the registry do not change: the sources add
 fields, not identity.
@@ -458,7 +462,9 @@ Omit `input_datasets` (the default) when a run has exactly one output
 batch -- it then derives from every input the run declared.
 `input_datasets=` matches the string an input was declared with, not its
 resolved path: an input declared as `../data/t.txt` is not found by
-`data/t.txt` (one `WARNING:`, that link skipped), even though a registry keys
+`data/t.txt` (one `WARNING: loom SDK: add_output_dataset(...) names
+input_datasets=..., which no add_input_dataset of this run declared; not
+linked [reference-not-found/dataset]`), even though a registry keys
 both to one package.
 
 ### Config

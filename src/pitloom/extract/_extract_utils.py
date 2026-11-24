@@ -28,15 +28,8 @@ from pitloom.core.provenance import provenance_segment
 from pitloom.core.quote_source import quote_source
 from pitloom.logging_config import failure_reason
 from pitloom.messages import CodedValueError
-from pitloom.messages.files import (
-    JSON_MALFORMED,
-    NOT_JSON_LINE,
-    NOT_OBJECT_LINE,
-    OVER_CAP,
-    SOURCE_LINE,
-    Cap,
-    file_unreadable_error,
-)
+from pitloom.messages.files import OVER_CAP, SOURCE_LINE, Cap, file_unreadable_error
+from pitloom.messages.text import JSON_MALFORMED, NOT_JSON_LINE, NOT_OBJECT_LINE
 
 if TYPE_CHECKING:
     #: An installed or archived package's Core Metadata: parsed from its raw

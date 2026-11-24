@@ -40,7 +40,7 @@ from pitloom.messages._config_place import (
     expected_text,
 )
 from pitloom.messages._emit import CodedValueError, emit
-from pitloom.messages._options import OPTION_INVALID, VALUE_LINE
+from pitloom.messages._options import LOOM_SDK_VALUE_LINE, OPTION_INVALID, VALUE_LINE
 from pitloom.messages._types import Message
 
 
@@ -189,6 +189,25 @@ def invalid_value(
     return CodedValueError(
         OPTION_INVALID,
         line=VALUE_LINE,
+        option=where.name,
+        expected=_known(expected),
+        got=got,
+    )
+
+
+def loom_sdk_invalid_value(
+    where: Parameter, expected: str, got: object = MISSING
+) -> CodedValueError:
+    """The ``option-invalid`` refusal of *where*, a value given to a loom SDK
+    call (``loom SDK: <parameter>: must be X, got Y``).
+
+    Raises:
+        pitloom.core.internal_error.InternalError: *expected* is not an id
+            of the table.
+    """
+    return CodedValueError(
+        OPTION_INVALID,
+        line=LOOM_SDK_VALUE_LINE,
         option=where.name,
         expected=_known(expected),
         got=got,

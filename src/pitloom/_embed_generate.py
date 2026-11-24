@@ -59,7 +59,6 @@ from pitloom.core.provenance import require_max_source_metadata_bytes
 from pitloom.core.walk_rules import without_registry_copies
 from pitloom.export._spdx3_credentials import check_graph_credentials
 from pitloom.extract.authors import (
-    CORE_METADATA_HINT,
     AuthorSplit,
     warn_author_splits,
 )
@@ -74,7 +73,7 @@ from pitloom.id_registry import (
     resolve_registry,
 )
 from pitloom.messages import emit
-from pitloom.messages.files import JSON_MALFORMED_BOM
+from pitloom.messages.text import JSON_MALFORMED_BOM
 
 log = logging.getLogger(__name__)
 
@@ -337,7 +336,7 @@ def _generate_embed_sbom_json(
             EMBED_STANDALONE, wheel_metadata.name, given, overrides, file_cache
         )
         cfg = resolve_standalone_config(pitloom_config, overrides)
-        warn_author_splits(author_splits or [], hint=CORE_METADATA_HINT)
+        warn_author_splits(author_splits or [])
         sbom_json = _build_sbom_standalone_wheel(
             wheel_path,
             wheel_metadata,

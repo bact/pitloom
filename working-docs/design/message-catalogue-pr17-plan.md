@@ -121,7 +121,7 @@ Each PR leaves `--check` green and lowers the baseline.
 | PR | Theme | Sites | Ratchet |
 | - | - | - | - |
 | 17a | Library misuse, scope rules, safety nets, `loom env`, hint | 2, 6, 10, 11, 12, 15, 16, 19, 20, 21, 22, 26, 27, 34, 42, 43, 44 (17) | 44 to 27 |
-| 17b | Authors, the loom SDK, `sbom-basename` | 1, 3, 4, 5, 8, 9, 25, 28-32 (12) | 27 to 15 |
+| 17b (built, #527 guessed; [build notes](message-catalogue-pr17b-build.md)) | Authors, the loom SDK, `sbom-basename` | 1, 3, 4, 5, 8, 9, 25, 28-32 (12) | 27 to 15 |
 | 17c | Datasets, display text, metadata budget | 7, 13, 14, 17, 18, 23, 24, 33, 35-41 (15) | 15 to 0 |
 
 17a holds the inventory-tool changes (`_scope.py`, `_relay.py`) and the

@@ -34,7 +34,6 @@ from pitloom.embed import embed_wheel_sbom
 from pitloom.extract.authors import AuthorSplit, warn_author_splits
 from pitloom.extract.project.sdist import read_sdist
 from tests._author_routes import (
-    CORE_HINT,
     CREATED,
     ONE_AUTHOR_LINE,
     SPLIT_MARK,
@@ -93,7 +92,8 @@ def test_dependency_splits_warn_once_per_document(
     with caplog.at_level(logging.WARNING):
         run(tmp_path, monkeypatch)
     (line,) = [m for m in caplog.messages if SPLIT_MARK in m]
-    assert line.startswith("AUTHOR_EMAIL='a One, a Two': split into 2 entries")
+    assert line.startswith("PACKAGE=")
+    assert " AUTHOR_EMAIL='a One, a Two': split into 2 entries" in line
     assert "2 dependencies split in all" in line
 
 
@@ -236,13 +236,51 @@ def test_one_author_info_once_per_field(caplog: pytest.LogCaptureFixture) -> Non
     other = AuthorSplit("Cy and Di", 1, "AUTHOR", True)
     cut = AuthorSplit("E <e@x.org>; F <f@x.org>", 2, "AUTHOR", True)
     with caplog.at_level(logging.INFO):
-        warn_author_splits([one, cut, one, other], hint="")
-        warn_author_splits([one], quiet=True, hint="")
+        warn_author_splits([one, cut, one, other])
+        warn_author_splits([one], quiet=True)
     levels = [record.levelno for record in caplog.records]
     assert levels == [logging.WARNING, logging.INFO]
     assert SPLIT_MARK in caplog.messages[0]
     shown = "['Ann, Bob', 'Cy and Di']"
-    assert caplog.messages[1] == ONE_AUTHOR_LINE.format(shown, "")
+    assert caplog.messages[1] == ONE_AUTHOR_LINE.format(shown)
+
+
+def test_a_key_split_in_several_fields_counts_all_entries(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The one ``WARNING:`` of a key cut in two fields counts the entries of
+    both, not of the first."""
+    first = AuthorSplit("a@x.org, b@x.org", 2, "AUTHOR_EMAIL", False)
+    second = AuthorSplit("c@x.org; d@x.org; e@x.org", 3, "AUTHOR_EMAIL", False)
+    with caplog.at_level(logging.WARNING):
+        warn_author_splits([first, second])
+    (line,) = caplog.messages
+    assert ": split into 5 entries on ',' or ';'" in line
+
+
+def test_dependency_splits_count_packages_not_fields(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A dependency whose name and address fields both split counts as one
+    dependency split."""
+    monkeypatch.setattr(
+        deps_installed,
+        "get_pkg_metadata",
+        lambda name: _FakeMetadata(
+            {
+                "Author": f"{name} One <1@x.org>, {name} Two <2@x.org>",
+                "Author-email": f"{name} Three, {name} Four",
+            }
+        ),
+    )
+    doc = DocumentModel(
+        project=ProjectMetadata(name="demo", version="1.0", dependencies=["a", "b"]),
+        creation_metadata=CREATED,
+    )
+    with caplog.at_level(logging.WARNING):
+        build(doc, offline=True)
+    (line,) = [m for m in caplog.messages if SPLIT_MARK in m]
+    assert line.endswith("; 2 dependencies split in all")
 
 
 @pytest.mark.parametrize(
@@ -286,7 +324,7 @@ def test_cli_one_author_info_on_stderr_once(
     _run(["wheel", str(wheel), "-o", "-"])
     out, err = capsys.readouterr()
     assert json.loads(out)["@graph"]
-    line = "INFO: " + ONE_AUTHOR_LINE.format("'Ann and Bob'", CORE_HINT)
+    line = f"INFO: {ONE_AUTHOR_LINE.format(repr('Ann and Bob'))} [author-ambiguous]"
     assert err.splitlines().count(line) == 1
     argv = ["embed-wheel", str(wheel)]
     if project is not None:

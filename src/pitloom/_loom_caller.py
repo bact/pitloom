@@ -40,8 +40,12 @@ from pitloom.id_registry import (
     IdRegistry,
     IdRegistrySession,
 )
-from pitloom.logging_config import field_loss_suffix, warn_once
 from pitloom.messages import emit
+from pitloom.messages.datasets import (
+    CALLER_INFO_LINE,
+    CALLER_INFO_UNREADABLE,
+    CALLER_SCRIPT_LINE,
+)
 from pitloom.messages.id_registry_ids import (
     HASH_CHANGED_WARNING_LINE,
     NOT_FOUND_LINE,
@@ -116,16 +120,13 @@ def _get_caller_info() -> str:
         # is a per-process environment condition (sandboxed/frozen
         # interpreter), not a one-off, so it would otherwise repeat on
         # every loom call in a training loop.
-        warn_once(
+        emit(
             log,
-            "caller_info",
-            "Failed to determine caller info: %s"
-            + field_loss_suffix(
-                "degraded",
-                "provenance Source (falls back to 'unknown'; Method: "
-                "inspect_caller is still recorded)",
-            ),
-            exc,
+            CALLER_INFO_UNREADABLE,
+            logging.WARNING,
+            line=CALLER_INFO_LINE,
+            once="caller_info",
+            failure=exc,
         )
     return "Source: unknown | Method: inspect_caller (tool: pitloom.loom)"
 
@@ -153,12 +154,13 @@ def _get_caller_script_path() -> str | None:
                 return path.as_posix()
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
-        warn_once(
+        emit(
             log,
-            "caller_script_path",
-            "Failed to determine caller script path: %s"
-            + field_loss_suffix("skipped", "caller_script_path"),
-            exc,
+            CALLER_INFO_UNREADABLE,
+            logging.WARNING,
+            line=CALLER_SCRIPT_LINE,
+            once="caller_script_path",
+            failure=exc,
         )
     return None
 

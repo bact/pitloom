@@ -23,7 +23,6 @@ from pitloom.core.lfs_pointer import is_pointer_text
 from pitloom.extract._license import classify_license, warn_unless_expression
 from pitloom.extract._license_resolve import resolve_value, say_resolved
 from pitloom.extract.authors import (
-    CORE_METADATA_HINT,
     AuthorSplit,
     read_author_fields,
 )
@@ -68,7 +67,6 @@ def parse_core_metadata_authors(
         _get_str(msg, "Author-email"),
         quiet=quiet,
         splits=splits,
-        hint=CORE_METADATA_HINT,
     )
 
 

@@ -33,12 +33,14 @@ the table of prefixes.
 - [AI models](messages-models.md): 13 codes
 - [Model fields](messages-model-fields.md): 5 codes
 - [Targets](messages-targets.md): 16 codes
-- [Options](messages-options.md): 5 codes
+- [Options](messages-options.md): 6 codes
 - [Configuration](messages-config.md): 6 codes
 - [Project metadata](messages-metadata.md): 9 codes
+- [Authors](messages-authors.md): 3 codes
 - [File discovery](messages-file-discovery.md): 3 codes
 - [Builds and temporary directories](messages-build.md): 7 codes
-- [Files and text](messages-files.md): 14 codes
+- [Files and size caps](messages-files.md): 9 codes
+- [Text and documents](messages-text.md): 5 codes
 - [Lock files](messages-lock-files.md): 7 codes
 - [Dependencies](messages-dependencies.md): 7 codes
 - [PyPI](messages-pypi.md): 13 codes
@@ -48,9 +50,10 @@ the table of prefixes.
 - [ID registry](messages-id-registry.md): 5 codes
 - [ID registry ids and keys](messages-id-registry-ids.md): 15 codes
 - [Licences](messages-licences.md): 8 codes
-- [SBOM fragments](messages-fragments.md): 11 codes
+- [SBOM fragments](messages-fragments.md): 12 codes
 - [Wheels](messages-wheels.md): 10 codes
 - [Embedded SBOMs](messages-wheel-sboms.md): 8 codes
+- [Datasets and loom runs](messages-datasets.md): 2 codes
 - [Values](messages-values.md): what each `<name>` in a line is
 
 | Code | Level | Since |
@@ -58,11 +61,14 @@ the table of prefixes.
 | [`archive-member-conflict`](messages-wheels.md#archive-member-conflict) | WARNING | 0.25.0 |
 | [`archive-member-invalid`](messages-wheels.md#archive-member-invalid) | WARNING | 0.25.0 |
 | [`archive-member-unsafe`](messages-wheels.md#archive-member-unsafe) | WARNING | 0.25.0 |
+| [`author-ambiguous`](messages-authors.md#author-ambiguous) | WARNING, INFO | 0.25.0 |
+| [`author-invalid`](messages-authors.md#author-invalid) | WARNING | 0.25.0 |
 | [`build-code-unsafe`](messages-build.md#build-code-unsafe) | WARNING | 0.25.0 |
 | [`build-failed`](messages-build.md#build-failed) | WARNING | 0.25.0 |
 | [`build-processes-unsafe`](messages-build.md#build-processes-unsafe) | WARNING, INFO | 0.25.0 |
 | [`build-timeout`](messages-build.md#build-timeout) | WARNING | 0.25.0 |
-| [`card-malformed`](messages-files.md#card-malformed) | WARNING | 0.23.0 |
+| [`caller-info-unreadable`](messages-datasets.md#caller-info-unreadable) | WARNING | 0.25.0 |
+| [`card-malformed`](messages-text.md#card-malformed) | WARNING | 0.23.0 |
 | [`config-invalid`](messages-config.md#config-invalid) | ERROR | 0.25.0 |
 | [`config-malformed`](messages-config.md#config-malformed) | ERROR, WARNING | 0.25.0 |
 | [`config-moved`](messages-config.md#config-moved) | ERROR | 0.25.0 |
@@ -133,8 +139,8 @@ the table of prefixes.
 | [`installed-metadata-ambiguous`](messages-metadata.md#installed-metadata-ambiguous) | WARNING | 0.25.0 |
 | [`installed-metadata-unusable`](messages-metadata.md#installed-metadata-unusable) | WARNING | 0.25.0 |
 | [`interrupted`](messages-build.md#interrupted) | ERROR, WARNING | 0.25.0 |
-| [`json-malformed`](messages-files.md#json-malformed) | ERROR, WARNING | 0.23.0 |
-| [`json-malformed/bom`](messages-files.md#json-malformedbom) | WARNING | 0.25.0 |
+| [`json-malformed`](messages-text.md#json-malformed) | ERROR, WARNING | 0.23.0 |
+| [`json-malformed/bom`](messages-text.md#json-malformedbom) | WARNING | 0.25.0 |
 | [`lfs-pointer`](messages-models.md#lfs-pointer) | ERROR, WARNING | 0.22.0 |
 | [`lfs-pointer-malformed`](messages-models.md#lfs-pointer-malformed) | ERROR, WARNING | 0.22.0 |
 | [`lfs-pointer/shipped`](messages-models.md#lfs-pointershipped) | WARNING | 0.22.0 |
@@ -164,6 +170,7 @@ the table of prefixes.
 | [`model-ambiguous/over-cap`](messages-targets.md#model-ambiguousover-cap) | ERROR | 0.23.4 |
 | [`model-field-conflict`](messages-model-fields.md#model-field-conflict) | WARNING | 0.23.0 |
 | [`model-field-unreadable`](messages-model-fields.md#model-field-unreadable) | WARNING | 0.23.0 |
+| [`model-file-missing`](messages-datasets.md#model-file-missing) | WARNING | 0.25.0 |
 | [`model-unreadable`](messages-models.md#model-unreadable) | WARNING | 0.22.0 |
 | [`model-wrong-format`](messages-models.md#model-wrong-format) | ERROR, WARNING | 0.22.0 |
 | [`offline-unusable`](messages-network.md#offline-unusable) | ERROR, WARNING | 0.24.0 |
@@ -178,6 +185,7 @@ the table of prefixes.
 | [`project-not-found`](messages-targets.md#project-not-found) | ERROR | 0.23.4 |
 | [`project-not-found/model-files`](messages-targets.md#project-not-foundmodel-files) | ERROR | 0.23.4 |
 | [`project-or-model-not-found`](messages-targets.md#project-or-model-not-found) | ERROR | 0.23.4 |
+| [`project-unreadable`](messages-authors.md#project-unreadable) | WARNING | 0.25.0 |
 | [`pypi-response-invalid`](messages-pypi.md#pypi-response-invalid) | ERROR, WARNING | 0.24.0 |
 | [`pypi-url-invalid`](messages-pypi.md#pypi-url-invalid) | ERROR | 0.24.0 |
 | [`pypi-url-unusable`](messages-pypi.md#pypi-url-unusable) | ERROR | 0.24.0 |
@@ -185,6 +193,7 @@ the table of prefixes.
 | [`reader-unsafe`](messages-models.md#reader-unsafe) | INFO | 0.22.0 |
 | [`reader-unsafe/remote`](messages-models.md#reader-unsaferemote) | INFO | 0.23.4 |
 | [`reference-not-found`](messages-fragments.md#reference-not-found) | ERROR, WARNING | 0.25.0 |
+| [`reference-not-found/dataset`](messages-fragments.md#reference-not-founddataset) | WARNING | 0.25.0 |
 | [`registry-conflict`](messages-id-registry-ids.md#registry-conflict) | WARNING | 0.25.0 |
 | [`registry-conflict/concurrent`](messages-id-registry-ids.md#registry-conflictconcurrent) | WARNING | 0.25.0 |
 | [`registry-conflict/file-set`](messages-id-registry-ids.md#registry-conflictfile-set) | WARNING | 0.25.0 |
@@ -216,6 +225,7 @@ the table of prefixes.
 | [`requirement-unusable`](messages-dependencies.md#requirement-unusable) | WARNING | 0.25.0 |
 | [`sbom-invalid`](messages-targets.md#sbom-invalid) | ERROR, WARNING | 0.25.0 |
 | [`sbom-name-conflict`](messages-wheel-sboms.md#sbom-name-conflict) | ERROR | 0.25.0 |
+| [`sbom-name-invalid`](messages-options.md#sbom-name-invalid) | WARNING | 0.25.0 |
 | [`sbom-wrong-format`](messages-targets.md#sbom-wrong-format) | ERROR | 0.25.0 |
 | [`source-date-epoch-invalid`](messages-config.md#source-date-epoch-invalid) | ERROR | 0.25.0 |
 | [`target-ambiguous`](messages-targets.md#target-ambiguous) | INFO | 0.23.4 |
@@ -224,8 +234,8 @@ the table of prefixes.
 | [`target-wrong-format`](messages-targets.md#target-wrong-format) | ERROR | 0.25.0 |
 | [`temp-dir-unusable`](messages-files.md#temp-dir-unusable) | ERROR, WARNING | 0.24.0 |
 | [`temp-dir-unwritable`](messages-build.md#temp-dir-unwritable) | WARNING | 0.25.0 |
-| [`text-malformed`](messages-files.md#text-malformed) | WARNING | 0.23.0 |
-| [`text-malformed/registry`](messages-files.md#text-malformedregistry) | ERROR, WARNING | 0.25.0 |
+| [`text-malformed`](messages-text.md#text-malformed) | WARNING | 0.23.0 |
+| [`text-malformed/registry`](messages-text.md#text-malformedregistry) | ERROR, WARNING | 0.25.0 |
 | [`url-moved`](messages-network.md#url-moved) | INFO | 0.24.0 |
 | [`url-moved/hf-endpoint`](messages-network.md#url-movedhf-endpoint) | INFO | 0.24.0 |
 | [`url-unsafe`](messages-network.md#url-unsafe) | ERROR, WARNING | 0.24.0 |

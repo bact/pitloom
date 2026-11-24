@@ -46,7 +46,7 @@ name field read as one author (a wheel's `Author`, an sdist's `PKG-INFO`
 whose `pyproject.toml` declares no authors, `setup.cfg`/`setup.py`
 `author`) gets one `INFO:` per SBOM when it holds `,`, `;` or the word
 `and` outside quotes and `<...>` (`AUTHOR='Ann, Bob': read as one author;
-it may list several ...`), unless its address is not recorded; a
+it may list several [author-ambiguous]`), unless its address is not recorded; a
 dependency's, a structured entry and `Author-email` get none. A name field
 is cut only where the text proves a list, next to an address: on `,` or
 `;` (outside quotes and `<...>`) after a closed `<address>` or a bare
@@ -60,7 +60,7 @@ text before the `<` (`<` or `>` inside a quoted name is part of the name);
 `Doe, Jane <j@x.org>, Bob Lee <b@x.org>` is two; `Ann <a@x.org>, Bob` is
 Ann with the address and `Bob`. A cut gets one `WARNING:`
 (`AUTHOR='Ann <a@x.org>; Bob <b@x.org>': split into 2 entries next to an
-address; a name field is never cut between names`). An entry with text after its address, other than a trailing
+address; a name field is never cut between names [author-ambiguous]`). An entry with text after its address, other than a trailing
 `(comment)` or a contributor group, records its name alone (`Ann <a@x.org>
 Lee` is `Ann`), and one whose address is not closed before the next
 records no one (`Ann <a@x.org, Bob <b@x.org>`); either gets a `WARNING:`
@@ -79,8 +79,10 @@ com` is a `Person` of that name, with no warning), so `Author-email: Doe,
 Jane <j@x.org>` is `Doe`, and `Jane` with the address: the field cannot
 tell a list from one unquoted name containing a comma, and a split after
 a name gets one `WARNING:` per SBOM (`AUTHOR_EMAIL='Doe, Jane <j@x.org>':
-split into 2 entries on ',' / ';'`; one line for all dependencies, naming
-the first and the count). A split right after an address is not warned
+split into 2 entries on ',' or ';'; an address field cannot tell a list
+from one name holding a comma [author-ambiguous]`; one line for all
+dependencies, `PACKAGE=<package> <key>=...: ...; N dependencies split in
+all`, naming the first and the count). A split right after an address is not warned
 about, and a contributor group after an address is an entry of its own,
 in either field (`Jane <j@x.org> et al.` is `Jane` with the address, and
 `et al.`). A
@@ -100,7 +102,7 @@ the affiliation in the name. An address is checked as written
 the project's own (an entry holding `<`, `>` or `@`) that is no address
 is not recorded, with one `WARNING:`
 per field naming the first three and how many (`AUTHOR_EMAIL=['a', 'b',
-'c', ...]: not an email address; 5 entries not recorded`), and a name
+'c', ...]: not an email address; 5 entries not recorded [author-invalid]`), and a name
 stated before its one `<` is kept (`Ann <a@b c>` is `Ann`). The `UNKNOWN`
 older setuptools writes is no author: in `setup.py` it gives way to
 `setup.cfg`'s author. An sdist's `pyproject.toml` gives the declared authors as a

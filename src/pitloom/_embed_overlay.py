@@ -20,10 +20,11 @@ from pathlib import Path
 from packaging.utils import canonicalize_name
 
 from pitloom.core.project import ProjectFile, ProjectMetadata
-from pitloom.core.quote_source import quote_source
 from pitloom.extract._license import resolve_license_concluded
 from pitloom.extract.authors import warn_project_authors_unread
 from pitloom.extract.project import read_project
+from pitloom.messages import emit
+from pitloom.messages.metadata import METADATA_CONFLICT
 
 __all__ = ["add_concluded_license", "adopt_project_authors", "merge_file_extras"]
 
@@ -108,17 +109,19 @@ def adopt_project_authors(
             read_config=False,
         )
     except (OSError, ValueError) as exc:
-        warn_project_authors_unread(str(project_dir), exc, "wheel METADATA")
+        warn_project_authors_unread(project_dir, exc)
         return False
     source = project.provenance.get("authors")
     if source is None:
         return False
     if canonicalize_name(project.name) != canonicalize_name(metadata.name):
-        log.warning(
-            "%s: project %r is not the wheel's %r; authors from the wheel METADATA",
-            quote_source(project_dir),
-            project.name,
-            metadata.name,
+        emit(
+            log,
+            METADATA_CONFLICT,
+            logging.WARNING,
+            dir=project_dir,
+            project_value=project.name,
+            wheel_value=metadata.name,
         )
         return False
     metadata.authors = list(project.authors)

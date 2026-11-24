@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-23
-Last-Modified: 2026-11-23
+Last-Modified: 2026-11-24
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -216,7 +216,7 @@ each, and marks every other item as read at the base or to check.
 
 | # | Finding | Seen | On `main` |
 | --- | --- | --- | --- |
-| PIT-20 | **Four Hub loopback tests fail now and then on a socket the Hub library leaves open.** `tests/extract/remote/test_hub_loopback.py`, on "Test on Python 3.13 (macos-latest)": `ResourceWarning: unclosed <socket.socket ...>` raised at `huggingface_hub/utils/_detect_agent.py`, turned into a failure by `filterwarnings = error`; 4 failed, 18,604 passed. The same workflow passed on another pull request five minutes before, so it hangs on when Python reports the socket. A fix on `main`: a narrow, module-qualified `ignore` for that warning, or the library's agent detection switched off in tests. A rerun does not show it gone | CI of pull request 519 (a change of documents only), run 45168805298, 2026-11-23; the library's version was not found in the log | no |
+| PIT-20 | **Fixed 2026-11-23 (pull request 528). Four Hub loopback tests failed now and then on an unclosed socket.** `tests/extract/remote/test_hub_loopback.py`, macOS, Python 3.13: `ResourceWarning: unclosed <socket.socket ...>` at `huggingface_hub/utils/_detect_agent.py`, a failure by `filterwarnings = error`; the rerun failed the same way on Windows. Cause: on its first agent detection in a process, `huggingface_hub` (2.4.0 in that run) asks the real Hub (`constants.ENDPOINT`) for a registry; the loopback guard of `tests/conftest.py` refused that `connect` with a `RuntimeError`, and `socket.create_connection` closes its socket on an `OSError` only. Seen only when a worker's first detection falls in a `loopback` test. Fix: the guard closes the socket it refuses; no warning filter, no library switch. The patch of the library's private `_fetch_registry` from pull request 524 covered one file of two and is removed. Regression test: `test_a_refused_connection_leaves_no_open_socket` | CI of pull request 519, run 45168805298, both attempts; run on demand 2026-11-23, the registry reset before each test: 19 tests failed before the fix, none after (Python 3.10 with 2.2.0, 3.13 with 2.4.0) | no |
 
 ### To look into, no fix known
 
@@ -283,7 +283,8 @@ Rules
   linter yourself before trusting a cheap agent's "pass".
 - Never edit LicenseID. PIT-13 is tracked elsewhere: leave it.
 
-PR 1. CI flake (do first, it blocks every other PR)
+PR 1. CI flake -- DONE 2026-11-23, skip it: the PIT-20 row has the
+  cause and the fix (neither fix shape below was used).
 PIT-20 [main, CI log]. tests/extract/remote/test_hub_loopback.py: 4
   tests failed on "Test on Python 3.13 (macos-latest)" with
   `ResourceWarning: unclosed socket.socket` raised at

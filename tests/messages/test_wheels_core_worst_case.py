@@ -24,7 +24,7 @@ from pitloom.messages import LONGEST_LINE, MESSAGES, trusted_message
 from pitloom.messages import wheel_sboms as s
 from pitloom.messages._field_writers import NAME_CHARACTERS, NAME_CUT_MARK
 from pitloom.messages._types import Line
-from pitloom.messages.files import BOM_DROPPED_LINE, MODE_NOT_RESTORED_LINE
+from pitloom.messages.files import MODE_NOT_RESTORED_LINE
 from pitloom.messages.targets import (
     DOCUMENT_INVALID_LINE,
     MERGED_INVALID_LINE,
@@ -33,6 +33,7 @@ from pitloom.messages.targets import (
     say_validation_findings,
     say_validator_failure,
 )
+from pitloom.messages.text import BOM_DROPPED_LINE
 from pitloom.messages.wheels import SHOWN_NAMES
 
 pytestmark = pytest.mark.platform  # escapes of names, as a path is shown

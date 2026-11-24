@@ -150,7 +150,9 @@ counts are in [message-catalogue-migration-plan.md](message-catalogue-migration-
   (14a, #506), the Hub timeout (#507), Hub and PyPI relay (14b, #508), hook
   lines (14c, #511; ratchet 132 to 108), SBOM fragments and merge
   (15, #513; ratchet 108 to 85), wheels and embedding (16, #515; ratchet 85 to
-  44), the generated values page (#499). The
+  44), library misuse and scope rules (17a, #524; ratchet 44 to 27), authors,
+  the loom SDK and the SBOM base name (17b, #527 guessed; ratchet 27 to 15),
+  the generated values page (#499). The
   consistency re-check of the merged families is done (#494). Plans:
   [message-catalogue-pr8-12-plan.md](message-catalogue-pr8-12-plan.md),
   [message-catalogue-pr12-18-plan.md](message-catalogue-pr12-18-plan.md).

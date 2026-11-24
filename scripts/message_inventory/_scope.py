@@ -104,11 +104,13 @@ INTERNAL_PAT = re.compile(
     r"^not JSON: |is not a JSON value|"
     r"content_type_method must be one of"
 )
-#: Message texts of errors raised to a Python caller of the library.
-LIBRARY_PAT = re.compile(
-    r"No active loom\.run|No model set|^loom: |generate_project_sbom\(\)|"
-    r"local enrichment does not apply|caller (info|script path)"
-)
+#: Helpers whose error is raised to a Python caller of the library: the
+#: loom SDK called outside a ``loom.run()``.
+LIBRARY_EXC = frozenset({"_no_active_run"})
+#: Functions, by file and name, whose raise is a library caller's value of
+#: the wrong Python type (a ``TypeError``): named one by one, so a new
+#: ``raise TypeError`` elsewhere stays counted.
+LIBRARY_SITES = frozenset({("src/pitloom/_loom_dataset_meta.py", "_declared_licence")})
 #: A template that is only another message passed through.
 PASSTHROUGH_PAT = re.compile(
     r"^(%s|"
@@ -261,7 +263,7 @@ def _raise_reach(rec: dict[str, Any]) -> str:
     names = {exc.rpartition(".")[2], rec.get("exc_origin") or ""}
     if INTERNAL_PAT.search(text) or names & INTERNAL_EXC:
         return "internal"
-    if LIBRARY_PAT.search(text) or exc == "_no_active_run":
+    if exc in LIBRARY_EXC or (rec["file"], rec.get("function")) in LIBRARY_SITES:
         return "library"
     return "ERROR(usage)" if exc.startswith("argparse") else "ERROR(raise)"
 

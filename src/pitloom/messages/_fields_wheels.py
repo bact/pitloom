@@ -206,6 +206,14 @@ WHEEL_FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
             f"the value the wheel's METADATA states, {_COMPARED_MEANING}",
             free=True,
         ),
+        "project_value": Field(
+            r".+",
+            compared_text,
+            "<project-value>",
+            "the name a project directory's metadata states (an embed with "
+            f"--project-dir), {_COMPARED_MEANING}",
+            free=True,
+        ),
         "sbom_value": Field(
             r".+",
             compared_text,

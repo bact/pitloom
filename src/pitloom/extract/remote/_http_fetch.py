@@ -71,9 +71,6 @@ from pitloom.extract.remote.errors import RemoteSourceError
 from pitloom.messages import emit
 from pitloom.messages.files import (
     DOWNLOAD_LINE,
-    JSON_MALFORMED,
-    NOT_JSON_LINE,
-    NOT_OBJECT_LINE,
     OVER_CAP,
     SAVE_FAILED_LINE,
     SOURCE_LINE,
@@ -86,6 +83,7 @@ from pitloom.messages.network import (
     URL_MOVED,
     URL_REFUSED,
 )
+from pitloom.messages.text import JSON_MALFORMED, NOT_JSON_LINE, NOT_OBJECT_LINE
 
 log = logging.getLogger(__name__)
 

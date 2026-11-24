@@ -76,7 +76,10 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
   without that file: a setup.cfg read for pyproject.toml's dynamic fields fills
   none of them; an sdist's pyproject.toml gives none of its fields: PKG-INFO's
   are read when there is one, else the package is named unknown, with no
-  version, description or dependencies.
+  version, description or dependencies. An sdist's pyproject.toml read only for
+  its declared authors (PKG-INFO gives the rest): the authors come from
+  PKG-INFO, without their declared order, and name-only authors joined into one
+  Author field are read as one.
 - **Tell the user**: which file does not parse and where, as the line says; they
   fix the syntax there (a % in a setup.cfg value is written %%) and run again.
   Do not edit their configuration for them; ask first, and with nobody to ask,

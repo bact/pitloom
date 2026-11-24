@@ -173,16 +173,33 @@ INSTALLED_LINE: Final = Line(
     "disagree; kept the declared %(kept)s, dropped the installed %(dropped)s",
 )
 
+#: ``embed-wheel --project-dir``: the project directory is another project
+#: than the wheel, so its declared authors are not used.
+EMBED_PROJECT_LINE: Final = Line(
+    level="WARNING",
+    template="DIR=%(dir)s: names project %(project_value)s, not the wheel's "
+    "%(wheel_value)s; authors from the wheel METADATA",
+)
+
 METADATA_CONFLICT: Final = Message(
     code="metadata-conflict",
     condition="conflict",
-    lines=(SETUP_PY_KEPT_LINE, SETUP_CFG_KEPT_LINE, INSTALLED_LINE),
+    lines=(
+        SETUP_PY_KEPT_LINE,
+        SETUP_CFG_KEPT_LINE,
+        INSTALLED_LINE,
+        EMBED_PROJECT_LINE,
+    ),
     summary="Two sources of the project's metadata give one field two real "
     "values: setup.py and setup.cfg (a setup() keyword overrides the "
     "setup.cfg option, as setuptools does), or the declared metadata and an "
-    "installed .dist-info or .egg-info (a stale install).",
+    "installed .dist-info or .egg-info (a stale install). The DIR= line "
+    "with 'names project' is an embed with a project directory "
+    "(embed-wheel --project-dir) whose project is not the wheel's, by PEP "
+    "503 name; it prints since 0.25.0.",
     did="Recorded the value the line keeps and both values as a conflict in "
-    "the field's provenance.",
+    "the field's provenance. For an embed's project directory, took the "
+    "authors from the wheel's METADATA, not from the project.",
     effect="weaker",
     actor="user",
     advice="Tell the user which field disagrees, what was kept and what "

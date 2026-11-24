@@ -19,7 +19,6 @@ never answers) and tests/messages/test_hub.py (the entries).
 from __future__ import annotations
 
 import http.server
-import importlib
 import json
 import logging
 import threading
@@ -105,15 +104,6 @@ def _hub(monkeypatch: pytest.MonkeyPatch) -> Iterator[_Hub]:
     )
     # An offline environment fails before any socket is opened.
     monkeypatch.setattr(hf_constants, "HF_HUB_OFFLINE", False)
-    # huggingface_hub fetches its agent registry from the endpoint on the
-    # first request of a process and leaves an error response unclosed (a
-    # ResourceWarning in whichever test runs first on an xdist worker).
-    try:
-        detect = importlib.import_module("huggingface_hub.utils._detect_agent")
-    except ImportError:  # an older huggingface_hub has no registry fetch
-        detect = None
-    if detect is not None:
-        monkeypatch.setattr(detect, "_fetch_registry", lambda: None, raising=False)
     try:
         yield hub
     finally:

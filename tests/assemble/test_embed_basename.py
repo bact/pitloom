@@ -86,7 +86,8 @@ def test_the_library_refuses_before_it_generates_anything(
     wheel = _make_dummy_wheel(tmp_path, "demo_pkg", "1.0.0")
     before = wheel.read_bytes()
     with mock.patch("pitloom.embed._generate_embed_sbom_json") as generate:
-        with pytest.raises(ValueError, match="--sbom-basename: must be a"):
+        # The library names its own parameter; the command line, its option.
+        with pytest.raises(ValueError, match="^sbom_basename: must be a"):
             embed_wheel_sbom(wheel, sbom_basename=value)
     generate.assert_not_called()
     assert wheel.read_bytes() == before

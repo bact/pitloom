@@ -21,8 +21,9 @@ import pytest
 from pitloom import __main__
 from pitloom.id_registry import IdRegistry
 from pitloom.messages import Message, trusted_message
-from pitloom.messages.files import FILE_UNREADABLE, JSON_MALFORMED
+from pitloom.messages.files import FILE_UNREADABLE
 from pitloom.messages.targets import INPUT_NOT_FOUND, SBOM_INVALID
+from pitloom.messages.text import JSON_MALFORMED
 from tests._message_drift import raised_as
 from tests._unreadable import POSIX_NON_ROOT
 

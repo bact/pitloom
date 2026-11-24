@@ -38,8 +38,8 @@ from pitloom.core.project import ProjectMetadata
 from pitloom.extract.wheel import read_wheel
 from tests._author_routes import (
     CREATED,
-    ONE_AUTHOR_HINTS,
     ONE_AUTHOR_LINE,
+    ONE_AUTHOR_SURFACES,
     SPLIT_MARK,
     SURFACES,
     Surface,
@@ -155,10 +155,9 @@ def test_free_text_author_same_on_every_surface(
         assert SURFACES[surface](tmp_path, author, email_) == expected
     splits = [m for m in caplog.messages if SPLIT_MARK in m]
     assert len(splits) == int(told == "split")
-    hint = ONE_AUTHOR_HINTS.get(surface)
-    one = [ONE_AUTHOR_LINE.format(repr(author), hint)]
+    one = [ONE_AUTHOR_LINE.format(repr(author))]
     assert one_author_lines(caplog) == (
-        one if told == "one" and hint is not None else []
+        one if told == "one" and surface in ONE_AUTHOR_SURFACES else []
     )
 
 
@@ -321,8 +320,7 @@ def test_one_name_field_one_author_on_every_surface(
     with caplog.at_level(logging.INFO):
         assert _NAME_ONLY_SURFACES[surface](tmp_path, name, None) == [{"name": name}]
     assert not [m for m in caplog.messages if SPLIT_MARK in m]
-    hint = ONE_AUTHOR_HINTS.get(surface)
-    one = [] if hint is None else [ONE_AUTHOR_LINE.format(repr(name), hint)]
+    one = [ONE_AUTHOR_LINE.format(repr(name))] if surface in ONE_AUTHOR_SURFACES else []
     assert one_author_lines(caplog) == one
 
 

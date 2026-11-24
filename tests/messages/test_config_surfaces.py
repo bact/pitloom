@@ -235,7 +235,7 @@ def _chain(exc: BaseException | None) -> list[str]:
 def test_every_expected_id_has_a_case() -> None:
     """A new id of the table fails here until a real reader says it."""
     # A parameter's type or value, no file says it.
-    library_only = {"config-source", "sbom-content"}
+    library_only = {"config-source", "sbom-content", "local-file", "local-model"}
     # Said by the project metadata readers (metadata-invalid), not config.
     metadata_only = {"array-of-strings", "string-or-array"}
     not_config = library_only | metadata_only

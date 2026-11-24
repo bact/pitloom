@@ -27,6 +27,8 @@ from collections.abc import Mapping
 from types import MappingProxyType
 from typing import Final
 
+from pitloom.core.internal_error import InternalError
+
 #: Topic slug -> page title, in the order the index lists the pages.
 TOPIC_TITLES: Final[Mapping[str, str]] = MappingProxyType(
     {
@@ -36,9 +38,11 @@ TOPIC_TITLES: Final[Mapping[str, str]] = MappingProxyType(
         "options": "Options",
         "config": "Configuration",
         "metadata": "Project metadata",
+        "authors": "Authors",
         "file-discovery": "File discovery",
         "build": "Builds and temporary directories",
-        "files": "Files and text",
+        "files": "Files and size caps",
+        "text": "Text and documents",
         "lock-files": "Lock files",
         "dependencies": "Dependencies",
         "pypi": "PyPI",
@@ -51,6 +55,7 @@ TOPIC_TITLES: Final[Mapping[str, str]] = MappingProxyType(
         "fragments": "SBOM fragments",
         "wheels": "Wheels",
         "wheel-sboms": "Embedded SBOMs",
+        "datasets": "Datasets and loom runs",
     }
 )
 
@@ -91,6 +96,7 @@ _TOPIC_FAMILIES: Final[Mapping[str, tuple[str, ...]]] = MappingProxyType(
             "option-invalid",
             "option-missing",
             "option-no-effect",
+            "sbom-name-invalid",
         ),
         "config": (
             "config-invalid",
@@ -111,6 +117,11 @@ _TOPIC_FAMILIES: Final[Mapping[str, tuple[str, ...]]] = MappingProxyType(
             "metadata-no-effect",
             "project-name-missing",
         ),
+        "authors": (
+            "author-ambiguous",
+            "author-invalid",
+            "project-unreadable",
+        ),
         "build": (
             "build-code-unsafe",
             "build-failed",
@@ -126,13 +137,15 @@ _TOPIC_FAMILIES: Final[Mapping[str, tuple[str, ...]]] = MappingProxyType(
             "file-discovery-unusable",
         ),
         "files": (
-            "card-malformed",
             "dir-unlistable",
             "file-unreadable",
             "file-unwritable",
-            "json-malformed",
             "over-cap",
             "temp-dir-unusable",
+        ),
+        "text": (
+            "card-malformed",
+            "json-malformed",
             "text-malformed",
         ),
         "lock-files": (
@@ -244,16 +257,35 @@ _TOPIC_FAMILIES: Final[Mapping[str, tuple[str, ...]]] = MappingProxyType(
             "wheel-sbom-unusable",
             "wheel-sbom-wrong-format",
         ),
+        "datasets": (
+            "caller-info-unreadable",
+            "model-file-missing",
+        ),
     }
 )
 
+
+def family_topics(table: Mapping[str, tuple[str, ...]]) -> dict[str, str]:
+    """Family -> topic slug from *table* (topic -> families).
+
+    Raises:
+        pitloom.core.internal_error.InternalError: A family is under two
+            topics, or twice under one: it would sit on one page only.
+    """
+    found: dict[str, str] = {}
+    for topic, families in table.items():
+        for family in families:
+            if family in found:
+                raise InternalError(
+                    f"family {family!r} is under {found[family]!r} and {topic!r}"
+                )
+            found[family] = topic
+    return found
+
+
 #: Family -> topic slug.
 FAMILY_TOPICS: Final[Mapping[str, str]] = MappingProxyType(
-    {
-        family: topic
-        for topic, families in _TOPIC_FAMILIES.items()
-        for family in families
-    }
+    family_topics(_TOPIC_FAMILIES)
 )
 
 

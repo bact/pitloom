@@ -199,9 +199,7 @@ def test_caller_info_warns_once_then_downgrades_to_debug(
             _loom_caller._get_caller_info()
             _loom_caller._get_caller_info()
 
-    matching = [
-        r for r in caplog.records if "Failed to determine caller info" in r.message
-    ]
+    matching = [r for r in caplog.records if "caller info not determined" in r.message]
     assert len(matching) == 2
     assert matching[0].levelname == "WARNING"
     assert matching[1].levelname == "DEBUG"
@@ -247,8 +245,8 @@ def test_active_run_resolve_input_ids_missing_dataset_warning(
                 )
 
             assert any(
-                "no add_input_dataset('nonexistent_input.txt') was declared"
-                in r.message
+                "names input_datasets='nonexistent_input.txt', which no "
+                "add_input_dataset of this run declared" in r.message
                 for r in caplog.records
             )
 
@@ -299,7 +297,7 @@ def test_active_run_set_model_hyperparameters_without_model_raises() -> None:
     """ActiveRun.set_model_hyperparameters raises when no model is set."""
     with tempfile.TemporaryDirectory() as tmpdir:
         output_file = Path(tmpdir) / "no_model.spdx3.json"
-        with pytest.raises(RuntimeError, match="No model set"):
+        with pytest.raises(RuntimeError, match="no model set"):
             with loom.run(output_file) as run:
                 run.set_model_hyperparameters({"lr": "0.01"})
 

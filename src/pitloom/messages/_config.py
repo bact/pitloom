@@ -210,7 +210,10 @@ CONFIG_MALFORMED: Final = Message(
     "pyproject.toml's dynamic fields fills none of them; an sdist's "
     "pyproject.toml gives none of its fields: PKG-INFO's are read when there "
     "is one, else the package is named unknown, with no version, description "
-    "or dependencies.",
+    "or dependencies. An sdist's pyproject.toml read only for its declared "
+    "authors (PKG-INFO gives the rest): the authors come from PKG-INFO, "
+    "without their declared order, and name-only authors joined into one "
+    "Author field are read as one.",
     effect="not-written",
     actor="user",
     advice="Tell the user which file does not parse and where, as the line "

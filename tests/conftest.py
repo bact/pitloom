@@ -134,11 +134,18 @@ def _is_local(host: str) -> bool:
 
 
 def _loopback_only(real_connect: Callable[..., Any]) -> Callable[..., Any]:
-    """*real_connect* that refuses an address other than this machine's."""
+    """*real_connect* that refuses an address other than this machine's.
+
+    The refused socket is closed before the error is raised:
+    ``socket.create_connection`` closes its socket on an ``OSError`` only, so
+    this error would leave it open, and Python reports it (a
+    ``ResourceWarning``) in whichever test runs when it is freed.
+    """
 
     def connect(self: socket.socket, address: Any, *args: Any) -> Any:
         host = address[0] if isinstance(address, tuple) else None
         if isinstance(host, str) and not _is_local(host):
+            self.close()
             raise _NetworkBlockedError(
                 f"A loopback test reached {host!r}. Use only a local server, or "
                 "mark the test @pytest.mark.network if it needs a real host."

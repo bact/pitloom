@@ -24,8 +24,8 @@ by the name (one ``INFO:``, once per name and path,
 file and ``update-id-registry`` is not false; :meth:`LoomModels.persist`
 saves it after the fragment is written.
 Without a usable ``path=`` (none, not a file at exit, unreadable), the
-model is looked up by name only, an entry recording a SHA-256 is a miss (no
-content vouches for it), and nothing is registered. A Git LFS pointer file
+model is looked up by its name, ungated: an entry recording a SHA-256 is a
+miss (no content vouches for it), and nothing is registered. A Git LFS pointer file
 stands in by its ``oid`` (no SHA-512; its ``Hash`` and provenance say so),
 so a model keeps its id and lineage after ``git lfs pull``.
 
@@ -71,22 +71,21 @@ from pitloom.id_registry import (
     persist_registry,
     warn_no_registry_path,
 )
-from pitloom.logging_config import loggable
+from pitloom.messages import CodedRuntimeError, emit
+from pitloom.messages.datasets import MODEL_FILE_MISSING
 from pitloom.messages.files import warn_file_unreadable
-from pitloom.messages.id_registry_ids import info_name_key
+from pitloom.messages.id_registry_ids import (
+    MODEL_NO_PATH_LINE,
+    MODEL_NOT_A_FILE_LINE,
+    REGISTRY_HASH_MISSING,
+    info_name_key,
+)
+from pitloom.messages.options import NO_MODEL_LINE, OPTION_MISSING
 
 log = logging.getLogger("pitloom.loom")
 
-__all__ = ["NOT_A_FILE_WARNING", "NO_PATH_WARNING", "LoomModels"]
+__all__ = ["LoomModels"]
 
-#: ``log.warning()`` format for a model declared without ``path=`` while a
-#: registry is loaded. Argument: the model's name.
-NO_PATH_WARNING = "loom: model %r has no path=; not hashed, looked up by name only"
-#: ``log.warning()`` format for a ``path=`` that is not a regular file at
-#: run exit. Arguments: the model's name, the path as given.
-NOT_A_FILE_WARNING = (
-    "loom: model %r: %s is not a file at exit; not hashed, looked up by name only"
-)
 #: The provisional spdxId of a declared model, numbered per run; replaced
 #: at exit, before anything is written.
 _PENDING_ID = "urn:pitloom:loom:pending-model-"
@@ -109,12 +108,16 @@ class _Declaration:
     annotations: list[spdx3.Annotation] = field(default_factory=list)
 
 
-def _hash_model_file(name: str, path: str, given: str) -> FileDigests | None:
+def _hash_model_file(
+    name: str, path: str, given: str, *, registry: bool
+) -> FileDigests | None:
     """The SHA-256 and SHA-512 of the model file at *path* (one read), or
     ``None`` and one ``WARNING:`` when it is not a regular file at exit
-    (gone included, and a name holding a NUL, which names no file) or cannot
-    be read (``file-unreadable``). Read whole in chunks: no ceiling applies
-    to a model."""
+    (gone included, and a name holding a NUL, which names no file):
+    ``registry-hash-missing`` when a *registry* is loaded (the lookup is
+    ungated), else ``model-file-missing``; or when it cannot be read
+    (``file-unreadable``). Read whole in chunks: no ceiling applies to a
+    model."""
     try:
         if is_regular_file(Path(path)):
             return file_digests(path)
@@ -124,7 +127,17 @@ def _hash_model_file(name: str, path: str, given: str) -> FileDigests | None:
         if not is_missing_errno(exc):
             warn_file_unreadable(log, exc, file=given, use="for the model hash")
             return None
-    log.warning(NOT_A_FILE_WARNING, name, loggable(given))
+    if registry:
+        emit(
+            log,
+            REGISTRY_HASH_MISSING,
+            logging.WARNING,
+            line=MODEL_NOT_A_FILE_LINE,
+            entity=name,
+            path=given,
+        )
+    else:
+        emit(log, MODEL_FILE_MISSING, logging.WARNING, entity=name, path=given)
     return None
 
 
@@ -204,9 +217,7 @@ class LoomModels:
         """Replace the last declared model's hyperparameters, with their
         provenance."""
         if not self._declared:
-            raise RuntimeError(
-                "No model set. Call set_model() before set_model_hyperparameters()."
-            )
+            raise CodedRuntimeError(OPTION_MISSING, line=NO_MODEL_LINE)
         declared = self._declared[-1]
         declared.element.ai_hyperparameter = _dictionary(hyperparameters)
         provenance: dict[str, str] = {}
@@ -278,12 +289,21 @@ class LoomModels:
     ) -> FileDigests | None:
         """*declared*'s ``path=`` digests, each path read once (*found*);
         a Git LFS pointer is noted for the run's summary."""
+        registry = self._session.registry is not None
         if declared.path is None:
-            if self._session.registry is not None:
-                log.warning(NO_PATH_WARNING, declared.name)
+            if registry:
+                emit(
+                    log,
+                    REGISTRY_HASH_MISSING,
+                    logging.WARNING,
+                    line=MODEL_NO_PATH_LINE,
+                    entity=declared.name,
+                )
             return None
         if declared.path not in found:
-            digest = _hash_model_file(declared.name, declared.path, declared.given)
+            digest = _hash_model_file(
+                declared.name, declared.path, declared.given, registry=registry
+            )
             if digest is None:
                 return None
             if digest.lfs_pointer is not None:

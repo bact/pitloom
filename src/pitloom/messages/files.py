@@ -3,17 +3,17 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""The families of the message reference page "Files and text"
+"""The families of the message reference page "Files and size caps"
 (``files`` in :data:`~pitloom.messages.TOPIC_TITLES`): their
 entries, their lines and the helpers that say them.
 
-See also: :mod:`pitloom.messages` (the mechanism) and
+See also: :mod:`pitloom.messages` (the mechanism),
+:mod:`pitloom.messages.text` (the page split from this one) and
 :mod:`pitloom.messages._topics` (which family is on which page).
 """
 
 from __future__ import annotations
 
-from pitloom.messages._card_malformed import CARD_MALFORMED
 from pitloom.messages._field_tables import (
     CONFIG_USE,
     INPUT_USE,
@@ -44,13 +44,6 @@ from pitloom.messages._file_unwritable import (
     WRITE_ERROR_LINE,
     WRITE_LINE,
 )
-from pitloom.messages._json_malformed import (
-    BOM_DROPPED_LINE,
-    JSON_MALFORMED,
-    JSON_MALFORMED_BOM,
-    NOT_JSON_LINE,
-    NOT_OBJECT_LINE,
-)
 from pitloom.messages._over_cap import (
     CLONE_LINE,
     CONFIG_MEMBER_LINE,
@@ -70,20 +63,8 @@ from pitloom.messages._remote_fetch import (
     SAVE_FAILED_WARNING_LINE,
     TEMP_DIR_UNUSABLE,
 )
-from pitloom.messages._text_malformed import (
-    TEXT_MALFORMED,
-    TEXT_MALFORMED_REGISTRY,
-)
-from pitloom.messages._text_malformed_warning import (
-    registry_name_error,
-    warn_license_surrogates,
-    warn_lone_surrogates,
-    warn_registry_file_name,
-    warn_registry_name_skipped,
-)
 
 __all__ = [
-    "CARD_MALFORMED",
     "CLONE_LINE",
     "CONFIG_MEMBER_LINE",
     "Cap",
@@ -97,12 +78,7 @@ __all__ = [
     "FILE_UNWRITABLE",
     "FILE_UNWRITABLE_MODE",
     "GIT_OUTPUT_LINE",
-    "BOM_DROPPED_LINE",
-    "JSON_MALFORMED",
-    "JSON_MALFORMED_BOM",
     "MODE_NOT_RESTORED_LINE",
-    "NOT_JSON_LINE",
-    "NOT_OBJECT_LINE",
     "OVER_CAP",
     "SAVE_FAILED_LINE",
     "SAVE_FAILED_WARNING_LINE",
@@ -113,22 +89,15 @@ __all__ = [
     "SBOM_USE",
     "SOURCE_LINE",
     "TEMP_DIR_UNUSABLE",
-    "TEXT_MALFORMED",
-    "TEXT_MALFORMED_REGISTRY",
     "WRITE_ERROR_LINE",
     "WRITE_LINE",
     "dir_unlistable_error",
     "file_unreadable_error",
     "file_unwritable_error",
     "over_cap_of",
-    "registry_name_error",
     "system_failure",
     "warn_archive_member_over_cap",
     "warn_dir_unlistable",
     "warn_file_unreadable",
-    "warn_license_surrogates",
-    "warn_lone_surrogates",
     "warn_over_cap",
-    "warn_registry_file_name",
-    "warn_registry_name_skipped",
 ]

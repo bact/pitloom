@@ -20,6 +20,8 @@ from pitloom.core.namespace_problems import NAMESPACE_EMPTY, NAMESPACE_PROBLEMS
 from pitloom.messages._field_tables import ELEMENT_KINDS, KEY_REASONS, REGISTRY_PARTS
 from pitloom.messages._field_type import QUOTED, Field
 from pitloom.messages._field_writers import (
+    NAME_CHARACTERS,
+    cut_entity_text,
     entities_text,
     entity_text,
     plain_text,
@@ -70,10 +72,11 @@ REGISTRY_FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
         ),
         "entity": Field(
             r".+",
-            entity_text,
+            cut_entity_text,
             "<entity>",
             "an element's name or ID registry key (a path, a dataset or model "
-            f"name, `name@version`), {_ENTITY_MEANING}",
+            f"name, `name@version`), {_ENTITY_MEANING}, cut to "
+            f"{NAME_CHARACTERS} characters (`...` after it when cut)",
             free=True,
         ),
         "key_reason": Field(
