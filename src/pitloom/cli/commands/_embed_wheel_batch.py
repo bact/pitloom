@@ -40,6 +40,7 @@ from pitloom.core.inert_options import (
     overridden_by_flags,
     settle_inert,
 )
+from pitloom.core.internal_error import InternalError
 from pitloom.embed import RECORD_SIGNATURES, EmbedFileCache
 from pitloom.extract.project import read_project
 from pitloom.id_registry import IdRegistry, registry_base_dir, resolve_registry
@@ -244,6 +245,10 @@ def try_embed_one_wheel(
     a multi-wheel batch doesn't abort the others, matching how a failing
     `--verify`/`--validate` on one wheel already doesn't stop the loop
     in ``_run_embed_wheel_command``.
+
+    :class:`~pitloom.core.internal_error.InternalError` (a ``ValueError``
+    subclass) is a bug in Pitloom, not a bad wheel: it propagates and
+    aborts the batch.
     """
     try:
         embedded_wheel_path, arcname, _, removed, floored = embed_wheel_sbom(
@@ -260,6 +265,8 @@ def try_embed_one_wheel(
             allow_signed_wheel=args.allow_signed_wheel,
             file_cache=batch.file_cache,
         )
+    except InternalError:
+        raise
     except (ValueError, OSError) as exc:
         report_wheel_failure(exc, wheel_path)
         return None

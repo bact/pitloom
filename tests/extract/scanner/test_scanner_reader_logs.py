@@ -18,6 +18,7 @@ from __future__ import annotations
 import contextlib
 import io
 import logging
+import struct
 import sys
 import tempfile
 import zipfile
@@ -29,6 +30,7 @@ from unittest.mock import Mock, patch
 import pytest
 
 from pitloom.core.ai_metadata import AiModelFormat, AiModelMetadata
+from pitloom.core.internal_error import InternalError
 from pitloom.extract.ai_model import read_ai_model
 from pitloom.extract.scanner import (
     ModelCandidate,
@@ -39,12 +41,21 @@ from pitloom.extract.scanner import (
 )
 from pitloom.extract.scanner_wheel import scan_wheel_for_ai_models
 from pitloom.logging_config import CODE_ATTR
-from pitloom.messages import emit
+from pitloom.messages import emit, trusted_message
+from pitloom.messages.model_fields import FICKLING_PARSE_LINE, MODEL_FIELD_UNREADABLE
 from pitloom.messages.models import LFS_POINTER_MALFORMED
 from tests._wheel_models import write_model_wheel
+from tests.extract.ai_model.gguf_builders import (
+    STRING,
+    UINT64,
+    gguf_file,
+    kv,
+    string,
+)
 from tests.warning_helpers import logged_warnings
 
 _READ = "pitloom.extract.scanner.read_ai_model"
+_RELAY = "pitloom.extract.scanner.relay"
 _PT = b"\x80\x02N."  # a raw-pickle body: the extension alone decides the format
 _TMP_WIN = PureWindowsPath("C:/Users/x/AppData/Local/Temp/pitloom-model-scan-ab/0.pt")
 
@@ -159,6 +170,50 @@ def test_reader_records_are_relogged_under_the_stable_prefix(
     assert "0.pt" not in relayed
     assert "\n" not in relayed
     assert failed.startswith("FORMAT=pytorch FILE=demo/real.pt: failed to extract")
+
+
+@pytest.mark.parametrize(
+    ("physical", "written"),
+    [("demo/m\x1b[31m.pt", "'demo/m\\x1b[31m.pt'"), ("demo/a  b.pt", "demo/a  b.pt")],
+    ids=["control", "space-run"],
+)
+def test_a_relayed_error_naming_the_copy_names_the_model_as_file_does(
+    physical: str, written: str, caplog: pytest.LogCaptureFixture
+) -> None:
+    """The copy's path in a coded record's error text is replaced by the
+    model's path as ``FILE=`` writes it, after the text is made one line: the
+    line stays the reader's line, keeps its code, and the scan goes on."""
+    copy = Path(tempfile.gettempdir()) / "pitloom-model-scan-ab" / "0.pt"
+
+    def reader(path: Path, **_kwargs: Any) -> Any:
+        log = logging.getLogger("pitloom.extract.ai_model.pytorch")
+        error = f"cannot open {path}"
+        emit(
+            log,
+            MODEL_FIELD_UNREADABLE,
+            logging.WARNING,
+            line=FICKLING_PARSE_LINE,
+            error=error,
+            fields=("type_of_model",),
+        )
+        return AiModelMetadata()
+
+    candidate = ModelCandidate(
+        distribution_path="demo/m.pt",
+        physical_path=physical,
+        sniff=Mock(return_value=_PT),
+        materialize=lambda: contextlib.nullcontext(copy),
+        read_path=None,
+    )
+    with patch(_READ, reader):
+        assert len(discover_ai_models([candidate])) == 1
+    (line,) = _printed(caplog)
+    assert line == (
+        f"WARNING: FORMAT=pytorch FILE={written}: fickling failed to parse pickle "
+        f"bytes: cannot open {written} | Field(s) affected (skipped): "
+        "type_of_model [model-field-unreadable]"
+    )
+    assert trusted_message(line) is not None
 
 
 def test_a_reader_records_code_is_kept_when_relogged(
@@ -360,3 +415,78 @@ def test_a_reader_called_directly_escapes_member_names(
     (message,) = logged_warnings(caplog)
     assert "\n" not in message
     assert path.name in message
+
+
+# A GGUF file whose one numbered dataset entry states a URL that is none:
+# the dataset value check, not the GGUF reader, says so, naming the file.
+_GGUF_BAD_URL = gguf_file(
+    0,
+    3,
+    kv(b"general.dataset.count", UINT64, struct.pack("<Q", 1))
+    + kv(b"general.dataset.0.name", STRING, string("corpus"))
+    + kv(b"general.dataset.0.repo_url", STRING, string("not a url")),
+)
+_BAD_URL_LINE = (
+    "WARNING: dataset metadata: SOURCE='demo/m.gguf' "
+    "FIELD=general.dataset.0.repo_url: not a URL; skipped [dataset-field-invalid]"
+)
+
+
+def _printed(caplog: pytest.LogCaptureFixture) -> list[str]:
+    return [
+        f"{r.levelname}: {r.getMessage()} [{getattr(r, CODE_ATTR, None)}]"
+        for r in caplog.records
+        if r.levelno >= logging.WARNING
+    ]
+
+
+def test_a_wheel_model_s_dataset_line_names_its_path_not_the_copy(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """The reader reads a copy named ``0.gguf``: the line names the model
+    in the wheel, keeps its code, and is said by the scanner."""
+    wheel = write_model_wheel(tmp_path, {"demo/m.gguf": _GGUF_BAD_URL})
+    scan_wheel_for_ai_models(
+        wheel, scan_usage=False, usage_hint=lambda: False, max_bytes=10**7, trust=True
+    )
+    assert _printed(caplog) == [_BAD_URL_LINE]
+    assert trusted_message(_BAD_URL_LINE) is not None
+    (record,) = [r for r in caplog.records if r.levelno >= logging.WARNING]
+    assert record.name == "pitloom.extract.scanner"
+
+
+def test_a_project_model_s_dataset_line_names_its_path(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Read in place (no copy): the path in the project, not the bare name."""
+    model = tmp_path / "m.gguf"
+    model.write_bytes(_GGUF_BAD_URL)
+    candidate = ModelCandidate(
+        distribution_path="demo/m.gguf",
+        physical_path="demo/m.gguf",
+        sniff=Mock(return_value=_GGUF_BAD_URL[:64]),
+        materialize=lambda: contextlib.nullcontext(model),
+        read_path=model,
+    )
+    discover_ai_models([candidate])
+    assert _printed(caplog) == [_BAD_URL_LINE]
+
+
+def test_an_internal_error_in_the_relay_is_not_a_failed_read(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Raised to the caller, not said as ``model-unreadable``."""
+
+    def reader(_path: Path, **_kwargs: Any) -> Any:
+        logging.getLogger("pitloom.extract.ai_model.pytorch").warning("x")
+        return AiModelMetadata()
+
+    with (
+        patch(_READ, reader),
+        patch(_RELAY, side_effect=InternalError("relay")),
+        pytest.raises(InternalError, match="relay"),
+    ):
+        discover_ai_models(
+            [_candidate(Path(tempfile.gettempdir()) / "0.pt", Mock(return_value=_PT))]
+        )
+    assert not [r for r in caplog.records if r.levelno >= logging.WARNING]

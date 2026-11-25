@@ -26,7 +26,7 @@ from pitloom.core.provenance import (
     require_max_source_metadata_bytes,
     require_provenance_choices,
 )
-from pitloom.messages.config import Parameter
+from pitloom.messages.config import Parameter, invalid_value
 
 _DEFAULT_PROVENANCE_SCHEMA = DEFAULT_PROVENANCE_SCHEMA
 VALID_CONTENT_TYPE_METHODS: frozenset[str] = frozenset({"auto", "magika", "extension"})
@@ -65,16 +65,22 @@ INT_KEYS: dict[str, frozenset[str]] = {
 
 
 def _require_valid_content_type_method(value: str) -> None:
-    """Raise ``ValueError`` unless *value* is a valid content-type method.
+    """Refuse *value* unless it is a valid content-type method.
 
     The one spelling of this check for every caller that takes a method as
     a parameter rather than reading it from a ``[tool.pitloom]`` table;
     a table read reports the offending key's own path instead (see
-    ``pitloom.core._config_read._require_choice``).
+    ``pitloom.core._config_read._require_choice``). Only a library caller
+    reaches it: the TOML reader and the CLI's ``choices=`` refuse first.
+
+    Raises:
+        pitloom.messages.CodedValueError: ``option-invalid``, a
+            ``ValueError``.
     """
     if value not in VALID_CONTENT_TYPE_METHODS:
-        valid = ", ".join(sorted(VALID_CONTENT_TYPE_METHODS))
-        raise ValueError(f"content_type_method must be one of {valid}, got {value!r}")
+        raise invalid_value(
+            Parameter("content_type_method"), "one-of-method", got=value
+        )
 
 
 class AssembleOptions(TypedDict):

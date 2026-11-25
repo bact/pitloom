@@ -22,6 +22,7 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.core._models_wheel import _resolve_file_header_extras, get_wheel_files
 from pitloom.core._models_wheel_types import FileHeaderExtras
+from pitloom.core.internal_error import InternalError
 from pitloom.core.iri import doc_namespace, iri_segment
 from pitloom.core.requirements import normalize_dependency_specifier
 
@@ -108,10 +109,11 @@ def merkle_root(leaves: Sequence[bytes]) -> str:
     caller orders the leaves and decides what a leaf holds.
 
     Raises:
-        ValueError: *leaves* is empty (there is no root to give).
+        pitloom.core.internal_error.InternalError: *leaves* is empty
+            (there is no root to give).
     """
     if not leaves:
-        raise ValueError("merkle_root() needs at least one leaf")
+        raise InternalError("merkle_root() needs at least one leaf")
     return _build_merkle_tree(list(leaves))
 
 

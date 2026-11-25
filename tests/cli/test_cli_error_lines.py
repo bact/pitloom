@@ -164,12 +164,15 @@ _FTP = "ftp://user:SECRET1@example.invalid/f"
 @pytest.mark.parametrize(
     ("argv", "shown"),
     [
-        (["generate", ".", "-o", f"{_FTP}/o.json"], "o.json'"),
+        (["generate", ".", "-o", f"{_FTP}/o.json"], "o.json: could not write"),
         (["generate", ".", "-o", "o.json", "--creation-datetime", _FTP], "ISO 8601"),
         (["generate", ".", "--bogus", "https:/user:SECRET1@h/x"], "--bogus https:/***"),
         (["generate", ".", "--bogus", "https:\\\\user:SECRET1@h/x"], "--bogus"),
         (["https://h/x?token=SEC RET1"], "?token=***' (choose from"),
-        (["generate", ".", "-o", "ftp://u:SE'C\"RET1@h/o.json"], "o.json'"),
+        (
+            ["generate", ".", "-o", "ftp://u:SE'C\"RET1@h/o.json"],
+            "o.json: could not write",
+        ),
         (["ftp://u:SE'CRET1@h/x"], 'ftp://***:***@h/x" (choose from'),
     ],
     ids=["output", "datetime", "collapsed", "backslashes", "choice"]

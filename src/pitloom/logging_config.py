@@ -170,10 +170,10 @@ def print_traceback() -> None:
 
 
 #: The prefix :func:`print_error` puts before a message while a command runs
-#: (``loom generate: ``); empty where nothing sets one: the library, the
-#: Hatchling hook and a unit test. Its text is the catalogue's
-#: (:data:`pitloom.messages.COMMAND_FRAME`), built by the caller, since the
-#: catalogue imports this module.
+#: (``loom generate: ``); empty where nothing sets one: the library and
+#: a unit test (the Hatchling hook opens one around its work). Its text is the
+#: catalogue's (:data:`pitloom.messages.COMMAND_FRAME`), built by the caller,
+#: since the catalogue imports this module.
 _ERROR_FRAME: ContextVar[str] = ContextVar("pitloom_error_frame", default="")
 
 
@@ -186,8 +186,8 @@ def error_frame(prefix: str) -> Iterator[None]:
     The CLI's entry points open it, so a Ctrl-C before a subcommand is known
     is framed too. It is per context: a worker thread does not inherit it, so
     an ``ERROR`` record logged from a worker would be unframed (none is).
-    The Hatchling hook writes its own frame into its record's text and runs
-    where no frame is open.
+    The Hatchling hook opens one around its work; its failure line, said
+    once the block has closed, passes the frame to :func:`print_error`.
 
     :func:`print_error` and the formatter of :func:`configure_logging` read it
     when the line is written."""

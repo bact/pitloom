@@ -89,12 +89,16 @@ def cwd_relative_label(location: str | os.PathLike[str]) -> str:
     directory when it lies below it, else its bare name, so no machine path
     is recorded and the label does not depend on where the project lies. A
     ``..`` is resolved as the OS opens the path (through symlinks), any
-    other path lexically. A label only: open *location* as given."""
+    other path lexically. A current directory that is gone gives the bare
+    name too. A label only: open *location* as given."""
     text = os.fspath(location)
-    if ".." in Path(text).parts:
-        absolute, base = os.path.realpath(text), os.path.realpath(os.getcwd())
-    else:
-        absolute, base = os.path.abspath(text), os.getcwd()
+    try:
+        if ".." in Path(text).parts:
+            absolute, base = os.path.realpath(text), os.path.realpath(os.getcwd())
+        else:
+            absolute, base = os.path.abspath(text), os.getcwd()
+    except OSError:
+        return Path(text).name
     try:
         return Path(absolute).relative_to(base).as_posix()
     except ValueError:

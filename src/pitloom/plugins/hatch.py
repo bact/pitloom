@@ -14,12 +14,12 @@ from __future__ import annotations
 
 import logging
 import os
-import tempfile
 import weakref
 from collections.abc import Callable
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as _pkg_version
 from pathlib import Path
+from tempfile import mkdtemp
 from typing import Any, cast
 
 from hatchling.builders.wheel import WheelBuilderConfig
@@ -27,7 +27,7 @@ from hatchling.plugin import hookimpl
 from packaging.version import Version
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
-from pitloom._sbom_io import write_text_lf
+from pitloom._sbom_io import coded_write, write_text_lf
 from pitloom.assemble.spdx3.document import build as assemble_spdx3
 from pitloom.assemble.spdx3.fragments import merge_fragments
 from pitloom.core.config import PitloomConfig, read_pitloom_config
@@ -36,13 +36,13 @@ from pitloom.core.inert_options import HOOK, configured_options, settle_inert
 from pitloom.core.temp_dirs import check_frame, remove_temp_dir
 from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
 from pitloom.id_registry import resolve_registry
-from pitloom.logging_config import configure_logging, error_frame, one_line
+from pitloom.logging_config import configure_logging, error_frame, print_error
 from pitloom.messages import (
     HOOK_FRAME,
     HOOK_PREFIX,
     HOOK_STEP_FRAME,
     CodedValueError,
-    code_extra_of,
+    code_of,
     emit,
     say_summary,
 )
@@ -110,6 +110,18 @@ def _check_hatchling_sbom_support() -> None:
         )
 
 
+def _report_failure(exc: Exception) -> None:
+    """Print the one ``ERROR:`` line of a failed hook run, as the CLI's
+    handler does: *exc*'s own text and code after the hook's frame, named
+    here since the run's :func:`~pitloom.logging_config.error_frame` has
+    closed when the failure reaches the hook's catch-all."""
+    print_error(
+        str(exc) or type(exc).__name__,
+        code=code_of(exc),
+        frame=HOOK_FRAME.render({}),
+    )
+
+
 def _stage_sbom_file(sbom_json: str, sbom_filename: str) -> tuple[Path, Path]:
     """Write the canonical SBOM to a new temporary staging directory; return
     the directory and the file.
@@ -122,10 +134,12 @@ def _stage_sbom_file(sbom_json: str, sbom_filename: str) -> tuple[Path, Path]:
     on Windows, failing a build whose wheel is already written).
     """
     check_frame(HOOK_STEP_FRAME)
-    staging_dir = Path(tempfile.mkdtemp(prefix=_STAGING_PREFIX))
+    staging_dir = Path(mkdtemp(prefix=_STAGING_PREFIX))
     staging_path = staging_dir / sbom_filename
     try:
-        write_text_lf(staging_path, sbom_json)
+        # A refused write names the staged SBOM as the staged-SBOM line does.
+        with coded_write(sbom_filename):
+            write_text_lf(staging_path, sbom_json)
     except BaseException:
         remove_temp_dir(staging_dir, frame=HOOK_STEP_FRAME)
         raise
@@ -178,8 +192,10 @@ class PitloomBuildHook(PitloomBuildHookBase):
         appended to ``build_data["sbom_files"]``, which Hatchling 1.29.0+
         places at ``.dist-info/sboms/<basename>`` inside the wheel
         (PEP 770).  The temporary staging directory is cleaned up in
-        :meth:`finalize`.  Any failure is reported once as ``ERROR: SBOM
-        generation failed: <reason>`` and then raised, failing the build.
+        :meth:`finalize`.  Any failure is reported once, on one line, as
+        ``ERROR: Pitloom build hook: <reason>`` (`` [code]`` after it when
+        the exception carries a catalogued one) and then raised, failing
+        the build.
         The ``editable`` variant is skipped with an ``INFO:``.
 
         Args:
@@ -219,14 +235,7 @@ class PitloomBuildHook(PitloomBuildHookBase):
         except Exception as exc:
             # The one place a failure is reported, as the CLI's handler does;
             # the re-raise fails the build, with Hatchling's own traceback.
-            # The frame is in the record's own text (what a handler reads), and
-            # the hook runs where no command frame is open (its own process).
-            log.error(
-                "%s%s",
-                HOOK_FRAME.render({}),
-                one_line(exc),
-                extra=code_extra_of(exc),
-            )
+            _report_failure(exc)
             raise
 
     def _generate(self, version: str, build_data: dict[str, Any]) -> None:

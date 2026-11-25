@@ -17,11 +17,11 @@ description too, :func:`is_os_error_rebuilt`), internal invariants a caller neve
 library-only errors raised to a Python caller, and a helper's call sites
 whose text lives in the helper body (the body is counted once).
 
-An internal invariant is marked by its class: ``raise InternalError(...)``
-(:class:`pitloom.core.internal_error.InternalError`, a ``ValueError``), found
-by the class name or the name it is imported under. :data:`INTERNAL_PAT`
-is the older list of such texts; a raise moves from it to the class, never
-back.
+An internal invariant is marked by its class only: ``raise
+InternalError(...)`` (:class:`pitloom.core.internal_error.InternalError`, a
+``ValueError``), found by the class name or the name it is imported under
+(:data:`INTERNAL_EXC`). No message text marks one: a text pattern would
+hide a new raise that happens to share its words.
 
 ``reach`` is a static guess for ``raise`` sites (which of them reach the CLI
 as an ``ERROR:`` line), by exception class and message text. A raise in a
@@ -76,6 +76,8 @@ DETAIL_EXC = frozenset(
         "MemberReadError",
         "FragmentReadError",
         "_MarkersTypeError",
+        "_NonJsonConstant",
+        "_NotComparableJson",
     }
 )
 #: Exception classes that are programming errors or process control.
@@ -88,34 +90,97 @@ INTERNAL_EXC = frozenset(
         "TerminationSignal",
     }
 )
-#: Message texts of invariants a user never meets.
-INTERNAL_PAT = re.compile(
-    r"already entered|outlived its with-block|outside its with-block|"
-    r"re-entrantly|CREATOR_TYPES keys|merkle_root\(\)|Limits\.\{name\}|"
-    r"does not accept .*INERT|not a scalar|names must be a sequence|"
-    r"RegistryEntry\.sha256|file path must be a str|refuse_credentials must "
-    r"be a bool|no ID registry loaded in "
-    r"this session|No path given and registry|capture state lock|has no spdxId "
-    r"assigned|Duplicate spdxId|Dependency\.base_pep_508_name|type parameters|"
-    r"EmbedFileCache: every call|build option \{name\} must be bool|"
-    r"build timeout must be an int|max_bytes must be a positive|"
-    r"Failed to build relationship|^received \{|no id prefix for an empty|"
-    r"GGUF array field without|duplicate key$|"
-    r"^not JSON: |is not a JSON value|"
-    r"content_type_method must be one of"
-)
 #: Helpers whose error is raised to a Python caller of the library: the
 #: loom SDK called outside a ``loom.run()``.
 LIBRARY_EXC = frozenset({"_no_active_run"})
-#: Functions, by file and name, whose raise is a library caller's value of
-#: the wrong Python type (a ``TypeError``): named one by one, so a new
-#: ``raise TypeError`` elsewhere stays counted.
-LIBRARY_SITES = frozenset({("src/pitloom/_loom_dataset_meta.py", "_declared_licence")})
-#: A template that is only another message passed through.
-PASSTHROUGH_PAT = re.compile(
-    r"^(%s|"
-    r"ERROR: \{escape_controls|%s; skipped|%s%s)?$"
+#: Raises, by file, function, exception class and template, that only a
+#: library caller's wrong argument reaches: a value of the wrong Python type
+#: (a ``TypeError``), or a call that leaves out what the object lacks
+#: (``IdRegistry.save()`` with no path, ``register()`` with an empty type
+#: name). No command, hook, Action or file reaches them (the CLI passes only
+#: its own types and a registry with a path). Named one raise at a time, not
+#: one function: another raise in the same function (``--build-timeout 0``'s
+#: ``_out_of_range``, a registry file past ``MAX_ID_NUMBER``), a new one, or
+#: a listed one whose text changes stays counted.
+LIBRARY_SITES = frozenset(
+    {
+        (
+            "src/pitloom/_loom_dataset_meta.py",
+            "_declared_licence",
+            "TypeError",
+            "loom SDK: declared_license must be a str, not %s",
+        ),
+        (
+            "src/pitloom/core/_models_wheel_types.py",
+            "validate_build_timeout",
+            "TypeError",
+            "build timeout must be an int number of seconds, "
+            "got {type(value).__name__}",
+        ),
+        (
+            "src/pitloom/core/build_options.py",
+            "BuildOptions.__post_init__",
+            "TypeError",
+            "build option {name} must be bool, got {type(value).__name__}",
+        ),
+        (
+            "src/pitloom/core/scalar_text.py",
+            "scalar_text",
+            "TypeError",
+            "not a scalar: {type(value).__name__}",
+        ),
+        (
+            "src/pitloom/id_registry/_registry.py",
+            "_require_bool",
+            "TypeError",
+            "refuse_credentials must be a bool, not "
+            "{type(refuse_credentials).__name__}",
+        ),
+        (
+            "src/pitloom/id_registry/_registry.py",
+            "IdRegistry.load",
+            "TypeError",
+            "ID registry file path must be a str or os.PathLike, not "
+            "{type(path).__name__}",
+        ),
+        (
+            "src/pitloom/id_registry/_registry.py",
+            "IdRegistry._mint_id",
+            "ValueError",
+            "ID registry: no id prefix for an empty type name",
+        ),
+        (
+            "src/pitloom/id_registry/_registry.py",
+            "IdRegistry.save",
+            "ValueError",
+            "No path given and registry has no default path",
+        ),
+        (
+            "src/pitloom/id_registry/_types.py",
+            "_require_names",
+            "TypeError",
+            "names must be a sequence of names, not one str",
+        ),
+    }
 )
+
+
+def library_site_key(rec: dict[str, Any]) -> tuple[str, str, str, str]:
+    """The :data:`LIBRARY_SITES` key of the raise *rec*: its file,
+    function, exception class and template (``""`` for an absent one)."""
+    return (
+        rec["file"],
+        rec.get("function") or "",
+        rec.get("exc_class") or "",
+        rec.get("template") or "",
+    )
+
+
+#: A template that is only another message passed through: left out only at
+#: a site that forwards that message's code (``forwards_code``: the record's
+#: or the exception's own, read at run time), so its line carries the code
+#: of the text it says. A bare ``%s`` that forwards none is counted.
+PASSTHROUGH_PAT = re.compile(r"^%s$")
 #: Emitters of ``KEY=VALUE`` data, not of messages.
 DATA_EMITTERS = frozenset(
     {"print_kv", "print_stdout", "sys.stdout.write", "log_verbose", "log_kv"}
@@ -253,7 +318,6 @@ def is_os_error_rebuilt(rec: dict[str, Any]) -> bool:
 
 def _raise_reach(rec: dict[str, Any]) -> str:
     exc = rec.get("exc_class") or ""
-    text = rec["template"] or ""
     if (
         exc in DETAIL_EXC
         or is_os_error_rebuilt(rec)
@@ -261,9 +325,9 @@ def _raise_reach(rec: dict[str, Any]) -> str:
     ):
         return "detail"
     names = {exc.rpartition(".")[2], rec.get("exc_origin") or ""}
-    if INTERNAL_PAT.search(text) or names & INTERNAL_EXC:
+    if names & INTERNAL_EXC:
         return "internal"
-    if exc in LIBRARY_EXC or (rec["file"], rec.get("function")) in LIBRARY_SITES:
+    if exc in LIBRARY_EXC or library_site_key(rec) in LIBRARY_SITES:
         return "library"
     return "ERROR(usage)" if exc.startswith("argparse") else "ERROR(raise)"
 
@@ -304,6 +368,17 @@ def is_summary(rec: dict[str, Any]) -> bool:
     )
 
 
+def is_passthrough(rec: dict[str, Any]) -> bool:
+    """Whether *rec* only says another message again with its code: a
+    :data:`PASSTHROUGH_PAT` template at a site that forwards a code."""
+    template = rec["template"]
+    return (
+        bool(rec.get("forwards_code"))
+        and template is not None
+        and bool(PASSTHROUGH_PAT.match(template))
+    )
+
+
 def _excluded(rec: dict[str, Any]) -> bool:
     """Whether *rec* is left out whatever it reaches."""
     # A helper's call whose text is in the helper body is counted there; but
@@ -314,7 +389,6 @@ def _excluded(rec: dict[str, Any]) -> bool:
         and rec.get("tmpl_source") == "helper"
         and not rec.get("helper_def", "").startswith(MECHANISM)
     )
-    template = rec["template"]
     return any(
         (
             # the logging plumbing and the KEY=VALUE writer
@@ -322,7 +396,7 @@ def _excluded(rec: dict[str, Any]) -> bool:
             rec["file"].startswith(MECHANISM),  # the coding mechanism itself
             is_summary(rec),  # kind summary: no condition, so no code (R1)
             in_helper_body,
-            template is not None and bool(PASSTHROUGH_PAT.match(template)),
+            is_passthrough(rec),  # a forwarded message said again
             bool(rec.get("relays")),  # another's text said again (_relay.py)
         )
     )

@@ -10,7 +10,9 @@ the archive it reads; the scanner may hand it a temporary copy (a model in a
 wheel), and the archive is untrusted. The scanner captures the records while
 a reader runs and logs them again under the stable ``FORMAT=``/``FILE=``
 prefix, with the text escaped and the temporary path removed: one route for
-every reader, present and future.
+every reader, present and future. The shared dataset value checks a reader
+calls (:mod:`pitloom.extract.dataset.values`) name the file the reader was
+given too, so their records are captured with the readers'.
 
 The undo holds a second interrupt for a few tries and waits a bounded time
 for the lock (:mod:`pitloom.extract._interrupt_hold`): on CPython 3.14 an
@@ -32,6 +34,19 @@ from pitloom.extract._interrupt_hold import locked, run_held
 
 #: The logger every reader's own logger is a child of.
 _READERS_LOGGER = "pitloom.extract.ai_model"
+#: The loggers captured: the readers', and the dataset value checks' (a GGUF
+#: reader's dataset keys), which name the file as the reader names it.
+_CAPTURED = (_READERS_LOGGER, "pitloom.extract.dataset.values")
+
+
+def _home(name: str) -> str:
+    """The captured logger a record of the logger *name* reached the
+    dispatcher through: *name* itself or its nearest captured ancestor."""
+    return next(
+        (c for c in _CAPTURED if name == c or name.startswith(c + ".")),
+        _READERS_LOGGER,
+    )
+
 
 # Guards _STATE. Never held while logging, so a handler may take it.
 _LOCK = threading.Lock()
@@ -39,7 +54,8 @@ _LOCK = threading.Lock()
 
 class _Dispatcher(logging.Handler):
     """Hands a record to the capture of the thread that logged it, or on to
-    the logger's parent when that thread is not capturing."""
+    the parent of the captured logger it came through when that thread is
+    not capturing."""
 
     def __init__(self) -> None:
         super().__init__(level=logging.NOTSET)
@@ -52,16 +68,17 @@ class _Dispatcher(logging.Handler):
         records = self.captures.get(ident)
         if records is not None:
             records.append(record)
-        elif (parent := logging.getLogger(_READERS_LOGGER).parent) is not None:
+        elif (parent := logging.getLogger(_home(record.name)).parent) is not None:
             parent.handle(record)
 
 
 @dataclass
 class _State:
-    """The logger's saved configuration, while it is changed."""
+    """The captured loggers' saved configuration, while it is changed."""
 
     installed: bool = False
-    propagate: bool = True
+    #: Each captured logger's ``propagate`` as found.
+    propagate: dict[str, bool] = field(default_factory=dict)
     dispatcher: _Dispatcher = field(default_factory=_Dispatcher)
 
 
@@ -80,15 +97,16 @@ class _Block:
 
 def _enter(block: _Block) -> None:
     """Start capturing this thread into *block*."""
-    logger = logging.getLogger(_READERS_LOGGER)
+    loggers = [logging.getLogger(name) for name in _CAPTURED]
     with locked(_LOCK):
         if not _STATE.installed:
-            _STATE.propagate = logger.propagate
-            # Flagged before the logger is changed, so that leaving undoes
+            _STATE.propagate = {lg.name: lg.propagate for lg in loggers}
+            # Flagged before a logger is changed, so that leaving undoes
             # it even when an interrupt cuts the change short.
             _STATE.installed = True
-            logger.addHandler(_STATE.dispatcher)
-            logger.propagate = False
+            for logger in loggers:
+                logger.addHandler(_STATE.dispatcher)
+                logger.propagate = False
         ident = threading.get_ident()
         block.outer = _STATE.dispatcher.captures.get(ident)
         _STATE.dispatcher.captures[ident] = block.records
@@ -97,7 +115,6 @@ def _enter(block: _Block) -> None:
 def _undo(block: _Block) -> None:
     """Take *block* off this thread, and the logger back to what it was
     when no thread captures. Idempotent."""
-    logger = logging.getLogger(_READERS_LOGGER)
     ident = threading.get_ident()
     captures = _STATE.dispatcher.captures
     with locked(_LOCK):
@@ -107,8 +124,10 @@ def _undo(block: _Block) -> None:
             else:
                 captures[ident] = block.outer
         if _STATE.installed and not captures:
-            logger.removeHandler(_STATE.dispatcher)
-            logger.propagate = _STATE.propagate
+            for name, propagate in _STATE.propagate.items():
+                logger = logging.getLogger(name)
+                logger.removeHandler(_STATE.dispatcher)
+                logger.propagate = propagate
             _STATE.installed = False
 
 
@@ -124,17 +143,17 @@ def _exit(block: _Block) -> None:
 
 @contextlib.contextmanager
 def capture_reader_logs() -> Iterator[list[logging.LogRecord]]:
-    """Collect, instead of passing on, what the readers log in the block,
-    in this thread only.
+    """Collect, instead of passing on, what the readers (and the dataset
+    value checks, :data:`_CAPTURED`) log in the block, in this thread only.
 
     The list is complete once the block is left. Records are not logged
     by this function; the caller logs the ones it wants. Blocks of several
-    threads may overlap in any order: the logger's propagation is saved by
+    threads may overlap in any order: the loggers' propagation is saved by
     the first to enter and restored by the last to leave, and a thread not
     in a block has its records passed on as usual. A block inside another of
     the same thread collects on its own, and the outer one resumes after it.
-    An interrupt (``KeyboardInterrupt``) at any step leaves the logger as it
-    was found, unless the lock was left held (see the module docstring).
+    An interrupt (``KeyboardInterrupt``) at any step leaves the loggers as
+    they were found, unless the lock was left held (see the module docstring).
     """
     block = _Block()
     try:

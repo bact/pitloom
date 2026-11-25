@@ -77,6 +77,9 @@ def generate_merged_sbom(
             reference, a root included, or a licence relationship end of the
             wrong type (a ``pitloom.assemble.spdx3.fragments.
             FragmentLicenseRangeError``, code ``license-relationship-invalid``).
+        pitloom.messages.CodedOSError: The system refused a write
+            (``file-unwritable``): the ``-o`` copy at *output_path* (as
+            given).
     """
     configure_logging()
     # A Path as given (a TypedPath keeps the user's spelling for the lines).

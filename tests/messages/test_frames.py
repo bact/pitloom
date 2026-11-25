@@ -347,14 +347,11 @@ def test_an_error_record_outside_a_frame_has_none(
 
 
 def test_the_build_hook_reports_its_failure_with_its_frame() -> None:
-    """The hook's one failure line is ``<frame><exception>``."""
+    """The hook's one failure line is ``<frame><exception>``, printed as the
+    CLI's handler prints one (no log record of its own)."""
     tree = ast.parse((SRC_ROOT / "plugins" / "hatch.py").read_bytes())
-    errors = [
-        n
-        for n in ast.walk(tree)
-        if isinstance(n, ast.Call) and getattr(n.func, "attr", None) == "error"
-    ]
-    assert len(errors) == 1
-    first, second = errors[0].args[:2]
-    assert isinstance(first, ast.Constant) and first.value == "%s%s"
-    assert ast.unparse(second) == "HOOK_FRAME.render({})"
+    calls = [n for n in ast.walk(tree) if isinstance(n, ast.Call)]
+    assert not [n for n in calls if getattr(n.func, "attr", None) == "error"]
+    (printed,) = [n for n in calls if getattr(n.func, "id", None) == "print_error"]
+    frame = {kw.arg: ast.unparse(kw.value) for kw in printed.keywords}["frame"]
+    assert frame == "HOOK_FRAME.render({})"

@@ -156,7 +156,7 @@ def test_library_and_loom_declared_bad_registry_raises(
 
 @pytest.mark.parametrize("content", [None, "{"], ids=["missing", "malformed-json"])
 def test_hook_declared_bad_registry_raises_one_error_no_sbom_files(
-    content: str | None, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    content: str | None, tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     registry_path = tmp_path / "bad.json"
     if content is not None:
@@ -167,15 +167,18 @@ def test_hook_declared_bad_registry_raises_one_error_no_sbom_files(
     hook = make_hook(str(project), {})
     build_data: dict[str, Any] = {}
 
-    with caplog.at_level(logging.ERROR):
-        with pytest.raises(
-            FileNotFoundError if content is None else ValueError,
-            match=_BAD_REGISTRY,
-        ):
-            hook.initialize("standard", build_data)
+    with pytest.raises(
+        FileNotFoundError if content is None else ValueError,
+        match=_BAD_REGISTRY,
+    ):
+        hook.initialize("standard", build_data)
 
-    error_records = [r for r in caplog.records if r.levelname == "ERROR"]
-    assert len(error_records) == 1, caplog.records
+    error_lines = [
+        line
+        for line in capsys.readouterr().err.splitlines()
+        if line.startswith("ERROR:")
+    ]
+    assert len(error_lines) == 1, error_lines
     assert "sbom_files" not in build_data
 
 

@@ -39,6 +39,7 @@ from pitloom.core.creation import (
     Tool,
     iso_datetime_or_none,
 )
+from pitloom.core.internal_error import InternalError
 from pitloom.messages import code_of
 from pitloom.messages.config import Parameter
 
@@ -196,7 +197,21 @@ def test_build_creator_agents_with_email() -> None:
     assert identifier.identifier == "jane@example.com"
 
 
-def test_build_creator_agents_invalid_type_raises() -> None:
+@pytest.mark.parametrize(
+    ("value", "text"),
+    [
+        (
+            "not-a-real-type",
+            "Creator.type: must be one of agent, organization, person, "
+            "software-agent, got a string 'not-a-real-type'",
+        ),
+        # Not a string: refused as the constructor refuses it, never an
+        # AttributeError from ``.strip()``.
+        (5, "Creator.type: must be a string, got an integer 5"),
+    ],
+    ids=["unknown", "int"],
+)
+def test_build_creator_agents_invalid_type_raises(value: Any, text: str) -> None:
     # Creator.__post_init__ already validates `type` eagerly against the
     # same VALID_CREATOR_TYPES set, so a normal construction can never
     # reach build_creator_agents's own check -- mutate `type` after
@@ -207,14 +222,11 @@ def test_build_creator_agents_invalid_type_raises() -> None:
         CreationMetadata(), _DOC_NAME, _DOC_UUID
     )
     creator = Creator(name="Bad", type="person")
-    creator.type = "not-a-real-type"
+    creator.type = value
     metadata = CreationMetadata(creators=[creator])
     with pytest.raises(ValueError) as caught:
         build_creator_agents(metadata, _DOC_NAME, _DOC_UUID, spdx_ci)
-    assert str(caught.value) == (
-        "Creator.type: must be one of agent, organization, person, "
-        "software-agent, got a string 'not-a-real-type'"
-    )
+    assert str(caught.value) == text
     assert code_of(caught.value) == "option-invalid"
 
 
@@ -315,20 +327,20 @@ def test_build_creation_info_explicit_datetime_overrides_source_date_epoch(
 # ---------------------------------------------------------------------------
 
 
-def test_creator_types_mismatch_raises_runtime_error_on_import(
+def test_creator_types_mismatch_raises_internal_error_on_import(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """The module-level sanity check guarding CREATOR_TYPES against
     pitloom.core.creation.VALID_CREATOR_TYPES drifting apart must raise
-    RuntimeError if the two ever disagree -- simulated here by patching
-    VALID_CREATOR_TYPES and re-executing the module's top level via
-    importlib.reload()."""
+    InternalError (a programming error) if the two ever disagree --
+    simulated here by patching VALID_CREATOR_TYPES and re-executing the
+    module's top level via importlib.reload()."""
     original_valid = creation_module.VALID_CREATOR_TYPES
     monkeypatch.setattr(
         creation_module, "VALID_CREATOR_TYPES", frozenset({"bogus-type"})
     )
     try:
-        with pytest.raises(RuntimeError, match="CREATOR_TYPES keys must match"):
+        with pytest.raises(InternalError, match="CREATOR_TYPES keys must match"):
             importlib.reload(creation_info_module)
     finally:
         # Restore the real VALID_CREATOR_TYPES and re-reload so the module
