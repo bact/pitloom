@@ -20,7 +20,9 @@ import re
 import subprocess  # nosec B404
 import sys
 import textwrap
+import types
 from pathlib import Path
+from typing import Literal
 
 import pytest
 
@@ -32,9 +34,13 @@ from tests._message_drift import record_problem
 from tests._strict_uncoded import (
     Finding,
     Verdict,
+    call_ran,
     check,
     failures,
+    in_scope,
     line_finding,
+    note_call_report,
+    rendered_line,
     strict_finding,
 )
 
@@ -113,6 +119,45 @@ def test_a_record_without_a_code_needs_its_kind(
         assert problem is not None and fragment in problem
 
 
+@pytest.mark.parametrize("kind", ["relay", "loud"])
+def test_a_test_s_own_logger_is_never_checked(kind: str) -> None:
+    """A ``pitloom.test_*`` logger is out of scope, the checks no marker may
+    allow included (a code and a kind, an unknown kind)."""
+    assert not in_scope("pitloom.test_x", logging.WARNING)
+    record = _record(
+        logging.WARNING, "x", code="lfs-pointer", kind=kind, name="pitloom.test_x"
+    )
+    assert strict_finding(record) is None
+
+
+@pytest.mark.parametrize("when", ["setup", "teardown"])
+def test_only_the_call_phase_is_noted(when: Literal["setup", "teardown"]) -> None:
+    """A setup or teardown report never says the call ran: a test whose
+    setup errored is not held to its allowances."""
+    item = types.SimpleNamespace(stash=pytest.Stash())
+    report = pytest.TestReport(
+        nodeid="x",
+        location=("x", 0, "x"),
+        keywords={},
+        outcome="passed",
+        longrepr=None,
+        when=when,
+    )
+    note_call_report(item, report)  # type: ignore[arg-type]
+    assert not call_ran(item)  # type: ignore[arg-type]
+
+
+def test_rendering_leaves_the_record_and_drops_the_traceback() -> None:
+    """The line is the record's own, one line with no traceback, rendered
+    from a copy: the record keeps its ``exc_info``."""
+    record = _record(logging.WARNING, "own words")
+    error = ValueError("boom")
+    info = (ValueError, error, None)
+    record.exc_info = info
+    assert rendered_line(record) == "WARNING: own words"
+    assert record.exc_info is info
+
+
 def test_a_finding_names_the_logger_and_thread() -> None:
     """A record a thread of an earlier test logs is blamed on the test
     running: the finding says whose it is."""
@@ -186,8 +231,18 @@ def test_an_error_line_is_read_back(line: str, kind: str | None) -> None:
         (["a"], ["a", "z"], Verdict((), ("z",))),
         (["ERROR: own words"], ["^own"], Verdict(("ERROR: own words",), ("^own",))),
         ([], [], Verdict((), ())),
+        (["a"], ["a", "."], Verdict((), ())),
     ],
-    ids=["none", "both", "one", "stale", "one-stale", "anchored", "empty"],
+    ids=[
+        "none",
+        "both",
+        "one",
+        "stale",
+        "one-stale",
+        "anchored",
+        "empty",
+        "two-patterns-one-line",
+    ],
 )
 def test_check_matches_lines_to_allowances(
     lines: list[str], allowances: list[str], verdict: Verdict

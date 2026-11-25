@@ -165,3 +165,108 @@ Gates and risks: see the evidence page, sections "Gates" and "Risks".
 - **`line_kind` reads `(a log message that could not be shown) [real-code]` as
   `uncoded`**, which is why one test needs an allowance: teach it "fixed text
   plus a catalogued code = coded".
+
+## For sweep C: the PR 17 onward range review (2026-11-25)
+
+A combined review of d6cb054e..ed4dc84c (#524 to #542) in four areas. None
+blocks #542; the maintainer ruled "fix the rest in sweep C". Read from the
+reviewers' probes, not yet re-run here.
+
+Authors, loom SDK, environment (#524, #527):
+
+- **`input_datasets` given as a string** is iterated per character
+  (`_loom_active_run.py`, `_resolve_input_ids_for_output`): `"a.txt"` links
+  dataset `a` and warns for `.`, `t`, `x`, `t`; an unhashable entry raises an
+  uncoded `TypeError` at the run's exit, no fragment written. Refuse anything
+  but `None` or a list/tuple of `str` at the call (`loom_sdk_invalid_value`).
+- **A credential in a namespace has two codes**: CLI `--namespace` says
+  `option-invalid`, the library `IdRegistry(namespace=)` says
+  `credentials-unsafe/registry` (the CLI case is the one in shell history).
+- **Wrong-typed loom SDK arguments raise uncoded** `TypeError`/`AttributeError`
+  (`set_model(None)`, `path=5`, `add_dataset(5)`, `croissant=5`,
+  `set_model_hyperparameters(["a"])`, `data_preprocessing="tok"`,
+  `declared_license` on purpose): use `LOOM_SDK_VALUE_LINE`; revisit the
+  pr17b-build "internal" ruling.
+- **An unknown `dataset_type` is recorded as `text`** silently
+  (`_loom_dataset.py`, `getattr(..., text)`); `"__module__"` raises from the
+  bindings. Look up the enum's terms only; refuse or warn.
+- **One script named two ways** in a fragment: `_get_caller_script_path`
+  resolves a symlink, the provenance label does not.
+- **A code-built `PitloomConfig(sbom_basename=)`** warns as a
+  `[tool.pitloom]` key, and `embed_wheel_sbom` refuses it as `sbom_filename`
+  after generating: check it in `PitloomConfig.__post_init__`.
+- **A dependency's over-cap author field** does not name the package.
+- **`author-invalid` says "not an email address"** for text after a valid
+  address; the docs example in `metadata-provenance-authors.md` cannot be
+  printed.
+- **`loom.run()` with the cwd gone** fails earlier than the carried
+  `abspath` item: `Path.cwd()` in `resolve_registry` raises an uncoded
+  `FileNotFoundError` at `__enter__`.
+- Nits: a repeated `input_datasets` name warns once per repeat; a non-string
+  value is quoted like a name; `generate_env_sbom`'s `Raises:` omits
+  `CodedRuntimeError`; `iri.namespace_problem`'s docstring order;
+  `namespace_invalid`'s plain `ValueError` should be `InternalError`;
+  `_counted_entries` duplicates `_fields_authors._entries_text`.
+
+Datasets, text, SBOM output (#533, #534, #540): determinism and SPDX validity
+held on every route; the only SBOM change in the range is #540's.
+
+- **`dataset-conflict` is said twice** for one dataset and field (reader and
+  assembler each keep a `warned` set; the assembler folds by name, "option
+  B"): make the summary true or share one memo per model.
+- **The conflict lines name no model**: two lines in a multi-model wheel
+  cannot be told apart; add a model subject or narrow the #534 CHANGELOG.
+- **The metadata-budget `over-cap` line reads as if the model file is over
+  the cap**, and the dropped-key count left the line.
+- **A NUL byte in `croissant=`** raises an uncoded `ValueError` from `os.stat`
+  (`_extract_utils.py`, `fetch_json` catches only `OSError`/`HTTPException`).
+
+Masking and Hub text (#526, #537): no credential-leak regression (about 480
+texts through 20 paths, base vs head).
+
+- **High, for the `TOKEN_RE`/masking PR before 0.25.0: quadratic masker cost
+  on `Bearer%20...`** (#526, on main). `%20` is both a separator after a
+  scheme and a `%XX` element of `_RUN` (`core/url_masking/_auth_schemes.py`),
+  so runs overlap. Re-measured here: `"Bearer%20x." * n` takes 0.07 s at
+  8 KiB, 0.28 s at 16 KiB, 1.3 s at 32 KiB (plain `"Bearer x."`: 0.014 s at
+  32 KiB); the reviewer saw 204 s for a 200 KB `license` string. Smallest fix
+  `%(?!20)[0-9A-Fa-f]{2}` in `_RUN` (a credential holding `%20` is then
+  masked up to it), or resume the search after a masked run; add the shapes
+  (`Bearer%20x.`, `Basic%20QQ==.`, `Authorization=x%20a.`, `a.Bearer%20`) to
+  `_ADVERSARIAL` and correct the "Linear" docstring.
+- **Dropping a request id can glue a token to the word before it** (#537):
+  `abc(Request ID: a)ghp_...` prints the whole token; the mirror of the
+  userinfo hazard the docstring guards. Mask, drop, mask again.
+- **`one_line` collapses white space before masking** (pre-existing):
+  `https://user:S3cr\n3tPw99x@h` keeps `3tPw99x`, as `excerpt` no longer
+  does; fix with the item above (mask, collapse, mask).
+- Nits: a header credential after a line break is missed on multi-line paths;
+  the `_auth_schemes.py` "Linear" paragraph and `loggable()`'s `kv_line`
+  claim are stale.
+
+Catalogue machinery and concurrency (#536-#542): ratchet and reference
+checks pass; #538's guard and #539's fix do not interact (40 runs, 3.10,
+coverage, no hang).
+
+- **An empty path prints an uncoded `ERROR:`** (pre-existing): `loom wheel ""`
+  (also `verify-wheel`, `validate-wheel`, `embed-wheel`) says `file='' is not
+  a file`, re-measured here. `messages/_templates.py` `written()` raises a
+  plain `ValueError` for a value outside its field's shape, and the ratchet
+  leaves `messages/` out. Treat `""` as `input-not-found`; make `written()`,
+  `Message.line_for()` and the field writers raise `InternalError`; test `""`
+  on each wheel command. `report_wheel_failure`'s "every per-wheel ERROR line
+  carries a code" holds only for `OSError`. Also `loom enrich ""` reports `.`.
+- **A helper with one uncoded return branch counts as coded**:
+  `extract/ai_model/reader.py` `refusal_error()` returns a plain `ValueError`
+  when an LFS pointer's re-read fails (reached with a patched
+  `read_lfs_pointer`; a race in practice). Raise `file_unreadable_error`; judge
+  each return expression in the inventory.
+- **Ratchet blind spots** (rescan): a logger outside the `LOGGER_NAME` regex,
+  `warnings.warn`, `sys.stderr.write` outside `logging_config.py`,
+  `raise <local var>`, `getattr(log, "warning")`, an aliased `print`; a
+  positional upper-case constant from `pitloom.messages` counts as coded;
+  `extra={"pitloom_code": None}` too. In `src` today only
+  `_models_wheel_types.py:358` (benign) and the `refusal_error` branch. A lint
+  test for the first four is cheap.
+- Nit: `_coded.py` `STATIC_CALLS` omits `CodedOSError` (fails safe).
+

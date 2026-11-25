@@ -165,3 +165,15 @@ def test_a_record_s_kind_is_said_again_with_it(
     assert getattr(said, CODE_ATTR, None) == code
     if code is None and kind is not None:
         assert line_kind(f"WARNING: {said.getMessage()}") == "relay"
+
+
+def test_a_kind_that_is_not_text_is_not_said_again(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Only a text kind is copied to the relayed record."""
+    record = _record(logging.WARNING, "fickling: its own words", None)
+    setattr(record, KIND_ATTR, 1)
+    with caplog.at_level(logging.WARNING, logger=_LOG.name):
+        relay(_LOG, record, "fickling: its own words", _FRAME)
+    (said,) = caplog.records
+    assert not hasattr(said, KIND_ATTR)
