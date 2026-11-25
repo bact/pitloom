@@ -26,6 +26,12 @@ links to ``.`` would make a walk endless; a clone drops every folder link
 second guard. (An exception raised into the thread from a timer, with
 ``PyThreadState_SetAsyncExc``, escapes ``try`` blocks on Python 3.13.)
 
+The stop is one shot: Python removes a profile hook that raises. A call
+made by a finaliser (a generator closed when ``any()`` cuts it short, as
+setuptools' package filter does) cannot raise: the stop would be "ignored"
+and the block left without a cap. So the hook never stops at a generator's
+own frame starting or resuming; a ``__del__`` method can still swallow it.
+
 See also: :mod:`pitloom.core._models_wheel_setuptools` and
 :mod:`pitloom.core._models_wheel_pdm` (the backends that chdir),
 :mod:`pitloom.core._models_wheel_clone` (what a clone leaves out).
@@ -35,6 +41,7 @@ from __future__ import annotations
 
 import gc
 import importlib
+import inspect
 import logging
 import math
 import os
@@ -151,6 +158,7 @@ class _Deadline:
         if (
             event in _CALLS
             and frame.f_code is not _EXIT_CODE
+            and not (event == "call" and frame.f_code.co_flags & _RESUMABLE)
             and time.monotonic() > self._until
         ):
             raise _Expired
@@ -189,5 +197,10 @@ class _Deadline:
 
 #: The profile events the cap is checked at: a call, of Python or C.
 _CALLS = frozenset({"call", "c_call"})
+#: Code whose ``call`` event may be a close by a finaliser (see the module
+#: docstring): a generator, coroutine or asynchronous generator.
+# inspect defines the CO_* flags in a loop, which pylint cannot see.
+# pylint: disable-next=no-member
+_RESUMABLE = inspect.CO_GENERATOR | inspect.CO_COROUTINE | inspect.CO_ASYNC_GENERATOR
 #: The code of :meth:`_Deadline.__exit__`, which the hook never stops.
 _EXIT_CODE = _Deadline.__exit__.__code__
