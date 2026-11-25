@@ -128,6 +128,12 @@ class _OneLineFormatter(logging.Formatter):
         return super().formatMessage(record)
 
 
+def line_formatter() -> logging.Formatter:
+    """The formatter of :func:`configure_logging`: a record as the command
+    line prints it (``LEVEL: message``, escaped, framed, with its code)."""
+    return _OneLineFormatter("%(levelname)s: %(message)s")
+
+
 # pylint: disable-next=too-few-public-methods
 class _MaskRecord(logging.Filter):
     """Masks (:func:`mask_record`) each record the handler of
@@ -351,7 +357,7 @@ def configure_logging(*, debug: bool | None = None) -> None:
     logger = logging.getLogger("pitloom")
     handler = _MaskedStreamHandler(_uncaptured_stderr())
     handler.setLevel(level)
-    handler.setFormatter(_OneLineFormatter("%(levelname)s: %(message)s"))
+    handler.setFormatter(line_formatter())
     with _CONFIG_LOCK:
         install_record_factory()
         logger.setLevel(level)

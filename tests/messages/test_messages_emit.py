@@ -17,6 +17,7 @@ from __future__ import annotations
 import copy
 import logging
 import pickle  # nosec B403
+import re
 from email.message import Message as EmailMessage
 from typing import Any
 from urllib.error import HTTPError
@@ -201,10 +202,22 @@ def test_the_line_says_which_action_of_a_message() -> None:
     ]
 
 
-@pytest.mark.uncoded_output(r"^ERROR: model command failed: 'm'")
+def _failed(code: str | None, tail: str, case: str) -> Any:
+    """A parameter whose own line (an ad hoc code is not catalogued, so even
+    the coded one is allowed) is the test's subject."""
+    allowed = pytest.mark.uncoded_output(
+        rf"^ERROR: model command failed: {re.escape(tail)}$"
+    )
+    return pytest.param(code, tail, marks=allowed, id=case)
+
+
 @pytest.mark.parametrize(
     ("code", "tail"),
-    [(None, "'m'"), ("lfs-pointer", "'m' [lfs-pointer]"), ("x y", "'m'")],
+    [
+        _failed(None, "'m'", "none"),
+        _failed("lfs-pointer", "'m' [lfs-pointer]", "code"),
+        _failed("x y", "'m'", "not-a-code"),
+    ],
 )
 def test_print_error_appends_only_a_code(
     capsys: pytest.CaptureFixture[str], code: str | None, tail: str
@@ -213,19 +226,26 @@ def test_print_error_appends_only_a_code(
     assert _lines(capsys) == [f"ERROR: model command failed: {tail}"]
 
 
-# Each parameter prints its own uncoded text, the test's subject.
-@pytest.mark.uncoded_output(r"^ERROR: ")
+def _printed_uncoded(text: str, printed: str) -> Any:
+    """A parameter of *text* printed as *printed*, its own uncoded
+    ``ERROR:`` line allowed: the test's subject."""
+    allowed = pytest.mark.uncoded_output(rf"^ERROR: {re.escape(printed)}$")
+    return pytest.param(text, printed, marks=allowed)
+
+
 @pytest.mark.parametrize(
     ("text", "printed"),
     [
-        ("skipped x [lfs-pointer]", "skipped x \\x5blfs-pointer]"),
-        ("skipped [a/b]", "skipped \\x5ba/b]"),
-        ("a\n [b]", "a\\n \\x5bb]"),
-        ("in [tool.poetry.dependencies]", "in [tool.poetry.dependencies]"),
-        ("x [Not-a-code]", "x [Not-a-code]"),
-        ("x[lfs-pointer]", "x[lfs-pointer]"),
-        ("[lfs-pointer] first", "[lfs-pointer] first"),
-        ("a [b] c", "a [b] c"),
+        _printed_uncoded("skipped x [lfs-pointer]", "skipped x \\x5blfs-pointer]"),
+        _printed_uncoded("skipped [a/b]", "skipped \\x5ba/b]"),
+        _printed_uncoded("a\n [b]", "a\\n \\x5bb]"),
+        _printed_uncoded(
+            "in [tool.poetry.dependencies]", "in [tool.poetry.dependencies]"
+        ),
+        _printed_uncoded("x [Not-a-code]", "x [Not-a-code]"),
+        _printed_uncoded("x[lfs-pointer]", "x[lfs-pointer]"),
+        _printed_uncoded("[lfs-pointer] first", "[lfs-pointer] first"),
+        _printed_uncoded("a [b] c", "a [b] c"),
     ],
     ids=repr,
 )

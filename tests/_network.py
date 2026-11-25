@@ -21,7 +21,9 @@ flaky network neither turns CI red nor hides a real failure.
 Setting ``PITLOOM_REQUIRE_NETWORK`` to a true value makes the same network
 failure a test *failure* naming the cause instead, and turns any skipped
 ``network`` test into a failure (``pytest_runtest_makereport`` and
-``pytest_make_collect_report`` below, wired into ``tests/conftest.py``): the
+``pytest_make_collect_report`` below; ``tests/conftest.py`` imports the
+second and calls :func:`fail_skipped_network_test` from its own
+``pytest_runtest_makereport``, which does more): the
 release workflow (``.github/workflows/pypi-publish.yml``) and the live-host
 workflow (``.github/workflows/live-tests.yml``) set it, so an unreachable host
 blocks publishing, or shows as a red run, rather than being skipped. Accepted

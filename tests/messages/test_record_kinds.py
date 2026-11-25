@@ -126,6 +126,7 @@ def test_print_error_writes_through_its_one_seam(
     assert [line_kind(line) for line in seen] == ["relay", "uncoded"]
 
 
+@pytest.mark.uncoded_output(r"^ERROR: boom$")
 def test_the_seam_writes_one_line_to_stderr(
     capsys: pytest.CaptureFixture[str],
 ) -> None:

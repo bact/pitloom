@@ -60,7 +60,14 @@ def test_any_other_exception_aborts_the_batch(
     assert "ERROR:" not in capsys.readouterr().err  # not said as a wheel's failure
 
 
-@pytest.mark.parametrize("error", [ValueError("x"), OSError("x")], ids=["value", "os"])
+@pytest.mark.parametrize(
+    "error",
+    [
+        pytest.param(ValueError("x"), marks=pytest.mark.uncoded_output(r"^ERROR: x$")),
+        OSError("x"),
+    ],
+    ids=["value", "os"],
+)
 def test_a_value_or_os_error_is_said_for_the_wheel_only(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],

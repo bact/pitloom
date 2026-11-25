@@ -34,10 +34,16 @@ from pitloom.messages import (
 )
 from pitloom.messages._templates import PLACEHOLDER
 from pitloom.messages.config import ConfigPlace
+from tests import _strict_uncoded
 from tests._docs_scan import REPO_ROOT
-from tests._strict_uncoded import TEST_LOGGER_PREFIX, strict_finding
+from tests._strict_uncoded import strict_finding
 
 SRC_ROOT = REPO_ROOT / "src" / "pitloom"
+
+#: A logger named like this belongs to a test that feeds the catalogue odd
+#: text on purpose; its records are not checked
+#: (:data:`tests._strict_uncoded.TEST_LOGGER_PREFIX`).
+TEST_LOGGER_PREFIX = _strict_uncoded.TEST_LOGGER_PREFIX
 
 #: A value of each field, as a caller passes it.
 SAMPLES: dict[str, object] = {

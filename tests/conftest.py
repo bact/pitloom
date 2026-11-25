@@ -29,17 +29,19 @@ from tests._message_drift import record_problem
 # pylint: disable-next=unused-import
 from tests._network import (  # noqa: F401
     bypass_proxies,
+    fail_skipped_network_test,
     pytest_configure,
     pytest_make_collect_report,
-    pytest_runtest_makereport,
 )
 from tests._platform import is_platform_file
 from tests._spdx3_validate import use_offline_model
 from tests._strict_uncoded import (
     MARKER,
     Finding,
+    call_ran,
     failures,
     line_finding,
+    note_call_report,
     strict_finding,
 )
 
@@ -250,7 +252,8 @@ def _catalogued_records_are_valid(request: pytest.FixtureRequest) -> Iterator[No
         for pattern in mark.args
     ]
     problems = [f"catalogued record: {p}" for p in problems]
-    problems += [f"uncoded output: {f}" for f in failures(findings, allowances)]
+    unallowed = failures(findings, allowances, ran=call_ran(request.node))
+    problems += [f"uncoded output: {f}" for f in unallowed]
     if problems:
         pytest.fail("; ".join(problems), pytrace=False)
 
@@ -333,6 +336,21 @@ def _block_network_access(
 def offline_spdx3_validate(monkeypatch: pytest.MonkeyPatch) -> None:
     """Run ``spdx3_validate.validate`` against the vendored model, no network."""
     use_offline_model(monkeypatch)
+
+
+@pytest.hookimpl(hookwrapper=True)
+def pytest_runtest_makereport(
+    item: pytest.Item, call: pytest.CallInfo[None]
+) -> Iterator[None]:
+    """Each phase's report: a skipped ``network`` test made a failure in
+    strict mode (:func:`tests._network.fail_skipped_network_test`), then the
+    call phase's outcome kept for the strict check
+    (:func:`tests._strict_uncoded.note_call_report`)."""
+    del call
+    outcome: Any = yield
+    report = outcome.get_result()
+    fail_skipped_network_test(item, report)
+    note_call_report(item, report)
 
 
 @pytest.hookimpl(tryfirst=True)

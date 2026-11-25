@@ -141,6 +141,7 @@ def test_model_command_writes_the_models_sbom_in_the_current_directory(
     assert "has no effect" not in captured.err
 
 
+@pytest.mark.uncoded_output(r"^ERROR: loom model: network access is forbidden$")
 def test_model_command_offline_fetches_nothing(
     fetched: dict[str, object],
     tmp_path: Path,

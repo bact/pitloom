@@ -73,10 +73,10 @@ def _record(
         (_record(logging.INFO, "KEY=v", kind="detail"), None),
         (_record(logging.WARNING, "licenseid: its words", kind="relay"), None),
         (_record(logging.WARNING, "its words", kind="relay"), "reads as 'uncoded'"),
-        (_record(logging.WARNING, "own words", kind="loud"), "unknown kind"),
+        (_record(logging.WARNING, "own words", kind="loud"), "kind 'loud'"),
         (
             _record(logging.WARNING, "x", code="lfs-pointer", kind="relay"),
-            "both code",
+            "code 'lfs-pointer' and kind",
         ),
         (
             _record(logging.WARNING, "x" * LONGEST_LINE, code="lfs-pointer"),
@@ -125,10 +125,20 @@ def test_a_finding_names_the_logger_and_thread() -> None:
     assert finding.line == "WARNING: own words"
 
 
-def test_a_record_with_code_and_kind_is_never_allowed() -> None:
-    record = _record(logging.WARNING, "x", code="lfs-pointer", kind="relay")
+@pytest.mark.parametrize(
+    ("code", "kind", "name"),
+    [("lfs-pointer", "relay", "pitloom.x"), (None, "loud", "other")],
+    ids=["code-and-kind", "unknown-kind"],
+)
+def test_a_wrong_kind_is_never_allowed(code: str | None, kind: str, name: str) -> None:
+    """Anywhere, at any level: a kind is Pitloom's own attribute."""
+    record = _record(logging.DEBUG, "x", code=code, kind=kind, name=name)
     finding = strict_finding(record)
     assert finding is not None and not finding.allowable
+    assert failures([finding], [".*"]) == [
+        f"{finding.problem}: {finding.line!r}",
+        "stale allowance, matches no line: '.*'",
+    ]
     assert failures([finding], [".*"]) == [
         f"{finding.problem}: {finding.line!r}",
         "stale allowance, matches no line: '.*'",
@@ -197,6 +207,12 @@ def test_failures_say_each_unallowed_line_and_stale_pattern() -> None:
     ]
 
 
+def test_a_skipped_test_has_no_stale_allowance() -> None:
+    found = [Finding("WARNING: a", "an uncoded record")]
+    assert failures([], ["never"], ran=False) == []
+    assert failures(found, ["never"], ran=False) == ["an uncoded record: 'WARNING: a'"]
+
+
 @pytest.mark.uncoded_output(r"^ERROR: own words$", r"^WARNING: said plain$")
 def test_the_fixture_sees_print_error_and_a_record(
     capsys: pytest.CaptureFixture[str],
@@ -204,6 +220,7 @@ def test_the_fixture_sees_print_error_and_a_record(
     """The autouse fixture wraps ``print_error``'s seam and
     ``Logger.handle``: each allowance matches a line, or the test fails
     stale."""
+    # pylint: disable-next=protected-access
     assert logging_config._write_error_line.__name__ == "watching_lines"
     print_error("own words", frame="")
     logging.getLogger("pitloom.strict_probe").warning("said plain")
@@ -219,23 +236,26 @@ def test_an_info_record_is_seen_once_enabled(
         logging.getLogger("pitloom.strict_probe").debug("not checked")
 
 
-def _fake_loom(root: Path, stderr: str) -> Path:
-    """A ``pitloom`` package whose ``main`` writes *stderr*: put first on a
-    child's import path, it stands in for the real one."""
+def _fake_loom(root: Path, stderr: bytes) -> Path:
+    """A ``pitloom`` package whose ``main`` writes the bytes *stderr*
+    unchanged (text-mode stderr would turn each ``\\n`` into ``\\r\\n`` on
+    Windows): put first on a child's import path, it stands in for the real
+    one."""
     package = root / "pitloom"
     package.mkdir()
     (package / "__init__.py").write_bytes(b"")
     (package / "__main__.py").write_bytes(
         "import sys\n"
         "def main():\n"
-        f"    sys.stderr.write({stderr!r})\n"
+        f"    sys.stderr.buffer.write({stderr!r})\n"
+        "    sys.stderr.buffer.flush()\n"
         "    return 0\n".encode()
     )
     return root
 
 
 def test_run_loom_fails_on_an_uncoded_line(tmp_path: Path) -> None:
-    path = [_fake_loom(tmp_path, "INFO: KEY=v\nERROR: own words\r\nTraceback\n")]
+    path = [_fake_loom(tmp_path, b"INFO: KEY=v\nERROR: own words\nTraceback\n")]
     with pytest.raises(AssertionError, match="uncoded stderr line"):
         run_loom([], tmp_path, path=path)
     with pytest.raises(AssertionError, match="stale allowance"):
@@ -245,6 +265,8 @@ def test_run_loom_fails_on_an_uncoded_line(tmp_path: Path) -> None:
 
 
 def test_uncoded_failures_reads_each_line() -> None:
+    """A line ending in ``\\r\\n`` (a child's text-mode stderr on Windows)
+    reads as the same line without its carriage return."""
     stderr = b"INFO: KEY=v\r\nERROR: \xff own\r\nWARNING: licenseid: x\n"
     assert uncoded_failures(stderr) == [
         "an uncoded stderr line (thread 'MainThread'): 'ERROR: \ufffd own'"
@@ -278,13 +300,29 @@ def test_param(said):
 @pytest.mark.uncoded_output("never said")
 def test_stale():
     pass
+
+
+@pytest.mark.uncoded_output("never said")
+def test_skipped_in_body():
+    pytest.skip("not here")
+
+
+@pytest.fixture
+def skipping():
+    pytest.skip("no setup")
+
+
+@pytest.mark.uncoded_output("never said")
+def test_skipped_in_setup(skipping):
+    pass
 """
 
 
 def test_markers_apply_per_test_only(tmp_path: Path) -> None:
     """In a child pytest with the repository's configuration and fixtures:
     a module-wide marker allows nothing, a marker on one parameter does not
-    cover its sibling, and a stale allowance fails."""
+    cover its sibling, and a stale allowance fails, unless the test was
+    skipped in its body or its setup."""
     (tmp_path / "test_child.py").write_text(textwrap.dedent(_CHILD_TESTS))
     env = dict(os.environ)
     env["PYTHONPATH"] = os.pathsep.join([str(_REPO / "src"), str(_REPO)])
@@ -314,7 +352,7 @@ def test_markers_apply_per_test_only(tmp_path: Path) -> None:
         timeout=300,
     )
     out = done.stdout.decode("utf-8", errors="replace")
-    assert "4 passed, 3 errors" in out, out
+    assert "4 passed, 2 skipped, 3 errors" in out, out
     assert "ERROR test_child.py::test_module_marker_allows_nothing" in out
     assert "ERROR test_child.py::test_param[unallowed]" in out
     assert "ERROR test_child.py::test_stale" in out

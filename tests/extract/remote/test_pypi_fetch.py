@@ -17,6 +17,7 @@ tests/_fake_pypi_server.py.
 from __future__ import annotations
 
 import logging
+import re
 import tempfile
 from collections.abc import Iterator
 from pathlib import Path
@@ -55,6 +56,11 @@ from tests._network import skip_on_network_error
 _ANY = "x-1.0-py3-none-any.whl"
 _TAGS = [Tag("cp313", "cp313", "linux_x86_64"), Tag("py3", "none", "any")]
 _PAGE = "https://pypi.org/project/"
+#: The line naming the downloaded wheel, masked: either separator, since
+#: Windows joins the path with a backslash.
+_READ_DOWNLOAD = (
+    rf"^WARNING: read {re.escape(DOWNLOAD_PLACEHOLDER)}[\\/]{re.escape(_ANY)}$"
+)
 
 
 @pytest.fixture(name="temp")
@@ -339,9 +345,7 @@ def test_the_temporary_directory_is_removed_on_error(
     [
         pytest.param(
             "",
-            marks=pytest.mark.uncoded_output(
-                r"^WARNING: read <download>/x-1\.0-py3-none-any\.whl$"
-            ),
+            marks=pytest.mark.uncoded_output(_READ_DOWNLOAD),
             id="ok",
         ),
         pytest.param("00" * 32, id="mismatch"),

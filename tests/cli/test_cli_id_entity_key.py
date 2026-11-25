@@ -153,7 +153,12 @@ def _warns_yet_hashes(
         ("data/t.txt", "ceiling", "max-dataset-hash-bytes"),
         ("data", "ceiling", "max-dataset-hash-bytes"),
         ("empty", "empty", "nothing to hash"),
-        ("data/t.txt", "warns-yet-hashes", None),
+        pytest.param(
+            "data/t.txt",
+            "warns-yet-hashes",
+            None,
+            marks=pytest.mark.uncoded_output(r"^WARNING: FILE=x: odd but read$"),
+        ),
     ],
     ids=["file-ceiling", "dir-ceiling", "empty-dir", "warns-yet-hashes"],
 )

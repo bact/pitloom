@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-29
-Last-Modified: 2026-11-13
+Last-Modified: 2026-11-25
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -17,9 +17,14 @@ the table below, then read the page it links (one page per topic) for what it
 means, what Pitloom did and what to tell the user. Quote the
 line as printed. You explain the line and relay its advice; you do not run the
 fix yourself (no `git lfs pull`, no install, no rebuild): ask the user first,
-and with nobody to ask, report it only. A line without a code is not
-catalogued yet; read it as text. The pages are generated from Pitloom's
-catalogue, so they say what this version prints.
+and with nobody to ask, report it only. A line without a code is a
+summary, a `-v` `KEY=VALUE` detail, another tool's words after its name
+(`licenseid: `, `setuptools stderr: `, `fickling: `, `spdx3-validate: `), an
+unexpected error's own text, or an untagged usage or traceback line; read it
+as text. A message that could not be shown prints a fixed text and keeps its
+error's code when it had one, so it reads as a line without a code only when
+the error had none. The pages are generated from Pitloom's catalogue, so they
+say what this version prints.
 
 ## Codes
 

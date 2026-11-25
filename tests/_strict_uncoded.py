@@ -26,7 +26,14 @@ A test that says such a line on purpose names it with
 ``pytest.param`` (never a module or a class: only the item's own markers
 count). Each pattern is a regular expression searched in the line; a line no
 pattern matches fails the test, and so does a pattern that matches no line
-(a stale allowance). :func:`check` is that rule, pure.
+(a stale allowance). :func:`check` is that rule, pure. A test whose call
+phase did not run to an outcome (skipped in its body or in a fixture's
+setup) is not held to its allowances: ``pytest_runtest_makereport`` in
+``tests/conftest.py`` notes the call phase (:func:`note_call_report`) and
+:func:`failures` reports no stale pattern unless it ran. A test marked
+``xfail(strict=True)`` that says no allowed line still fails stale at
+teardown, but pytest reports that as ``XFAIL``: a stale allowance there
+goes unseen.
 
 Silent gaps, by design or by cost:
 
@@ -38,7 +45,17 @@ Silent gaps, by design or by cost:
   ``pitloom.test_*`` loggers and third-party ones (``pitloomx`` too);
 - a child process (``loom`` run as a script) and the GitHub Action are seen
   only through :func:`tests._loom_child.run_loom` and the manual CLI checks;
-- a record is rendered without the handler's masking.
+- a record is rendered without the handler's masking;
+- a test that raises a logger's level or calls :func:`logging.disable`
+  hides its ``WARNING``/``ERROR`` records from ``Logger.handle``;
+- a direct ``print(..., file=sys.stderr)`` is never seen (the message
+  inventory's ratchet catches it), nor an untagged child line (a traceback)
+  under :func:`tests._loom_child.run_loom`;
+- reading a line back is permissive by design: any ``INFO: KEY=`` line
+  reads as detail, any text starting with a relay prefix as relay (Pitloom's
+  own ``print_error("licenseid: ...")`` too), and a ``FORMAT=.. FILE=..``
+  frame is accepted whatever its codes. The record leg is the tight one: a
+  record needs its ``pitloom_kind``.
 
 A record is blamed on the test running when it is handled: a thread an
 earlier test left running may log into a later one, so each finding names
@@ -56,13 +73,15 @@ import threading
 from collections.abc import Sequence
 from dataclasses import dataclass
 
+import pytest
+
 from pitloom.logging_config import (
     CODE_ATTR,
     DETAIL_KIND,
     KIND_ATTR,
     RELAY_KIND,
     SUMMARY_KIND,
-    _OneLineFormatter,
+    line_formatter,
 )
 from pitloom.messages import line_kind
 
@@ -77,7 +96,10 @@ RECORD_KINDS = frozenset({SUMMARY_KIND, DETAIL_KIND, RELAY_KIND})
 UNALLOWED_KINDS = frozenset({"uncoded", "overlong"})
 
 #: The formatter of :func:`pitloom.logging_config.configure_logging`.
-_FORMATTER = _OneLineFormatter("%(levelname)s: %(message)s")
+_FORMATTER = line_formatter()
+#: Whether an item's call phase ran to an outcome, not skipped; absent when
+#: it never started (:func:`note_call_report`).
+CALL_RAN = pytest.StashKey[bool]()
 
 
 @dataclass(frozen=True)
@@ -129,38 +151,40 @@ def _where(record: logging.LogRecord) -> str:
 def strict_finding(record: logging.LogRecord) -> Finding | None:
     """What the strict check finds wrong with *record*, or ``None``.
 
-    A record with both a code and a kind is wrong anywhere (no marker allows
-    it). In scope (:func:`in_scope`): an uncoded record with no kind, a kind
-    that is not one of :data:`RECORD_KINDS` or that its line does not read
-    back as, and a line too long to be read back."""
+    A record with both a code and a kind, or a kind not one of
+    :data:`RECORD_KINDS`, is wrong anywhere (no marker allows it). In scope
+    (:func:`in_scope`): an uncoded record with no kind, a kind its line does
+    not read back as, and a line too long to be read back."""
     code = getattr(record, CODE_ATTR, None)
     kind = getattr(record, KIND_ATTR, None)
     if record.name.startswith(TEST_LOGGER_PREFIX):
         return None
-    if code is not None and kind is not None:
+    if kind is not None and (code is not None or kind not in RECORD_KINDS):
         return Finding(
             rendered_line(record),
-            f"a record with both code {code!r} and kind {kind!r} ({_where(record)})",
+            f"a record with code {code!r} and kind {kind!r} ({_where(record)})",
             allowable=False,
         )
     if not in_scope(record.name, record.levelno):
         return None
     line = rendered_line(record)
-    read = line_kind(line)
+    problem = _line_problem(line_kind(line), code, kind)
+    if problem is None:
+        return None
+    return Finding(line, f"{problem} ({_where(record)})")
+
+
+def _line_problem(read: str, code: object, kind: object) -> str | None:
+    """What is wrong with a record of *code* and *kind* whose line reads
+    back as *read*, or ``None``."""
     if read == "overlong":
-        return Finding(line, f"a line too long to read back ({_where(record)})")
+        return "a line too long to read back"
     if code is not None:
         return None
     if kind is None:
-        return Finding(line, f"an uncoded record with no kind ({_where(record)})")
-    if kind not in RECORD_KINDS:
-        return Finding(
-            line, f"unknown kind {kind!r} ({_where(record)})", allowable=False
-        )
+        return "an uncoded record with no kind"
     if read != kind:
-        return Finding(
-            line, f"kind {kind!r} but the line reads as {read!r} ({_where(record)})"
-        )
+        return f"kind {kind!r} but the line reads as {read!r}"
     return None
 
 
@@ -195,14 +219,29 @@ def check(lines: Sequence[str], allowances: Sequence[str]) -> Verdict:
     return Verdict(tuple(unallowed), stale)
 
 
-def failures(findings: Sequence[Finding], allowances: Sequence[str]) -> list[str]:
+def note_call_report(item: pytest.Item, report: pytest.TestReport) -> None:
+    """Keep on *item* whether its call phase, which *report* may be, ran to
+    an outcome (:data:`CALL_RAN`): ``False`` when it was skipped."""
+    if report.when == "call":
+        item.stash[CALL_RAN] = not report.skipped
+
+
+def call_ran(item: pytest.Item) -> bool:
+    """Whether *item*'s call phase ran to an outcome (:func:`note_call_report`)."""
+    return item.stash.get(CALL_RAN, False)
+
+
+def failures(
+    findings: Sequence[Finding], allowances: Sequence[str], *, ran: bool = True
+) -> list[str]:
     """Each failure of a test that made *findings* and allowed
     *allowances*: a finding no marker may allow, an allowable one no pattern
-    matches, and a stale pattern."""
+    matches, and, when the test *ran* (not skipped), a stale pattern."""
     hard = [f"{f.problem}: {f.line!r}" for f in findings if not f.allowable]
     soft = [f for f in findings if f.allowable]
     verdict = check([f.line for f in soft], allowances)
     unallowed = set(verdict.unallowed)
     hard += [f"{f.problem}: {f.line!r}" for f in soft if f.line in unallowed]
-    hard += [f"stale allowance, matches no line: {p!r}" for p in verdict.stale]
+    if ran:
+        hard += [f"stale allowance, matches no line: {p!r}" for p in verdict.stale]
     return hard

@@ -24,9 +24,9 @@ _LFS = (
     "with git lfs, then run on the directory [lfs-pointer]"
 )
 # pylint: disable-next=protected-access
-_SUMMARY_RE = kinds._summary_re
+_summary_re = kinds._summary_re
 # pylint: disable-next=protected-access
-_RELAY_RE = kinds._relay_re
+_relay_re = kinds._relay_re
 #: A coded ``INFO`` line that starts ``KEY=``, as a detail does.
 _CODED_KEY = "INFO: FILE=x: one of several AI model files [model-ambiguous]"
 
@@ -129,11 +129,11 @@ def test_a_coded_line_over_the_cap_is_overlong() -> None:
 
 
 def test_the_patterns_are_compiled_once() -> None:
-    _SUMMARY_RE.cache_clear()
-    _RELAY_RE.cache_clear()
+    _summary_re.cache_clear()
+    _relay_re.cache_clear()
     for _ in range(3):
         line_kind("INFO: merge: merged 3 fragment(s)")
         line_kind("INFO: own words")
         line_kind("WARNING: fickling: x")
-    assert _SUMMARY_RE.cache_info().misses == 1
-    assert _RELAY_RE.cache_info().misses == 2  # INFO and WARNING
+    assert _summary_re.cache_info().misses == 1
+    assert _relay_re.cache_info().misses == 2  # INFO and WARNING

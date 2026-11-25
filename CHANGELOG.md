@@ -156,6 +156,8 @@ and this project adheres to
   as with inputs; a removed current directory no longer crashes a `loom` path label ([#536])
 - Former `RuntimeError` guards (`EmbedFileCache`, `TerminationGuard`, ...) raise `InternalError`;
   a non-method `content_type_method` or non-string `Creator.type` is `option-invalid` ([#536])
+- An `InternalError` in one wheel's check stops `verify-wheel`, `validate-wheel` and
+  `embed-wheel --verify/--validate`, not said as that wheel's failure ([#542])
 
 ### Fixed
 
@@ -234,6 +236,7 @@ and this project adheres to
 [#527]: https://github.com/bact/pitloom/pull/527
 [#534]: https://github.com/bact/pitloom/pull/534
 [#536]: https://github.com/bact/pitloom/pull/536
+[#542]: https://github.com/bact/pitloom/pull/542
 
 ## [0.24.0] - 2026-11-11
 
