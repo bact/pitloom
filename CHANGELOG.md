@@ -195,6 +195,8 @@ and this project adheres to
 - A `failure=` text drops a Hub request id (`(Request ID: ...)`) and a memory
   address before masking and the 500-character cut, so neither varies the line
   ([#537])
+- The usage scan no longer hangs when its parse thread cannot install a trace
+  or profile hook (Python 3.10 and 3.11, concurrent parses) ([#539])
 
 ### Security
 
@@ -238,6 +240,7 @@ and this project adheres to
 [#534]: https://github.com/bact/pitloom/pull/534
 [#536]: https://github.com/bact/pitloom/pull/536
 [#537]: https://github.com/bact/pitloom/pull/537
+[#539]: https://github.com/bact/pitloom/pull/539
 
 ## [0.24.0] - 2026-11-11
 
