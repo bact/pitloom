@@ -34,7 +34,9 @@ from collections import deque
 from collections.abc import Callable
 from functools import partial
 from operator import methodcaller
+from sys import setprofile, settrace
 from threading import Lock, getprofile, gettrace, stack_size
+from time import sleep
 from typing import Final
 
 from pitloom.core.warning_capture import WARNINGS_LOCK
@@ -61,6 +63,11 @@ _CHECKS_DEPTH: Final = sys.version_info >= (3, 11)
 #: ``threading.stack_size`` is process-wide: one caller sets it at a time.
 _STACK_SIZE_LOCK: Final = Lock()
 _CALL: Final = methodcaller("__call__")
+#: Seconds the parse thread waits before each new try to install a hook of
+#: :mod:`threading`: on Python 3.10 and 3.11 an install fails while another
+#: thread is installing one (the flag is process-wide, and an audit hook
+#: written in Python lets threads switch in between), until that one is done.
+_HOOK_RETRY_WAITS: Final = (0.001, 0.004, 0.016)
 
 
 def python_version() -> str:
@@ -95,10 +102,45 @@ def _in_order(*calls: Callable[[], object]) -> Callable[[], object]:
     return partial(deque, map(_CALL, calls), 0)
 
 
+def _install_hook(kind: str, install: Callable[[], object]) -> None:
+    """*install* a hook of :mod:`threading` in this thread, tried again
+    after each of :data:`_HOOK_RETRY_WAITS`; never raises. A hook still
+    refused (an audit hook can refuse it too) is logged at DEBUG: it only
+    leaves the thread unseen by a coverage tool or profiler, so the scan is
+    the same."""
+    for wait in (*_HOOK_RETRY_WAITS, None):
+        try:
+            install()
+            return
+        # pylint: disable-next=broad-exception-caught
+        except Exception as exc:  # retried, else the thread runs without it
+            if wait is None:
+                log.debug(
+                    "Usage scan: parse thread runs without the %s hook: %s", kind, exc
+                )
+            else:
+                sleep(wait)
+
+
+def _under_threading_hooks(work: Callable[[], object]) -> None:
+    """Install the trace and profile hooks of :mod:`threading` (coverage,
+    profilers) in this thread, as :class:`threading.Thread` does when one
+    is set, then run *work*, whatever the install did. It is the parse
+    thread's first call, so it runs before the hooks see anything."""
+    try:
+        trace, profile = gettrace(), getprofile()
+        if trace is not None:
+            _install_hook("trace", partial(settrace, trace))
+        if profile is not None:
+            _install_hook("profile", partial(setprofile, profile))
+    finally:
+        work()
+
+
 def _start_with_stack(work: Callable[[], None], size: int) -> bool:
     """Run *work* on a new thread with a stack of *size* bytes, under the
-    trace and profile hooks of :mod:`threading` (coverage, profilers) as a
-    :class:`threading.Thread` would; ``False`` when the size or the thread
+    trace and profile hooks of :mod:`threading` (see
+    :func:`_under_threading_hooks`); ``False`` when the size or the thread
     is refused (it is then not started).
 
     ``threading.stack_size`` is process-wide, so the size is set, the thread
@@ -113,11 +155,7 @@ def _start_with_stack(work: Callable[[], None], size: int) -> bool:
     and other threads with it; they can then see, and start a thread with,
     only the floor, since every size above it is Python 3.10's.
     """
-    hooked = _in_order(
-        partial(sys.settrace, gettrace()),
-        partial(sys.setprofile, getprofile()),
-        work,
-    )
+    hooked = partial(_under_threading_hooks, work)
     with _STACK_SIZE_LOCK:
         previous = stack_size()
         start = _in_order(

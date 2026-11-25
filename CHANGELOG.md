@@ -192,6 +192,8 @@ and this project adheres to
   lookup when no ID registry is loaded (`model-file-missing`) ([#527])
 - A missing `croissant=` file is `input-not-found`; an unreachable Croissant URL
   is `download-network-failed` or `download-timeout` ([#534])
+- The usage scan no longer hangs when its parse thread cannot install a trace
+  or profile hook (Python 3.10 and 3.11, concurrent parses) ([#PR])
 
 ### Security
 
