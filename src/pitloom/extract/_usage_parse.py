@@ -29,13 +29,15 @@ import ast
 import logging
 import sys
 import warnings
-from _thread import allocate_lock, start_new_thread
+from _thread import LockType, allocate_lock, start_new_thread
 from collections import deque
 from collections.abc import Callable
 from functools import partial
 from operator import methodcaller
+from sys import setprofile, settrace
 from threading import Lock, getprofile, gettrace, stack_size
-from typing import Final
+from time import sleep
+from typing import Final, TypeVar
 
 from pitloom.core.warning_capture import WARNINGS_LOCK
 
@@ -61,6 +63,12 @@ _CHECKS_DEPTH: Final = sys.version_info >= (3, 11)
 #: ``threading.stack_size`` is process-wide: one caller sets it at a time.
 _STACK_SIZE_LOCK: Final = Lock()
 _CALL: Final = methodcaller("__call__")
+#: Seconds the parse thread waits before each new try to install the hooks
+#: of :mod:`threading` and begin its work: on Python 3.10 and 3.11 an install
+#: fails while another thread is installing one, until that one is done.
+_HOOK_RETRY_WAITS: Final = (0.001, 0.004, 0.016)
+
+_T = TypeVar("_T")
 
 
 def python_version() -> str:
@@ -95,11 +103,82 @@ def _in_order(*calls: Callable[[], object]) -> Callable[[], object]:
     return partial(deque, map(_CALL, calls), 0)
 
 
+def _hooked_call(call: Callable[[], _T], begun: Callable[[], bool]) -> _T:
+    """*call* in this thread under the trace and profile hooks of
+    :mod:`threading` (coverage, profilers), installed as
+    :class:`threading.Thread` does when one is set; *call* begins at most
+    once.
+
+    A try fails when an install raises or when a hook raises at *call*'s
+    first event, which aborts the call before its first statement (CPython
+    then unsets that hook). On Python 3.10 and 3.11 both happen while
+    another thread installs a hook: the flag is process-wide, an audit hook
+    written in Python lets threads switch in between, and coverage installs
+    its tracer from within its trace function. A failed try is made again
+    after each of :data:`_HOOK_RETRY_WAITS`, then *call* runs with both
+    hooks unset (said at DEBUG: the thread is only unseen by a coverage
+    tool or profiler). Once *begun* says true, an exception propagates.
+    *begun* must be a C callable: a Python one would be a call a hook can
+    abort."""
+    trace, profile = gettrace(), getprofile()
+    failures: list[Exception] = []
+    for wait in _HOOK_RETRY_WAITS:
+        try:
+            if trace is not None:
+                settrace(trace)
+            if profile is not None:
+                setprofile(profile)
+            return call()
+        # pylint: disable-next=broad-exception-caught
+        except Exception as exc:  # tried again, else run without the hooks
+            if begun():
+                raise
+            failures[:] = [exc]
+        sleep(wait)
+    # Unset before the log: logging is a call a hook can abort.
+    for unset in (settrace, setprofile):
+        try:
+            unset(None)
+        # pylint: disable-next=broad-exception-caught
+        except Exception as exc:  # a hook left set: the call runs under it
+            failures.append(exc)
+    log.debug(
+        "Usage scan: parse thread runs without hooks%s: %s",
+        ", but one may stay set" if len(failures) > 1 else "",
+        failures[-1],
+    )
+    return call()
+
+
+def _hooked_outcome(
+    call: Callable[[], _T],
+    begun: Callable[[], bool],
+    outcome: list[_T | BaseException],
+    done: LockType,
+) -> None:
+    """The parse thread's first frame: :func:`_hooked_call` of *call*, its
+    result or exception put in *outcome*, then *done* released. The frame
+    is entered before any hook is installed, and a trace hook, or a hook
+    at an earlier event, cannot stop it short of the release, whatever it
+    does in the frames below. A profile hook that raises at the very C
+    call that releases *done* still can (a ``c_call`` event fires in this
+    frame, and a raise there skips the call; CPython then unsets the
+    hook): that needs a deliberately hostile hook, and no known tool does
+    it. Coverage uses a trace function only."""
+    try:
+        outcome.append(_hooked_call(call, begun))
+    # pylint: disable-next=broad-exception-caught
+    except BaseException as exc:  # raised again in the caller's thread
+        outcome.append(exc)
+    finally:
+        done.release()
+
+
 def _start_with_stack(work: Callable[[], None], size: int) -> bool:
-    """Run *work* on a new thread with a stack of *size* bytes, under the
-    trace and profile hooks of :mod:`threading` (coverage, profilers) as a
-    :class:`threading.Thread` would; ``False`` when the size or the thread
-    is refused (it is then not started).
+    """Run *work* on a new thread with a stack of *size* bytes; ``False``
+    when the size or the thread is refused (it is then not started). The
+    thread starts with no trace or profile hook, so *work*'s own frame
+    sees none: it can install them (see :func:`_hooked_call`).
 
     ``threading.stack_size`` is process-wide, so the size is set, the thread
     started and the size put back in one :func:`_in_order` call.
@@ -113,16 +192,11 @@ def _start_with_stack(work: Callable[[], None], size: int) -> bool:
     and other threads with it; they can then see, and start a thread with,
     only the floor, since every size above it is Python 3.10's.
     """
-    hooked = _in_order(
-        partial(sys.settrace, gettrace()),
-        partial(sys.setprofile, getprofile()),
-        work,
-    )
     with _STACK_SIZE_LOCK:
         previous = stack_size()
         start = _in_order(
             partial(stack_size, size),
-            partial(start_new_thread, hooked, ()),
+            partial(start_new_thread, work, ()),
             partial(stack_size, previous),
         )
         try:
@@ -157,16 +231,13 @@ def parse_python(text: str) -> ast.Module:
     outcome: list[ast.Module | BaseException] = []
     done = allocate_lock()
     done.acquire()
+    begun: list[None] = []
 
-    def work() -> None:
-        try:
-            outcome.append(_parse(source))
-        # pylint: disable-next=broad-exception-caught
-        except BaseException as exc:  # raised again in the caller's thread
-            outcome.append(exc)
-        finally:
-            done.release()
+    def parse() -> ast.Module:
+        begun.append(None)  # first: a hook can abort the call before it
+        return _parse(source)
 
+    work = partial(_hooked_outcome, parse, partial(bool, begun), outcome, done)
     size = stack_bytes(len(source))
     # More than the floor only on Python 3.10, which would crash, not raise,
     # on a stack too small for the text.
