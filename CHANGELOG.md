@@ -192,6 +192,8 @@ and this project adheres to
   lookup when no ID registry is loaded (`model-file-missing`) ([#527])
 - A missing `croissant=` file is `input-not-found`; an unreachable Croissant URL
   is `download-network-failed` or `download-timeout` ([#534])
+- A GGUF in a wheel names its archive member, not a temporary copy, in the
+  provenance of its datasets ([#PR])
 
 ### Security
 
