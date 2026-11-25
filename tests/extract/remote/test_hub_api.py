@@ -238,7 +238,7 @@ def test_a_rate_limit_line_does_not_start_with_its_request_id(
     the id first (``(Amz CF ID: ...) 429 ...``): dropping it leaves no space
     in front."""
     error = _raised_for_status({"X-Amz-Cf-Id": "cf-id-0123456789"}, status=429)
-    assert str(error).startswith(" (Amz CF ID: cf-id-0123456789)")
+    assert str(error).lstrip().startswith("(Amz CF ID: cf-id-0123456789)")
     line = _say(capsys, error)
     assert line.startswith(f"WARNING: URL={_PAGE}: 429 Too Many Requests")
     assert ":  " not in line and "cf-id" not in line

@@ -435,7 +435,9 @@ def one_line(
     the same on every run, and an exception whose whole text it drops
     yields its class name. *steady* runs before the masker, so the masker
     reads the text as shown: a drop cannot join two harmless pieces into
-    a credential it never saw (``https://u:pw(Request ID: a)@h``)."""
+    a credential it never saw (``https://u:pw(Request ID: a)@h``). One
+    masker pass on the steadied text, not one before and one after, keeps
+    the cost of a long text at one pass."""
     text = " ".join(str(value).split())
     if steady is not None:
         text = " ".join(steady(text).split())

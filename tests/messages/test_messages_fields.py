@@ -13,6 +13,7 @@ tests/messages/test_messages_trust.py (reading lines back).
 
 from __future__ import annotations
 
+import http.client
 import re
 from collections.abc import Sequence
 from pathlib import Path
@@ -265,7 +266,7 @@ _ROOT_ID = "Root=1-659fc3fa-3031673e0f92c71a2260dbe2;bc6f4dfb-b30a-4862-af0a"
             "403 Client Error. (Request ID: a) and (Request ID: b)",
             "403 Client Error. and",
         ),
-        ("(Request ID: a) first", " first"),
+        ("(Request ID: a) first", "first"),
         (_HUB_404_SAID, _HUB_404_SAID),
         ("Request ID: abc", "Request ID: abc"),
         ("(Request IDs: abc)", "(Request IDs: abc)"),
@@ -341,6 +342,47 @@ def test_failure_text_is_cut_after_masking() -> None:
     assert failure_text(ValueError("x" * FAILURE_CHARACTERS)) == "x" * (
         FAILURE_CHARACTERS
     )
+
+
+def test_cut_marker_at_the_first_character_over() -> None:
+    over = failure_text(ValueError("x" * (FAILURE_CHARACTERS + 1)))
+    assert over == "x" * FAILURE_CHARACTERS + "..."
+
+
+def test_cut_is_decided_on_the_steadied_text() -> None:
+    """A text over the limit only by its request id is not cut."""
+    text = "a" * (FAILURE_CHARACTERS - 5) + " (Request ID: abcdefghijkl)"
+    assert len(text) > FAILURE_CHARACTERS
+    assert failure_text(ValueError(text)) == "a" * (FAILURE_CHARACTERS - 5)
+
+
+@pytest.mark.parametrize(
+    "failure",
+    [
+        ValueError("(Request ID: a)"),
+        ValueError("\n (Amz CF ID: a)\n\n"),
+        http.client.InvalidURL("(Request ID: a) 'x'"),
+    ],
+    ids=["id-only", "id-and-space", "invalid-url-head-id-only"],
+)
+def test_a_text_that_is_only_an_id_is_said_by_its_class(failure: Exception) -> None:
+    assert failure_text(failure) == type(failure).__name__
+
+
+@pytest.mark.parametrize(
+    "text",
+    ["https://u:SECRETPW(Request ID: a)@h/x", "<https://u:SECRETPW at 0x1@h/x>"],
+    ids=["request-id", "address"],
+)
+def test_dropping_never_assembles_a_credential(text: str) -> None:
+    """What is dropped cannot join two pieces into a URL the masker missed."""
+    shown = failure_text(ValueError(text))
+    assert "SECRETPW" not in shown and "***:***@h/x" in shown
+
+
+def test_invalid_url_head_is_steadied() -> None:
+    failure = http.client.InvalidURL("bad <A at 0x1> (Request ID: a) 'x'")
+    assert failure_text(failure) == "bad <A>"
 
 
 def test_size_text_has_one_writer() -> None:

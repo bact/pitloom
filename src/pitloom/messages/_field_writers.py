@@ -229,15 +229,16 @@ def failure_text(value: object) -> str:
     """What stopped a read, from the exception *value*, on one line: an
     :class:`OSError`'s own description (``strerror``, ``Permission
     denied``), never its text, which quotes the path; any other
-    exception's text, its class name when it has none, the credentials of a
-    URL in it masked (:func:`~pitloom.logging_config.failure_reason`), and a
-    memory address (`` at 0x...``, as in an object's default repr) and a Hub
-    request's id (`` (Request ID: ...)``) dropped, so the line is the same
-    on every run; then cut to :data:`FAILURE_CHARACTERS` characters (then
-    ``...``): a server's error page can be as long as it likes. Dropped
-    before the cut, so the text the cut keeps is the same on every run too.
-    The text also reaches a library caller in an exception, past the log
-    sink.
+    exception's text (:func:`~pitloom.logging_config.failure_reason`) with
+    a memory address (`` at 0x...``, as in an object's default repr) and a
+    Hub request's id (`` (Request ID: ...)``) dropped, from every
+    ``failure`` field and not only a Hub error's, so these two do not make
+    the line differ per run (a server's own text still can); its class name
+    when nothing is left; the credentials of a URL in what is left masked;
+    then cut to :data:`FAILURE_CHARACTERS` characters (then ``...``): a
+    server's error page can be as long as it likes. Dropped before the cut,
+    so the cut is decided on the text shown. The text also reaches a
+    library caller in an exception, past the log sink.
 
     Raises:
         ValueError: *value* is not an exception (a text included).
