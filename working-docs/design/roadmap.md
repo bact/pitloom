@@ -183,10 +183,13 @@ counts are in [message-catalogue-migration-plan.md](message-catalogue-migration-
   (`test_models_wheel_guard.py::test_a_link_loop_in_a_clone_is_stopped_by_the_cap[setuptools-find]`
   and `test_models_wheel_build_timeout.py::test_allow_build_settings_reach_build_and_read_registered_backend`),
   then passed on a re-run of the same commit; the diff touched neither. Not
-  reproduced on macOS 3.14 (full suite, coverage on, `-n 4`). A repeat is a
-  real Linux-only hang: suspect the link-loop guard's `sys.setprofile` hook
-  (`_models_wheel_guard.py`); first step, run `tests/core/models_wheel` under
-  `-n 4` on Linux.
+  reproduced on macOS 3.14 (full suite, coverage on, `-n 4`). Cause of the
+  first test: a generator `close()` swallowed the guard's stop; fixed in #538
+  (see [ci-hang-link-loop-guard.md](../implementation/ci-hang-link-loop-guard.md)).
+  Open: the second test (`..._reach_build_and_read_registered_backend`) is
+  unexplained, and the audit-hook persistent stop is deferred (it would also
+  cover generator cleanup that calls and generator-only loops). A repeat hang:
+  run with `-o faulthandler_timeout=300` for the stack.
 - [ ] **`pypi-url-unusable` is also logged bare before it is raised**
   (`assemble/_model_generator.py:_refuse_pypi_url`, found in PR 14b): the same
   duplicate that 14b dropped for `pypi-url-invalid` (Q15); `generate_model_sbom`
