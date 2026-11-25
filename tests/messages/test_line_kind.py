@@ -79,6 +79,7 @@ _CASES = [
     (f"ERROR: loom generate: {UNSHOWN_MESSAGE}", "uncoded"),  # no code
     (f"ERROR: loom enrich: {UNSHOWN_MESSAGE} [input-not-found]", "coded"),
     (f"WARNING: {UNSHOWN_MESSAGE} [lfs-pointer]", "coded"),
+    (f"ERROR: {UNSHOWN_MESSAGE} [input-not-found]", "coded"),  # frame optional
     (f"WARNING: FORMAT=x FILE=m: {UNSHOWN_MESSAGE} [model-field-conflict]", "coded"),
     (f"ERROR: {UNSHOWN_MESSAGE} [model-field-conflict]", "uncoded"),  # level
     (f"INFO: {UNSHOWN_MESSAGE} [lfs-pointer]", "uncoded"),  # level

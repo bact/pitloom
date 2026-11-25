@@ -128,6 +128,10 @@ _NO_MARKERS: dict[str, tuple[str, ...]] = {}
         ("ERROR: Build: ...", None),
         ("WARNING: Bogus frame: ...", None),
         ("WARNING: :", None),
+        ("ERROR: ...:", None),  # a wildcard is no frame
+        ("INFO: hook:", None),  # text found only mid-line
+        # a 12-character run two families print is no one entry's
+        ("INFO: ... not recorded ...", None),
         # a summary, its nouns as printed
         ("INFO: ID registry: holds N id(s)", SUMMARY),
         ("INFO: ID registry: holds N file(s)", None),

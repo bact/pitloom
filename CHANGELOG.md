@@ -158,6 +158,8 @@ and this project adheres to
   a non-method `content_type_method` or non-string `Creator.type` is `option-invalid` ([#536])
 - An `InternalError` in one wheel's check stops `verify-wheel`, `validate-wheel` and
   `embed-wheel --verify/--validate`, not said as that wheel's failure ([#542])
+- The message reference dates a line newer than its code; `line_kind()` reads a
+  message that could not be shown but kept a catalogued code as `coded` ([#546])
 
 ### Fixed
 
@@ -200,6 +202,8 @@ and this project adheres to
   or profile hook (Python 3.10 and 3.11, concurrent parses) ([#539])
 - A GGUF in a wheel names its archive member's file name, not a temporary
   copy, in the provenance of its datasets ([#540])
+- A build, download or git time limit of one second reads `1 second`, not
+  `1 seconds` ([#546])
 
 ### Security
 
@@ -248,6 +252,7 @@ and this project adheres to
 [#540]: https://github.com/bact/pitloom/pull/540
 [#542]: https://github.com/bact/pitloom/pull/542
 [#543]: https://github.com/bact/pitloom/pull/543
+[#546]: https://github.com/bact/pitloom/pull/546
 
 ## [0.24.0] - 2026-11-11
 

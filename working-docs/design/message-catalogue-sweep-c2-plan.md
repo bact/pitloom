@@ -358,3 +358,23 @@ pages excluded), ~24 files; C2b about 650 lines, ~28 files. One PR would be
 - `_git_credentials.py` (git-userinfo quoting): masking PR only.
 - `CHANGELOG.md`: each PR adds to the Unreleased block; C2 folds its lines into
   the existing #527/#534 bullets where the code is new in 0.25.0.
+
+## 10. C2a as built: deviations and known limits
+
+- Helpers moved to `tests/_message_quotes.py` (`quote_kind`, anchored
+  matcher); the generator's helpers to `scripts/message_reference/`
+  (`frames`, `sections`, `snapshot`). The release step lives in
+  `working-docs/implementation/release-checklist.md`, not `CONTRIBUTING.md`.
+- `quote_kind` is stricter than section 4's table: a coded quote is matched
+  on its longest literal run, a catalogued quote's 12-character run must be
+  template text, a prefix quote's values match only as wildcards, a summary's
+  run may not sit in a free value. The marker `": not valid JSON "` (not
+  `"not valid JSON "`, which marked a value-only quote).
+- One `whole_seconds()` rounds every time limit up to a whole second, at
+  least 1 (git used `round`; production passes 600.0, unchanged).
+- Known limits, not fixed: a stale word between two wildcards
+  (`git <command> stale ... did not finish`) still reads as a piece of the
+  line (matcher design); `test_count_plurals.py` checks only the word right
+  after a count field (`%(number)s Python files` would pass); `quote_kind`
+  requires a frame on an `ERROR` relay, `line_kind` does not (true today:
+  the only `ERROR` relay is framed by the CLI command).
