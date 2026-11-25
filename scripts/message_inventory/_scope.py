@@ -43,27 +43,23 @@ from typing import Any
 
 #: The catalogue package: its sites are the mechanism, not messages.
 MECHANISM = "src/pitloom/messages/"
-#: Exception classes whose text is the DETAIL of a wrapper's line. An
-#: ``argparse`` type or action error is the detail of the parser's own line
-#: (``argument --x: <detail>``), which ``_LoomParser.error`` codes.
+#: Exception classes whose text is the DETAIL of a wrapper's line, or that a
+#: wrapper turns into a coded line of its own (a carrier of a cap) or into
+#: control flow (a signal). An ``argparse`` type or action error is the
+#: detail of the parser's own line (``argument --x: <detail>``), which
+#: ``_LoomParser.error`` codes. Keyed on the bare name, so a name here has
+#: one class in ``src/``. A model reader's own exceptions are left out: a
+#: raise in :data:`READER_PACKAGE` is detail by where it is. Each name and
+#: raise site is proved by ``tests/messages/test_detail_classes*.py``.
 DETAIL_EXC = frozenset(
     {
-        "ArgumentError",
-        "ArgumentTypeError",
         "argparse.ArgumentError",
         "argparse.ArgumentTypeError",
-        "Malformed",
-        "UnsupportedVersion",
-        "LimitExceeded",
         "ModelOverCap",
-        "ModelLimitExceeded",
-        "ConfigShapeError",
         "MarkerShapeError",
-        "_UnsupportedAttribute",
         "ParameterCountRejected",
         "HeaderBlockOverCap",
         "_OverCap",
-        "_over_cap",
         "InvalidRequirement",
         "InvalidMarker",
         "InvalidSpecifier",
