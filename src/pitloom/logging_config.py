@@ -430,15 +430,18 @@ def one_line(
     first *limit* characters, then escaped: a cut never takes away the end
     of a URL's user information and shows its start, nor splits an escaped
     literal and loses its closing quote. With *ellipsis*, ``...`` follows a
-    cut. With *steady*, the masked text goes through it before the cut (to
-    drop what differs per run), so what the cut keeps is the same on every
-    run."""
+    cut. With *steady*, the collapsed text goes through it first (to drop
+    what differs per run) and is collapsed again, so what the cut keeps is
+    the same on every run, and an exception whose whole text it drops
+    yields its class name. *steady* runs before the masker, so the masker
+    reads the text as shown: a drop cannot join two harmless pieces into
+    a credential it never saw (``https://u:pw(Request ID: a)@h``)."""
     text = " ".join(str(value).split())
+    if steady is not None:
+        text = " ".join(steady(text).split())
     if not text and isinstance(value, BaseException):
         return type(value).__name__
     masked = masked_text(text)
-    if steady is not None:
-        masked = steady(masked)
     shown = loggable(masked[:limit])
     if ellipsis and limit is not None and len(masked) > limit:
         return f"{shown}..."
@@ -459,13 +462,12 @@ def failure_reason(
     refused, without its scheme (``'/x?token=...'``), where no URL masking
     finds a secret parameter: only its text before the first quoted value
     is written (``URL can't contain control characters.``), its class name
-    when that is empty. The message naming the failure names the URL itself,
-    masked."""
+    when that is empty or *steady* drops all of it. The message naming the
+    failure names the URL itself, masked."""
     if isinstance(failure, http.client.InvalidURL):
         head = _QUOTED_VALUE.split(str(failure), maxsplit=1)[0].rstrip(" :")
-        if head.strip():
-            return one_line(head, limit, ellipsis=ellipsis, steady=steady)
-        return type(failure).__name__
+        shown = one_line(head, limit, ellipsis=ellipsis, steady=steady)
+        return shown or type(failure).__name__
     return one_line(failure, limit, ellipsis=ellipsis, steady=steady)
 
 
