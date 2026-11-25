@@ -196,6 +196,8 @@ and this project adheres to
   (`(Request ID: ...)`) and a memory address before masking and the cut ([#537])
 - The usage scan no longer hangs when its parse thread cannot install a trace
   or profile hook (Python 3.10 and 3.11, concurrent parses) ([#539])
+- A GGUF in a wheel names its archive member, not a temporary copy, in the
+  provenance of its datasets ([#540])
 
 ### Security
 
@@ -240,6 +242,7 @@ and this project adheres to
 [#536]: https://github.com/bact/pitloom/pull/536
 [#537]: https://github.com/bact/pitloom/pull/537
 [#539]: https://github.com/bact/pitloom/pull/539
+[#540]: https://github.com/bact/pitloom/pull/540
 
 ## [0.24.0] - 2026-11-11
 

@@ -206,7 +206,8 @@ class UsageSource:
 
 def _restore_source_name(meta: AiModelMetadata, path: Path, dist_name: str) -> None:
     """Rewrite the ``Source: <file name>`` prefix a reader derived from
-    *path* to *dist_name*, when a copy under another name was read.
+    *path* to *dist_name*, when a copy under another name was read: in the
+    model's provenance and in that of each dataset the reader found.
 
     Exact prefix only: a model's own metadata may contain the same text.
     """
@@ -214,9 +215,12 @@ def _restore_source_name(meta: AiModelMetadata, path: Path, dist_name: str) -> N
         return
     copied = provenance_source(path.name)
     real = provenance_source(dist_name)
-    for key, value in meta.provenance.items():
-        if value == copied or value.startswith(copied + " |"):
-            meta.provenance[key] = real + value[len(copied) :]
+    maps = [meta.provenance]
+    maps.extend(ref.metadata.provenance for ref in meta.datasets)
+    for provenance in maps:
+        for key, value in provenance.items():
+            if value == copied or value.startswith(copied + " |"):
+                provenance[key] = real + value[len(copied) :]
 
 
 def _set_paths(info: AiModelFormatInfo, candidate: ModelCandidate) -> None:
