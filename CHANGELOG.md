@@ -194,7 +194,7 @@ and this project adheres to
   is `download-network-failed` or `download-timeout` ([#534])
 - A Hub failure line drops the request id (`(Request ID: ...)`); it and a
   memory address go before the 500-character cut: the line is the same per run
-  ([#TBD])
+  ([#537])
 
 ### Security
 
@@ -237,6 +237,7 @@ and this project adheres to
 [#527]: https://github.com/bact/pitloom/pull/527
 [#534]: https://github.com/bact/pitloom/pull/534
 [#536]: https://github.com/bact/pitloom/pull/536
+[#537]: https://github.com/bact/pitloom/pull/537
 
 ## [0.24.0] - 2026-11-11
 
