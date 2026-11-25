@@ -76,10 +76,18 @@ def test_dataset_provenance_is_restored_by_exact_prefix_only() -> None:
             "description": "unrelated",
         },
     )
-    meta = AiModelMetadata(datasets=[DatasetReference(role="trainedOn", metadata=data)])
+    second = DatasetMetadata(name="e", provenance={"name": "Source: 0.gguf"})
+    meta = AiModelMetadata(
+        datasets=[
+            DatasetReference(role="trainedOn", metadata=data),
+            DatasetReference(role="testedOn", metadata=second),
+        ]
+    )
     _restore_source_name(meta, Path("0.gguf"), "real.gguf")
     assert data.provenance == {
         "name": "Source: real.gguf | Field: x",
         "version": "Source: 0.gguf2 | Field: x",
         "description": "unrelated",
     }
+    # Every dataset, not only the first; a bare prefix with no segment too.
+    assert second.provenance == {"name": "Source: real.gguf"}
