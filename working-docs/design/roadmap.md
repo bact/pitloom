@@ -158,18 +158,13 @@ counts are in [message-catalogue-migration-plan.md](message-catalogue-migration-
   consistency re-check of the merged families is done (#494). Plans:
   [message-catalogue-pr8-12-plan.md](message-catalogue-pr8-12-plan.md),
   [message-catalogue-pr12-18-plan.md](message-catalogue-pr12-18-plan.md).
-- [ ] **Catalogue sweeps B and C**, then the `TOKEN_RE`/masking PR, the 0.25.0
-  cut and a consistency rescan. B ("strict"): prove `DETAIL_EXC` classes, a
-  strict uncoded-record check, a manual-matrix line classifier. C ("quotes and
-  wording"): check the 84 unchecked doc quotes, singular "1 second", per-line
-  `since`. See [message-catalogue-sweep-plan.md](message-catalogue-sweep-plan.md).
-- [ ] **Sweep A leftovers** (#536): the loom SDK fragment write
-  (`_loom_active_run.py`, bare `PermissionError`, needs its own wording); the
-  per-wheel `except (ValueError, OSError)` in `cli/commands/utils.py` and
-  `verify_wheel.py` swallow `InternalError`; `os.path.abspath(script_path)`
-  raises when the cwd is gone; a wheel-scanned GGUF dataset's provenance names
-  the temporary copy; `test_usage_parse` flakes under `--cov -n 4`. See
-  [the plan](message-catalogue-sweep-plan.md#build-notes-sweep-a), "Left for later".
+- [ ] **Catalogue sweep C**, then the `TOKEN_RE`/masking PR, the 0.25.0 cut
+  and a consistency rescan. Sweep B: B1 (#541, merged; each `DETAIL_EXC`
+  class proved), B2 (#542; strict uncoded-output check in tests, `line_kind`,
+  manual-matrix classifier); sweep A leftovers fixed in #539, #540, #542. C ("quotes and wording"): the 84 unchecked doc
+  quotes, singular "1 second", per-line `since`, and the items B and sweep A
+  carried. See [sweep A](../implementation/message-catalogue-sweep-plan.md),
+  [sweep B](../implementation/message-catalogue-sweep-b-plan.md#carried-to-sweep-c-or-the-rescan-found-in-the-b2-reviews-2026-11-25).
 - [ ] **0.25.0 cut sweep** (not released): the skills' floor `pitloom >=
   0.24.1` names no release (0.24.0 is the last tag; skills document 0.25.0
   flags and codes): raise to 0.25.0 in every `SKILL.md`, example and install

@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-23
-Last-Modified: 2026-11-24
+Last-Modified: 2026-11-25
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -16,6 +16,17 @@ Status (2026-11-23): plan by Opus (read-only) against the 17a tree and main
 b0e43ccf. User instruction: finish the catalogue, then upgrade LicenseID to
 0.9.1, then rescan every location for consistency and fix what is missing.
 (V) verified by running or reading; (I) inferred.
+
+Progress (2026-11-25): 17a-17c merged (ratchet 0); sweep A merged (#536,
+D2, D3, LicenseID pinned at 0.9.2 instead of 0.9.1); sweep B: B1 merged (#541,
+D4), B2 is #542 (D5 on by default, D6). Side PRs merged: #537 (Hub request id
+dropped from `failure=`), #538 (link-loop guard), #539 (usage-scan parse
+hang), #540 (GGUF dataset provenance names the wheel member). Next: sweep C
+(D7 and the carried items), then the `TOKEN_RE` PR, the 0.25.0 cut, the
+rescan. Plans:
+[message-catalogue-sweep-plan.md](../implementation/message-catalogue-sweep-plan.md),
+[message-catalogue-sweep-b-plan.md](../implementation/message-catalogue-sweep-b-plan.md)
+(its "Carried to sweep C or the rescan" list).
 
 ## 1. Measured state (V)
 
@@ -68,7 +79,8 @@ Python type; the Action's 15 shell annotations (a roadmap item).
 3. **17c** (built, PR #534; datasets, display text, metadata budget; 15 to
    0; ratchet baseline empty). See
    [message-catalogue-pr17c-build.md](message-catalogue-pr17c-build.md).
-4. **Sweep PR** (D2-D7): exemption audit; bare `pypi-url-unusable`;
+4. **Sweep PRs** (D2-D7; split into sweeps A, B and C, see Progress above):
+   exemption audit; bare `pypi-url-unusable`;
    `scanner.py:265`; `hatch.py:224`; `cwd_relative_label` traceback; the
    `report_wheel_failure` write misreport and `Creator.type`
    `AttributeError` if 17a left them; dead drift markers; `error_frame`

@@ -77,7 +77,9 @@ reads a printed line back; `tests/_strict_uncoded.py` is the check):
   usage, a traceback) and `overlong` lines (over `LONGEST_LINE`, never read
   back; a finding in tests whatever its kind). An `ERROR:` line of an
   unexpected error (`InternalError` has no code) stays uncoded: a test that
-  says one names it. A message that could not be shown (`UNSHOWN_MESSAGE`)
+  says one names it. So does argparse's own `ERROR:` text where a Python
+  version words it differently from the catalogue (`usage_code()` returns
+  `None`). A message that could not be shown (`UNSHOWN_MESSAGE`)
   prints that fixed text and keeps its error's code when it had one
   (`mask_record` replaces `msg` only; `print_error` masks the text, then
   appends the code), so it is uncoded only when its error had no code.
@@ -123,10 +125,12 @@ pytest tests/messages tests/test_message_ratchet.py
 ## Traps
 
 - **An exemption list can hide an uncoded line.** The inventory leaves out
-  sites matched by `INTERNAL_PAT`, `LIBRARY_PAT`, `DETAIL_EXC` and
-  `PASSTHROUGH_PAT` (`scripts/message_inventory/_scope.py`). 17a's review
-  found two real uncoded lines (`loom env`'s pipdeptree output, an unknown
-  provenance schema) hidden there. A raise a user can reach needs a code even
+  sites matched by `INTERNAL_EXC`, `LIBRARY_EXC`, `LIBRARY_SITES`,
+  `DETAIL_EXC` and `PASSTHROUGH_PAT` (`scripts/message_inventory/_scope.py`;
+  each `DETAIL_EXC` name and raise site is proved by
+  `tests/messages/test_detail_classes*.py`). 17a's review found two real
+  uncoded lines (`loom env`'s pipdeptree output, an unknown provenance schema)
+  hidden by the exemption lists of the time. A raise a user can reach needs a code even
   if its text looks internal.
 - **A relay can drop a code.** A caller that relays a lower layer's line must
   carry the code (`relay_coded_warning`, `code_extra_of`); check that the

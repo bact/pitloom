@@ -20,10 +20,11 @@ fix yourself (no `git lfs pull`, no install, no rebuild): ask the user first,
 and with nobody to ask, report it only. A line without a code is a
 summary, a `-v` `KEY=VALUE` detail, another tool's words after its name
 (`licenseid: `, `setuptools stderr: `, `fickling: `, `spdx3-validate: `), an
-unexpected error's own text, or an untagged usage or traceback line; read it
-as text. A message that could not be shown prints a fixed text and keeps its
-error's code when it had one, so it reads as a line without a code only when
-the error had none. The pages are generated from Pitloom's catalogue, so they
+unexpected error's own text, argparse's own text where a Python version words
+it differently from the catalogue, or an untagged usage or traceback line;
+read it as text. A message that could not be shown prints a fixed text and
+keeps its error's code when it had one, so it reads as a line without a code
+only when the error had none. The pages are generated from Pitloom's catalogue, so they
 say what this version prints.
 
 ## Codes

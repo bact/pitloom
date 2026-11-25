@@ -18,10 +18,11 @@ Pitloom reports what it decided on stderr, one line per event. A
 agent can tell which condition it is without matching free text. A line
 without a code is a summary, a `-v` `KEY=VALUE` detail, another tool's words
 after its name (`licenseid: `, `setuptools stderr: `, `fickling: `,
-`spdx3-validate: `), an unexpected error's own text, or an untagged usage or
-traceback line. A message that could not be shown prints a fixed text and keeps
-its error's code when it had one, so it reads as a line without a code only
-when the error had none. A **summary** is an `INFO:` line that reports what a
+`spdx3-validate: `), an unexpected error's own text, argparse's own text where
+a Python version words it differently from the catalogue, or an untagged usage
+or traceback line. A message that could not be shown prints a fixed text and
+keeps its error's code when it had one, so it reads as a line without a code
+only when the error had none. A **summary** is an `INFO:` line that reports what a
 run did under its own rule (a count, the key it wrote) and names no condition,
 so it never takes a code. The reference lists each topic's summaries under
 "Summaries"; never trust a code appended to one.

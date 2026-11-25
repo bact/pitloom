@@ -83,7 +83,6 @@ Data and semantics:
 - **`dict.get(key, default)` guards absence, not a wrong type**: `isinstance`-check values from external files.
 - **A parse helper catching only the format's exception can still die on a bare `UnicodeDecodeError`.**
 - **`json.loads(bytes)` strips a UTF-8 BOM; `json.loads(str)` after `.decode()` raises on it**: pass raw bytes where a binary parse matches.
-- **A parse helper catching only the format's exception can still die on a bare `UnicodeDecodeError`**; **`json.loads(bytes)` strips a UTF-8 BOM, `json.loads(str)` after `.decode()` raises**: pass raw bytes.
 - **Picking one candidate from an unordered collection needs a stable tie-break**; choose a merge survivor from counts over all inputs (reversed input order gives the same ids).
 - **A dedup/conflict-exclusion fix must cover every path that can produce the same identity**; a conflict branch must skip itself, not the whole cascade.
 - **A guard before a side-effecting step drops that effect**: do the effect first.
@@ -222,6 +221,7 @@ SPDX-License-Identifier: Apache-2.0  # or CC0-1.0 for docs
 - **No non-deterministic assertions**: no real wall-clock time, unseeded random/UUID, or set/dict iteration order; freeze time, mock the source or sort. Generous `time.monotonic()` bounds are fine.
 - **Don't couple tests to undocumented internals**: `raises(match=...)` and log assertions target wording documented as intentional (a short stable substring); SPDX3 field/type assertions come from the spec (`spdx_python_model.bindings`).
 - **Runtime warnings are test failures** (`filterwarnings = ["error"]`): an unavoidable third-party warning gets a narrow module/category-qualified `ignore::` entry with a comment, never a blanket one.
+- **A test fails on an uncoded `INFO:`/`WARNING:`/`ERROR:` line** (not a summary, detail or relay) unless `@pytest.mark.uncoded_output(<regex>)` on it or its `pytest.param` allows it; a stale pattern fails: [rules](working-docs/implementation/message-catalogue-agent-rules.md).
 - **Drift-guard test for two independent implementations of one operation**: assert both agree on one shared fixture rather than merging them.
 - **Adversarial edge cases pay most on tri-state (None/empty/absent) and cascade/tie-break logic**: per new field or merge path, one test per boundary (declared-but-empty vs absent, equivalent spellings, a tie-break, malformed input).
 - **OS coverage in CI is partial on a PR**: Linux runs all tests; Windows and macOS run only `-m platform` (rule `tests/_platform.py`, a source regex). A Windows/macOS-only bug in an unmarked test shows only after merge (push to `main` runs all) or with the PR label `test-all-os`: add `pytestmark = pytest.mark.platform` to such a test, and apply the label to a PR touching paths, processes, encodings or packaging. Why: [rationale](working-docs/implementation/agents-md-rationale.md#tests-platform-and-ci).
