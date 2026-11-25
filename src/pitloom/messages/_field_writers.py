@@ -60,6 +60,19 @@ def _without_addresses(text: str) -> str:
     return "".join(out)
 
 
+#: ``(Request ID: ...)``, as ``huggingface_hub`` writes the id of an HTTP
+#: request that failed into its exception's text (the response's
+#: ``X-Request-Id``, else ``X-Amzn-Trace-Id``, else ``X-Amz-Cf-Id`` header,
+#: each under its own label): a new id on every request.
+_REQUEST_ID: Final = re.compile(r"\((?:Request ID|Amzn Trace ID|Amz CF ID): [^()]+\)")
+
+
+def _steady(text: str) -> str:
+    """*text* without what differs per run: a Hub request's id
+    (:data:`_REQUEST_ID`) and a memory address (:func:`_without_addresses`)."""
+    return _without_addresses(_REQUEST_ID.sub("", text))
+
+
 class DescribedValue(str):
     """A value a caller has already described as text for a message (an
     SBOM element by type, id and name, a ``Hash`` by its fields, a number):
@@ -216,13 +229,21 @@ def failure_text(value: object) -> str:
     """What stopped a read, from the exception *value*, on one line: an
     :class:`OSError`'s own description (``strerror``, ``Permission
     denied``), never its text, which quotes the path; any other
-    exception's text, its class name when it has none, the credentials of a
-    URL in it masked (:func:`~pitloom.logging_config.failure_reason`) and a
-    memory address (`` at 0x...``, as in an object's default repr) dropped,
-    so the line is the same on every run; cut to :data:`FAILURE_CHARACTERS`
-    characters (then ``...``): a server's error page can be as long as it
-    likes. The text also reaches a library
-    caller in an exception, past the log sink.
+    exception's text (:func:`~pitloom.logging_config.failure_reason`) with
+    a memory address (`` at 0x...``, as in an object's default repr) and a
+    Hub request id (``(Request ID: ...)``) dropped (the ``steady`` step of
+    :func:`~pitloom.logging_config.one_line`, which collapses the white
+    space the drop leaves), so these two do not make the line differ per
+    run (a server's own text still can). That step runs for every failure
+    without a ``strerror`` (a Hub error, an ``OSError`` with no
+    ``strerror``, any other exception) and for the head of an
+    :class:`http.client.InvalidURL`; an ``OSError`` with a ``strerror`` is
+    shown as the OS wrote it (masked and cut, nothing dropped). Its class
+    name when nothing is left; the credentials of a URL in what is left
+    masked; then cut to :data:`FAILURE_CHARACTERS` characters (then ``...``): a
+    server's error page can be as long as it likes. Dropped before the cut,
+    so the cut is decided on the text shown. The text also reaches a
+    library caller in an exception, past the log sink.
 
     Raises:
         ValueError: *value* is not an exception (a text included).
@@ -231,7 +252,7 @@ def failure_text(value: object) -> str:
         raise ValueError(f"not an exception: {value!r}")
     if isinstance(value, OSError) and value.strerror:
         return one_line(value.strerror, FAILURE_CHARACTERS, ellipsis=True)
-    return _without_addresses(failure_reason(value, FAILURE_CHARACTERS, ellipsis=True))
+    return failure_reason(value, FAILURE_CHARACTERS, ellipsis=True, steady=_steady)
 
 
 def joined(value: object) -> str:
