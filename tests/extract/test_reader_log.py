@@ -74,6 +74,7 @@ class _Worker(threading.Thread):
         return [r.getMessage() for r in self.records]
 
 
+@pytest.mark.uncoded_output(r"^WARNING: from [AB]$")
 @pytest.mark.parametrize("propagate", [True, False])
 def test_overlapping_blocks_restore_the_logger_in_any_order(
     propagate: bool, monkeypatch: pytest.MonkeyPatch
@@ -97,6 +98,7 @@ def test_overlapping_blocks_restore_the_logger_in_any_order(
     assert b.tags() == ["from B", "from B"]
 
 
+@pytest.mark.uncoded_output(r"^WARNING: from A$", r"^WARNING: from the main thread$")
 def test_a_thread_outside_a_block_is_passed_on(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
@@ -119,6 +121,7 @@ def test_a_block_left_by_an_error_restores_the_logger() -> None:
     assert _state() == before
 
 
+@pytest.mark.uncoded_output(r"^WARNING: from the main thread$")
 def test_a_detached_logger_drops_what_a_non_capturing_thread_logs(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -132,6 +135,7 @@ def test_a_detached_logger_drops_what_a_non_capturing_thread_logs(
     assert a.tags() == []
 
 
+@pytest.mark.uncoded_output(r"^WARNING: (before|inside|after)$")
 def test_a_nested_block_collects_alone_and_the_outer_one_resumes() -> None:
     before = _state()
     log = logging.getLogger(_NAME)
@@ -145,6 +149,7 @@ def test_a_nested_block_collects_alone_and_the_outer_one_resumes() -> None:
     assert _state() == before
 
 
+@pytest.mark.uncoded_output(r"^WARNING: no thread id$")
 def test_a_record_without_a_thread_id_is_captured_by_the_emitting_thread(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -170,6 +175,9 @@ class _Collect(logging.Handler):
 _VALUES = "pitloom.extract.dataset.values"
 
 
+@pytest.mark.uncoded_output(
+    r"^WARNING: a value check, not captured$", r"^WARNING: a child, not captured$"
+)
 def test_a_non_capturing_record_goes_on_through_its_own_captured_logger() -> None:
     """A dataset value check's record goes on to that logger's parent, not
     to the readers' parent: a handler on ``pitloom.extract.dataset`` gets
@@ -193,6 +201,7 @@ def test_a_non_capturing_record_goes_on_through_its_own_captured_logger() -> Non
     assert a.tags() == []
 
 
+@pytest.mark.uncoded_output(r"^WARNING: captured$")
 @pytest.mark.parametrize("propagate", [True, False])
 def test_every_captured_logger_is_restored(
     propagate: bool, monkeypatch: pytest.MonkeyPatch

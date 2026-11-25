@@ -32,6 +32,7 @@ from _harness import (
     expect,
     require,
     run_loom,
+    stderr_problems,
 )
 from _matrix_plan import Command
 
@@ -179,9 +180,11 @@ def universal(result: Result, *, debug: bool, network_ok: bool = False) -> None:
         "Traceback (most recent call last)" not in result.stderr,
         f"traceback:\n{result.describe()}",
     )
-    tags = DEBUG_TAGS if debug else TAGS
-    untagged = [line for line in result.stderr_lines if not line.startswith(tags)]
+    untagged, uncoded = stderr_problems(
+        result.stderr_lines, DEBUG_TAGS if debug else TAGS
+    )
     expect(not untagged, f"untagged stderr lines: {untagged[:4]}")
+    expect(not uncoded, f"uncoded stderr lines: {uncoded[:4]}")
     if not network_ok:
         expect(
             result.network_attempts == 0,

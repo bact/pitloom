@@ -348,6 +348,7 @@ markers = [
     "network: reaches a real remote host, directly or via a subprocess/library; skips on a network failure (opts out of conftest's default socket block); not run in the default CI job",
     "platform: the test file depends on the operating system (tests/_platform.py); CI runs only these on Windows and macOS in a pull request",
     "loopback: talks only to a server the test starts on this machine; runs everywhere (an in-process connection to any other host is refused)",
+    "uncoded_output(*patterns): the test says these lines without a code on purpose (regular expressions searched in each line, tests/_strict_uncoded.py); a pattern matching no line fails",
 ]
 # OpenSSF Best Practices "warnings_strict": promote every runtime warning
 # (DeprecationWarning, ResourceWarning, pytest's own internal warnings,

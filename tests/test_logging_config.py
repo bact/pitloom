@@ -348,6 +348,7 @@ def test_a_traceback_is_still_appended_whole(
     assert "ValueError: boom" in err
 
 
+@pytest.mark.uncoded_output(r"^ERROR: bad 'a\\nWARNING: forged'")
 def test_print_error_is_one_error_line(capsys: pytest.CaptureFixture[str]) -> None:
     """The CLI's one way to write an error: tagged, on stderr, on one line."""
     print_error("bad 'a\nWARNING: forged'\x1b[0m")

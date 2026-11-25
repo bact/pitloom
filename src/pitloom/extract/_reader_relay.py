@@ -17,10 +17,11 @@ from __future__ import annotations
 import functools
 import logging
 import re
+from collections.abc import Mapping
 from typing import Final
 
 from pitloom.core.internal_error import InternalError
-from pitloom.logging_config import CODE_ATTR, escape_controls
+from pitloom.logging_config import CODE_ATTR, KIND_ATTR, escape_controls
 from pitloom.messages import FIELDS, relay_extra
 from pitloom.messages.datasets import DATASET_METADATA_PREFIX
 
@@ -65,7 +66,8 @@ def relay(
     rewriting of *text* made it no longer one of the message's lines, on
     the record's own text, unframed (it names the file the reader was
     handed; a ``--debug`` line says so). A record below ``INFO`` (no
-    catalogued line) or with no code is said as it is, uncoded.
+    catalogued line) or with no code is said as it is, uncoded, its kind
+    (:data:`~pitloom.logging_config.KIND_ATTR`, a relay's) kept.
 
     Raises:
         pitloom.core.internal_error.InternalError: *record* is coded at
@@ -76,7 +78,10 @@ def relay(
     level, name = record.levelno, record.levelname
     shown = frame + text if level >= logging.WARNING else text
     code = getattr(record, CODE_ATTR, None)
-    extra = None
+    kind = getattr(record, KIND_ATTR, None)
+    extra: Mapping[str, object] | None = (
+        {KIND_ATTR: kind} if isinstance(kind, str) else None
+    )
     if code is not None and level >= logging.INFO:
         rewritten = tuple(dict.fromkeys((shown, text)))  # the framed text first
         own = escape_controls(record.getMessage())

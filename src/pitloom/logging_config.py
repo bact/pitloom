@@ -49,6 +49,18 @@ _TRUTHY = frozenset({"1", "true", "yes", "on"})
 #: The LogRecord (and exception) attribute holding a catalogued message's
 #: code (:mod:`pitloom.messages`), printed as a trailing `` [code]``.
 CODE_ATTR = "pitloom_code"
+#: The LogRecord attribute saying why a record at ``INFO`` or above has no
+#: :data:`CODE_ATTR`: one of :data:`SUMMARY_KIND`, :data:`DETAIL_KIND` and
+#: :data:`RELAY_KIND` (:func:`pitloom.messages.line_kind` reads the same kinds
+#: back from a printed line). A record never has both.
+KIND_ATTR = "pitloom_kind"
+#: A summary (:func:`pitloom.messages.say_summary`): no condition to name.
+SUMMARY_KIND = "summary"
+#: A ``-v`` ``KEY=VALUE`` detail (:func:`pitloom.cli.kv_output.log_kv`).
+DETAIL_KIND = "detail"
+#: Another tool's own words after its name
+#: (:data:`pitloom.messages.RELAY_PREFIXES`).
+RELAY_KIND = "relay"
 #: What a reader takes for a code; one that does not match whole is never
 #: printed. :data:`pitloom.messages.CODE_GRAMMAR` is stricter.
 CODE_PATTERN = r"[a-z][a-z0-9/-]*"
@@ -220,7 +232,14 @@ def print_error(
     ``": "``); ``None`` takes the one :func:`error_frame` set, ``""`` none."""
     prefix = _ERROR_FRAME.get() if frame is None else frame
     shown = escape_controls(masked_text(message))
-    print(f"ERROR: {prefix}{_with_code(shown, code)}", file=sys.stderr)
+    _write_error_line(f"ERROR: {prefix}{_with_code(shown, code)}")
+
+
+def _write_error_line(line: str) -> None:
+    """Write *line*, one finished ``ERROR:`` line, to stderr: the one place
+    :func:`print_error` writes, looked up as a module global at each call, so
+    a test wrapping it sees every caller's line."""
+    print(line, file=sys.stderr)
 
 
 def loggable(text: str) -> str:

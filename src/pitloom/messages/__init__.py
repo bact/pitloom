@@ -16,7 +16,11 @@ the caller's values. The code travels on the log record as its
 ``pitloom_code`` attribute (:data:`~pitloom.logging_config.CODE_ATTR`),
 which a library user's own handler can read, and on an exception of any
 class as an attribute of the same name (:func:`code_of` reads it back). A
-line without a code is not catalogued yet.
+line without a code has none by its kind, or is not catalogued yet:
+:func:`line_kind` reads a printed line back as ``coded``, a summary, a ``-v``
+``KEY=VALUE`` detail, a relay (another tool's own words after a prefix of
+:data:`RELAY_PREFIXES`, its record carrying :data:`RELAY_EXTRA`) or another
+of :data:`LINE_KINDS`.
 
 Trust a code read back from a line only through :func:`trusted_message`:
 the code must be catalogued and the text one of the entry's lines at that
@@ -88,7 +92,9 @@ from pitloom.messages._frames import (
     TOP_FRAME,
     Frame,
 )
+from pitloom.messages._line_kind import LINE_KINDS, line_kind
 from pitloom.messages._lines import LINE_RE, LONGEST_LINE, says, trusted_message
+from pitloom.messages._relays import RELAY_EXTRA, RELAY_PREFIXES
 from pitloom.messages._summary import Summary, say_summary
 from pitloom.messages._topics import FAMILY_TOPICS, TOPIC_TITLES, topic_of
 from pitloom.messages._types import (
@@ -128,6 +134,7 @@ __all__ = [
     "HOOK_STEP_FRAME",
     "INPUT_KINDS",
     "LEVELS",
+    "LINE_KINDS",
     "LINE_RE",
     "LONGEST_CODE",
     "LONGEST_LINE",
@@ -136,7 +143,9 @@ __all__ = [
     "PYPI_FRAME",
     "READ_USES",
     "REF_KINDS",
+    "RELAY_EXTRA",
     "RELAY_FRAME",
+    "RELAY_PREFIXES",
     "RESERVED_FAMILIES",
     "SCAN_FRAME",
     "SUMMARIES",
@@ -156,6 +165,7 @@ __all__ = [
     "code_of",
     "emit",
     "escaped_name",
+    "line_kind",
     "recoded",
     "relay_extra",
     "say_summary",

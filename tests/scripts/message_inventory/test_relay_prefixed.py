@@ -43,6 +43,7 @@ def say(text, level=logging.WARNING):
     log.warning(PREFIX + "%s", one_line(log))  # in: not-a-param
     log.warning(PREFIX + "%s", one_line(text), one_line(text))  # in: two-args
     log.warning(PREFIX + "%s", one_line(text), extra={})  # in: keyword
+    log.warning(PREFIX + "%s", one_line(text), extra=RELAY_EXTRA)  # in: not-imported
     log.warning(TWICE + "%s", one_line(text))  # in: prefix-bound-twice
     log.warning(NOT_TEXT + "%s", one_line(text))  # in: prefix-not-text
     log.warning("tool: " + "%s", one_line(text))  # in: literal-prefix
@@ -196,7 +197,72 @@ def one_line(text):
 def say(text):
     log.warning(PREFIX + "%s", one_line(text))  # in: one-line-rebound
 """
-_SOURCES = {"more.py": _MORE, "foreign.py": _FOREIGN, "rebound.py": _REBOUND}
+#: The one keyword a prefixed relay may pass: ``extra=RELAY_EXTRA``.
+_EXTRA = """\
+import logging
+
+from pitloom.logging_config import log_once, one_line
+from pitloom.messages import RELAY_EXTRA, RELAY_FRAME
+from pitloom.messages import RELAY_EXTRA as EXTRA
+
+log = logging.getLogger(__name__)
+PRE = "tool: "
+OTHER = {}
+
+
+def say(t, lv):
+    log.warning(PRE + "%s", one_line(t), extra=RELAY_EXTRA)  # out: extra
+    log.log(lv, PRE + "%s", one_line(t), extra=RELAY_EXTRA)  # out: level-extra
+    log_once(log, lv, t, PRE + "%s", one_line(t), extra=RELAY_EXTRA)  # out: once
+    log.warning(PRE + "%s", one_line(t), extra=OTHER)  # in: extra-other
+    log.warning(PRE + "%s", one_line(t), extra=RELAY_FRAME)  # in: extra-frame
+    log.warning(PRE + "%s", one_line(t), extra=EXTRA)  # in: extra-aliased
+    log.warning(PRE + "%s", one_line(t), extra={**RELAY_EXTRA})  # in: extra-built
+    log.warning(PRE + "%s", one_line(t), stacklevel=2)  # in: other-keyword
+    log.warning(PRE + "%s", one_line(t), **RELAY_EXTRA)  # in: star-star
+    log.warning(PRE + "%s", one_line(t), extra=RELAY_EXTRA, x=2)  # in: two-keywords
+
+
+def rebound_in_function(t):
+    RELAY_EXTRA = {"pitloom_code": "x"}
+    log.warning(PRE + "%s", one_line(t), extra=RELAY_EXTRA)  # in: extra-rebound
+"""
+#: ``RELAY_EXTRA`` bound again at module level, or imported from elsewhere.
+_EXTRA_REBOUND = """\
+import logging
+
+from pitloom.logging_config import one_line
+from pitloom.messages import RELAY_EXTRA
+
+log = logging.getLogger(__name__)
+PRE = "tool: "
+RELAY_EXTRA = {}
+
+
+def say(t):
+    log.warning(PRE + "%s", one_line(t), extra=RELAY_EXTRA)  # in: module-rebound
+"""
+_EXTRA_FOREIGN = """\
+import logging
+
+from pitloom.logging_config import one_line
+from pitloom.other import RELAY_EXTRA
+
+log = logging.getLogger(__name__)
+PRE = "tool: "
+
+
+def say(t):
+    log.warning(PRE + "%s", one_line(t), extra=RELAY_EXTRA)  # in: extra-foreign
+"""
+_SOURCES = {
+    "more.py": _MORE,
+    "foreign.py": _FOREIGN,
+    "rebound.py": _REBOUND,
+    "extra.py": _EXTRA,
+    "extra_rebound.py": _EXTRA_REBOUND,
+    "extra_foreign.py": _EXTRA_FOREIGN,
+}
 _MORE_CASES = [
     (name, n, mark[0] == "in", mark[1])
     for name, source in _SOURCES.items()

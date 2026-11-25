@@ -334,7 +334,19 @@ def test_the_temporary_directory_is_removed_on_error(
 
 
 @pytest.mark.loopback
-@pytest.mark.parametrize("sha256", ["", "00" * 32], ids=["ok", "mismatch"])
+@pytest.mark.parametrize(
+    "sha256",
+    [
+        pytest.param(
+            "",
+            marks=pytest.mark.uncoded_output(
+                r"^WARNING: read <download>/x-1\.0-py3-none-any\.whl$"
+            ),
+            id="ok",
+        ),
+        pytest.param("00" * 32, id="mismatch"),
+    ],
+)
 def test_stderr_never_names_the_download_directory(
     fake: FakePypi, capsys: pytest.CaptureFixture[str], sha256: str
 ) -> None:

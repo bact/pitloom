@@ -92,6 +92,7 @@ class _MatrixEnv:
     matrix: ModuleType
     harness: ModuleType
     targets: ModuleType
+    run: ModuleType
 
 
 @pytest.fixture(name="matrix_env")
@@ -106,6 +107,7 @@ def matrix_env_fixture(scripts_dir: Path) -> Iterator[_MatrixEnv]:
             importlib.import_module("_matrix"),
             importlib.import_module("_harness"),
             importlib.import_module("_matrix_targets"),
+            importlib.import_module("_matrix_run"),
         )
     finally:
         for name in _MATRIX_SIBLINGS:
@@ -178,19 +180,26 @@ def test_completeness_needs_a_subcommand_to_actually_run_the_group(
             run(ctx)
 
 
-_REFUSAL = "ERROR: wheel command failed: refused [x]\n"
+_REFUSAL = (
+    "ERROR: URL=https://x/: network access is forbidden (offline mode); "
+    "nothing fetched [offline-unusable]\n"
+)
+_OTHER_REFUSAL = (
+    "ERROR: URL=https://x/: PyPI is read over https only; "
+    "give the https:// URL [pypi-url-invalid]\n"
+)
 _BLOCKED = "NETGUARD: blocked connect\n"
 
 
 @pytest.mark.parametrize(
     ("expectation", "network", "returncode", "stderr", "writes", "passes"),
     [
-        ("refuses:[x]", False, 1, _REFUSAL, False, True),
-        ("refuses:[x]", False, 0, _REFUSAL, False, False),
-        ("refuses:[x]", False, 1, "ERROR: refused [y]\n", False, False),
-        ("refuses:[x]", False, 1, _REFUSAL, True, False),
-        ("refuses:[x]", False, 1, _BLOCKED + _REFUSAL, False, False),
-        ("refuses:[x]", True, 1, _BLOCKED + _REFUSAL, False, True),
+        ("refuses:[offline-unusable]", False, 1, _REFUSAL, False, True),
+        ("refuses:[offline-unusable]", False, 0, _REFUSAL, False, False),
+        ("refuses:[offline-unusable]", False, 1, _OTHER_REFUSAL, False, False),
+        ("refuses:[offline-unusable]", False, 1, _REFUSAL, True, False),
+        ("refuses:[offline-unusable]", False, 1, _BLOCKED + _REFUSAL, False, False),
+        ("refuses:[offline-unusable]", True, 1, _BLOCKED + _REFUSAL, False, True),
         ("writes", True, 0, "", True, True),
         ("writes", True, 1, "", True, False),
         ("writes", True, 0, "", False, False),
@@ -257,6 +266,70 @@ def test_every_target_cell_is_registered_with_a_known_expectation(
     checks = list(targets.target_checks())
     assert len({c.check_id for c in checks}) == len(cells)
     assert [c.network for c in checks] == [c.network for c in cells]
+
+
+_OVERLONG = "ERROR: " + "x" * 70000
+_RELAY = "ERROR: loom generate: spdx3-validate: a finding"
+
+
+@pytest.mark.parametrize(
+    ("stderr", "allow", "passes"),
+    [
+        pytest.param("WARNING: own words\n", (), False, id="uncoded"),
+        pytest.param("WARNING: own words\n", (r"own w",), True, id="allowed"),
+        pytest.param("WARNING: own words\n", (r"other",), False, id="not-allowed"),
+        pytest.param("WARNING: own words\r\n", (), False, id="uncoded-crlf"),
+        pytest.param("INFO: KEY=VALUE\n", (), True, id="detail"),
+        pytest.param("INFO: KEY=VALUE\r\n", (), True, id="detail-crlf"),
+        pytest.param(f"{_RELAY}\n", (), True, id="framed-relay"),
+        pytest.param(f"{_OVERLONG}\n", (), False, id="overlong"),
+        pytest.param(f"{_OVERLONG}\n", (r"^ERROR: x",), True, id="overlong-allowed"),
+        pytest.param("usage: loom [-h]\n", (), False, id="untagged"),
+        pytest.param("usage: loom [-h]\n", (r"usage",), False, id="untagged-allowed"),
+        pytest.param("DEBUG: step\n", (), False, id="debug-not-asked"),
+        pytest.param("NETGUARD: blocked connect\n", (), True, id="guard-line-skipped"),
+    ],
+)
+def test_expect_tagged_reads_each_line_with_line_kind(
+    matrix_env: _MatrixEnv, stderr: str, allow: tuple[str, ...], passes: bool
+) -> None:
+    """An ``uncoded`` or ``overlong`` line fails ``expect_tagged`` unless an
+    *allow* regex matches it; an untagged line fails whatever *allow* says;
+    a ``-v`` detail and a framed relay pass, a CRLF line end too."""
+    harness = matrix_env.harness
+    result = harness.Result(["x"], 0, "", stderr, 0.0)
+    if passes:
+        harness.expect_tagged(result, allow=allow)
+    else:
+        with pytest.raises(harness.CheckFailed, match="stderr lines"):
+            harness.expect_tagged(result, allow=allow)
+
+
+@pytest.mark.parametrize(
+    ("stderr", "debug", "passes"),
+    [
+        pytest.param("WARNING: own words\n", False, False, id="uncoded"),
+        pytest.param("WARNING: own words\n", True, False, id="uncoded-debug-run"),
+        pytest.param("INFO: KEY=VALUE\r\n", False, True, id="detail-crlf"),
+        pytest.param(f"{_RELAY}\n", False, True, id="framed-relay"),
+        pytest.param(f"{_OVERLONG}\n", False, False, id="overlong"),
+        pytest.param("usage: loom [-h]\n", False, False, id="untagged"),
+        pytest.param("DEBUG: step\n", False, False, id="debug-line-in-plain-run"),
+        pytest.param("DEBUG: step\n", True, True, id="debug-line-in-debug-run"),
+    ],
+)
+def test_universal_fails_on_uncoded_and_overlong_lines(
+    matrix_env: _MatrixEnv, stderr: str, debug: bool, passes: bool
+) -> None:
+    """The matrix's universal invariant reads lines the same way; a
+    ``DEBUG:`` line is fine only in a debug run, as before."""
+    harness = matrix_env.harness
+    result = harness.Result(["x"], 0, "", stderr, 0.0)
+    if passes:
+        matrix_env.run.universal(result, debug=debug)
+    else:
+        with pytest.raises(harness.CheckFailed, match="stderr lines"):
+            matrix_env.run.universal(result, debug=debug)
 
 
 def test_child_env_makes_pythonpath_absolute(

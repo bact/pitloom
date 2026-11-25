@@ -31,7 +31,10 @@ shape of the code around the call, never by a variable's name.
   argument is ``one_line(<param>)`` of a parameter of the function saying
   it, or ``one_line(<param>, <LIMIT>)`` with ``LIMIT`` a module constant
   bound once to an ``int`` (a cut, not text), with ``one_line`` imported
-  from ``pitloom.logging_config``; no keyword argument. The text is the
+  from ``pitloom.logging_config``. No keyword argument but, at most,
+  ``extra=RELAY_EXTRA``, the record's kind, with ``RELAY_EXTRA`` imported
+  from ``pitloom.messages`` and bound by nothing else in the module or the
+  function (:data:`_RELAY_EXTRA`, as for the maskers). The text is the
   tool's, the prefix only says whose.
 
 Any of them holds only where the call is in the binder's own body (not in a
@@ -72,6 +75,8 @@ _PARSER_BASES = frozenset({"argparse.ArgumentParser", "ArgumentParser"})
 #: in, and their names there.
 _MASKING_MODULE = "pitloom.core.url_masking"
 _MASKERS = ("masked_given_path", "sanitize_url_credentials")
+#: Where the one ``extra`` a prefixed relay may pass comes from, and its name.
+_RELAY_EXTRA = ("pitloom.messages", "RELAY_EXTRA")
 #: Nodes that open a scope of their own: a call inside one is not said by
 #: the binder's body, whatever names it reads.
 _SCOPES = (
@@ -271,14 +276,35 @@ def _one_line_param(mod: Module, func: _Function, node: ast.expr) -> str:
     return name if name in {a.arg for a in params} else ""
 
 
+def _is_relay_extra(mod: Module, func: _Function, keywords: list[ast.keyword]) -> bool:
+    """*keywords* are none, or only ``extra=RELAY_EXTRA`` with
+    ``RELAY_EXTRA`` imported from ``pitloom.messages`` under its own name
+    (:data:`_RELAY_EXTRA`) and bound by nothing else in *mod* or in *func*:
+    the relay's kind, never text."""
+    if not keywords:
+        return True
+    if len(keywords) != 1 or keywords[0].arg != "extra":
+        return False
+    value = keywords[0].value
+    if not isinstance(value, ast.Name):
+        return False
+    name = value.id
+    return (
+        (name, mod.imports.get(name)) == (_RELAY_EXTRA[1], _RELAY_EXTRA)
+        and _module_bindings(mod, name) == 1
+        and not any(name in _bound_names(sub) for sub in ast.walk(func))
+    )
+
+
 def _is_prefixed(
     mod: Module, func: ast.AST | None, call: ast.Call, text: ast.expr
 ) -> bool:
     """*call*, said by *func*'s own body, says ``<PREFIX> + "%s"`` with
-    ``one_line(<param>)`` as its one argument, no keyword (``PREFIXED``)."""
+    ``one_line(<param>)`` as its one argument, no keyword but
+    ``extra=RELAY_EXTRA`` (:func:`_is_relay_extra`) (``PREFIXED``)."""
     if (
         not isinstance(func, (ast.FunctionDef, ast.AsyncFunctionDef))
-        or call.keywords
+        or not _is_relay_extra(mod, func, call.keywords)
         or not any(arg is text for arg in call.args)
     ):
         return False
@@ -367,6 +393,19 @@ def relay_kind(
         return None
     if emitter != "print_error":
         return PREFIXED if _is_prefixed(mod, func, call, text) else None
+    return _print_error_kind(mod, (call, text), func, cls)
+
+
+def _print_error_kind(
+    mod: Module,
+    said: tuple[ast.Call, ast.expr],
+    func: ast.AST | None,
+    cls: str | None,
+) -> str | None:
+    """``EXCEPTION``, ``EXCEPTION_PARAM``, ``ARGPARSE`` or ``None`` for a
+    ``print_error`` call and its text argument, *said*, in *func* of class
+    *cls*."""
+    call, text = said
     param = _parser_error_param(mod, func, cls)
     if (
         param

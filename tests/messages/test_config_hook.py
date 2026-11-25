@@ -209,6 +209,7 @@ def test_a_bad_source_date_epoch_fails_the_hook_on_one_line(
     assert tail in message  # on one line: see _error_line
 
 
+@pytest.mark.uncoded_output(r"^ERROR: Pitloom build hook: bad\\nERROR: forged ")
 def test_a_failure_s_text_is_one_masked_escaped_uncoded_line(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

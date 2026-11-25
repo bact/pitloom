@@ -117,6 +117,10 @@ def test_a_deeply_nested_query_is_refused_then_accepted_by_fingerprint(
     assert _DEEP in out.read_text(encoding="utf-8")
 
 
+# The unshown-message line stays uncoded (sweep B ruling R5).
+@pytest.mark.uncoded_output(
+    r"^ERROR: loom enrich: \(a log message that could not be shown\)$"
+)
 def test_a_url_that_cannot_be_masked_never_prints_raw(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:

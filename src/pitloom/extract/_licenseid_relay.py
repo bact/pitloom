@@ -57,6 +57,7 @@ from licenseid import LicenseIdWarning
 
 from pitloom.core.warning_capture import WARNINGS_LOCK, recorded_in_thread
 from pitloom.logging_config import log_once, one_line
+from pitloom.messages import RELAY_EXTRA
 
 log = logging.getLogger(__name__)
 
@@ -84,9 +85,11 @@ _FILTER = ("always", None, LicenseIdWarning, re.compile(_MODULE), 0)
 def say(text: str, level: int = logging.WARNING) -> None:
     """Log *text*, which LicenseID said, once per process at *level*
     (later repeats at ``DEBUG``), as one escaped line after :data:`PREFIX`.
-    LicenseID's own words, so no code: the message inventory knows this
+    LicenseID's own words, so no code (the record's kind a relay,
+    :data:`pitloom.messages.RELAY_EXTRA`): the message inventory knows this
     shape as a ``prefixed`` relay (``scripts/message_inventory/_relay.py``)."""
-    log_once(log, level, PREFIX + one_line(text), PREFIX + "%s", one_line(text))
+    key = PREFIX + one_line(text)
+    log_once(log, level, key, PREFIX + "%s", one_line(text), extra=RELAY_EXTRA)
 
 
 def _is_licenseid_warning(message: Warning | str) -> bool:

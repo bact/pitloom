@@ -35,12 +35,9 @@ from pitloom.messages import (
 from pitloom.messages._templates import PLACEHOLDER
 from pitloom.messages.config import ConfigPlace
 from tests._docs_scan import REPO_ROOT
+from tests._strict_uncoded import TEST_LOGGER_PREFIX, strict_finding
 
 SRC_ROOT = REPO_ROOT / "src" / "pitloom"
-
-#: A logger named like this belongs to a test that feeds the catalogue odd
-#: text on purpose; its records are not checked.
-TEST_LOGGER_PREFIX = "pitloom.test_"
 
 #: A value of each field, as a caller passes it.
 SAMPLES: dict[str, object] = {
@@ -189,11 +186,16 @@ SAMPLES: dict[str, object] = {
 
 
 def record_problem(record: logging.LogRecord) -> str | None:
-    """What is wrong with *record* as a catalogued one, or ``None``: it has
-    no :data:`~pitloom.logging_config.CODE_ATTR`, it is a ``DEBUG`` record
+    """What is wrong with *record* as a catalogued one, or ``None``: first
+    the strict check's finding (:func:`tests._strict_uncoded.strict_finding`:
+    a record said without a code), then ``None`` when it has no
+    :data:`~pitloom.logging_config.CODE_ATTR`, it is a ``DEBUG`` record
     (printed without its code: a message said once repeats at ``DEBUG``), or
     its code is catalogued and its text one of the entry's lines at its
     level."""
+    finding = strict_finding(record)
+    if finding is not None:
+        return finding.problem
     code = getattr(record, CODE_ATTR, None)
     if (
         code is None

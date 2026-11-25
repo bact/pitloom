@@ -65,6 +65,7 @@ def _log_while_another_thread_captures() -> None:
         worker.join(10)
 
 
+@pytest.mark.uncoded_output(r"^WARNING: from the main thread$")
 @pytest.mark.parametrize("refuse", [True, False], ids=["filtered", "passed"])
 def test_the_parent_s_filters_apply_to_a_passed_on_record(refuse: bool) -> None:
     parent = logging.getLogger(_PARENT)

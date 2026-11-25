@@ -18,6 +18,7 @@ from typing import Any
 
 import pytest
 
+from pitloom import logging_config
 from pitloom.extract._license import clear_resolution_cache
 from pitloom.extract._license_text_match import _get_detector
 from pitloom.logging_config import _WARNED_ONCE
@@ -34,6 +35,13 @@ from tests._network import (  # noqa: F401
 )
 from tests._platform import is_platform_file
 from tests._spdx3_validate import use_offline_model
+from tests._strict_uncoded import (
+    MARKER,
+    Finding,
+    failures,
+    line_finding,
+    strict_finding,
+)
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
@@ -198,27 +206,53 @@ def _restore_pitloom_logger() -> Iterator[None]:
 
 
 @pytest.fixture(autouse=True)
-def _catalogued_records_are_valid() -> Iterator[None]:
+def _catalogued_records_are_valid(request: pytest.FixtureRequest) -> Iterator[None]:
     """Fail a test during which any log record carried a ``pitloom_code``
     that is uncatalogued, at a level or with a text its entry does not say
-    (:func:`tests._message_drift.record_problem`). Hooked on ``Logger.handle``
-    so every record counts, whatever the handlers; the hook is its own
-    patch, undone at the end without touching the test's ``monkeypatch``. A
-    logger named ``pitloom.test_*`` is a test's own and is not checked."""
+    (:func:`tests._message_drift.record_problem`), or Pitloom said a record
+    or an ``ERROR:`` line without a code that its kind does not explain and
+    no ``uncoded_output`` marker of the test allows (:mod:`tests
+    ._strict_uncoded`). Hooked on ``Logger.handle`` so every record counts,
+    whatever the handlers, and on ``print_error``'s one seam
+    ``_write_error_line``; the hooks are their own patch, undone at the end
+    without touching the test's ``monkeypatch``. A logger named
+    ``pitloom.test_*`` is a test's own and is not checked."""
     problems: list[str] = []
+    findings: list[Finding] = []
     handle = logging.Logger.handle
+    # pylint: disable-next=protected-access
+    write = logging_config._write_error_line
 
     def watching(self: logging.Logger, record: logging.LogRecord) -> None:
         problem = record_problem(record)
         if problem is not None:
-            problems.append(problem)
+            finding = strict_finding(record)
+            if finding is None:
+                problems.append(problem)
+            else:
+                findings.append(finding)
         handle(self, record)
+
+    def watching_lines(line: str) -> None:
+        finding = line_finding(line)
+        if finding is not None:
+            findings.append(finding)
+        write(line)
 
     with pytest.MonkeyPatch.context() as patch:
         patch.setattr(logging.Logger, "handle", watching)
+        patch.setattr(logging_config, "_write_error_line", watching_lines)
         yield
+    allowances = [
+        pattern
+        for mark in request.node.own_markers
+        if mark.name == MARKER
+        for pattern in mark.args
+    ]
+    problems = [f"catalogued record: {p}" for p in problems]
+    problems += [f"uncoded output: {f}" for f in failures(findings, allowances)]
     if problems:
-        pytest.fail("catalogued record: " + "; ".join(problems), pytrace=False)
+        pytest.fail("; ".join(problems), pytrace=False)
 
 
 @pytest.fixture(autouse=True)

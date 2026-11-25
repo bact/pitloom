@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess  # nosec B404
 import sys
 import time
@@ -21,6 +22,8 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, cast
+
+from pitloom.messages import line_kind
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DATETIME = "2026-01-01T00:00:00Z"
@@ -228,10 +231,43 @@ def run_ok(
     return result
 
 
-def expect_tagged(result: Result, tags: tuple[str, ...] = TAGS) -> None:
-    """Every stderr line starts with exactly one level tag."""
-    untagged = [line for line in result.stderr_lines if not line.startswith(tags)]
+def stderr_problems(
+    lines: Iterable[str],
+    tags: tuple[str, ...] = TAGS,
+    allow: tuple[str, ...] = (),
+) -> tuple[list[str], list[str]]:
+    """The stderr *lines* a check must fail on: ``(untagged, uncoded)``.
+
+    Untagged: not starting with one of *tags* (so a ``DEBUG:`` line only
+    when ``DEBUG: `` is not among them); *allow* never lets one through.
+    Uncoded: of kind ``uncoded`` or ``overlong``
+    (:func:`pitloom.messages.line_kind`) and matching none of the regexes
+    in *allow* (a ``re.search``). The kinds without a code by design
+    (``summary``, ``detail``, ``relay``) pass, as does ``coded``.
+    """
+    patterns = [re.compile(a) for a in allow]
+    untagged: list[str] = []
+    uncoded: list[str] = []
+    for line in lines:
+        if not line.startswith(tags):
+            untagged.append(line)
+        elif line_kind(line) in ("uncoded", "overlong") and not any(
+            p.search(line) for p in patterns
+        ):
+            uncoded.append(line)
+    return untagged, uncoded
+
+
+def expect_tagged(
+    result: Result, tags: tuple[str, ...] = TAGS, allow: tuple[str, ...] = ()
+) -> None:
+    """Every stderr line starts with exactly one level tag, and is not an
+    ``uncoded`` or ``overlong`` line (see :func:`stderr_problems`); *allow*
+    holds regexes of lines to let through, as the pytest marker
+    ``uncoded_output`` does."""
+    untagged, uncoded = stderr_problems(result.stderr_lines, tags, allow)
     expect(not untagged, f"untagged stderr lines: {untagged[:5]}")
+    expect(not uncoded, f"uncoded stderr lines: {uncoded[:5]}")
 
 
 def embedded_sboms(wheel: Path) -> dict[str, bytes]:

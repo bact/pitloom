@@ -201,6 +201,7 @@ def test_the_line_says_which_action_of_a_message() -> None:
     ]
 
 
+@pytest.mark.uncoded_output(r"^ERROR: model command failed: 'm'")
 @pytest.mark.parametrize(
     ("code", "tail"),
     [(None, "'m'"), ("lfs-pointer", "'m' [lfs-pointer]"), ("x y", "'m'")],
@@ -212,6 +213,8 @@ def test_print_error_appends_only_a_code(
     assert _lines(capsys) == [f"ERROR: model command failed: {tail}"]
 
 
+# Each parameter prints its own uncoded text, the test's subject.
+@pytest.mark.uncoded_output(r"^ERROR: ")
 @pytest.mark.parametrize(
     ("text", "printed"),
     [
@@ -245,6 +248,7 @@ def test_an_uncoded_line_never_ends_in_a_code(
     ]
 
 
+@pytest.mark.uncoded_output(r"^ERROR: x \[lfs-pointer\] \[lfs-pointer\]$")
 def test_a_coded_line_keeps_a_value_that_ends_like_a_code(
     capsys: pytest.CaptureFixture[str],
 ) -> None:

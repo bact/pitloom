@@ -42,6 +42,7 @@ from pathlib import Path
 from pitloom.core.quote_source import quote_source
 from pitloom.core.warning_capture import WARNINGS_LOCK, recorded_in_thread
 from pitloom.logging_config import one_line
+from pitloom.messages import RELAY_EXTRA
 
 log = logging.getLogger(__name__)
 
@@ -57,11 +58,12 @@ _PREFIX = "setuptools stderr: "
 
 def _say_stderr(line: str, level: int) -> None:
     """Log *line*, which setuptools wrote to stderr, at *level*, as one
-    escaped line after :data:`_PREFIX`."""
+    escaped line after :data:`_PREFIX`, the record's kind a relay
+    (:data:`pitloom.messages.RELAY_EXTRA`)."""
     # The prefix is a constant, the text a %s argument: the shape the
     # message inventory reads as a prefixed relay.
     # pylint: disable-next=logging-not-lazy
-    log.log(level, _PREFIX + "%s", one_line(line))
+    log.log(level, _PREFIX + "%s", one_line(line), extra=RELAY_EXTRA)
 
 
 def relay_stderr_text(project_dir: Path, text: str, dropped: int = 0) -> None:

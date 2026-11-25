@@ -324,6 +324,10 @@ def test_a_reader_detail_is_on_one_line_and_scrubbed(tmp_path: Path) -> None:
     assert text == "bad demo/m.bin ::error::x"
 
 
+@pytest.mark.uncoded_output(
+    r"^WARNING: a\\nb\\r\\n::c$",
+    r"^WARNING: FORMAT=safetensors FILE=m\.safetensors: a b ::c$",
+)
 def test_a_log_relayed_reader_record_is_on_one_line(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:

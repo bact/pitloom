@@ -149,6 +149,11 @@ def test_the_sniff_and_usage_branches_scrub_the_read_path(
     assert "Permission denied" in message
 
 
+@pytest.mark.uncoded_output(
+    r"^WARNING: Failed to inspect x in Source: 0\.pt: a\\n::error::b$",
+    r"^WARNING: FORMAT=pytorch FILE=demo/real\.pt: Failed to inspect x in Source: "
+    r"real\.pt: a ::error::b$",
+)
 def test_reader_records_are_relogged_under_the_stable_prefix(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
@@ -216,6 +221,9 @@ def test_a_relayed_error_naming_the_copy_names_the_model_as_file_does(
     assert trusted_message(line) is not None
 
 
+@pytest.mark.uncoded_output(
+    r"^WARNING: plain$", r"^WARNING: FORMAT=pytorch FILE=demo/real\.pt: plain$"
+)
 def test_a_reader_records_code_is_kept_when_relogged(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
@@ -472,6 +480,7 @@ def test_a_project_model_s_dataset_line_names_its_path(
     assert _printed(caplog) == [_BAD_URL_LINE]
 
 
+@pytest.mark.uncoded_output(r"^WARNING: x$")
 def test_an_internal_error_in_the_relay_is_not_a_failed_read(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
