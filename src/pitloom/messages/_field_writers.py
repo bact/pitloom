@@ -64,7 +64,7 @@ def _without_addresses(text: str) -> str:
 #: request that failed into its exception's text (the response's
 #: ``X-Request-Id``, else ``X-Amzn-Trace-Id``, else ``X-Amz-Cf-Id`` header,
 #: each under its own label): a new id on every request.
-_REQUEST_ID: Final = re.compile(r" ?\((?:Request ID|Amzn Trace ID|Amz CF ID): [^()]+\)")
+_REQUEST_ID: Final = re.compile(r"\((?:Request ID|Amzn Trace ID|Amz CF ID): [^()]+\)")
 
 
 def _steady(text: str) -> str:
@@ -231,11 +231,16 @@ def failure_text(value: object) -> str:
     denied``), never its text, which quotes the path; any other
     exception's text (:func:`~pitloom.logging_config.failure_reason`) with
     a memory address (`` at 0x...``, as in an object's default repr) and a
-    Hub request's id (`` (Request ID: ...)``) dropped, from every
-    ``failure`` field and not only a Hub error's, so these two do not make
-    the line differ per run (a server's own text still can); its class name
-    when nothing is left; the credentials of a URL in what is left masked;
-    then cut to :data:`FAILURE_CHARACTERS` characters (then ``...``): a
+    Hub request id (``(Request ID: ...)``) dropped (the ``steady`` step of
+    :func:`~pitloom.logging_config.one_line`, which collapses the white
+    space the drop leaves), so these two do not make the line differ per
+    run (a server's own text still can). That step runs for every failure
+    without a ``strerror`` (a Hub error, an ``OSError`` with no
+    ``strerror``, any other exception) and for the head of an
+    :class:`http.client.InvalidURL`; an ``OSError`` with a ``strerror`` is
+    shown as the OS wrote it (masked and cut, nothing dropped). Its class
+    name when nothing is left; the credentials of a URL in what is left
+    masked; then cut to :data:`FAILURE_CHARACTERS` characters (then ``...``): a
     server's error page can be as long as it likes. Dropped before the cut,
     so the cut is decided on the text shown. The text also reaches a
     library caller in an exception, past the log sink.
