@@ -23,7 +23,7 @@ from pathlib import Path
 
 import pytest
 
-from pitloom import _embed_wheel
+from pitloom import _embed_wheel, _sbom_io
 from pitloom._wheel_sbom_location import read_wheel_member
 from pitloom.assemble import embed_sbom_in_wheel
 from pitloom.core import wheel_dist_info
@@ -150,7 +150,7 @@ def test_a_coded_os_error_in_a_member_read_passes_as_it_is() -> None:
 
 
 def test_standard_output_is_written_there(capsys: pytest.CaptureFixture[str]) -> None:
-    _embed_wheel.write_sbom_copy(_SBOM, "-")
+    _sbom_io.write_sbom_output(_SBOM, "-")
     assert capsys.readouterr().out == _SBOM + "\n"
 
 
@@ -163,8 +163,8 @@ def test_a_closed_standard_output_is_not_a_file_named_dash(
     def broken(_text: str) -> None:
         raise BrokenPipeError(errno.EPIPE, "Broken pipe")
 
-    monkeypatch.setattr(_embed_wheel, "write_stdout_lf", broken)
+    monkeypatch.setattr(_sbom_io, "write_stdout_lf", broken)
     with pytest.raises(BrokenPipeError) as caught:
-        _embed_wheel.write_sbom_copy(_SBOM, "-")
+        _sbom_io.write_sbom_output(_SBOM, "-")
     assert code_of(caught.value) is None
     assert "FILE=-" not in str(caught.value)

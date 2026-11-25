@@ -389,7 +389,7 @@ def test_hook_editable_variant_is_skipped_with_one_info(
     ids=["project-sbom-files", "other-hook", "case-only-project", "case-only-hook"],
 )
 def test_hook_refuses_an_sbom_name_already_placed(
-    caplog: pytest.LogCaptureFixture, configured: str, from_hook: bool
+    capsys: pytest.CaptureFixture[str], configured: str, from_hook: bool
 ) -> None:
     """Whatever Hatchling already puts under .dist-info/sboms/ under the
     staged name (``sbom-files``, or another hook's ``build_data`` entry) is
@@ -402,14 +402,17 @@ def test_hook_refuses_an_sbom_name_already_placed(
             build_data["sbom_files"] = [configured]
         else:
             cast(Any, hook.build_config).sbom_files.append(configured)
-        with caplog.at_level(logging.ERROR):
-            with pytest.raises(ValueError, match="sbom-basename"):
-                hook.initialize("standard", build_data)
+        with pytest.raises(ValueError, match="sbom-basename"):
+            hook.initialize("standard", build_data)
         assert build_data.get("sbom_files", []) == ([configured] if from_hook else [])
-        errors = [r for r in caplog.records if r.levelno == logging.ERROR]
+        errors = [
+            line
+            for line in capsys.readouterr().err.splitlines()
+            if line.startswith("ERROR: ")
+        ]
         assert len(errors) == 1
-        assert errors[0].getMessage().startswith("Pitloom build hook: ")
-        assert configured in errors[0].getMessage()
+        assert errors[0].startswith("ERROR: Pitloom build hook: ")
+        assert configured in errors[0]
 
 
 _POINTER_TEXT = (
@@ -469,7 +472,7 @@ def test_staging_refuses_a_frame_that_does_not_allow_its_line_on_entry(
         codes=frozenset({"build-failed"}),
     )
     monkeypatch.setattr(hatch, "HOOK_STEP_FRAME", narrowed)
-    with mock.patch.object(tempfile, "mkdtemp") as made:
+    with mock.patch.object(hatch, "mkdtemp") as made:
         with pytest.raises(InternalError):
             # pylint: disable-next=protected-access
             hatch._stage_sbom_file("{}", "x.spdx3.json")

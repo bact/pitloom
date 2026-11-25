@@ -23,6 +23,7 @@ import pytest
 from pitloom.core._models_wheel_lock import _DiscoveryLock
 from pitloom.core._models_wheel_types import IncludedFile
 from pitloom.core.build_options import BuildOptions
+from pitloom.core.internal_error import InternalError
 from pitloom.core.models import get_wheel_files
 from tests.build_and_read_shared import BUILD_AND_READ, make_backend_project
 
@@ -31,10 +32,10 @@ def test_discovery_lock_write_rejects_reentrant_write_by_same_thread() -> None:
     """A writer backend's discover() (or third-party code it runs, e.g.
     importing a target project's setup.py) that calls back into file
     discovery on the same thread while holding the write lock fails with
-    RuntimeError instead of deadlocking on itself."""
+    InternalError instead of deadlocking on itself."""
     lock = _DiscoveryLock()
     with lock.write():
-        with pytest.raises(RuntimeError, match="re-entrantly"):
+        with pytest.raises(InternalError, match="re-entrantly"):
             with lock.write():
                 pass
 
@@ -42,11 +43,11 @@ def test_discovery_lock_write_rejects_reentrant_write_by_same_thread() -> None:
 def test_discovery_lock_write_rejects_reentrant_read_by_same_thread() -> None:
     """The write-then-read half of the reentrancy hazard: a thread holding
     the write lock that calls back into discovery through a *reader* backend
-    (Hatchling/Poetry/Flit) also fails with RuntimeError instead of
+    (Hatchling/Poetry/Flit) also fails with InternalError instead of
     deadlocking (only that thread could release the lock)."""
     lock = _DiscoveryLock()
     with lock.write():
-        with pytest.raises(RuntimeError, match="re-entrantly"):
+        with pytest.raises(InternalError, match="re-entrantly"):
             with lock.read():
                 pass
 

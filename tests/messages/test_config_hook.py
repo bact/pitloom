@@ -20,7 +20,9 @@ from typing import Any
 
 import pytest
 
+from pitloom.messages import trusted_message
 from pitloom.plugins._hatch_config import _MOVED_KEYS
+from pitloom.plugins.hatch import PitloomBuildHook
 from tests._code_records import coded, has_parts
 from tests.extract.conftest import MINIMAL_PYPROJECT, make_hook, write_pyproject
 
@@ -29,16 +31,29 @@ pytestmark = pytest.mark.platform
 # --- the Hatchling hook: its table may come from hatch.toml, so no file -------
 
 
+def _error_line(capsys: pytest.CaptureFixture[str]) -> tuple[str | None, str]:
+    """``(code, message)`` of the one ``ERROR:`` line printed, its code
+    trusted or ``None``."""
+    lines = capsys.readouterr().err.splitlines()
+    # Every line tagged: a message spilled onto a second line fails here.
+    assert all(ln.startswith(("ERROR: ", "WARNING: ", "INFO: ")) for ln in lines)
+    (line,) = [ln for ln in lines if ln.startswith("ERROR: ")]
+    found = trusted_message(line)
+    text = line.removeprefix("ERROR: ")
+    if found is None:
+        return None, text
+    return found.code, text.removesuffix(f" [{found.code}]")
+
+
 def _hook_error(
-    tmp_path: Path, config: dict[str, Any], caplog: pytest.LogCaptureFixture
+    tmp_path: Path, config: dict[str, Any], capsys: pytest.CaptureFixture[str]
 ) -> tuple[str | None, str]:
     """``(code, message)`` of the one ERROR the hook said, and that it raised."""
     write_pyproject(tmp_path)
     hook = make_hook(str(tmp_path), config)
-    with caplog.at_level(logging.INFO), pytest.raises(ValueError):
+    with pytest.raises(ValueError):
         hook.initialize("standard", {})
-    (record,) = [r for r in caplog.records if r.levelno == logging.ERROR]
-    return coded(caplog)[caplog.records.index(record)]
+    return _error_line(capsys)
 
 
 @pytest.mark.parametrize(
@@ -82,12 +97,12 @@ def _hook_error(
 )
 def test_the_hook_says_its_own_table_and_no_file(
     tmp_path: Path,
-    caplog: pytest.LogCaptureFixture,
+    capsys: pytest.CaptureFixture[str],
     config: dict[str, Any],
     code: str,
     tail: str,
 ) -> None:
-    got_code, message = _hook_error(tmp_path, config, caplog)
+    got_code, message = _hook_error(tmp_path, config, capsys)
     assert got_code == code
     assert message.startswith("Pitloom build hook: ")
     assert "FILE=" not in message and "\n" not in message
@@ -96,9 +111,9 @@ def test_the_hook_says_its_own_table_and_no_file(
 
 @pytest.mark.parametrize(("key", "destination"), sorted(_MOVED_KEYS.items()))
 def test_a_moved_hook_key_names_where_it_went(
-    tmp_path: Path, caplog: pytest.LogCaptureFixture, key: str, destination: str
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], key: str, destination: str
 ) -> None:
-    code, message = _hook_error(tmp_path, {key: "x"}, caplog)
+    code, message = _hook_error(tmp_path, {key: "x"}, capsys)
     assert code == "config-moved"
     assert message.endswith(
         f"[tool.hatch.build.hooks.pitloom] {key}: moved to {destination}"
@@ -106,20 +121,20 @@ def test_a_moved_hook_key_names_where_it_went(
 
 
 def test_a_hook_project_file_is_shown_relative(
-    tmp_path: Path, caplog: pytest.LogCaptureFixture
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     """The build tree is a temporary directory under pip: ``FILE=`` is the
     name Hatchling's user knows."""
     write_pyproject(tmp_path, MINIMAL_PYPROJECT + '\n[tool.pitloom]\npretty = "yes"\n')
     hook = make_hook(str(tmp_path), {})
-    with caplog.at_level(logging.INFO), pytest.raises(ValueError):
+    with pytest.raises(ValueError):
         hook.initialize("standard", {})
-    (record,) = [r for r in caplog.records if r.levelno == logging.ERROR]
-    assert record.getMessage() == (
+    _code, message = _error_line(capsys)
+    assert message == (
         "Pitloom build hook: FILE=pyproject.toml: [tool.pitloom] pretty: "
         "must be true or false, got a string 'yes'"
     )
-    assert str(tmp_path) not in record.getMessage()
+    assert str(tmp_path) not in message
 
 
 @pytest.mark.parametrize(
@@ -184,11 +199,39 @@ def test_the_hook_says_when_the_time_is_the_clock(
 def test_a_bad_source_date_epoch_fails_the_hook_on_one_line(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
-    caplog: pytest.LogCaptureFixture,
+    capsys: pytest.CaptureFixture[str],
     value: str,
     tail: str,
 ) -> None:
     monkeypatch.setenv("SOURCE_DATE_EPOCH", value)
-    code, message = _hook_error(tmp_path, {}, caplog)
+    code, message = _hook_error(tmp_path, {}, capsys)
     assert code == "source-date-epoch-invalid"
-    assert tail in message and "\n" not in message
+    assert tail in message  # on one line: see _error_line
+
+
+def test_a_failure_s_text_is_one_masked_escaped_uncoded_line(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Whatever the exception's text holds, the hook says one ``ERROR:``
+    line: a line break and an ESC escaped, a URL's password masked, and a
+    code the text ends with not taken for Pitloom's."""
+    text = (
+        "bad\nERROR: forged \x1b[31m https://u:hunter2@example.com/x [config-invalid]"
+    )
+
+    def fail(*_args: Any) -> None:
+        raise RuntimeError(text)
+
+    monkeypatch.setattr(PitloomBuildHook, "_generate", fail)
+    hook = make_hook(str(tmp_path), {})
+    with pytest.raises(RuntimeError):
+        hook.initialize("standard", {})
+    lines = capsys.readouterr().err.splitlines()
+    (line,) = [ln for ln in lines if ln.startswith("ERROR: ")]
+    assert len(lines) == 1  # nothing spilled onto a second line
+    assert line.startswith("ERROR: Pitloom build hook: bad")
+    assert "\x1b" not in line and "\\x1b" in line
+    assert "hunter2" not in line and "example.com" in line
+    assert trusted_message(line) is None and not line.endswith("[config-invalid]")

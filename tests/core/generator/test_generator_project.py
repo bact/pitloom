@@ -140,7 +140,7 @@ version = "1.0.0"
         tmppath = Path(tmpdir)
         (tmppath / "pyproject.toml").write_text(pyproject_content)
 
-        with pytest.raises(ValueError, match="content_type_method must be one of"):
+        with pytest.raises(ValueError, match="^content_type_method: must be one of"):
             generate_project_sbom(tmppath, content_type_method="mimetypes")
 
 

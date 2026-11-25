@@ -84,7 +84,7 @@ def test_apply_overrides_full(monkeypatch: pytest.MonkeyPatch) -> None:
     assert overridden.content_type.method == "extension"
     assert overridden.offline is True
 
-    with pytest.raises(ValueError, match="content_type_method must be one of"):
+    with pytest.raises(ValueError, match="^content_type_method: must be one of"):
         apply_overrides(
             cfg,
             ConfigOverrides(content_type_method="invalid_method"),
@@ -149,9 +149,11 @@ def test_invalid_method_from_the_config_alone_is_rejected() -> None:
     """``apply_overrides`` validates the effective method, not just the
     override, so a hand-built config cannot smuggle one past a caller that
     overrode nothing. Only the public library API can reach this: the TOML
-    reader and the CLI's ``choices=`` both reject it earlier."""
-    with pytest.raises(ValueError, match="content_type_method must be one of"):
+    reader and the CLI's ``choices=`` both reject it earlier: a library
+    caller's value, so ``option-invalid``."""
+    with pytest.raises(ValueError, match="^content_type_method: must be one of") as e:
         apply_overrides(PitloomConfig(content_type_method="bogus"), ConfigOverrides())
+    assert code_of(e.value) == "option-invalid"
 
 
 def test_load_config_file_reads_every_key(tmp_path: Path) -> None:

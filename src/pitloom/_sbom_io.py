@@ -22,8 +22,12 @@ import os
 import secrets
 import stat
 import sys
+from collections.abc import Iterator
 from pathlib import Path
 from typing import TextIO
+
+from pitloom.messages import code_of
+from pitloom.messages.files import SBOM_USE, file_unwritable_error
 
 #: The ``-o`` value that means "write to standard output".
 STDOUT = "-"
@@ -106,19 +110,43 @@ def write_stdout_lf(text: str) -> None:
     buffer.flush()
 
 
+@contextlib.contextmanager
+def coded_write(file: str | os.PathLike[str]) -> Iterator[None]:
+    """Say a write of *file* (as the line names it) the system refuses as
+    ``file-unwritable`` for the SBOM: an :class:`OSError` that carries a
+    code of ours (a refused read of a wheel, coded where it is read by
+    :func:`~pitloom.core.wheel_dist_info.refuse_unreadable`) passes as it
+    is."""
+    try:
+        yield
+    except OSError as exc:
+        if code_of(exc) is not None:
+            raise
+        raise file_unwritable_error(exc, file=file, use=SBOM_USE) from exc
+
+
 def write_sbom_output(sbom_json: str, output_path: Path | str | None) -> None:
     """Write an SBOM to *output_path*, to standard output for ``-``, or
-    nowhere for ``None``."""
+    nowhere for ``None``: the one ``-o`` write of every surface. A write
+    the system refuses is ``file-unwritable`` for *output_path* as given
+    (:func:`coded_write`). Standard output is no file: a write to it fails
+    as every command's does.
+
+    Raises:
+        pitloom.messages.CodedOSError: The system refused the write.
+    """
     if output_path is None:
         return
     if is_stdout(output_path):
         write_stdout_lf(sbom_json)
-    else:
+        return
+    with coded_write(output_path):
         write_text_lf(output_path, sbom_json)
 
 
 __all__ = [
     "STDOUT",
+    "coded_write",
     "is_stdout",
     "open_text_lf",
     "replace_text_lf",

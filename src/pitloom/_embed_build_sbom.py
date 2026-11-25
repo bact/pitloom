@@ -39,6 +39,7 @@ from pitloom.core.build_signals import TerminationGuard
 from pitloom.core.config import PitloomConfig
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.document import DocumentModel
+from pitloom.core.internal_error import InternalError
 from pitloom.core.models import get_wheel_files, merkle_root_of_files
 from pitloom.core.project import ProjectFile, ProjectMetadata
 from pitloom.core.walk_rules import warn_registry_left_out, without_registry_copies
@@ -87,9 +88,10 @@ class EmbedFileCache:
     interrupted once that discovery is already cached.
 
     Every call in a batch must use the same project directory, file-scan
-    settings and build options: :meth:`resolve` raises :class:`ValueError`
-    otherwise. Using it outside the block, or entering it twice, raises
-    :class:`RuntimeError`. After the block it can be entered again and
+    settings and build options: :meth:`resolve` raises
+    :class:`~pitloom.core.internal_error.InternalError` (a programming error)
+    otherwise. Using it outside the block, or entering it twice, raises it
+    too. After the block it can be entered again and
     resolves afresh.
     """
 
@@ -106,7 +108,7 @@ class EmbedFileCache:
 
     def __enter__(self) -> EmbedFileCache:
         if self._guard is not None:
-            raise RuntimeError("EmbedFileCache is already entered")
+            raise InternalError("EmbedFileCache is already entered")
         # Start clean rather than trust the last block to have finished:
         # an interrupted exit leaves its batch behind on purpose, since
         # that state belongs to whichever thread holds the lock at the
@@ -191,8 +193,8 @@ class EmbedFileCache:
         """Return the cached file list (without *exclude_path*, the
         declared registry), running discovery on first use.
 
-        Raises :class:`RuntimeError` outside a ``with`` block, and
-        :class:`ValueError` when a later call in the block asks for a
+        Raises :class:`~pitloom.core.internal_error.InternalError`
+        outside a ``with`` block, and when a later call in the block asks for a
         different project directory, file-scan settings, build options
         or excluded file than the first -- the cached list would not match.
         """
@@ -233,14 +235,14 @@ class EmbedFileCache:
                     # may be handed a result it never asked for.
                     cleanup()
                     self._require_block("resolve")
-                    raise RuntimeError(
+                    raise InternalError(
                         "EmbedFileCache.resolve() outlived its with-block: "
                         "the batch it was called for ended while it ran"
                     )
                 self._resolved = (project_files, cleanup)
                 self._resolved_from = resolved_from
             elif resolved_from != self._resolved_from:
-                raise ValueError(
+                raise InternalError(
                     "EmbedFileCache: every call in one batch must use the same "
                     "project directory, file-scan settings, build options and registry"
                 )
@@ -257,7 +259,8 @@ class EmbedFileCache:
         calls, so each ineffective flag warns once for the batch. A call
         with other options or another reason settles (and warns) itself.
 
-        Raises :class:`RuntimeError` outside a ``with`` block.
+        Raises :class:`~pitloom.core.internal_error.InternalError`
+        outside a ``with`` block.
         """
         return self.once(
             ("build_options", build_options, reason),
@@ -277,7 +280,8 @@ class EmbedFileCache:
         logged once for the batch. The caller keys on everything the result
         depends on.
 
-        Raises :class:`RuntimeError` outside a ``with`` block.
+        Raises :class:`~pitloom.core.internal_error.InternalError`
+        outside a ``with`` block.
         """
         with self._lock:
             self._require_block(method)
@@ -295,7 +299,8 @@ class EmbedFileCache:
         once-per-batch message is emitted by exactly one caller. Shares
         :meth:`once`'s key space: use a key no :meth:`once` caller uses.
 
-        Raises :class:`RuntimeError` outside a ``with`` block.
+        Raises :class:`~pitloom.core.internal_error.InternalError`
+        outside a ``with`` block.
         """
         ran: list[bool] = []
         self.once(key, lambda: ran.append(True), "first_use")
@@ -305,7 +310,8 @@ class EmbedFileCache:
         """Whether the in-tree registry ``WARNING:`` is still due in this
         block: one per batch, discovery's included.
 
-        Raises :class:`RuntimeError` outside a ``with`` block.
+        Raises :class:`~pitloom.core.internal_error.InternalError`
+        outside a ``with`` block.
         """
         return self.first_use(_REGISTRY_LEFT_OUT)
 
@@ -313,13 +319,14 @@ class EmbedFileCache:
         """Whether the unknown-identity ``INFO:`` is still due in this
         block: one per batch.
 
-        Raises :class:`RuntimeError` outside a ``with`` block.
+        Raises :class:`~pitloom.core.internal_error.InternalError`
+        outside a ``with`` block.
         """
         return self.first_use(_IDENTITY_UNKNOWN)
 
     def _require_block(self, method: str) -> None:
         if self._guard is None:
-            raise RuntimeError(
+            raise InternalError(
                 f"EmbedFileCache.{method}() outside its with-block: "
                 "use 'with EmbedFileCache() as cache:' around the batch"
             )

@@ -33,6 +33,7 @@ from pitloom._embed_generate import _settle_project_build_options
 from pitloom.core.build_options import BuildOptions
 from pitloom.core.build_signals import BUILD_ACTIVITY, TerminationGuard
 from pitloom.core.config import ContentTypeOverride, PitloomConfig
+from pitloom.core.internal_error import InternalError
 from pitloom.embed import ConfigOverrides, EmbedFileCache, embed_wheel_sbom
 from tests.build_and_read_shared import spied_raise_signal
 
@@ -158,11 +159,11 @@ def test_embed_file_cache_outside_its_block_raises(tmp_path: Path) -> None:
     cache = EmbedFileCache()
 
     with mock.patch(_GET_WHEEL_FILES, autospec=True) as mocked:
-        with pytest.raises(RuntimeError, match="with EmbedFileCache"):
+        with pytest.raises(InternalError, match="with EmbedFileCache"):
             embed_wheel_sbom(wheel_path, project_dir=tmp_path, file_cache=cache)
         with cache:
             pass
-        with pytest.raises(RuntimeError, match="with EmbedFileCache"):
+        with pytest.raises(InternalError, match="with EmbedFileCache"):
             embed_wheel_sbom(wheel_path, project_dir=tmp_path, file_cache=cache)
 
     mocked.assert_not_called()
@@ -197,7 +198,7 @@ def test_embed_file_cache_can_be_entered_again(tmp_path: Path) -> None:
 
 def test_embed_file_cache_entered_twice_raises() -> None:
     with EmbedFileCache() as cache:
-        with pytest.raises(RuntimeError, match="already entered"), cache:
+        with pytest.raises(InternalError, match="already entered"), cache:
             pytest.fail("entered twice")
 
 
@@ -221,7 +222,7 @@ def test_embed_file_cache_settles_once_per_block(
 
 
 def test_embed_file_cache_settle_outside_its_block_raises() -> None:
-    with pytest.raises(RuntimeError, match="with EmbedFileCache"):
+    with pytest.raises(InternalError, match="with EmbedFileCache"):
         EmbedFileCache().settle(BuildOptions(), "wheel")
 
 

@@ -23,9 +23,12 @@ from pitloom.core.creation import (
     VALID_CREATOR_TYPES,
     CreationMetadata,
     Tool,
+    creator_type_problem,
     iso_datetime_or_none,
+    normalised_creator_type,
     resolve_source_date_epoch,
 )
+from pitloom.core.internal_error import InternalError
 from pitloom.core.models import build_pypi_purl, generate_spdx_id
 from pitloom.enrich.base import EnrichmentResult
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
@@ -101,7 +104,7 @@ CREATOR_TYPES: dict[str, type[spdx3.Agent]] = {
     "agent": spdx3.Agent,
 }
 if set(CREATOR_TYPES) != VALID_CREATOR_TYPES:
-    raise RuntimeError(
+    raise InternalError(
         "CREATOR_TYPES keys must match pitloom.core.creation.VALID_CREATOR_TYPES"
     )
 
@@ -134,9 +137,9 @@ def build_creator_agents(
     Agent without asserting a human did the work.
 
     Raises:
-        pitloom.messages.CodedValueError: A creator's ``type`` is set but
-            not one of :data:`CREATOR_TYPES` (``option-invalid``, a
-            ``ValueError``).
+        pitloom.messages.CodedValueError: A creator's ``type``, set after
+            the creator was built, is not a string or not one of
+            :data:`CREATOR_TYPES` (``option-invalid``, a ``ValueError``).
     """
     if not creation_metadata.creators:
         return [
@@ -151,13 +154,12 @@ def build_creator_agents(
 
     agents: list[spdx3.Agent] = []
     for creator in creation_metadata.creators:
-        creator_type = (creator.type or "person").strip().lower()
-        agent_cls = CREATOR_TYPES.get(creator_type)
-        if agent_cls is None:
-            # Set after Creator.__post_init__, which refuses it when built.
-            raise invalid_value(
-                Parameter("Creator.type"), "creator-type", got=creator.type
-            )
+        # Set after Creator.__post_init__, which refuses it when built: any
+        # type, so the one check of that constructor runs again here.
+        problem = creator_type_problem(creator.type)
+        if problem is not None:
+            raise invalid_value(Parameter("Creator.type"), problem, got=creator.type)
+        agent_cls = CREATOR_TYPES[normalised_creator_type(creator.type)]
         agent = agent_cls(
             spdxId=generate_spdx_id(
                 agent_cls.__name__, doc_name=doc_name, doc_uuid=doc_uuid

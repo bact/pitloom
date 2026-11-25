@@ -155,6 +155,11 @@ on the loom SDK routes, merge and fold paths and docs; no high finding):
   programming error reaches it. Candidate: raise `InternalError` there.
 - `_loom_dataset_meta.py:218->220` (`merge_metadata`, a stated field with no
   provenance entry) is an uncovered branch on `main` too (full suite).
+- A wheel-scanned GGUF dataset's provenance in the SBOM still names the
+  temporary copy (`Source: 0.gguf | Field: general.dataset.0.name`, annotation
+  `"source":"0.gguf"`): `_restore_source_name` rewrites only the model's own
+  `meta.provenance`, not each dataset's (found in sweep-a; `SOURCE=` in the
+  log line is fixed).
 - `fetch_json` follows redirects with plain `urlopen` and no host policy
   (library `read_croissant(url)` only).
 

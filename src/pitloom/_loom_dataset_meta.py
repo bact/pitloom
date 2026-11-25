@@ -172,10 +172,7 @@ def _optional_card(name: str) -> DatasetMetadata | None:
     problem with the card itself; what reaches here names no file of it,
     said as ``file-unreadable``'s directory line. A current directory gone
     leaves the card its bare name as label, and it is still read."""
-    try:
-        label = cwd_relative_label(name)
-    except OSError:
-        label = Path(name).name
+    label = cwd_relative_label(name)
     try:
         return read_dataset_card(Path(name), label=label)
     # pylint: disable-next=broad-exception-caught

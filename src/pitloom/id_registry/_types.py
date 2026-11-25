@@ -27,6 +27,7 @@ from packaging.utils import canonicalize_name, canonicalize_version
 
 from pitloom.core.file_hash import stated_sha256_hex
 from pitloom.core.given_path import given_spelling
+from pitloom.core.internal_error import InternalError
 from pitloom.core.path_probe import is_missing_errno, stat_if_present
 from pitloom.core.pep440 import parse_version
 from pitloom.core.walk_rules import IGNORED_DIR_NAMES, SameFile
@@ -107,7 +108,7 @@ class RegistryEntry:
     def __post_init__(self) -> None:
         if self.sha256 is not None:
             if not self.sha256:
-                raise ValueError("RegistryEntry.sha256 must be None or non-empty")
+                raise InternalError("RegistryEntry.sha256 must be None or non-empty")
             self.sha256 = self.sha256.lower()
 
 

@@ -408,7 +408,7 @@ class _ActiveRun:
 
     def _emit_output_input_dataset_relationships(self) -> None:
         """Emit hasInput relationships between output and input datasets."""
-        if not (self.output_datasets and self.input_datasets):
+        if not self.output_datasets:
             return
         all_input_ids = [require_spdx_id(ds) for ds in self.input_datasets]
         input_ids_by_name: dict[str | None, str] = {
