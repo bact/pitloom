@@ -192,6 +192,8 @@ and this project adheres to
   lookup when no ID registry is loaded (`model-file-missing`) ([#527])
 - A missing `croissant=` file is `input-not-found`; an unreachable Croissant URL
   is `download-network-failed` or `download-timeout` ([#534])
+- A `failure=` text, an OS error's own description aside, drops a Hub request id
+  (`(Request ID: ...)`) and a memory address before masking and the cut ([#537])
 - The usage scan no longer hangs when its parse thread cannot install a trace
   or profile hook (Python 3.10 and 3.11, concurrent parses) ([#539])
 
@@ -236,6 +238,7 @@ and this project adheres to
 [#527]: https://github.com/bact/pitloom/pull/527
 [#534]: https://github.com/bact/pitloom/pull/534
 [#536]: https://github.com/bact/pitloom/pull/536
+[#537]: https://github.com/bact/pitloom/pull/537
 [#539]: https://github.com/bact/pitloom/pull/539
 
 ## [0.24.0] - 2026-11-11
