@@ -18,7 +18,8 @@ import pytest
 
 from pitloom.core.internal_error import InternalError
 from pitloom.extract._reader_relay import named_stably, relay
-from pitloom.logging_config import CODE_ATTR
+from pitloom.logging_config import CODE_ATTR, KIND_ATTR
+from pitloom.messages import line_kind
 from pitloom.messages.datasets import DATASET_METADATA_PREFIX
 
 _LOG = logging.getLogger("pitloom.test_reader_relay")
@@ -136,3 +137,43 @@ def test_a_coded_record_its_rewriting_broke_is_said_as_read_with_its_code(
     debug, said = caplog.records
     assert "not renamed" in debug.getMessage()
     assert (said.getMessage(), getattr(said, CODE_ATTR)) == (text, "text-malformed")
+
+
+@pytest.mark.parametrize(
+    ("kind", "code"),
+    [("relay", None), (None, None), ("relay", "text-malformed")],
+    ids=["kind-kept", "no-kind", "code-wins"],
+)
+def test_a_record_s_kind_is_said_again_with_it(
+    caplog: pytest.LogCaptureFixture, kind: str | None, code: str | None
+) -> None:
+    """A reader's relay (``fickling: ``) keeps its kind when the scanner
+    says it again after its frame, so the line still reads as a relay; a
+    coded record carries its code, never a kind as well."""
+    text = (
+        "fickling: its own words"
+        if code is None
+        else "FILE=m: lone surrogates written as \\uXXXX"
+    )
+    record = _record(logging.WARNING, text, code)
+    if kind is not None:
+        setattr(record, KIND_ATTR, kind)
+    with caplog.at_level(logging.WARNING, logger=_LOG.name):
+        relay(_LOG, record, text, _FRAME)
+    (said,) = caplog.records
+    assert getattr(said, KIND_ATTR, None) == (kind if code is None else None)
+    assert getattr(said, CODE_ATTR, None) == code
+    if code is None and kind is not None:
+        assert line_kind(f"WARNING: {said.getMessage()}") == "relay"
+
+
+def test_a_kind_that_is_not_text_is_not_said_again(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Only a text kind is copied to the relayed record."""
+    record = _record(logging.WARNING, "fickling: its own words", None)
+    setattr(record, KIND_ATTR, 1)
+    with caplog.at_level(logging.WARNING, logger=_LOG.name):
+        relay(_LOG, record, "fickling: its own words", _FRAME)
+    (said,) = caplog.records
+    assert not hasattr(said, KIND_ATTR)

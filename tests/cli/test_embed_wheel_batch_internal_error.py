@@ -51,7 +51,14 @@ def test_internal_error_aborts_the_batch(monkeypatch: pytest.MonkeyPatch) -> Non
         _try_embed(monkeypatch, InternalError("misuse"))
 
 
-@pytest.mark.parametrize("error", [ValueError("x"), OSError("x")], ids=["value", "os"])
+@pytest.mark.parametrize(
+    "error",
+    [
+        pytest.param(ValueError("x"), marks=pytest.mark.uncoded_output(r"^ERROR: x$")),
+        OSError("x"),
+    ],
+    ids=["value", "os"],
+)
 def test_other_failures_stay_per_wheel(
     monkeypatch: pytest.MonkeyPatch, error: Exception
 ) -> None:

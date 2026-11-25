@@ -491,7 +491,19 @@ def _stderr_lines(
     return capfd.readouterr().err.splitlines()
 
 
-@pytest.mark.parametrize("failure", ["frontmatter", "enricher"])
+@pytest.mark.parametrize(
+    "failure",
+    [
+        "frontmatter",
+        # The line says the newline and the bidi mark as escapes (ASCII).
+        pytest.param(
+            "enricher",
+            marks=pytest.mark.uncoded_output(
+                r"^ERROR: loom enrich: line one\\n::error::evil\\u202e: \[x$"
+            ),
+        ),
+    ],
+)
 def test_an_exception_quoting_untrusted_text_is_one_tagged_line(
     failure: str, tmp_path: Path, capfd: pytest.CaptureFixture[str]
 ) -> None:

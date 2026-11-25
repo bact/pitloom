@@ -23,6 +23,7 @@ from pitloom.assemble import (
 )
 from pitloom.cli.kv_output import print_kv
 from pitloom.core.file_identity import FileId, file_id
+from pitloom.core.internal_error import InternalError
 from pitloom.core.optional_libraries import (
     VALIDATE,
     import_failed,
@@ -210,7 +211,15 @@ def report_wheel_failure(exc: ValueError | OSError, wheel_path: Path) -> None:
     is a read (a refused write is coded where it is made) and is said as
     ``file-unreadable`` for the wheel (``input-not-found`` when it says the
     wheel is gone), named by its file name as the wheel's other lines name
-    it, so every per-wheel ``ERROR:`` line carries a code."""
+    it, so every per-wheel ``ERROR:`` line carries a code.
+
+    An :class:`~pitloom.core.internal_error.InternalError` (a ``ValueError``)
+    is a bug in Pitloom, not a bad wheel: it is raised again, so it reaches
+    the top handler and aborts the batch instead of being said as that
+    wheel's own failure. Every per-wheel ``except (ValueError, OSError)``
+    calls this first, which keeps that rule in one place."""
+    if isinstance(exc, InternalError):
+        raise exc
     if isinstance(exc, OSError) and code_of(exc) is None:
         name = wheel_path.name
         gone = is_missing_errno(exc) or (

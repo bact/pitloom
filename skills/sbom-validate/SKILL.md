@@ -169,8 +169,8 @@ given: report any `WARNING:`, and add `--fail-on-mismatch` in CI.
 A wheel Pitloom refuses gets one `ERROR:` ending `; wheel refused` and a
 `[code]` (`wheel-unreadable`, `wheel-invalid`, `dist-info-missing`,
 `dist-info-ambiguous`) and exit 1; the other wheels are still checked (an
-unexpected `validate-wheel` error, `ERROR: loom validate-wheel: ...`, stops the
-batch instead). `verify-wheel` reads only the member names, the own
+unexpected error, an uncoded `ERROR: loom verify-wheel: ...` or `ERROR: loom
+validate-wheel: ...`, stops the batch instead). `verify-wheel` reads only the member names, the own
 `.dist-info`'s `METADATA` and the embedded SBOM, and `validate-wheel` only the
 names and the embedded SBOM, so they refuse a file that is not a ZIP, and a
 wheel with one of those unreadable, two members with one name, a NUL in a name

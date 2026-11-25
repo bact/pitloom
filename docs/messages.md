@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-29
-Last-Modified: 2026-11-24
+Last-Modified: 2026-11-25
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -16,10 +16,16 @@ API](python-api.md) for the library.
 Pitloom reports what it decided on stderr, one line per event. A
 **catalogued** message ends in a stable code, so a script, a CI step or an
 agent can tell which condition it is without matching free text. A line
-without a code is not catalogued yet, or is a **summary**: an `INFO:` line
-that reports what a run did under its own rule (a count, the key it wrote)
-and names no condition, so it never takes a code. The reference lists each
-topic's summaries under "Summaries"; never trust a code appended to one.
+without a code is a summary, a `-v` `KEY=VALUE` detail, another tool's words
+after its name (`licenseid: `, `setuptools stderr: `, `fickling: `,
+`spdx3-validate: `), an unexpected error's own text, argparse's own text where
+a Python version words it differently from the catalogue, or an untagged usage
+or traceback line. A message that could not be shown prints a fixed text and
+keeps its error's code when it had one, so it reads as a line without a code
+only when the error had none. A **summary** is an `INFO:` line that reports what a
+run did under its own rule (a count, the key it wrote) and names no condition,
+so it never takes a code. The reference lists each topic's summaries under
+"Summaries"; never trust a code appended to one.
 
 ## Line grammar
 
@@ -63,6 +69,15 @@ outdated: current v5; run 'licenseid update'`) is a warning of LicenseID,
 the licence library Pitloom reads licences with, relayed once per run in
 LicenseID's own words and grammar. It carries no code and never will:
 Pitloom does not own its wording. Report it with the licence it concerns.
+
+The same holds for the other prefixes of another tool's words, each a
+**relay**: `setuptools stderr: ` (what setuptools writes to stderr while it
+reads a project's configuration, when it calls it an error), `fickling: `
+(what fickling writes to stderr while a PyTorch file is read) and
+`spdx3-validate: ` (one finding of the SPDX 3 validator, on an `ERROR:` line of
+`validate-wheel`, `embed-wheel --validate` or `loom fragment validate`). Pitloom passes the words on and
+adds no code; the prefix may follow a frame, as in
+`ERROR: loom validate-wheel: spdx3-validate: ...`.
 
 To read a line back, match this regular expression on the line without its
 line ending. The groups are the level, the text and the code:

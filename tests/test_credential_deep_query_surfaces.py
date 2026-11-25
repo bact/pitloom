@@ -117,17 +117,34 @@ def test_a_deeply_nested_query_is_refused_then_accepted_by_fingerprint(
     assert _DEEP in out.read_text(encoding="utf-8")
 
 
+# The unshown text keeps its error's code when it had one, so the line may
+# end in a code or not, by the branch taken: an un-nameable path raises a
+# plain OSError from ``Path.exists()`` on POSIX up to Python 3.13 (no code),
+# and reads as missing on Windows and on 3.14 (`` [input-not-found]``).
+@pytest.mark.uncoded_output(
+    r"^ERROR: loom enrich: \(a log message that could not be shown\)"
+    r"( \[[a-z-]+\])?$"
+)
+@pytest.mark.parametrize("missing", [False, True], ids=["as-is", "missing"])
 def test_a_url_that_cannot_be_masked_never_prints_raw(
-    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    missing: bool,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     """An error whose text the masker fails on is a fixed text, never the
-    exception's own (the traceback the default hook prints holds it)."""
+    exception's own (the traceback the default hook prints holds it).
+    ``missing`` takes the not-found branch on every OS, as Windows does."""
 
     def fail(*_args: object, **_kwargs: object) -> str:
         raise RecursionError
 
     monkeypatch.setattr("pitloom.log_masking.masked_given_path", fail)
+    if missing:
+        monkeypatch.setattr(
+            "pitloom.cli.commands.enrich.existing_model_path", lambda _given: None
+        )
     monkeypatch.setattr(sys, "argv", ["loom", "enrich", _DEEP, "-o", "x.json"])
-    main()
+    assert main() == 1
     seen = capsys.readouterr()
     assert "S3CRET" not in seen.err + seen.out
+    assert seen.err.endswith(" [input-not-found]\n") or not missing

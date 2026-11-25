@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-02
-Last-Modified: 2026-11-23
+Last-Modified: 2026-11-25
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -160,7 +160,7 @@ the one list.
   is slow, not wrong. A three-line change to the receiver walk near
   `_call_path` (`extract/_usage_ast.py`) was tested by a reviewer at about 4
   times faster with identical output on 15,000 fuzz programs, but it turns
-  `_OverCap` into `None` beyond the cap, which changes what the caller reports
+  `_UsageOverCap` into `None` beyond the cap, which changes what the caller reports
   there. Decide that first.
   *Found 2026-11-03, review of the 0.22.1 release.*
 - [ ] **Usage scan: `raise ValueError(...) from load(P)` gives no edge (S).**

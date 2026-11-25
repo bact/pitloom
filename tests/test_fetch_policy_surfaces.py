@@ -125,6 +125,7 @@ def _expected(case: str, tmp_path: Path) -> RemoteFetchPolicy:
     )
 
 
+@pytest.mark.uncoded_output(r"^ERROR: loom [a-z]+: _Stop$")
 @pytest.mark.parametrize("case", _CASES)
 @pytest.mark.parametrize("route", _ROUTES)
 def test_every_surface_resolves_the_same_policy(

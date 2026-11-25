@@ -17,6 +17,7 @@ against a real (local) Git server.
 from __future__ import annotations
 
 import json
+import re
 import sys
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -43,6 +44,8 @@ from tests.kv_helpers import sbom_output_path
 
 _URL = "https://gitlab.example.org/g/p/-/tree/main/svc"
 _DEMO = '[project]\nname = "demo"\nversion = "1.0"\n'
+#: The refusal of an offline fetch, said without a code on purpose.
+_NO_NETWORK = rf"^ERROR: loom project: no network for {re.escape(_URL)}$"
 
 
 @pytest.fixture(name="fetched")
@@ -162,8 +165,18 @@ def test_an_explicit_config_applies_to_a_fetched_project(
 @pytest.mark.parametrize(
     ("flags", "config", "offline"),
     [
-        (["--offline"], None, True),
-        ([], "offline = true", True),
+        pytest.param(
+            ["--offline"],
+            None,
+            True,
+            marks=pytest.mark.uncoded_output(_NO_NETWORK),
+        ),
+        pytest.param(
+            [],
+            "offline = true",
+            True,
+            marks=pytest.mark.uncoded_output(_NO_NETWORK),
+        ),
         (["--no-offline"], "offline = true", False),
     ],
     ids=["flag", "config", "flag-beats-config"],

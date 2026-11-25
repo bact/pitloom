@@ -200,6 +200,7 @@ def test_a_message_is_masked_and_data_is_not() -> None:
     assert kv_line(PITLOOM_SBOM_OUTPUT_PATH=path) == f"PITLOOM_SBOM_OUTPUT_PATH={path}"
 
 
+@pytest.mark.uncoded_output(r"^WARNING: Could not parse '<checkout>'$")
 def test_a_stderr_line_names_no_temporary_directory(
     capsys: pytest.CaptureFixture[str],
 ) -> None:

@@ -11,7 +11,8 @@ Last-Modified: 2026-11-25
 See also: [message-catalogue-sweep-b-plan.md](message-catalogue-sweep-b-plan.md)
 (rulings, amendments, routing, fences). Where this page and the plan page
 disagree, the plan page wins (Fable review, 2026-11-25). (V) = verified by
-reading or running; (G) = guess.
+reading or running; (G) = guess. Status: built as B1 (#541, merged) and B2
+(#542); line numbers below are those of the reference tree.
 
 ## Measured state Verified current state
 

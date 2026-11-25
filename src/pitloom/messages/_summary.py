@@ -18,6 +18,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 
+from pitloom.logging_config import KIND_ATTR, SUMMARY_KIND
 from pitloom.messages._templates import shown, template_names, written
 from pitloom.messages._topics import TOPIC_TITLES
 from pitloom.messages._types import template_problem
@@ -66,7 +67,8 @@ class Summary:
 
 def say_summary(log: logging.Logger, summary: Summary, **values: object) -> None:
     """Log *summary* at ``INFO`` on *log*, each value written by its field,
-    with no code on the record.
+    with no code on the record, its kind
+    (:data:`~pitloom.logging_config.KIND_ATTR`) a summary.
 
     Raises:
         ValueError: *values* names other fields than the template, or a
@@ -74,4 +76,4 @@ def say_summary(log: logging.Logger, summary: Summary, **values: object) -> None
     """
     texts = written(summary.template, values)
     args: tuple[object, ...] = (texts,) if texts else ()
-    log.info(summary.template, *args)
+    log.info(summary.template, *args, extra={KIND_ATTR: SUMMARY_KIND})

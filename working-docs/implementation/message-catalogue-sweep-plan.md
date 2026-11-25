@@ -3,19 +3,22 @@ SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
 Created: 2026-11-24
-Last-Modified: 2026-11-24
+Last-Modified: 2026-11-25
 ---
 
 # Message catalogue sweep: plan
 
-See also: [message-catalogue-finish-plan.md](message-catalogue-finish-plan.md),
-[message-catalogue-pr17c-build.md](message-catalogue-pr17c-build.md).
+See also: [message-catalogue-finish-plan.md](../design/message-catalogue-finish-plan.md),
+[message-catalogue-pr17c-build.md](../design/message-catalogue-pr17c-build.md).
 
 Status 2026-11-24: ruled by the maintainer: three PRs (sweep-a, sweep-b,
 sweep-c), the LicenseID 0.9.2 pin first in sweep-a (one commit with the pin).
-sweep-a BUILT 2026-11-24, uncommitted until the maintainer's go (see
-"Build notes: sweep-a" at the end). Planned by Opus against
-main after #534 (ratchet 0). Counts below were measured then.
+sweep-a MERGED 2026-11-25 as #536 (see "Build notes: sweep-a" at the end).
+Planned by Opus against main after #534 (ratchet 0). Counts below were
+measured then. Sweep B (D4-D6): see
+[message-catalogue-sweep-b-plan.md](message-catalogue-sweep-b-plan.md), which
+also routes the "Left for later" items below (fixed in #539, #540, #542, or
+carried to sweep C). Sweep C (section 3, item 3) is not built yet.
 
 ## Sweep PR plan (read-only; reference tree = main after #534; LicenseID 0.9.2)
 
@@ -178,7 +181,7 @@ CHANGELOG bullets (Changed):
 
 ## Build notes: sweep-a
 
-Built 2026-11-24 (PR number provisional: #536). Opus A (D2, D3, passthrough,
+Built 2026-11-24, merged 2026-11-25 as #536. Opus A (D2, D3, passthrough,
 `Creator.type`), Opus B (pypi, scanner, hook, `-o`), Sonnet (cwd label,
 `_publish_input_ids`, floor test); two fresh Opus review rounds; two Opus fix
 rounds; mutation of the inventory rules (12 mutants, all killed).
@@ -210,7 +213,7 @@ rounds; mutation of the inventory rules (12 mutants, all killed).
 **Left for later.**
 
 - A wheel-scanned GGUF dataset's provenance in the SBOM still names the
-  temporary copy ([message-catalogue-pr17c-build.md](message-catalogue-pr17c-build.md) section 5).
+  temporary copy ([message-catalogue-pr17c-build.md](../design/message-catalogue-pr17c-build.md) section 5).
 - `_generators_git.py` and `_generators_pypi.py` forward `output_path` to the
   generators; their Raises sections do not mention `CodedOSError` yet.
 - `scripts/message_inventory/_relay.py:356` pylint R0911 (CI lints only

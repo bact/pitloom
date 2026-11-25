@@ -77,7 +77,13 @@ def test_excerpt_masks_before_it_cuts() -> None:
         lambda v: say_resolved(
             v, DeclaredResolution("MIT", "id", (), (), True, "t", ()), "license"
         ),
-        lambda v: logging.getLogger("pitloom.t").warning("%s", authors_text([v])),
+        pytest.param(
+            lambda v: logging.getLogger("pitloom.t").warning("%s", authors_text([v])),
+            marks=pytest.mark.uncoded_output(
+                r"^WARNING: \"private-lib @ git\+https://\*\*\*:\*\*\*@gitlab"
+                r"\.example/o/r\.git ; python_version >> '3\.8'\"$"
+            ),
+        ),
     ],
     ids=["skipped", "extra-entry", "dep-scope", "license", "author"],
 )

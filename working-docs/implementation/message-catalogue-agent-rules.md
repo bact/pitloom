@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-23
-Last-Modified: 2026-11-23
+Last-Modified: 2026-11-25
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -52,6 +52,57 @@ Say it through the catalogue, never as free text.
 6. **Test the surface**: a test that fails on the base tree, on each surface
    that can reach the message (CLI, library, hook, loom SDK).
 
+## A line without a code: kinds
+
+A tagged line (`ERROR:`, `WARNING:`, `INFO:`) with no code is one of three
+kinds a record declares, or it fails the test run (`pitloom.messages.line_kind`
+reads a printed line back; `tests/_strict_uncoded.py` is the check):
+
+- **`summary`**: an `INFO:` line of a `SUMMARIES` template, said through
+  `say_summary`. **`detail`**: a `-v` `INFO: KEY=VALUE` line from
+  `pitloom.cli.kv_output.log_kv`. **`relay`**: another tool's words after a
+  prefix of `pitloom.messages.RELAY_PREFIXES` (`licenseid: `,
+  `setuptools stderr: `, `fickling: `, `spdx3-validate: `), after at most one
+  frame of its level.
+- A record's kind rides as `pitloom_kind` (`KIND_ATTR`); a record never
+  carries both a code and a kind. A relay passes `extra=RELAY_EXTRA`, and the
+  prefix is a module constant plus a `%s` argument (the inventory reads that
+  shape as a `prefixed` relay); a new prefix joins `RELAY_PREFIXES` and the
+  prose of `docs/messages.md` and both skills' `references/messages.md`
+  (`tests/messages/test_relay_prefixes_docs.py`).
+- A caller that re-says a captured record (`extract/_reader_relay.py`) copies
+  `pitloom_kind` through, as it copies the code, or the re-said line is
+  uncoded.
+- Other lines have no kind and need none: `DEBUG:`, untagged text (argparse
+  usage, a traceback) and `overlong` lines (over `LONGEST_LINE`, never read
+  back; a finding in tests whatever its kind). An `ERROR:` line of an
+  unexpected error (`InternalError` has no code) stays uncoded: a test that
+  says one names it. So does argparse's own `ERROR:` text where a Python
+  version words it differently from the catalogue (`usage_code()` returns
+  `None`). A message that could not be shown (`UNSHOWN_MESSAGE`)
+  prints that fixed text and keeps its error's code when it had one
+  (`mask_record` replaces `msg` only; `print_error` masks the text, then
+  appends the code), so it is uncoded only when its error had no code.
+- A test that says an uncoded line on purpose carries
+  `@pytest.mark.uncoded_output(*patterns)` on the test or its `pytest.param`
+  (only the item's own markers count, never a module or class mark). Each
+  pattern is a regular expression searched in the line; a line no pattern
+  matches fails the test, and so does a pattern that matches no line (a stale
+  allowance).
+- A per-wheel `except (ValueError, OSError)` calls `report_wheel_failure`
+  (`cli/commands/utils.py`) first: it re-raises `InternalError`, so a bug in
+  Pitloom stops the run (`verify-wheel`, `validate-wheel`, `embed-wheel
+  --verify/--validate`) instead of being said as that wheel's failure.
+- Silent gaps of the check (its module docstring has the detail): an `INFO`
+  record never reaches `Logger.handle` while the `pitloom` logger is
+  unconfigured, so a test that wants it configures logging or lowers a level;
+  `DEBUG`, the `pitloom.test_*` loggers and third-party ones are out of scope;
+  a child process and the GitHub Action are seen only through
+  `tests/_loom_child.run_loom` and the manual CLI checks; a record is rendered
+  without the handler's masking; records from a module-, class- or
+  session-scoped fixture are never seen; any finding in an `xfail` test is
+  reported as `XFAIL`.
+
 ## Checks that must pass before handoff
 
 ```shell
@@ -76,10 +127,12 @@ pytest tests/messages tests/test_message_ratchet.py
 ## Traps
 
 - **An exemption list can hide an uncoded line.** The inventory leaves out
-  sites matched by `INTERNAL_PAT`, `LIBRARY_PAT`, `DETAIL_EXC` and
-  `PASSTHROUGH_PAT` (`scripts/message_inventory/_scope.py`). 17a's review
-  found two real uncoded lines (`loom env`'s pipdeptree output, an unknown
-  provenance schema) hidden there. A raise a user can reach needs a code even
+  sites matched by `INTERNAL_EXC`, `LIBRARY_EXC`, `LIBRARY_SITES`,
+  `DETAIL_EXC` and `PASSTHROUGH_PAT` (`scripts/message_inventory/_scope.py`;
+  each `DETAIL_EXC` name and raise site is proved by
+  `tests/messages/test_detail_classes*.py`). 17a's review found two real
+  uncoded lines (`loom env`'s pipdeptree output, an unknown provenance schema)
+  hidden by the exemption lists of the time. A raise a user can reach needs a code even
   if its text looks internal.
 - **A relay can drop a code.** A caller that relays a lower layer's line must
   carry the code (`relay_coded_warning`, `code_extra_of`); check that the

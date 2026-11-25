@@ -34,6 +34,7 @@ def _block() -> None:
         pass
 
 
+@pytest.mark.uncoded_output(r"^WARNING: kept \d+$")
 @pytest.mark.parametrize("propagate", [True, False])
 @pytest.mark.parametrize("nested", [False, True])
 @pytest.mark.parametrize("step", ["entry", "undo"])

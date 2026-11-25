@@ -22,6 +22,9 @@ from tests._network import REQUIRE_NETWORK_ENV
 
 _REPO = Path(__file__).resolve().parents[1]
 
+#: Seconds a child pytest may run before the test fails.
+_TIMEOUT = 300
+
 _CONFTEST = (
     "from tests._network import (\n"
     "    pytest_configure, pytest_make_collect_report, pytest_runtest_makereport\n"
@@ -53,9 +56,13 @@ def test_plain_skips():
 
 
 def _run(
-    tmp_path: Path, env_value: str | None, *args: str, extra: str = ""
+    tmp_path: Path,
+    env_value: str | None,
+    *args: str,
+    extra: str = "",
+    conftest: str = _CONFTEST,
 ) -> tuple[int, str]:
-    (tmp_path / "conftest.py").write_text(_CONFTEST, encoding="utf-8")
+    (tmp_path / "conftest.py").write_text(conftest, encoding="utf-8")
     (tmp_path / "test_sample.py").write_text(_TESTS, encoding="utf-8")
     if extra:
         (tmp_path / "test_extra.py").write_text(extra, encoding="utf-8")
@@ -72,6 +79,7 @@ def _run(
         env=env,
         capture_output=True,
         check=False,
+        timeout=_TIMEOUT,
     )
     return res.returncode, (res.stdout + res.stderr).decode("utf-8", "replace")
 
@@ -91,6 +99,19 @@ def test_strict_run_fails_every_skipped_network_test(
     # skip and importorskip fail; xfail, pass and the unmarked skip do not
     assert "2 failed" in out and "1 passed" in out
     assert "1 skipped" in out and "1 xfailed" in out
+    assert "no route" in out
+
+
+def test_the_real_conftest_applies_the_gate(tmp_path: Path) -> None:
+    """The gate holds through ``tests/conftest.py``'s own
+    ``pytest_runtest_makereport`` (it calls ``fail_skipped_network_test``
+    itself), not only through the hook of ``tests/_network.py`` the other
+    tests wire in: the repository's conftest is loaded as a plugin, the child
+    directory's own conftest empty."""
+    code, out = _run(tmp_path, "1", "-p", "tests.conftest", conftest="")
+    assert code == 1, out
+    assert "2 failed" in out and "1 passed" in out, out
+    assert "1 skipped" in out and "1 xfailed" in out, out
     assert "no route" in out
 
 

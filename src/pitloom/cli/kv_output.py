@@ -29,7 +29,7 @@ from pitloom.core.url_masking import (
     masked_given_path,
     without_format,
 )
-from pitloom.logging_config import loggable
+from pitloom.logging_config import DETAIL_KIND, KIND_ATTR, loggable
 
 log = logging.getLogger(__name__)
 
@@ -93,8 +93,10 @@ def _shown(value: object) -> str:
 def log_kv(**pairs: object) -> None:
     """Log one ``INFO: KEY=VALUE`` line to stderr, each value through
     :func:`_shown`: a ``-v`` detail names an argument as typed and shows no
-    secret."""
-    log.info("%s", kv_line(**{key: _shown(value) for key, value in pairs.items()}))
+    secret. The record's kind (:data:`~pitloom.logging_config.KIND_ATTR`) is
+    a detail: it has no code."""
+    line = kv_line(**{key: _shown(value) for key, value in pairs.items()})
+    log.info("%s", line, extra={KIND_ATTR: DETAIL_KIND})
 
 
 def log_verbose(**pairs: object) -> None:

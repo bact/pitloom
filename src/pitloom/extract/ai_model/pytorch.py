@@ -39,6 +39,7 @@ from pitloom.extract.ai_model.limits import ModelLimitExceeded, ModelOverCap
 from pitloom.extract.stderr_capture import capture_stderr
 from pitloom.logging_config import one_line
 from pitloom.messages import (
+    RELAY_EXTRA,
     Line,
     emit,
 )
@@ -209,11 +210,16 @@ def _fickling_get_top_class(pkl_file: IO[bytes]) -> str | None:
 def _relay_fickling_stderr(text: str) -> None:
     """One ``WARNING:`` of what fickling wrote to stderr, *text*, after
     :data:`FICKLING_PREFIX`: its own words, on one line, a URL's credentials
-    masked, cut to :data:`_FICKLING_STDERR_CHARS` characters, escaped."""
+    masked, cut to :data:`_FICKLING_STDERR_CHARS` characters, escaped; the
+    record's kind a relay (:data:`pitloom.messages.RELAY_EXTRA`)."""
     # The prefix is a constant, the text a %s argument: the shape the
     # message inventory reads as a prefixed relay.
     # pylint: disable-next=logging-not-lazy
-    log.warning(FICKLING_PREFIX + "%s", one_line(text, _FICKLING_STDERR_CHARS))
+    log.warning(
+        FICKLING_PREFIX + "%s",
+        one_line(text, _FICKLING_STDERR_CHARS),
+        extra=RELAY_EXTRA,
+    )
 
 
 def _read_pytorch_zip(

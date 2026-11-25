@@ -3,7 +3,7 @@ SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
 Created: 2026-11-24
-Last-Modified: 2026-11-24
+Last-Modified: 2026-11-25
 ---
 
 # Catalogue PR 17c: datasets, display text, the metadata budget (build notes)
@@ -133,6 +133,7 @@ on the loom SDK routes, merge and fold paths and docs; no high finding):
   `demo/m.gguf`): the record is not relayed through `_relog_reader_records`,
   so the copy's name is never replaced. Present on `main` too; the key is
   frozen with that value (a follow-up, with the same fix as the other relays).
+  Fixed in sweep A (#536).
 - `stated_count` (a `byte_size` count) warns for `""`, `[]`, `[None]`,
   `"unknown"` and `"N/A"`, where version and text stay silent for the same
   placeholders. Documented behaviour of 0.24.0, unchanged here; a placeholder
@@ -159,7 +160,8 @@ on the loom SDK routes, merge and fold paths and docs; no high finding):
   temporary copy (`Source: 0.gguf | Field: general.dataset.0.name`, annotation
   `"source":"0.gguf"`): `_restore_source_name` rewrites only the model's own
   `meta.provenance`, not each dataset's (found in sweep-a; `SOURCE=` in the
-  log line is fixed).
+  log line is fixed). Fixed in #540: each dataset's provenance names the
+  wheel member.
 - `fetch_json` follows redirects with plain `urlopen` and no host policy
   (library `read_croissant(url)` only).
 

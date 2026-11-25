@@ -335,6 +335,7 @@ def test_the_library_says_none_of_the_hook_lines(
 # --- the hook's error frame and its DEBUG line --------------------------------
 
 
+@pytest.mark.uncoded_output(r"^ERROR: Pitloom build hook: nested failure$")
 def test_an_error_line_said_while_the_sbom_is_made_carries_the_hook_frame(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],

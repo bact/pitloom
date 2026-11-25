@@ -7,8 +7,10 @@
 catalogued code, a level its entry is said at and a text one of its patterns
 matches. ``tests/conftest.py`` applies :func:`tests._message_drift
 .record_problem` to every record of every test; this file tests the check.
+A record without a code is the strict check's (:mod:`tests._strict_uncoded`).
 
-See also: tests/messages/test_drift_sources.py (the source says only what
+See also: tests/messages/test_drift_strict.py (records and lines without a
+code), tests/messages/test_drift_sources.py (the source says only what
 the catalogue knows), tests/messages/test_drift_quotes.py (docs and skills).
 """
 
@@ -47,7 +49,7 @@ def _record(
             ),
             None,
         ),
-        (_record(logging.WARNING, "no code here", None), None),
+        (_record(logging.WARNING, "no code here", None), "no kind"),
         (_record(logging.WARNING, "any text", "git.too-large"), "uncatalogued"),
         (_record(logging.WARNING, "any text", 404), "uncatalogued"),
         (_record(logging.WARNING, "FILE=a: another text", "lfs-pointer"), "not the"),
