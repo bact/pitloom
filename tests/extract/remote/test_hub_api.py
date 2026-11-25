@@ -72,14 +72,14 @@ def _hub_http_error(message: str = "boom") -> HfHubHTTPError:
     return error
 
 
-def _raised_for_status(headers: dict[str, str]) -> Exception:
-    """What ``huggingface_hub`` raises for a 404 answer with *headers*, its
-    response of the HTTP client the library uses."""
+def _raised_for_status(headers: dict[str, str], status: int = 404) -> Exception:
+    """What ``huggingface_hub`` raises for a *status* answer with *headers*,
+    its response of the HTTP client the library uses."""
     client = importlib.import_module(
         HfHubHTTPError.__mro__[1].__module__.split(".", 1)[0]
     )
     request = client.Request("GET", "http://hub.invalid/api/models/o/m")
-    response = client.Response(404, headers=headers, request=request, text="gone")
+    response = client.Response(status, headers=headers, request=request, text="gone")
     with pytest.raises(HfHubHTTPError) as raised:
         hf_raise_for_status(response)
     return raised.value
@@ -229,6 +229,19 @@ def test_a_failed_request_is_said_alike_whatever_its_request_id(
     lines = [_say(capsys, first), _say(capsys, second)]
     assert lines[0] == lines[1] and "Root=" not in lines[0]
     assert _code(lines[0]) == DOWNLOAD_FAILED.code
+
+
+def test_a_rate_limit_line_does_not_start_with_its_request_id(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A 429's text starts with a line break, so ``huggingface_hub`` writes
+    the id first (``(Amz CF ID: ...) 429 ...``): dropping it leaves no space
+    in front."""
+    error = _raised_for_status({"X-Amz-Cf-Id": "cf-id-0123456789"}, status=429)
+    assert str(error).startswith(" (Amz CF ID: cf-id-0123456789)")
+    line = _say(capsys, error)
+    assert line.startswith(f"WARNING: URL={_PAGE}: 429 Too Many Requests")
+    assert ":  " not in line and "cf-id" not in line
 
 
 def test_an_internal_error_is_passed_on_unsaid(
