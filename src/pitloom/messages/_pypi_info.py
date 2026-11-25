@@ -81,6 +81,7 @@ VERSION_IGNORED_LINE: Final = Line(
     level="INFO",
     template="URL=%(url)s: the version names no branch, tag or commit; the "
     "default branch is read",
+    since="0.25.0",
 )
 
 _UNPINNED_ADVICE: Final = (

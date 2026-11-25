@@ -16,7 +16,12 @@ holds winning:
 4. ``overlong``: it is longer than
    :data:`~pitloom.messages._lines.LONGEST_LINE`, so it is not read further
    (:func:`~pitloom.messages._lines.trusted_message` trusts no such line);
-5. ``coded``: :func:`~pitloom.messages._lines.trusted_message` trusts it;
+5. ``coded``: :func:`~pitloom.messages._lines.trusted_message` trusts it,
+   or its text is :data:`~pitloom.log_masking.UNSHOWN_MESSAGE` and a code
+   catalogued with a line at that level, after at most one frame that
+   allows that code at that level: a message that could not be shown keeps
+   its code (:func:`~pitloom.logging_config.print_error`, the formatter of
+   :func:`~pitloom.logging_config.configure_logging`);
 6. ``summary``: an ``INFO:`` line whose text is a
    :data:`~pitloom.messages._catalogue.SUMMARIES` template, each value of its
    field's shape;
@@ -42,10 +47,11 @@ import functools
 import re
 from typing import Final
 
+from pitloom.log_masking import UNSHOWN_MESSAGE
 from pitloom.logging_config import DETAIL_KIND, RELAY_KIND, SUMMARY_KIND
-from pitloom.messages._catalogue import SUMMARIES
+from pitloom.messages._catalogue import MESSAGES, SUMMARIES
 from pitloom.messages._frames import FRAMES
-from pitloom.messages._lines import LONGEST_LINE, trusted_message
+from pitloom.messages._lines import LINE_RE, LONGEST_LINE, trusted_message
 from pitloom.messages._relays import RELAY_PREFIXES
 from pitloom.messages._templates import template_pattern
 
@@ -98,6 +104,33 @@ def _relay_re(level: str) -> re.Pattern[str]:
     return re.compile(f"{head}(?:{prefixes})")
 
 
+@functools.cache
+def _unshown_re(code: str, level: str) -> re.Pattern[str] | None:
+    """The text of a line of *code*, a catalogued code, at *level* whose
+    message could not be shown: at most one frame that allows *code* at
+    *level*, then :data:`~pitloom.log_masking.UNSHOWN_MESSAGE`; ``None``
+    when *code* has no line at *level*. Compiled once per pair."""
+    if all(ln.level != level for ln in MESSAGES[code].lines):
+        return None
+    frames = [template_pattern(f.template) for f in FRAMES if f.allows(code, level)]
+    head = f"(?:{'|'.join(frames)})?" if frames else ""
+    return re.compile(f"{head}{re.escape(UNSHOWN_MESSAGE)}")
+
+
+def _is_unshown_coded(line: str) -> bool:
+    """Whether *line* is a catalogued message that could not be shown, its
+    code kept (:func:`_unshown_re`). An uncatalogued code is refused before
+    the cache, which holds catalogued codes only."""
+    found = LINE_RE.fullmatch(line)
+    if found is None:
+        return False
+    level, text, code = found.groups()
+    if code not in MESSAGES:
+        return False
+    regex = _unshown_re(code, level)
+    return regex is not None and regex.fullmatch(text) is not None
+
+
 def line_kind(line: str) -> str:
     """The kind of *line*, one line Pitloom printed on stderr without its
     line end (a trailing ``\\r`` is dropped): one of :data:`LINE_KINDS`, in
@@ -110,7 +143,7 @@ def line_kind(line: str) -> str:
         return UNTAGGED_KIND
     if len(line) > LONGEST_LINE:
         return OVERLONG_KIND
-    if trusted_message(line) is not None:
+    if trusted_message(line) is not None or _is_unshown_coded(line):
         return CODED_KIND
     level, text = tagged.groups()
     return _kind_without_code(level, text)

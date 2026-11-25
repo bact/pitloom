@@ -126,4 +126,4 @@ def test_a_hub_that_never_answers_is_one_failed_request(
     warnings = [r for r in caplog.records if r.levelname == "WARNING"]
     assert len(warnings) == 1
     assert getattr(warnings[0], CODE_ATTR) == DOWNLOAD_TIMEOUT.code
-    assert "within 1 seconds" in warnings[0].getMessage()  # 0.5 s, rounded up
+    assert "within 1 second;" in warnings[0].getMessage()  # 0.5 s, rounded up

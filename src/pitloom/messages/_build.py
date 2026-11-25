@@ -24,8 +24,8 @@ from pitloom.messages._types import ASK_FIRST, Line, Message
 _SINCE: Final = "0.25.0"
 
 _RUNS: Final = (
-    "DIR=%(dir)s: --allow-build runs a PEP 517 build for up to %(seconds)s "
-    "seconds (--build-timeout), which executes the project's build code "
+    "DIR=%(dir)s: --allow-build runs a PEP 517 build for up to %(duration)s "
+    "(--build-timeout), which executes the project's build code "
     "(build-backend %(backend)s, "
 )
 _NO_MODULE: Final = "no discovery module for it) "
@@ -142,7 +142,7 @@ BUILD_FAILED: Final = Message(
 )
 
 _TIMED_OUT: Final = (
-    "DIR=%(dir)s: the build timed out after %(seconds)s seconds (--build-timeout); "
+    "DIR=%(dir)s: the build timed out after %(duration)s (--build-timeout); "
 )
 #: A build stopped at its deadline, every process of it gone.
 BUILD_TIMED_OUT_LINE: Final = Line(

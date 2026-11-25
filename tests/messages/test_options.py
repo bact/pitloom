@@ -122,8 +122,28 @@ def test_usage_code_codes_only_catalogued_wording(text: str, code: str | None) -
             "1-604800 seconds, got 0",
             OPTION_INVALID,
         ),
+        (
+            ["wheel", "x.whl", "--max", "1"],
+            "ERROR: loom wheel: ambiguous option: --max could match ",
+            OPTION_INVALID,
+        ),
+        (
+            ["wheel", "x.whl", "--trust-model-files=1"],  # store_true
+            "ERROR: loom wheel: argument --trust-model-files: ignored explicit "
+            "argument '1'",
+            OPTION_INVALID,
+        ),
     ],
-    ids=["missing", "required", "no-value", "choice", "unknown", "timeout"],
+    ids=[
+        "missing",
+        "required",
+        "no-value",
+        "choice",
+        "unknown",
+        "timeout",
+        "ambiguous",
+        "explicit-argument",
+    ],
 )
 def test_the_parser_line_is_framed_coded_and_trusted(
     argv: list[str],

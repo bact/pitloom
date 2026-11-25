@@ -74,7 +74,18 @@ _CASES = [
     ("WARNING: own words, then fickling: x", "uncoded"),
     ("WARNING: fickling:x", "uncoded"),
     ("ERROR: loom generate: boom", "uncoded"),
-    (f"ERROR: loom generate: {UNSHOWN_MESSAGE}", "uncoded"),
+    # A message that could not be shown keeps its code: coded when the code
+    # has a line at that level, after at most one frame allowing it.
+    (f"ERROR: loom generate: {UNSHOWN_MESSAGE}", "uncoded"),  # no code
+    (f"ERROR: loom enrich: {UNSHOWN_MESSAGE} [input-not-found]", "coded"),
+    (f"WARNING: {UNSHOWN_MESSAGE} [lfs-pointer]", "coded"),
+    (f"WARNING: FORMAT=x FILE=m: {UNSHOWN_MESSAGE} [model-field-conflict]", "coded"),
+    (f"ERROR: {UNSHOWN_MESSAGE} [model-field-conflict]", "uncoded"),  # level
+    (f"INFO: {UNSHOWN_MESSAGE} [lfs-pointer]", "uncoded"),  # level
+    (f"WARNING: {UNSHOWN_MESSAGE} [no-such-code]", "uncoded"),
+    (f"WARNING: FORMAT=x FILE=m: {UNSHOWN_MESSAGE} [lfs-pointer]", "uncoded"),
+    (f"ERROR: loom enrich: loom: {UNSHOWN_MESSAGE} [input-not-found]", "uncoded"),
+    (f"WARNING: {UNSHOWN_MESSAGE}, and more [lfs-pointer]", "uncoded"),
 ]
 
 

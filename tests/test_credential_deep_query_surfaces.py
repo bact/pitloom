@@ -117,15 +117,30 @@ def test_a_deeply_nested_query_is_refused_then_accepted_by_fingerprint(
     assert _DEEP in out.read_text(encoding="utf-8")
 
 
-# The unshown text keeps its error's code when it had one, so the line may
-# end in a code or not, by the branch taken: an un-nameable path raises a
-# plain OSError from ``Path.exists()`` on POSIX up to Python 3.13 (no code),
-# and reads as missing on Windows and on 3.14 (`` [input-not-found]``).
-@pytest.mark.uncoded_output(
-    r"^ERROR: loom enrich: \(a log message that could not be shown\)"
-    r"( \[[a-z-]+\])?$"
+# The unshown text keeps its error's code when it had one, so the line is
+# coded or not by the branch taken: an un-nameable path raises a plain
+# OSError from ``Path.exists()`` on POSIX up to Python 3.13 (no code, an
+# uncoded line), and reads as missing on Windows and on 3.14
+# (`` [input-not-found]``, coded).
+_UNSHOWN_UNCODED = sys.platform != "win32" and sys.version_info < (3, 14)
+_AS_IS_MARKS = (
+    [
+        pytest.mark.uncoded_output(
+            r"^ERROR: loom enrich: \(a log message that could not be shown\)$"
+        )
+    ]
+    if _UNSHOWN_UNCODED
+    else []
 )
-@pytest.mark.parametrize("missing", [False, True], ids=["as-is", "missing"])
+
+
+@pytest.mark.parametrize(
+    "missing",
+    [
+        pytest.param(False, marks=_AS_IS_MARKS, id="as-is"),
+        pytest.param(True, id="missing"),
+    ],
+)
 def test_a_url_that_cannot_be_masked_never_prints_raw(
     missing: bool,
     monkeypatch: pytest.MonkeyPatch,

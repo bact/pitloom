@@ -73,7 +73,12 @@ from pitloom.messages._field_tables import (
     REF_KINDS,
 )
 from pitloom.messages._field_type import Field
-from pitloom.messages._field_writers import escaped_name, size_text, url_text
+from pitloom.messages._field_writers import (
+    escaped_name,
+    size_text,
+    url_text,
+    whole_seconds,
+)
 from pitloom.messages._fields import FIELDS
 from pitloom.messages._frames import (
     BUILD_FRAME,
@@ -174,4 +179,5 @@ __all__ = [
     "topic_of",
     "trusted_message",
     "url_text",
+    "whole_seconds",
 ]

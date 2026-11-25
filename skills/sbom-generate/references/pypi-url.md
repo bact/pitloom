@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-10
-Last-Modified: 2026-11-17
+Last-Modified: 2026-11-26
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -137,7 +137,7 @@ How to read the record to the user:
 Find each code above in `messages.md`, read the page it links (`messages-pypi.md`
 for most; `over-cap`, `url-unsafe` and the download codes are on others) and
 relay its advice. A
-`WARNING: PYPI=<name> FILE=<file>: ...; skipped` (`[pypi-response-invalid]`)
+`WARNING: PYPI=<name> FILE=<file>: ...; skipped [pypi-response-invalid]`
 means a file of the release was left out of the choice because PyPI's entry
 for it was not valid; it only narrows the choice, so report it. A network
 failure (`[download-network-failed]`, `[download-timeout]`) is for the user to

@@ -127,6 +127,8 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
   WARNING: required library not installed: <module>; install <requirement> [library-missing]
   ```
 
+- **Since**: 0.22.0; line 3: 0.25.0
+
 ### `library-unusable`
 
 - **Level**: ERROR, WARNING. As an ERROR, the command stops for that input and
@@ -158,6 +160,8 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
   WARNING: required library failed to import: <module>: <error>; content types from file extensions; reinstall <requirement> [library-unusable]
   WARNING: required library API not found: poetry-core: <error>; Poetry dependency tables not read; reinstall Pitloom [library-unusable]
   ```
+
+- **Since**: 0.23.0; line 4: 0.25.0
 
 ### `library-unusable/hatchling`
 

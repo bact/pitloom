@@ -10,7 +10,6 @@ from __future__ import annotations
 import email.message
 import http.client
 import json
-import math
 import os
 import re
 import stat
@@ -26,7 +25,7 @@ from pitloom.core.given_file import FETCH_MAX_BYTES
 from pitloom.core.path_confine import NotRegularFileError
 from pitloom.core.path_probe import is_missing_errno
 from pitloom.core.provenance import provenance_segment
-from pitloom.messages import CodedValueError, recoded, url_text
+from pitloom.messages import CodedValueError, recoded, url_text, whole_seconds
 from pitloom.messages.files import OVER_CAP, SOURCE_LINE, Cap, file_unreadable_error
 from pitloom.messages.network import (
     DOWNLOAD_FAILED,
@@ -203,7 +202,7 @@ def _download_error(url: str, exc: BaseException, timeout: float) -> CodedValueE
             DOWNLOAD_TIMEOUT,
             line=DOWNLOAD_TIMEOUT_LINE,
             url=url_text(url),
-            seconds=max(math.ceil(timeout), 1),
+            duration=whole_seconds(timeout),
         )
     return CodedValueError(
         DOWNLOAD_FAILED,

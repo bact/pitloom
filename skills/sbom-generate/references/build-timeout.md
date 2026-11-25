@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-19
-Last-Modified: 2026-11-20
+Last-Modified: 2026-11-26
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -128,7 +128,7 @@ harness limit fits ~9 min after margin, using `--build-timeout 8m`".
 Report the `WARNING:` line verbatim:
 
 ```text
-WARNING: Build: DIR=<dir>: the build timed out after <seconds> seconds (--build-timeout); its process tree was stopped [build-timeout]
+WARNING: Build: DIR=<dir>: the build timed out after <duration> (--build-timeout); its process tree was stopped [build-timeout]
 ```
 
 (or `...; could not confirm its process tree stopped [build-timeout]`, when the

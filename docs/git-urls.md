@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-21
-Last-Modified: 2026-11-20
+Last-Modified: 2026-11-26
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -403,8 +403,8 @@ PyTorch, PT2, Safetensors). Which command reads which URL:
   refused, reset or timed-out connection, a TLS failure, an HTTP 5xx answer)
   ends `git <command> failed: <git's reason>; nothing fetched`
   ([`download-network-failed`](message-codes-network.md#download-network-failed));
-  one that runs out of time, `git <command> did not finish within <seconds>
-  seconds; stopped`
+  one that runs out of time, `git <command> did not finish within
+  <duration>; stopped`
   ([`download-timeout`](message-codes-network.md#download-timeout)): the codes a
   PyPI or Hugging Face request that fails the same way carries. Any other
   git failure (a repository, branch or sign-in the server refused) is
@@ -455,7 +455,7 @@ Every URL that is changed, refused or not followed is said, never silently:
 | `ERROR:` | `git <command>: <error>; nothing fetched [git-repository-unusable]` | a failed `git` call that was no network failure: the repository, branch or sign-in the server refused (`git.clone-failed`) |
 | `ERROR:` | `URL=<url>: an empty repository (no commits); nothing read [git-repository-unusable/empty]` | a repository with no commits |
 | `ERROR:` | `git <command> failed: <error>; nothing fetched [download-network-failed]` | the server could not be reached |
-| `ERROR:` | `git <command> did not finish within <seconds> seconds; stopped [download-timeout]` | the 10-minute limit passed |
+| `ERROR:` | `git <command> did not finish within <duration>; stopped [download-timeout]` | the 10-minute limit passed |
 | `WARNING:` | `FILE=<file>: build-time code of the downloaded repository is not run; <settings> ignored [config-unsafe/build-code]` | a cloned project's build settings would run the repository's own code (once per SBOM) |
 | `WARNING:` | `FILE=<entry>: outside the downloaded repository; not read [file-unreadable/outside-repository]` | a build file list entry, as written, names a path outside the repository (one line per entry) |
 | `WARNING:` | `DIR=<dir>: larger than the 60-second file-discovery cap; file list not read [over-cap]` | file discovery in a clone ran over its time cap |

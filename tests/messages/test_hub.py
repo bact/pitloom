@@ -86,7 +86,7 @@ def test_each_entry_says_what_the_plan_names(
 #: fields, which every Hub request names (the page, what is not recorded).
 _SHARED = [
     (DOWNLOAD_FAILED, DOWNLOAD_FAILED_WARNING_LINE, {"url", "failure", "outcome"}),
-    (DOWNLOAD_TIMEOUT, DOWNLOAD_TIMEOUT_WARNING_LINE, {"url", "seconds", "outcome"}),
+    (DOWNLOAD_TIMEOUT, DOWNLOAD_TIMEOUT_WARNING_LINE, {"url", "duration", "outcome"}),
     (OFFLINE_UNUSABLE, OFFLINE_WARNING_LINE, {"url", "outcome"}),
 ]
 

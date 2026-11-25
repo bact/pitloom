@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-29
-Last-Modified: 2026-11-23
+Last-Modified: 2026-11-26
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -52,7 +52,7 @@ Why each cause makes the ids miss, in the order to check:
   generate <PATH> -e NAME@VERSION:software_Package -o <registry>` for the
   first holder; write the fragment against that id after. Only one holder can
   be pinned, so every later run prints an expected `WARNING: ID registry: ...
-  registered for both ...` for the other. This skill creates no registry (it
+  is registered for both ...` for the other. This skill creates no registry (it
   passes only the one the base run declared); with no one to ask, change
   nothing and tell the user. See `sbom-generate`'s "Pinning element ids" and
   its `references/id-registry.md` (sibling skill; on GitHub:

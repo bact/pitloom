@@ -41,7 +41,7 @@ from pitloom.extract.remote._git_size import SizeCap, tree_bytes
 from pitloom.extract.remote._http_errors import remote_error
 from pitloom.extract.remote.errors import RemoteSourceError
 from pitloom.logging_config import loggable
-from pitloom.messages import say_summary
+from pitloom.messages import say_summary, whole_seconds
 from pitloom.messages.files import (
     CLONE_LINE,
     GIT_OUTPUT_LINE,
@@ -282,7 +282,7 @@ def _timed_out(seconds: float, what: str) -> RemoteSourceError:
         DOWNLOAD_TIMEOUT,
         GIT_TIMEOUT_LINE,
         command=what,
-        seconds=max(round(seconds), 1),
+        duration=whole_seconds(seconds),
     )
 
 

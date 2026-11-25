@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-11-24
+Last-Modified: 2026-11-26
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -331,12 +331,13 @@ retrained file gets a new one. The model is keyed by that file's path from the
 registry's project root, the same key `loom model` and `id generate` use.
 When a project build merges the run's fragment, the model file's `ai_AIPackage`
 takes the name given to `set_model()`/`use_model()`, with one `INFO: Merge:
-'name' on ...`; its id and registry key do not change. Runs naming one file two
+ELEMENT=<id>: name replaced by the one the fragments agree on; ...`; its id
+and registry key do not change. Runs naming one file two
 ways keep the project's name, with a `WARNING:` (see
 [SBOM fragments](fragments.md#merge-fragments)).
 Without `path=`, or when it is not a file when the run ends, the model gets no
-hash. With a registry loaded, one `WARNING: ID registry: model ... looked up
-ungated: not hashed [registry-hash-missing]` says the model is looked up by its
+hash. With a registry loaded, one `WARNING: ID registry: loom model ... looked
+up ungated: not hashed [registry-hash-missing]` says the model is looked up by its
 name alone; the match hits an id held with no hash (a model with no file) and
 never one recorded with a SHA-256, which no content vouches for: a retrained
 model's id is not reused by a bare name. With no registry, a `path=` that is no

@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-04
-Last-Modified: 2026-11-23
+Last-Modified: 2026-11-26
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -180,7 +180,8 @@ Works on any SPDX 3 JSON document, not just Pitloom's own output. Passing
 more than one path also validates the graph formed by merging them, which
 catches type errors across `ExternalMap` references -- pass `--no-merge`
 to skip that and check each document only in isolation. Non-zero exit reports every
-finding to stderr, each line `ERROR: spdx3-validate: <line>` -- a SHACL
+finding to stderr, each line
+`ERROR: loom fragment validate: spdx3-validate: <line>` -- a SHACL
 violation's Severity/Source Shape/Focus Node breakdown spans several lines, not
 just one, and a finding given twice is said once. Each document then gets one
 coded `ERROR: FILE=<file>: not valid SPDX 3 (<number> finding(s) above)

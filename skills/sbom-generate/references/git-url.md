@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-21
-Last-Modified: 2026-11-19
+Last-Modified: 2026-11-26
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -69,7 +69,7 @@ URL is read by the host's conventions. Rules to state to the user:
   time); do not raise it for them (non-interactively, report only).
 - A clone that cannot reach the server ends `ERROR: loom <command>: git clone failed:
   <git's reason>; nothing fetched [download-network-failed]`, one that runs
-  out of time `... did not finish within <seconds> seconds; stopped
+  out of time `... did not finish within <duration>; stopped
   [download-timeout]`: the codes a PyPI or Hugging Face request that fails
   the same way carries. Any other git failure (a repository, branch or
   sign-in the server refused) is `ERROR: loom <command>: git <command>:

@@ -163,7 +163,7 @@ def test_a_deadline_gone_before_the_call_is_a_timeout() -> None:
         GitRunner(seconds=0).run(["--version"], "version")
     assert raised.value.code == "git.timeout"
     assert code_of(raised.value) == "download-timeout"
-    values = {"command": "version", "seconds": 1}
+    values = {"command": "version", "duration": 1}
     assert str(raised.value) == GIT_TIMEOUT_LINE.render(values)
     _trusted(raised.value)
 
@@ -178,7 +178,7 @@ def test_a_deadline_that_passes_during_the_call_is_the_same_timeout() -> None:
             GitRunner(seconds=0.5).run(["ls-remote", "--", url], "ls-remote")
     assert raised.value.code == "git.timeout"
     assert code_of(raised.value) == "download-timeout"
-    values = {"command": "ls-remote", "seconds": 1}
+    values = {"command": "ls-remote", "duration": 1}
     assert str(raised.value) == GIT_TIMEOUT_LINE.render(values)
     _trusted(raised.value)
 

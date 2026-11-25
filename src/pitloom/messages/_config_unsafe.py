@@ -27,6 +27,7 @@ CONFIG_UNSAFE_REMOTE_LINE: Final = Line(
     level="INFO",
     template="the repository's own [tool.pitloom] settings are ignored "
     "(untrusted); --config or pitloom_config= applies",
+    since="0.25.0",
 )
 
 #: The same for an sdist downloaded from a PyPI URL, named by its file (so

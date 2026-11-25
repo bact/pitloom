@@ -42,7 +42,7 @@ LIBRARY_MISSING_ERROR_LINE: Final = Line(
 #: The same, said as a warning by a step that goes on without the library
 #: (``--allow-build`` without PyPA build, after ``Build: ``).
 LIBRARY_MISSING_WARNING_LINE: Final = Line(
-    level="WARNING", template=LIBRARY_MISSING_ERROR_LINE.template
+    level="WARNING", template=LIBRARY_MISSING_ERROR_LINE.template, since="0.25.0"
 )
 LIBRARY_MISSING: Final = Message(
     code="library-missing",
@@ -95,6 +95,7 @@ LIBRARY_API_LINE: Final = Line(
     level="WARNING",
     template="required library API not found: poetry-core: %(error)s; Poetry "
     "dependency tables not read; reinstall Pitloom",
+    since="0.25.0",
 )
 LIBRARY_UNUSABLE: Final = Message(
     code="library-unusable",

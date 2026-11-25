@@ -12,6 +12,7 @@ See also: :mod:`pitloom.messages._fields` (the fields and their shapes).
 
 from __future__ import annotations
 
+import math
 import os
 import re
 from typing import Final
@@ -132,6 +133,19 @@ def count_text(value: object) -> str:
 def bytes_text(value: object) -> str:
     """A whole number of bytes (:func:`size_text`)."""
     return size_text(whole(value))
+
+
+def duration_text(value: object) -> str:
+    """A whole number of seconds: ``1 second``, ``N seconds``."""
+    seconds = whole(value)
+    return f"{seconds} second" if seconds == 1 else f"{seconds} seconds"
+
+
+def whole_seconds(seconds: float) -> int:
+    """A time limit of *seconds* as the whole number a ``duration`` field
+    prints: rounded up, and at least 1, so a sub-second limit does not read
+    as none."""
+    return max(math.ceil(seconds), 1)
 
 
 def number_text(value: object) -> str:

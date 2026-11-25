@@ -100,7 +100,7 @@ def test_a_build_says_the_unsafe_line_of_its_two_choices_first(
     assert len(lines) == 1
     line = lines[0]
     text = unsafe_line(static_failed=static_failed, isolated=isolated).render(
-        {"dir": tmp_path, "seconds": 77, "backend": "mesonpy"}
+        {"dir": tmp_path, "duration": 77, "backend": "mesonpy"}
     )
     assert line == f"WARNING: {_PREFIX}{text} [build-code-unsafe]"
     assert trusted_message(line) is BUILD_CODE_UNSAFE

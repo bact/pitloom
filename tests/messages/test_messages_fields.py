@@ -24,7 +24,15 @@ import pytest
 from pitloom.core.ai_metadata import AiModelFormat
 from pitloom.core.given_path import GivenPath, TypedPath
 from pitloom.core.lfs_pointer import size_text as lfs_size_text
-from pitloom.messages import FIELDS, FRAMES, RELAY_FRAME, Frame, Line, size_text
+from pitloom.messages import (
+    FIELDS,
+    FRAMES,
+    RELAY_FRAME,
+    Frame,
+    Line,
+    size_text,
+    whole_seconds,
+)
 from pitloom.messages._config_place import EXPECTED
 from pitloom.messages._field_writers import (
     FAILURE_CHARACTERS,
@@ -142,6 +150,29 @@ def test_a_field_writes_a_value_of_its_shape(field: str, value: Any, text: str) 
     assert re.fullmatch(FIELDS[field].pattern, text)
 
 
+@pytest.mark.parametrize(
+    ("value", "text"),
+    [(0, "0 seconds"), (1, "1 second"), (2, "2 seconds"), (604800, "604800 seconds")],
+)
+def test_a_duration_of_one_is_singular(value: int, text: str) -> None:
+    assert FIELDS["duration"].write(value) == text
+    assert re.fullmatch(FIELDS["duration"].pattern, text)
+
+
+@pytest.mark.parametrize(
+    ("seconds", "whole"), [(0.0, 1), (0.2, 1), (1.0, 1), (2.4, 3), (600.0, 600)]
+)
+def test_a_time_limit_is_rounded_up_to_a_whole_second(
+    seconds: float, whole: int
+) -> None:
+    assert whole_seconds(seconds) == whole
+
+
+@pytest.mark.parametrize("text", ["1 seconds", "2 second", "01 seconds", "-1 seconds"])
+def test_a_duration_of_the_wrong_number_is_not_its_shape(text: str) -> None:
+    assert not re.fullmatch(FIELDS["duration"].pattern, text)
+
+
 class _BytesPath:
     """An :class:`os.PathLike` whose path is bytes."""
 
@@ -159,6 +190,10 @@ class _BytesPath:
         ("count", -1),
         ("count", "2"),
         ("size", 1.5),
+        ("duration", 1.5),
+        ("duration", True),
+        ("duration", -1),
+        ("duration", "2"),
         ("file", b"x"),
         ("file", _BytesPath()),
         ("file", 3),

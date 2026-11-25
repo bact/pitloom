@@ -60,6 +60,8 @@ def _load() -> ModuleType:
 pytestmark = pytest.mark.platform  # paths, globs, line ends, a subprocess
 
 gen = _load()
+# Importable once the generator has put the repository root on the path.
+sections = importlib.import_module("scripts.message_reference.sections")
 _DOCS = gen.SITES[0]
 _BODY = gen.render(_DOCS)
 _BLOCKS = [
@@ -186,7 +188,7 @@ def test_a_section_says_what_its_code_means_and_every_line(code: str) -> None:
         assert f"- **{bullet}**: " in text or f"- **{bullet}**:\n" in text
     for actor, heading in ACTOR_HEADINGS.items():
         assert (f"- **{heading}**: " in text) is (message.actor == actor)
-    assert (gen.ERROR_RULE.split()[0] in text) is ("ERROR" in message.levels)
+    assert (sections.ERROR_RULE.split()[0] in text) is ("ERROR" in message.levels)
     for line in message.lines:
         assert f"  {line.level}: {line.shown} [{code}]" in text.splitlines()
 
@@ -236,7 +238,7 @@ def test_the_output_lints_clean(render: Callable[[], str]) -> None:
         assert all(span == span.strip() for span in re.findall(r"`([^`]+)`", line))
         if line.startswith(("|", "<!--", "SPDX-", "---")):
             continue
-        assert len(line) <= gen.WIDTH, line
+        assert len(line) <= sections.WIDTH, line
         assert not line.lstrip().startswith(("<", "`<")), line
 
 
@@ -257,7 +259,7 @@ def test_wrap_fills_to_80_and_never_starts_a_line_with_an_angle(
     assert " ".join(" ".join(lines).split()) == " ".join(f"{first}{text}".split())
     for line in lines[1:]:
         assert not line[len(rest) :].startswith(("<", "`<")), line
-    assert all(len(ln) <= gen.WIDTH for ln in lines)
+    assert all(len(ln) <= sections.WIDTH for ln in lines)
 
 
 def test_a_pipe_in_a_cell_is_escaped() -> None:

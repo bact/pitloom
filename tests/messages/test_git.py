@@ -186,7 +186,7 @@ def test_the_git_families_are_on_the_git_page_and_the_variant_on_targets() -> No
             {"url", "target", "why", "outcome"},
         ),
         (URL_REFUSED, TOO_MANY_REDIRECTS_LINE, "ERROR", {"url", "number"}),
-        (DOWNLOAD_TIMEOUT, GIT_TIMEOUT_LINE, "ERROR", {"command", "seconds"}),
+        (DOWNLOAD_TIMEOUT, GIT_TIMEOUT_LINE, "ERROR", {"command", "duration"}),
         (DOWNLOAD_FAILED, GIT_NETWORK_FAILED_LINE, "ERROR", {"command", "error"}),
         (PROJECT_NOT_FOUND, PROJECT_NOT_FOUND.lines[1], "ERROR", {"path", "folders"}),
         (PROJECT_NOT_FOUND, PROJECT_NOT_FOUND.lines[2], "ERROR", {"path", "folders"}),

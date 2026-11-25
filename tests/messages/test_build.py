@@ -83,7 +83,7 @@ def _shapes(*lines: tuple[str, str]) -> list[_Shape]:
     return sorted((lv, frozenset(names.split())) for lv, names in lines)
 
 
-_UNSAFE = ("WARNING", "dir seconds backend")
+_UNSAFE = ("WARNING", "dir duration backend")
 
 #: Each entry: its code, condition, effect, actor, subject key and the
 #: (level, fields) of each of its lines, spelt out here and not read from the
@@ -108,7 +108,7 @@ _ENTRIES = [
     (
         BUILD_TIMEOUT,
         ("build-timeout", "timeout", "weaker", "user", "DIR"),
-        _shapes(("WARNING", "dir seconds"), ("WARNING", "dir seconds")),
+        _shapes(("WARNING", "dir duration"), ("WARNING", "dir duration")),
     ),
     (
         BUILD_PROCESSES_UNSAFE,
@@ -332,7 +332,7 @@ def test_build_error_carries_its_line_values_and_code(
     [
         (BUILD_EXIT_LINE, {"dir": Path("p")}),  # a value missing
         (BUILD_EXIT_LINE, {"dir": Path("p"), "exit_code": 1, "output": "x", "y": 1}),
-        (BUILD_TIMED_OUT_LINE, {"dir": Path("p"), "seconds": 1}),  # another entry's
+        (BUILD_TIMED_OUT_LINE, {"dir": Path("p"), "duration": 1}),  # another entry's
         (BUILD_WHEEL_COUNT_LINE, {"dir": Path("p"), "number": -1}),
         (BUILD_EXIT_LINE, {"dir": Path("p"), "exit_code": "1", "output": "x"}),
     ],

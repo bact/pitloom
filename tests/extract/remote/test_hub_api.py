@@ -195,7 +195,7 @@ def test_a_timeout_is_checked_before_the_os_error_branch(
 @pytest.mark.parametrize(
     ("seconds", "said"),
     [
-        (0.5, "within 1 seconds"),
+        (0.5, "within 1 second"),
         (30.0, "within 30 seconds"),
         (29.2, "within 30 seconds"),
     ],

@@ -87,6 +87,8 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
   WARNING: FILE=<file>: not a JSON object <use> [json-malformed]
   ```
 
+- **Since**: 0.23.0; lines 3-4: 0.25.0
+
 ### `json-malformed/bom`
 
 - **Level**: WARNING.
@@ -136,6 +138,8 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
   WARNING: FORMAT=<format> FILE=<file>: lone surrogates written as \uXXXX [text-malformed]
   WARNING: LICENSE=<license>: lone surrogates replaced with U+FFFD [text-malformed]
   ```
+
+- **Since**: 0.23.0; line 3: 0.25.0
 
 ### `text-malformed/registry`
 

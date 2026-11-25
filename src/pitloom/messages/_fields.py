@@ -54,6 +54,7 @@ from pitloom.messages._field_writers import (
     NAME_CHARACTERS,
     bytes_text,
     count_text,
+    duration_text,
     failure_text,
     file_text,
     free_name_text,
@@ -125,6 +126,12 @@ _GENERAL: Final[Mapping[str, Field]] = MappingProxyType(
             "name only, `<checkout>` or `<download>` for a remote source's); "
             "in quotes, escaped, when it holds a control character",
             free=True,
+        ),
+        "duration": Field(
+            r"1 second|(?:0|[2-9]|[1-9][0-9]+) seconds",
+            duration_text,
+            "<duration>",
+            "the time allowed, in whole seconds (`1 second`, `N seconds`)",
         ),
         "elements": Field(
             rf"{ELEMENT}(?:, {ELEMENT})*",
@@ -342,12 +349,6 @@ _GENERAL: Final[Mapping[str, Field]] = MappingProxyType(
             "'<root>'",
             "the directory a path is checked against (--project-dir, a "
             "project root), in quotes like the path beside it",
-        ),
-        "seconds": Field(
-            r"0|[1-9][0-9]*",
-            number_text,
-            "<seconds>",
-            "the time allowed, in whole seconds",
         ),
         "settings": Field(
             rf"{SETTING}(?:, {SETTING})*",

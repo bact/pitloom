@@ -131,9 +131,9 @@ def _frame_notes() -> Callable[..., list[str]]:
     """``frame_notes`` of the reference helper, loaded from its file (the
     ``scripts`` folder is no package, and ``pytest`` does not put the
     repository root on ``sys.path``)."""
-    path = Path(__file__).resolve().parents[2] / "scripts"
+    path = Path(__file__).resolve().parents[2] / "scripts" / "message_reference"
     spec = importlib.util.spec_from_file_location(
-        "_message_reference_frames", path / "_message_reference_frames.py"
+        "message_reference_frames", path / "frames.py"
     )
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)

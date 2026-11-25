@@ -1,6 +1,6 @@
 ---
 # Created: 2026-07-05
-# Last-Modified: 2026-11-23
+# Last-Modified: 2026-11-26
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -266,14 +266,12 @@ installed.
 
 ## Check stderr for INFO:/WARNING:/ERROR: lines
 
-Every stderr line starts with exactly one of `INFO:`, `WARNING:`, `ERROR:`.
-`WARNING:` marks a recovered problem or a deviation (a config value
-normalised, a detector not installed, an option with no effect for this
-target); `INFO:` marks normal status, above all **generation skipped or
-scoped down**. Neither always fails the command or reaches the JSON, so
-scan stderr for all three after every `loom` call and mention any hit, even
-on exit 0 with a file written. A `WARNING: Options: ...` line about a flag *you* added
-means it did not apply to that target: drop it next time.
+Pitloom's own lines start `INFO:`, `WARNING:` or `ERROR:` (argparse usage
+text and a traceback are untagged). Scan stderr for all three after every
+`loom` call and mention any hit, even on exit 0 with a file written; read
+`references/messages.md` for what each level means. A `WARNING: Options: ...`
+line about a flag *you* added means it did not apply to that target: drop it
+next time.
 
 For `Build: ...` lines from an `--allow-build` run, read
 `references/build-timeout.md`; for `ID registry:` lines,

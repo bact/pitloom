@@ -48,6 +48,7 @@ holds the value there. The table lists every name a line or a prefix uses.
 | `<dir>` | a directory as Pitloom names it (a temporary directory by its name only, `<checkout>` or `<download>` for a remote source's); in quotes, escaped, when it holds a control character |
 | `<discoverer>` | the file discoverer of the project's build backend: `Flit`, `Hatchling`, `PDM`, `Poetry`, `Setuptools` |
 | `<dropped>` | what a conflict left out (versions, a lock file, a value), sorted, comma-separated, each on one line, a URL's credentials masked, cut to 120 characters (`...` after it when cut), in quotes, escaped when it holds a control character; a value merged from SBOM fragments that is not a text: an element (`ai_AIPackage <spdx-id> 'name'`), a structure (`Hash(algorithm=..., hashValue='...')`) or a number, not in quotes |
+| `<duration>` | the time allowed, in whole seconds (`1 second`, `N seconds`) |
 | `<element>` | the SBOM element that holds the value (for a fingerprint that matches nothing, the SBOM's SpdxDocument), by its spdxId, a URL's credentials masked; in quotes, escaped, when it holds a control character |
 | `<kind>` | what the element is: `dataset`, `dataset package`, `entity`, `file`, `model` |
 | `'<type>'` | an element type as the ID registry file names it, in quotes (`'software_File'`), escaped when it holds a control character |
@@ -132,7 +133,6 @@ holds the value there. The table lists every name a line or a prefix uses.
 | `'<root>'` | the directory a path is checked against (--project-dir, a project root), in quotes like the path beside it |
 | `'<sbom-filename>'` | the file name given as --sbom-filename, in quotes, a URL's credentials masked, cut to 500 characters with `...` before the closing quote, escaped when it holds a control character |
 | `<sbom-value>` | the value the SBOM states (its subject's name or version, or its type), exactly as stated (a value not text as sorted ASCII JSON), never collapsed, in quotes: masked whole (a URL's credentials, a secret-named parameter), cut to 120 characters with `...` before the closing quote, backslashes doubled, white space other than a plain space and control characters escaped; when the two sides would look alike (equal up to the cut, or either not ASCII), each also shows `(from character N: '<rest>')`, N counting characters of the masked value and the rest an ASCII literal. Raw text is compared, so a difference PEP 503 or PEP 440 ignores in the first characters can hide one past the cut |
-| `<seconds>` | the time allowed, in whole seconds |
 | `<setting>` | a configuration setting as the file names it (`accept-url-credentials`, `url-credentials`, the known key an unknown one is closest to) |
 | `<settings>` | the build settings left out, comma-separated, as the file names them (`tool.hatch.metadata.hooks`, `tool.setuptools.cmdclass`, `metadata.version`) |
 | `<signal>` | the signal that ended Pitloom: `SIGTERM`, `SIGHUP`, `SIGBREAK` |

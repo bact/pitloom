@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-29
-Last-Modified: 2026-11-25
+Last-Modified: 2026-11-26
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -26,6 +26,19 @@ read it as text. A message that could not be shown prints a fixed text and
 keeps its error's code when it had one, so it reads as a line without a code
 only when the error had none. The pages are generated from Pitloom's catalogue, so they
 say what this version prints.
+
+Pitloom's own lines start `ERROR:`, `WARNING:` or `INFO:`. `WARNING:` marks a
+recovered problem or a deviation (a config value normalised, a detector not
+installed, an option with no effect for this target); `INFO:` marks normal
+status, above all **generation skipped or scoped down**. Neither always fails
+the command or reaches the SBOM, so mention each one, even on exit 0 with a
+file written.
+
+A quote of a coded line on these pages may leave its frame out
+(`Build: `, `FORMAT=<format> FILE=<file>: `): the code names the
+line. A quote of an uncoded line matched by its text (a relay, a summary)
+shows the frame the line prints, as in
+`ERROR: loom fragment validate: spdx3-validate: <line>`.
 
 ## Codes
 

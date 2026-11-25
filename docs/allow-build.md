@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-19
-Last-Modified: 2026-11-20
+Last-Modified: 2026-11-26
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -116,13 +116,13 @@ of each, with a value in place of each `<name>`:
 
 | Code | A line of it |
 | :--- | :--- |
-| `build-code-unsafe` | `WARNING: Build: DIR=<dir>: --allow-build runs a PEP 517 build for up to <seconds> seconds (--build-timeout), which executes the project's build code (build-backend <backend>, no discovery module for it) in an isolated build environment [build-code-unsafe]` |
+| `build-code-unsafe` | `WARNING: Build: DIR=<dir>: --allow-build runs a PEP 517 build for up to <duration> (--build-timeout), which executes the project's build code (build-backend <backend>, no discovery module for it) in an isolated build environment [build-code-unsafe]` |
 | `build-failed` | `WARNING: Build: DIR=<dir>: the build exited with code <exit-code>; last output: <output> [build-failed]` |
 | `build-failed` | `WARNING: Build: DIR=<dir>: no Python interpreter to run PyPA build with; not built [build-failed]` |
 | `build-failed` | `WARNING: Build: DIR=<dir>: the build wrote <number> wheels, not one [build-failed]` |
 | `build-failed` | `WARNING: Build: DIR=<dir>: the built wheel holds no file outside .dist-info; read as a failed discovery [build-failed]` |
 | `build-failed` | `WARNING: Build: DIR=<dir>: the build could not run or its wheel could not be read; <failure> [build-failed]` |
-| `build-timeout` | `WARNING: Build: DIR=<dir>: the build timed out after <seconds> seconds (--build-timeout); its process tree was stopped [build-timeout]` |
+| `build-timeout` | `WARNING: Build: DIR=<dir>: the build timed out after <duration> (--build-timeout); its process tree was stopped [build-timeout]` |
 | `build-processes-unsafe` | `INFO: Build: the build left processes running (process group <process-group>); killed [build-processes-unsafe]` |
 | `interrupted` | `WARNING: Build: received SIGTERM during the build; exiting after cleanup [interrupted]` |
 | `temp-dir-unwritable` | `WARNING: Build: DIR=<dir>: could not be fully removed; left in the system temp directory [temp-dir-unwritable]` |
@@ -158,7 +158,7 @@ flag is omitted.
 
 On expiry, Pitloom terminates the build's whole process tree (not just
 the immediate child process) and logs `WARNING: Build: DIR=<dir>: the build
-timed out after <seconds> seconds (--build-timeout); its process tree was
+timed out after <duration> (--build-timeout); its process tree was
 stopped [build-timeout]` -- or `...; could not confirm its process tree stopped
 [build-timeout]` when
 a process in the tree was still alive after the kill (on Windows: when

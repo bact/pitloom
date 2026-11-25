@@ -105,6 +105,12 @@ _KEY_RE: Final = re.compile(r"[A-Z][A-Z0-9_]*")
 _RELEASE_RE: Final = re.compile(r"(?:0|[1-9][0-9]*)(?:\.(?:0|[1-9][0-9]*)){2}")
 
 
+def release_key(release: str) -> tuple[int, ...]:
+    """*release* (``MAJOR.MINOR.PATCH``) as numbers, so ``0.10.0`` sorts
+    after ``0.9.0``."""
+    return tuple(int(part) for part in release.split("."))
+
+
 def _code_problem(code: str) -> str | None:
     """Why *code* is not a catalogued code, or ``None``."""
     if (
@@ -163,6 +169,10 @@ class Line:
     #: The text between ``LEVEL: `` and `` [code]``, each value
     #: ``%(name)s`` of a field of :data:`~pitloom.messages._fields.FIELDS`.
     template: str
+    #: The first release that prints this text at this level, when later
+    #: than the entry's :attr:`Message.since` (a reworded line is new);
+    #: ``None``: the entry's. Read it through :meth:`effective_since`.
+    since: str | None = None
 
     def __post_init__(self) -> None:
         """Check the line against the catalogue's rules."""
@@ -194,12 +204,19 @@ class Line:
         """
         return render(self.template, values)
 
+    def effective_since(self, message: Message) -> str:
+        """The first release that prints this line of *message*."""
+        return message.since if self.since is None else self.since
+
 
 def warning_twins(lines: tuple[Line, ...]) -> tuple[Line, ...]:
     """*lines*, then a ``WARNING`` line of each one's template: a caller that
     catches the error and goes on says the same text as a warning
     (:func:`~pitloom.messages._emit.relay_extra` trusts it only then)."""
-    return (*lines, *(Line(level="WARNING", template=ln.template) for ln in lines))
+    return (
+        *lines,
+        *(Line(level="WARNING", template=ln.template, since=ln.since) for ln in lines),
+    )
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -249,7 +266,9 @@ class Message:
             (self.effect in EFFECTS, f"unknown effect {self.effect!r}"),
             (self.actor in ACTORS, f"unknown actor {self.actor!r}"),
             (
-                bool(self.lines) and len(set(self.lines)) == len(self.lines),
+                bool(self.lines)
+                and len({(ln.level, ln.template) for ln in self.lines})
+                == len(self.lines),
                 "no lines, or one line twice",
             ),
             (
@@ -269,7 +288,23 @@ class Message:
                 f"since {self.since!r}",
             ),
         )
-        return next((f"{self.code}: {why}" for ok, why in checks if not ok), None)
+        found = next((why for ok, why in checks if not ok), None)
+        if found is None:
+            found = self._line_since_problem()
+        return None if found is None else f"{self.code}: {found}"
+
+    def _line_since_problem(self) -> str | None:
+        """Why a line's :attr:`Line.since` is not a release no earlier than
+        the entry's, or ``None``."""
+        for line in self.lines:
+            since = line.since
+            if since is None:
+                continue
+            if _RELEASE_RE.fullmatch(since) is None:
+                return f"{line.template!r}: since {since!r}"
+            if release_key(since) < release_key(self.since):
+                return f"{line.template!r}: since {since} before {self.since}"
+        return None
 
     @property
     def family(self) -> str:
