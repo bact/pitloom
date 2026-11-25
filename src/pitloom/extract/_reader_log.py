@@ -42,10 +42,10 @@ _CAPTURED = (_READERS_LOGGER, "pitloom.extract.dataset.values")
 def _home(name: str) -> str:
     """The captured logger a record of the logger *name* reached the
     dispatcher through: *name* itself or its nearest captured ancestor."""
-    for captured in _CAPTURED:
-        if name == captured or name.startswith(captured + "."):
-            return captured
-    return _READERS_LOGGER
+    return next(
+        (c for c in _CAPTURED if name == c or name.startswith(c + ".")),
+        _READERS_LOGGER,
+    )
 
 
 # Guards _STATE. Never held while logging, so a handler may take it.

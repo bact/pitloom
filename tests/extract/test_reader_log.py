@@ -10,7 +10,7 @@ logger's state is restored whatever order the blocks end in.
 See also: :mod:`tests.extract.scanner.test_scanner_reader_logs`.
 """
 
-# pylint: disable=missing-function-docstring
+# pylint: disable=missing-function-docstring,protected-access
 
 from __future__ import annotations
 
@@ -21,6 +21,7 @@ from contextlib import AbstractContextManager
 
 import pytest
 
+from pitloom.extract import _reader_log
 from pitloom.extract._reader_log import capture_reader_logs
 
 _NAME = "pitloom.extract.ai_model.fake"
@@ -205,3 +206,22 @@ def test_every_captured_logger_is_restored(
         logging.getLogger(_VALUES).warning("captured")
     assert [r.getMessage() for r in records] == ["captured"]
     assert [(lg.propagate, list(lg.handlers)) for lg in loggers] == before
+
+
+@pytest.mark.parametrize(
+    ("name", "home"),
+    [
+        ("pitloom.extract.ai_model", "pitloom.extract.ai_model"),
+        ("pitloom.extract.ai_model.gguf", "pitloom.extract.ai_model"),
+        ("pitloom.extract.dataset.values", "pitloom.extract.dataset.values"),
+        # Not a child: a name that only shares the spelling's start.
+        ("pitloom.extract.ai_modelx", "pitloom.extract.ai_model"),
+        ("pitloom.extract.dataset.valuesx", "pitloom.extract.ai_model"),
+        ("elsewhere", "pitloom.extract.ai_model"),
+    ],
+    ids=["readers", "reader-child", "values", "prefix-only", "values-prefix", "other"],
+)
+def test_a_record_is_passed_on_through_its_captured_logger(
+    name: str, home: str
+) -> None:
+    assert _reader_log._home(name) == home
