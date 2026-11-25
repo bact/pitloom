@@ -45,6 +45,10 @@ _JWT = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.sIg_-x9"
         pytest.param("BEARER\tabcd1234", "BEARER\t***", id="tab"),
         pytest.param("Bearer\xa0abcd1234", "Bearer\xa0***", id="nbsp"),
         pytest.param("Bearer%20abcd1234", "Bearer%20***", id="pct20"),
+        # A b64token holds no space: %20 ends the run, as a space does.
+        pytest.param(
+            "Bearer%20abcd1234%20words", "Bearer%20***%20words", id="pct20-ends-run"
+        ),
         pytest.param("Bearer\ns3cr3tvalue99", "Bearer\n***", id="newline"),
         pytest.param("Basic\r\ndXNlcjpwYXNz", "Basic\r\n***", id="crlf"),
         pytest.param("Bearer\x0bs3cr3tvalue99", "Bearer\x0b***", id="vertical-tab"),

@@ -210,7 +210,8 @@ and this project adheres to
   writes it); remove it from git credential stores (`git credential reject`)
   ([#487])
 - Log lines mask a token, scp password or PURL after an escape (`\t`, `\x1b`),
-  an `Authorization`, `Bearer` or `Basic` credential ([#503], [#526])
+  an `Authorization`, `Bearer` or `Basic` credential, in linear time ([#503],
+  [#526], [#543])
 
 [#481]: https://github.com/bact/pitloom/pull/481
 [#482]: https://github.com/bact/pitloom/pull/482
@@ -246,6 +247,7 @@ and this project adheres to
 [#539]: https://github.com/bact/pitloom/pull/539
 [#540]: https://github.com/bact/pitloom/pull/540
 [#542]: https://github.com/bact/pitloom/pull/542
+[#543]: https://github.com/bact/pitloom/pull/543
 
 ## [0.24.0] - 2026-11-11
 
