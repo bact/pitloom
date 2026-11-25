@@ -35,6 +35,11 @@ _PAGES = (
 _BLOCK = "<!-- BEGIN GENERATED"
 
 
+def _page_id(page: Path) -> str:
+    """A test id that does not depend on the checkout's directory name."""
+    return "docs" if page.parent.name == "docs" else page.parent.parent.name
+
+
 def _prose(page: Path) -> str:
     """The hand-written text of *page* above its generated block (the whole
     page when it has none), its whitespace runs collapsed so a wrapped span
@@ -43,7 +48,7 @@ def _prose(page: Path) -> str:
     return re.sub(r"\s+", " ", text)
 
 
-@pytest.mark.parametrize("page", _PAGES, ids=lambda p: p.parent.parent.name)
+@pytest.mark.parametrize("page", _PAGES, ids=_page_id)
 @pytest.mark.parametrize(
     "prefix", RELAY_PREFIXES, ids=lambda p: p.removesuffix(": ").replace(" ", "-")
 )
@@ -62,3 +67,27 @@ def test_the_prefixes_to_name_are_the_four_relays() -> None:
         "fickling",
         "spdx3-validate",
     }
+
+
+@pytest.mark.parametrize("page", _PAGES, ids=_page_id)
+def test_the_list_of_lines_without_a_code_names_each_relay_prefix(
+    page: Path,
+) -> None:
+    """The sentence listing the lines without a code names each prefix too, not
+    only the relay paragraph (``docs/messages.md`` spells each twice)."""
+    found = re.search(r"A line without a code is .*? traceback line", _prose(page))
+    assert found, "the sentence listing lines without a code is gone"
+    for prefix in RELAY_PREFIXES:
+        assert f"`{prefix.removesuffix(': ')}: `" in found.group(0), prefix
+
+
+@pytest.mark.parametrize("page", _PAGES, ids=_page_id)
+def test_the_prose_says_an_unshown_message_keeps_its_code(page: Path) -> None:
+    """``print_error`` masks the text and then appends the code, and
+    ``mask_record`` keeps ``pitloom_code``: a message that could not be shown
+    keeps its error's code (the line reads as one without a code only when the
+    error had none)."""
+    assert (
+        "could not be shown prints a fixed text and keeps its error's code"
+        in _prose(page)
+    )
