@@ -81,7 +81,7 @@ _TYPE_PARAMS: Final[tuple[type[Any], ...]] = tuple(
 )
 
 
-class _OverCap(Exception):
+class _UsageOverCap(Exception):
     """A path expression is deeper or longer than the caps allow."""
 
 
@@ -240,22 +240,22 @@ class _Scan:
         known; ``None`` when it is no path of this file or is over the caps."""
         try:
             return self._sub(node, 0)
-        except _OverCap:
+        except _UsageOverCap:
             return None
 
     def _sub(self, node: ast.AST, depth: int) -> str | None:
         """:meth:`_static` for a part of an expression, *depth* levels in.
 
         Raises:
-            _OverCap: The expression is too deep or too long to follow.
+            _UsageOverCap: The expression is too deep or too long to follow.
         """
         if depth > _MAX_DEPTH:
-            raise _OverCap
+            raise _UsageOverCap
         if node in self._cache:
             return self._cache[node]
         value = self._eval_static(node, depth + 1)
         if value is not None and len(value) > _MAX_PATH_CHARS:
-            raise _OverCap
+            raise _UsageOverCap
         self._cache[node] = value
         return value
 
