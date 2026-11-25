@@ -139,9 +139,10 @@ def test_a_wrong_kind_is_never_allowed(code: str | None, kind: str, name: str) -
         f"{finding.problem}: {finding.line!r}",
         "stale allowance, matches no line: '.*'",
     ]
-    assert failures([finding], [".*"]) == [
-        f"{finding.problem}: {finding.line!r}",
-        "stale allowance, matches no line: '.*'",
+    # A skipped test is not held to its allowances, but a finding no marker
+    # may allow is still reported.
+    assert failures([finding], [".*"], ran=False) == [
+        f"{finding.problem}: {finding.line!r}"
     ]
 
 

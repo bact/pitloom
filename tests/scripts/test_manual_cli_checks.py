@@ -322,7 +322,7 @@ def test_universal_fails_on_uncoded_and_overlong_lines(
     matrix_env: _MatrixEnv, stderr: str, debug: bool, passes: bool
 ) -> None:
     """The matrix's universal invariant reads lines the same way; a
-    ``DEBUG:`` line is fine only in a debug run, as before."""
+    ``DEBUG:`` line is fine only in a debug run."""
     harness = matrix_env.harness
     result = harness.Result(["x"], 0, "", stderr, 0.0)
     if passes:

@@ -156,6 +156,12 @@ Gates and risks: see the evidence page, sections "Gates" and "Risks".
   through `input_exists(given, shown=target)` and treat `ENAMETOOLONG` as
   missing ("a name that cannot exist is absent"), with a regression test.
   Unchanged from main, so not a B2 regression.
+- **`src/pitloom/logging_config.py` is 503 lines** after #537 and #542, over
+  the soft limit: split it (the one-line and failure-text helpers are one
+  cohesive piece).
+- **The strict check misses records of a module-, class- or session-scoped
+  fixture** (documented): a `pytest_fixture_setup` hookwrapper for those
+  scopes would close it.
 - **`line_kind` reads `(a log message that could not be shown) [real-code]` as
   `uncoded`**, which is why one test needs an allowance: teach it "fixed text
   plus a catalogued code = coded".

@@ -30,10 +30,10 @@ pattern matches fails the test, and so does a pattern that matches no line
 phase did not run to an outcome (skipped in its body or in a fixture's
 setup) is not held to its allowances: ``pytest_runtest_makereport`` in
 ``tests/conftest.py`` notes the call phase (:func:`note_call_report`) and
-:func:`failures` reports no stale pattern unless it ran. A test marked
-``xfail(strict=True)`` that says no allowed line still fails stale at
-teardown, but pytest reports that as ``XFAIL``: a stale allowance there
-goes unseen.
+:func:`failures` reports no stale pattern unless it ran. The check fails at
+fixture teardown, which pytest reports as ``XFAIL`` for an ``xfail`` test:
+any finding in such a test, a stale allowance or an uncoded line, goes
+unseen.
 
 Silent gaps, by design or by cost:
 
@@ -46,6 +46,8 @@ Silent gaps, by design or by cost:
 - a child process (``loom`` run as a script) and the GitHub Action are seen
   only through :func:`tests._loom_child.run_loom` and the manual CLI checks;
 - a record is rendered without the handler's masking;
+- a module-, class- or session-scoped fixture is set up before and torn down
+  after the check's function-scoped one, so its records are never seen;
 - a test that raises a logger's level or calls :func:`logging.disable`
   hides its ``WARNING``/``ERROR`` records from ``Logger.handle``;
 - a direct ``print(..., file=sys.stderr)`` is never seen (the message

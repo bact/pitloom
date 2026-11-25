@@ -23,7 +23,10 @@ holds winning:
 7. ``detail``: an ``INFO: KEY=VALUE`` line (``-v``);
 8. ``relay``: its text starts with a prefix of
    :data:`~pitloom.messages._relays.RELAY_PREFIXES`, after at most one frame
-   of :data:`~pitloom.messages._frames.FRAMES` of the line's level;
+   of :data:`~pitloom.messages._frames.FRAMES` of the line's level, or after
+   a ``FORMAT=.. FILE=..: `` frame, whose file name may hold any text, so
+   another frame, or any words ending in ``: ``, between the two still read
+   as a relay;
 9. ``uncoded``: anything else.
 
 A line that ends in a code-like `` [x]`` but is not trusted is not

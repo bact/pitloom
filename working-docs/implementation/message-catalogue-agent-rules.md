@@ -99,7 +99,9 @@ reads a printed line back; `tests/_strict_uncoded.py` is the check):
   `DEBUG`, the `pitloom.test_*` loggers and third-party ones are out of scope;
   a child process and the GitHub Action are seen only through
   `tests/_loom_child.run_loom` and the manual CLI checks; a record is rendered
-  without the handler's masking.
+  without the handler's masking; records from a module-, class- or
+  session-scoped fixture are never seen; any finding in an `xfail` test is
+  reported as `XFAIL`.
 
 ## Checks that must pass before handoff
 

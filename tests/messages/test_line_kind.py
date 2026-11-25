@@ -62,6 +62,10 @@ _CASES = [
     ("ERROR: spdx3-validate: a finding", "relay"),
     ("ERROR: loom generate: spdx3-validate: a finding", "relay"),
     ("WARNING: FORMAT=pytorch FILE=m.pt: fickling: its own words", "relay"),
+    # A file name may hold any text: a frame, or words ending in ": ".
+    ("WARNING: FORMAT=pytorch FILE=m.pt: Git source: fickling: x", "relay"),
+    ("WARNING: FORMAT=x FILE=m: own words: fickling: x", "relay"),
+    ("WARNING: FORMAT=x FILE=m: own words, then fickling: x", "uncoded"),
     # A frame of another level, two frames, or the prefix not at the start.
     ("INFO: Git source: licenseid: x", "relay"),  # a frame of INFO
     ("INFO: AI model scan: licenseid: x", "uncoded"),  # a WARNING-only frame
