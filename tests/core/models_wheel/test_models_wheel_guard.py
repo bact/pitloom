@@ -250,7 +250,12 @@ def test_a_generator_closed_past_the_cap_does_not_swallow_the_stop(
     """A generator closed by its finaliser (``any()`` cut short) is the first
     call past the cap: a stop raised there is only "ignored", and the hook,
     removed once it raises, would leave the rest of the block uncapped: a
-    link loop's walk would never end."""
+    link loop's walk would never end.
+
+    Python 3.13 emits no ``call`` event for the finaliser's close of a
+    handler-free suspended generator, so there the unfixed hook already stops
+    and this test passes without the fix (measured on 3.13.5); it fails
+    without the fix on 3.10, 3.11, 3.12 and 3.14."""
     ignored: list[object] = []
     monkeypatch.setattr(sys, "unraisablehook", ignored.append)
     with reading_remote_clone(str(tmp_path)):

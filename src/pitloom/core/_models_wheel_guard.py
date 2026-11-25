@@ -29,8 +29,15 @@ second guard. (An exception raised into the thread from a timer, with
 The stop is one shot: Python removes a profile hook that raises. A call
 made by a finaliser (a generator closed when ``any()`` cuts it short, as
 setuptools' package filter does) cannot raise: the stop would be "ignored"
-and the block left without a cap. So the hook never stops at a generator's
-own frame starting or resuming; a ``__del__`` method can still swallow it.
+and the block left without a cap. So the hook never stops at a ``call``
+event of a generator, coroutine or asynchronous generator frame (a start, a
+resume, or a close by a finaliser); a ``c_call`` still stops, so a walk in
+``os.walk`` is capped at its next C call. Limits: a finaliser that calls
+past the cap still swallows the stop (a ``__del__`` method, a weakref
+callback, or generator cleanup that makes a call, in ``try/finally`` or
+``except GeneratorExit``, when the generator is dropped past the cap); and
+a loop of generator frames alone, with no C call and no plain Python call
+inside, is not stopped until the first call after it.
 
 See also: :mod:`pitloom.core._models_wheel_setuptools` and
 :mod:`pitloom.core._models_wheel_pdm` (the backends that chdir),

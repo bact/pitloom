@@ -126,14 +126,41 @@ finaliser); a `c_call` in such a frame still stops, so a walk inside
   `test_the_hook_stops_a_call_past_the_cap_only` cases. All four fail on
   `main` (macOS 3.10 and Linux 3.14.8 container) and pass with the fix
   (macOS 3.10). (measured)
+- The generator-close test is **vacuous on Python 3.13**: a finaliser's close
+  of a handler-free suspended generator emits no `call` event there, so the
+  unfixed hook already stops (measured on 3.13.5). It bites on 3.10, 3.11,
+  3.12 and 3.14 (a fresh reviewer's checks; this branch measured only
+  3.10 and 3.14.8, above). It is not skipped: the three
+  `test_the_hook_stops_a_call_past_the_cap_only` cases still test the rule.
+- **Known trade-off:** with the `call` of a generator frame exempt, a loop made
+  only of generator frames, with no C call and no plain Python call inside
+  (`for _ in count_gen()`, nested generator expressions, `yield from`
+  recursion), is not capped until the first call after the loop (300,000
+  iterations past the cap were measured); the unfixed hook stopped it at
+  once. Realistic walks are unaffected: each `os.walk` step calls
+  `scandir` or `join`, which still stop. (measured; read in `_check`)
 - Not run with the fix: the Linux container loops and the stress harness
   (stopped for machine load), and the new tests on 3.14. (not verified)
 
 ### Residual risk
 
-A `__del__` method or a weakref callback that runs past the cap still
-swallows the stop (measured with a synthetic `__del__` loop: 1 of 20 runs
-uncapped). Not seen in any setuptools/PDM walk here. A persistent stop would
+Three classes of finaliser that call past the cap still swallow the stop
+(the stop is raised inside the finaliser, reported as unraisable, and the
+hook is gone):
+
+- a `__del__` method (measured with a synthetic `__del__` loop: 1 of 20 runs
+  uncapped);
+- a weakref callback;
+- generator cleanup that makes a call (a `try/finally`, or
+  an `except GeneratorExit`, calling `len("x")` or a Python function) when
+  the generator is dropped past the cap. A possible real site, **guessed**
+  from reading the standard library (not run): `pathlib`'s
+  `_RecursiveWildcardSelector._select_from` on 3.10 and 3.11 and
+  `_DoubleRecursiveWildcardSelector._select_from` on 3.12 end in
+  `finally: yielded.clear()` (a C call), so an early-dropped
+  `Path.glob("**/...")` could swallow the stop there.
+
+None was seen in any setuptools/PDM walk here. A persistent stop would
 close it, for example an audit hook on `os.scandir`/`os.listdir` that keeps
 raising in the capped thread past the cap (every walk step lists a
 directory, and an audit hook is never removed). Re-arming the profile hook

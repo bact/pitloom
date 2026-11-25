@@ -187,7 +187,8 @@ counts are in [message-catalogue-migration-plan.md](message-catalogue-migration-
   first test: a generator `close()` swallowed the guard's stop; fixed in #538
   (see [ci-hang-link-loop-guard.md](../implementation/ci-hang-link-loop-guard.md)).
   Open: the second test (`..._reach_build_and_read_registered_backend`) is
-  unexplained, and the audit-hook persistent stop is deferred. A repeat hang:
+  unexplained, and the audit-hook persistent stop is deferred (it would also
+  cover generator cleanup that calls and generator-only loops). A repeat hang:
   run with `-o faulthandler_timeout=300` for the stack.
 - [ ] **`pypi-url-unusable` is also logged bare before it is raised**
   (`assemble/_model_generator.py:_refuse_pypi_url`, found in PR 14b): the same
