@@ -61,6 +61,9 @@ _CASES = {
 
 @pytest.mark.parametrize("case", _CASES)
 @pytest.mark.parametrize("command", ["project", "model", "generate"])
+@pytest.mark.uncoded_output(
+    r"^ERROR: loom (project|model|generate): stopped by the test$"
+)
 def test_the_cap_cascades_to_the_fetch(
     caps: list[int | None],
     tmp_path: Path,

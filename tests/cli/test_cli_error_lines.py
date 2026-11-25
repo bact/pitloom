@@ -111,7 +111,12 @@ _CLONE = (
             f"{_CLONE} [over-cap]",
             OVER_CAP,
         ),
-        (RemoteSourceError("git.too-large", "x"), "x", None),
+        pytest.param(
+            RemoteSourceError("git.too-large", "x"),
+            "x",
+            None,
+            marks=pytest.mark.uncoded_output(r"^ERROR: loom model: x$"),
+        ),
     ],
     ids=["catalogued", "over-cap-config", "over-cap-remote", "uncatalogued"],
 )
@@ -142,6 +147,7 @@ def test_an_error_line_ends_in_a_catalogued_code_only(
     [(RuntimeError(), "RuntimeError"), (KeyError(""), "''"), (OSError(" "), " ")],
     ids=["empty", "key-error", "space"],
 )
+@pytest.mark.uncoded_output(r"^ERROR: loom model: (RuntimeError|''| )$")
 def test_an_empty_exception_text_names_its_class(
     capsys: pytest.CaptureFixture[str], raised: Exception, text: str
 ) -> None:
@@ -226,6 +232,10 @@ def test_a_no_effect_warning_names_no_credential(
     assert "RET1" not in err
 
 
+@pytest.mark.uncoded_output(
+    r"^ERROR: bad 'ftp://\*\*\*:\*\*\*@example\.invalid/f/x\.whl'"
+    r" and 'https:/\*\*\*:\*\*\*@h'$"
+)
 def test_a_per_wheel_line_names_no_credential(
     capsys: pytest.CaptureFixture[str],
 ) -> None:

@@ -181,6 +181,7 @@ def _raised(exc: ValueError) -> object:
         return sys.exc_info()
 
 
+@pytest.mark.uncoded_output(r"^ERROR: failed$")
 def test_a_raw_exc_text_is_replaced(sinks: _Sinks) -> None:
     """A record whose ``exc_text`` holds the raw traceback (made outside the
     factory, ``logging.makeLogRecord``) reaches the root masked: the

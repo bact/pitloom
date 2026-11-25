@@ -186,6 +186,7 @@ def test_hook_finalize_cleans_up() -> None:
         assert hook._staging_dir is None
 
 
+@pytest.mark.uncoded_output(r"^ERROR: Pitloom build hook: boom$")
 def test_hook_initialize_cleans_up_staging_dir_on_late_failure(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -434,7 +435,13 @@ _POINTER_TEXT = (
             ),
             f"{_POINTER_TEXT} [lfs-pointer]",
         ),
-        (ValueError("'m.bin': x"), "'m.bin': x"),
+        pytest.param(
+            ValueError("'m.bin': x"),
+            "'m.bin': x",
+            marks=pytest.mark.uncoded_output(
+                r"^ERROR: Pitloom build hook: 'm\.bin': x$"
+            ),
+        ),
     ],
     ids=["coded", "plain"],
 )

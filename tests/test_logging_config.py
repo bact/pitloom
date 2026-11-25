@@ -23,6 +23,7 @@ from pitloom.logging_config import (
     configure_logging,
     escape_controls,
     excerpt,
+    line_formatter,
     one_line,
     print_error,
 )
@@ -37,6 +38,18 @@ def test_configure_logging_prefixes_warning(capsys: pytest.CaptureFixture[str]) 
     captured = capsys.readouterr()
     assert captured.err.strip() == "WARNING: something suboptimal happened"
     assert captured.out == ""
+
+
+def test_line_formatter_is_the_one_the_command_line_uses() -> None:
+    configure_logging()
+    (handler,) = logging.getLogger("pitloom").handlers
+    assert handler.formatter is not None
+    assert isinstance(line_formatter(), type(handler.formatter))
+    record = logging.makeLogRecord(
+        {"levelname": "WARNING", "levelno": logging.WARNING, "msg": "a\nb"}
+    )
+    assert line_formatter().format(record) == handler.formatter.format(record)
+    assert line_formatter().format(record) == "WARNING: a\\nb"
 
 
 def test_configure_logging_prefixes_info(capsys: pytest.CaptureFixture[str]) -> None:
@@ -348,6 +361,7 @@ def test_a_traceback_is_still_appended_whole(
     assert "ValueError: boom" in err
 
 
+@pytest.mark.uncoded_output(r"^ERROR: bad 'a\\nWARNING: forged'")
 def test_print_error_is_one_error_line(capsys: pytest.CaptureFixture[str]) -> None:
     """The CLI's one way to write an error: tagged, on stderr, on one line."""
     print_error("bad 'a\nWARNING: forged'\x1b[0m")

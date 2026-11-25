@@ -31,6 +31,9 @@ def _fail_with(monkeypatch: pytest.MonkeyPatch, raised: BaseException) -> None:
     monkeypatch.setattr(PitloomBuildHook, "_generate", fail)
 
 
+@pytest.mark.uncoded_output(
+    r"^ERROR: Pitloom build hook: (RuntimeError|ValueError|boom)$"
+)
 @pytest.mark.parametrize(
     ("raised", "tail"),
     [

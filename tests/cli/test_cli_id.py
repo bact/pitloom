@@ -198,6 +198,7 @@ def test_id_import_registry_load_fails(
     assert result == 1
 
 
+@pytest.mark.uncoded_output(r"^ERROR: loom id import: Simulated failure$")
 def test_id_import_fails(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,

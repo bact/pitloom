@@ -257,6 +257,7 @@ def test_ctrl_c_before_the_arguments_parse_is_framed_by_loom_alone(
     assert "ERROR: loom: interrupted [interrupted]\n" in capsys.readouterr().err
 
 
+@pytest.mark.uncoded_output(r"^ERROR: plain \[x-y\]$")
 def test_print_error_is_unframed_where_nothing_set_a_frame(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
@@ -265,6 +266,9 @@ def test_print_error_is_unframed_where_nothing_set_a_frame(
     assert capsys.readouterr().err == "ERROR: plain [x-y]\n"
 
 
+@pytest.mark.uncoded_output(
+    r"^ERROR: (loom [a-d]: )?(one|two|three|four|five|six|seven)$"
+)
 def test_a_frame_lasts_the_block_and_an_explicit_frame_wins(
     capsys: pytest.CaptureFixture[str],
 ) -> None:

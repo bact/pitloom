@@ -18,6 +18,7 @@ from typing import Any
 
 import pytest
 
+from pitloom import logging_config
 from pitloom.extract._license import clear_resolution_cache
 from pitloom.extract._license_text_match import _get_detector
 from pitloom.logging_config import _WARNED_ONCE
@@ -28,12 +29,21 @@ from tests._message_drift import record_problem
 # pylint: disable-next=unused-import
 from tests._network import (  # noqa: F401
     bypass_proxies,
+    fail_skipped_network_test,
     pytest_configure,
     pytest_make_collect_report,
-    pytest_runtest_makereport,
 )
 from tests._platform import is_platform_file
 from tests._spdx3_validate import use_offline_model
+from tests._strict_uncoded import (
+    MARKER,
+    Finding,
+    call_ran,
+    failures,
+    line_finding,
+    note_call_report,
+    strict_finding,
+)
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
@@ -198,27 +208,54 @@ def _restore_pitloom_logger() -> Iterator[None]:
 
 
 @pytest.fixture(autouse=True)
-def _catalogued_records_are_valid() -> Iterator[None]:
+def _catalogued_records_are_valid(request: pytest.FixtureRequest) -> Iterator[None]:
     """Fail a test during which any log record carried a ``pitloom_code``
     that is uncatalogued, at a level or with a text its entry does not say
-    (:func:`tests._message_drift.record_problem`). Hooked on ``Logger.handle``
-    so every record counts, whatever the handlers; the hook is its own
-    patch, undone at the end without touching the test's ``monkeypatch``. A
-    logger named ``pitloom.test_*`` is a test's own and is not checked."""
+    (:func:`tests._message_drift.record_problem`), or Pitloom said a record
+    or an ``ERROR:`` line without a code that its kind does not explain and
+    no ``uncoded_output`` marker of the test allows (:mod:`tests
+    ._strict_uncoded`). Hooked on ``Logger.handle`` so every record counts,
+    whatever the handlers, and on ``print_error``'s one seam
+    ``_write_error_line``; the hooks are their own patch, undone at the end
+    without touching the test's ``monkeypatch``. A logger named
+    ``pitloom.test_*`` is a test's own and is not checked."""
     problems: list[str] = []
+    findings: list[Finding] = []
     handle = logging.Logger.handle
+    # pylint: disable-next=protected-access
+    write = logging_config._write_error_line
 
     def watching(self: logging.Logger, record: logging.LogRecord) -> None:
         problem = record_problem(record)
         if problem is not None:
-            problems.append(problem)
+            finding = strict_finding(record)
+            if finding is None:
+                problems.append(problem)
+            else:
+                findings.append(finding)
         handle(self, record)
+
+    def watching_lines(line: str) -> None:
+        finding = line_finding(line)
+        if finding is not None:
+            findings.append(finding)
+        write(line)
 
     with pytest.MonkeyPatch.context() as patch:
         patch.setattr(logging.Logger, "handle", watching)
+        patch.setattr(logging_config, "_write_error_line", watching_lines)
         yield
+    allowances = [
+        pattern
+        for mark in request.node.own_markers
+        if mark.name == MARKER
+        for pattern in mark.args
+    ]
+    problems = [f"catalogued record: {p}" for p in problems]
+    unallowed = failures(findings, allowances, ran=call_ran(request.node))
+    problems += [f"uncoded output: {f}" for f in unallowed]
     if problems:
-        pytest.fail("catalogued record: " + "; ".join(problems), pytrace=False)
+        pytest.fail("; ".join(problems), pytrace=False)
 
 
 @pytest.fixture(autouse=True)
@@ -299,6 +336,21 @@ def _block_network_access(
 def offline_spdx3_validate(monkeypatch: pytest.MonkeyPatch) -> None:
     """Run ``spdx3_validate.validate`` against the vendored model, no network."""
     use_offline_model(monkeypatch)
+
+
+@pytest.hookimpl(hookwrapper=True)
+def pytest_runtest_makereport(
+    item: pytest.Item, call: pytest.CallInfo[None]
+) -> Iterator[None]:
+    """Each phase's report: a skipped ``network`` test made a failure in
+    strict mode (:func:`tests._network.fail_skipped_network_test`), then the
+    call phase's outcome kept for the strict check
+    (:func:`tests._strict_uncoded.note_call_report`)."""
+    del call
+    outcome: Any = yield
+    report = outcome.get_result()
+    fail_skipped_network_test(item, report)
+    note_call_report(item, report)
 
 
 @pytest.hookimpl(tryfirst=True)

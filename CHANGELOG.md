@@ -156,6 +156,8 @@ and this project adheres to
   as with inputs; a removed current directory no longer crashes a `loom` path label ([#536])
 - Former `RuntimeError` guards (`EmbedFileCache`, `TerminationGuard`, ...) raise `InternalError`;
   a non-method `content_type_method` or non-string `Creator.type` is `option-invalid` ([#536])
+- An `InternalError` in one wheel's check stops `verify-wheel`, `validate-wheel` and
+  `embed-wheel --verify/--validate`, not said as that wheel's failure ([#542])
 
 ### Fixed
 
@@ -196,8 +198,8 @@ and this project adheres to
   (`(Request ID: ...)`) and a memory address before masking and the cut ([#537])
 - The usage scan no longer hangs when its parse thread cannot install a trace
   or profile hook (Python 3.10 and 3.11, concurrent parses) ([#539])
-- A GGUF in a wheel names its archive member, not a temporary copy, in the
-  provenance of its datasets ([#540])
+- A GGUF in a wheel names its archive member's file name, not a temporary
+  copy, in the provenance of its datasets ([#540])
 
 ### Security
 
@@ -243,6 +245,7 @@ and this project adheres to
 [#537]: https://github.com/bact/pitloom/pull/537
 [#539]: https://github.com/bact/pitloom/pull/539
 [#540]: https://github.com/bact/pitloom/pull/540
+[#542]: https://github.com/bact/pitloom/pull/542
 
 ## [0.24.0] - 2026-11-11
 
