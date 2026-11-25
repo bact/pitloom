@@ -378,7 +378,8 @@ def test_a_scanner_relay_keeps_a_relayed_code_only(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
     """A reader's ``text-malformed`` record keeps its code after the frame;
-    an ``lfs-pointer`` one does not (no reader says it)."""
+    an ``lfs-pointer`` one (a code the frame does not allow) keeps it
+    unframed. Each names the model's path, not the file the reader read."""
     lines = {
         "text-malformed": "FILE=m.gguf: lone surrogates written as \\uXXXX",
         "lfs-pointer": "FILE=m.gguf: Git LFS pointer, content not read; run "
@@ -397,9 +398,10 @@ def test_a_scanner_relay_keeps_a_relayed_code_only(
     with caplog.at_level(logging.WARNING, logger=scanner.log.name):
         relog(records, AiModelFormat.GGUF, model, tmp_path / "m.gguf")
     codes = [getattr(r, CODE_ATTR, None) for r in caplog.records]
-    assert codes == ["text-malformed", None]
-    first = caplog.records[0].getMessage()
-    assert first.startswith("FORMAT=gguf FILE=demo/m.gguf: FILE=m.gguf: ")
+    assert codes == ["text-malformed", "lfs-pointer"]
+    first, second = (r.getMessage() for r in caplog.records)
+    assert first.startswith("FORMAT=gguf FILE=demo/m.gguf: FILE=demo/m.gguf: ")
+    assert second == lines["lfs-pointer"].replace("m.gguf", "demo/m.gguf")
 
 
 def _generator() -> ModuleType:

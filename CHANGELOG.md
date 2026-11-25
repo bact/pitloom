@@ -99,8 +99,9 @@ and this project adheres to
   `--config` file error names the file once ([#497])
 - A `creation-datetime` in `[tool.pitloom]` that is not a date is refused even
   when `--creation-datetime` overrides it ([#497])
-- Requires `licenseid>=0.9.0,<0.10`: a bare `GPL-2.0` tag stays as written, not
-  `GPL-2.0-only`; a full GPL text without a variant is still `-only` ([#502])
+- Requires `licenseid>=0.9.2,<0.10`: a bare `GPL-2.0` tag stays as written, not
+  `GPL-2.0-only`; a full GPL text without a variant is still `-only`; rebuild the
+  database with `licenseid update --source packaged` ([#502], [#536])
 - Git URL messages say `URL=` and a code after `Git source: `; a Git or PyPI
   refusal is no longer printed twice, and every `git.*` error has a
   `pitloom_code` ([#503])
@@ -146,6 +147,15 @@ and this project adheres to
 - A library `sbom_basename` refusal names `sbom_basename`, not `--sbom-basename` ([#527])
 - Dataset field, Croissant name, display-text and metadata-budget lines carry
   codes; dataset lines name `SOURCE=` and `FIELD=` ([#534])
+- `generate_model_sbom()` on a PyPI URL raises `pypi-url-unusable` without an
+  uncoded `WARNING:` first; a refused `-o` or hook-staged SBOM write is
+  `file-unwritable` (library: `CodedOSError`, not `PermissionError`) ([#536])
+- A model scanned from a wheel names its own path in `SOURCE=` and a relayed
+  reader line keeps its code; the hook's error line is printed as the CLI's is ([#536])
+- `add_output_dataset(input_datasets=[...])` in a run with no inputs warns `[reference-not-found]`
+  as with inputs; a removed current directory no longer crashes a `loom` path label ([#536])
+- Former `RuntimeError` guards (`EmbedFileCache`, `TerminationGuard`, ...) raise `InternalError`;
+  a non-method `content_type_method` or non-string `Creator.type` is `option-invalid` ([#536])
 
 ### Fixed
 
@@ -226,6 +236,7 @@ and this project adheres to
 [#526]: https://github.com/bact/pitloom/pull/526
 [#527]: https://github.com/bact/pitloom/pull/527
 [#534]: https://github.com/bact/pitloom/pull/534
+[#536]: https://github.com/bact/pitloom/pull/536
 
 ## [0.24.0] - 2026-11-11
 

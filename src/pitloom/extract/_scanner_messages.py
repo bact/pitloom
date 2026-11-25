@@ -24,6 +24,7 @@ from pitloom.extract.ai_model.limits import ModelLimitExceeded
 from pitloom.extract.ai_model.reader_requirements import REQUIREMENTS
 from pitloom.logging_config import escape_controls, loggable, one_line
 from pitloom.messages import (
+    FIELDS,
     code_of,
     emit,
 )
@@ -60,11 +61,17 @@ def _path_forms(path: Path) -> list[str]:
 
 def scrub(text: str, path: Path | None, stable_path: str) -> str:
     """*text*, printable on one line (:func:`~pitloom.logging_config.one_line`),
-    with the temporary *path* replaced by *stable_path*."""
+    with the temporary *path* replaced by *stable_path* as a ``FILE=`` value
+    is written (escaped, in quotes, when it holds a control character).
+    Replaced after *text* is made one line: the stable path keeps its own
+    white space, and a control character in it cannot turn the whole text
+    into one escaped literal that is no longer the reader's line."""
+    text = one_line(text)
     if path is not None:
+        stable = FIELDS["file"].write(stable_path)
         for form in _path_forms(path):
-            text = text.replace(form, stable_path)
-    return one_line(text)
+            text = text.replace(form, stable)
+    return text
 
 
 def detail(exc: BaseException, path: Path | None, stable_path: str) -> str:

@@ -19,6 +19,8 @@ import threading
 from collections.abc import Iterator
 from contextlib import contextmanager
 
+from pitloom.core.internal_error import InternalError
+
 
 class _DiscoveryLock:
     """Multiple concurrent readers, or one exclusive writer -- never both.
@@ -63,7 +65,7 @@ class _DiscoveryLock:
     *either* a reader backend (Hatchling, Poetry, Flit) or another
     writer -- while already holding the write lock would otherwise
     deadlock against itself, since only that same thread could ever
-    release it. Both methods raise ``RuntimeError`` immediately instead.
+    release it. Both methods raise ``InternalError`` immediately instead.
     (The build-and-read mechanism above is a separate matter: it never
     holds this lock in the first place, so it cannot trigger this case.)
     """
@@ -77,7 +79,7 @@ class _DiscoveryLock:
 
     def _raise_if_reentrant_writer(self, ident: int) -> None:
         if self._writer_active and self._writer_thread == ident:
-            raise RuntimeError(
+            raise InternalError(
                 "_DiscoveryLock.read()/write() called re-entrantly by "
                 "the thread that already holds the write lock -- this "
                 "would deadlock. A writer backend's discover() (or "

@@ -313,10 +313,16 @@ def check_spdx3_name_version(
     )
 
 
+class _NonJsonConstant(ValueError):
+    """``NaN``, ``Infinity`` or ``-Infinity`` in a given SBOM: its text is the
+    failure (the DETAIL) of the ``json-malformed`` line
+    :func:`refuse_unusable_given_sbom` says."""
+
+
 def _reject_constant(name: str) -> object:
     """``json.loads``' hook for ``NaN``/``Infinity``: Python reads them, RFC 8259
     does not have them."""
-    raise ValueError(f"{name} is not a JSON value")
+    raise _NonJsonConstant(f"{name} is not a JSON value")
 
 
 class _DuplicateKey(Exception):

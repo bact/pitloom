@@ -27,6 +27,7 @@ from pitloom.assemble.spdx3.provenance import (
     is_license_concluded,
     parse_provenance_value,
 )
+from pitloom.core.internal_error import InternalError
 from pitloom.core.models import build_relationship, generate_spdx_id
 from pitloom.core.project import ProjectMetadata
 from pitloom.core.provenance import ProvenanceConfig
@@ -76,7 +77,7 @@ def _build_license_relationship(
         creation_info=creation_info,
     )
     if not rel:
-        raise ValueError("Failed to build relationship")
+        raise InternalError("Failed to build relationship")
     if element.noted and not element.created:
         emit_provenance(
             subject=rel,

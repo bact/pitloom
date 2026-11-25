@@ -24,7 +24,7 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
 | [`file-unreadable/not-utf8`](#file-unreadablenot-utf8) | ERROR, WARNING | A text file Pitloom read is not UTF-8, the encoding it must be in: a requirements file or a file a setup.cfg directive lists, a Python file read for the model usage scan (a WARNING:), or an SBOM given to embed or to import into an ID registry, an ID registry file (an ERROR:, which prints since 0.25.0), or a configuration file (an ERROR:). | 0.22.0 |
 | [`file-unreadable/outside-project`](#file-unreadableoutside-project) | WARNING | A file a project setting names, or a licence file, leads outside the project directory (a .. or absolute path, or a symbolic link out), and Pitloom reads no file outside it: its content is no part of the project. For an installed dependency, the directory is its .dist-info. | 0.22.0 |
 | [`file-unreadable/outside-repository`](#file-unreadableoutside-repository) | WARNING | The build configuration of a project fetched from a Git URL lists files outside the downloaded repository (an absolute or .. path, as in a Hatchling force-include, or its .git directory), and Pitloom reads no file outside it: the repository is untrusted, and such a file is the host's. A setting entry left out before the files are listed is named as the configuration writes it, one line each; files left out once listed are only counted, never named. | 0.23.4 |
-| [`file-unwritable`](#file-unwritable) | ERROR, WARNING | A file Pitloom writes could not be written: the operating system refused it (no write permission on the file or its directory, a read-only file system, a full disk, a directory where the file should be). The ID registry file, written 'for the ID registry'; a wheel an embed rewrites with its SBOM, or the '-o' copy of that SBOM, written 'for the SBOM'. | 0.25.0 |
+| [`file-unwritable`](#file-unwritable) | ERROR, WARNING | A file Pitloom writes could not be written: the operating system refused it (no write permission on the file or its directory, a read-only file system, a full disk, a directory where the file should be). The ID registry file, written 'for the ID registry'; a wheel an embed rewrites with its SBOM, the SBOM a command writes to '-o' (a library call's output_path), or the SBOM the Hatchling build hook stages, written 'for the SBOM'. | 0.25.0 |
 | [`file-unwritable/mode`](#file-unwritablemode) | WARNING | An embed wrote the wheel with its SBOM through a new file put in place of the old one, then could not give it the old file's mode (its permission bits): the operating system refused (a file system without POSIX modes, a file owned by another account). | 0.25.0 |
 | [`over-cap`](#over-cap) | ERROR, WARNING | An input is larger than a cap Pitloom puts on what it reads or records, so that a crafted or unusually large input cannot exhaust time, memory or disk. | 0.22.0 |
 | [`temp-dir-unusable`](#temp-dir-unusable) | ERROR, WARNING | A file downloaded from PyPI or a Hugging Face repository could not be written to the temporary directory: the disk is full, the path is too long (Windows), or the directory cannot be written to. | 0.24.0 |
@@ -195,21 +195,23 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
   refused it (no write permission on the file or its directory, a read-only file
   system, a full disk, a directory where the file should be). The ID registry
   file, written 'for the ID registry'; a wheel an embed rewrites with its SBOM,
-  or the '-o' copy of that SBOM, written 'for the SBOM'.
+  the SBOM a command writes to '-o' (a library call's output_path), or the SBOM
+  the Hatchling build hook stages, written 'for the SBOM'.
 - **SBOM effect**: none: the SBOM states what the input holds.
 - **Pitloom did**: Tried to write an ID registry file through a temporary file
   beside it, so a failed write leaves its old content; where the directory
   refuses a temporary file, the file is written in place and a failure (a full
   disk) can leave it part-written. A wheel is written as a new file beside it,
-  put in its place once complete: a refused write leaves the wheel as it was;
-  the '-o' copy is written in place, after the wheel. As an ERROR ('loom id
-  generate', 'loom id import', 'loom embed-wheel', 'loom wheel --embed'), the
-  command exits 1 (an embed-wheel batch goes on with its other wheels). As a
-  WARNING (loom generate (a project, wheel or environment), project, wheel and
-  env, the library's generate_project_sbom, generate_wheel_sbom,
-  generate_env_sbom and the PyPI and Git URL functions that call them, and
-  loom.Run, saving the ids a run added after its SBOM is built), the SBOM stands
-  and the ids are not saved: the next run mints them again.
+  put in its place once complete: a refused write leaves the wheel as it was; an
+  SBOM's '-o' file is written in place (an embed's after the wheel), the hook's
+  in a new temporary directory. As an ERROR ('loom id generate', 'loom id
+  import', a command writing its SBOM to '-o', the build hook), the command
+  exits 1 or the build fails (an embed-wheel batch goes on with its other
+  wheels). As a WARNING (loom generate (a project, wheel or environment),
+  project, wheel and env, the library's generate_project_sbom,
+  generate_wheel_sbom, generate_env_sbom and the PyPI and Git URL functions that
+  call them, and loom.Run, saving the ids a run added after its SBOM is built),
+  the SBOM stands and the ids are not saved: the next run mints them again.
 - **Tell the user**: which file could not be written and what the system
   reported, as the line says. They give the account Pitloom runs as write access
   to the file and its directory, or free disk space, and run again. Do not

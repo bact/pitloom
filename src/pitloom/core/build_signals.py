@@ -40,7 +40,7 @@ Contract of :class:`TerminationGuard`:
 - Callbacks also run when the owner's block ends by an exception, and are
   dropped on a normal exit (the owner released or handed on the resource).
 - The owner's exit resets the guard; entering it while entered raises
-  :class:`RuntimeError`.
+  :class:`~pitloom.core.internal_error.InternalError`.
 
 See also: :mod:`pitloom.core._models_wheel_build_subprocess` (the wait
 loop) and :mod:`pitloom.core._models_wheel_build_and_read` (registers the
@@ -239,7 +239,7 @@ class TerminationGuard:
 
     def __enter__(self) -> TerminationGuard:
         if self._owner is not None:
-            raise RuntimeError("TerminationGuard is already entered")
+            raise InternalError("TerminationGuard is already entered")
         owner: TerminationGuard | None = getattr(_thread_state, "owner", None)
         if owner is None:
             _thread_state.owner = owner = self

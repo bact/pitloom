@@ -30,6 +30,7 @@ import pytest
 
 from pitloom.core.build_options import BuildOptions
 from pitloom.core.config import PitloomConfig
+from pitloom.core.internal_error import InternalError
 from pitloom.embed import EmbedFileCache
 from tests.build_and_read_shared import spied_raise_signal
 
@@ -299,7 +300,7 @@ def test_embed_file_cache_resolve_cleans_up_when_the_block_closed(
 
     assert not worker.is_alive()
     cleanup.assert_called_once()
-    assert [type(exc) for exc in failures] == [RuntimeError]
+    assert [type(exc) for exc in failures] == [InternalError]
 
 
 def test_embed_file_cache_late_discovery_never_lands_in_the_next_block(
@@ -356,7 +357,7 @@ def test_embed_file_cache_late_discovery_never_lands_in_the_next_block(
 
     assert files == ["files-from-the-new-block"]
     assert mocked.call_count == 2
-    assert [type(exc) for exc in failures] == [RuntimeError]
+    assert [type(exc) for exc in failures] == [InternalError]
     cleanups[0].assert_called_once()  # ran by the worker, not left behind
     cleanups[1].assert_called_once()  # ran by the new block's own exit
 

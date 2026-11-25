@@ -31,10 +31,16 @@ class _Float(str):
     ``2e999``, or ``0.1`` with ``0.10000000000000000001``)."""
 
 
+class _NotComparableJson(ValueError):
+    """Fragment text that is no JSON to compare (a repeated key, ``NaN``):
+    :func:`same_json` catches it and says ``False``, so its text reaches no
+    one."""
+
+
 def _no_duplicate_keys(pairs: list[tuple[str, object]]) -> dict[str, object]:
     keys = [key for key, _ in pairs]
     if len(set(keys)) != len(keys):
-        raise ValueError("duplicate key")
+        raise _NotComparableJson("duplicate key")
     return dict(pairs)
 
 
@@ -59,7 +65,7 @@ MAX_JSON_DEPTH = 64
 
 
 def _no_constant(name: str) -> object:
-    raise ValueError(f"not JSON: {name}")
+    raise _NotComparableJson(f"not JSON: {name}")
 
 
 def same_json(old: str, new: str) -> bool:

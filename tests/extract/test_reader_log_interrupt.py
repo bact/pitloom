@@ -124,7 +124,11 @@ def test_interrupts_the_undo_cannot_outlast_are_raised_within_the_bound(
         with pytest.raises(KeyboardInterrupt):
             _block()
     finally:
-        _LOGGER.removeHandler(state.dispatcher)
+        # The undo it could not do covered every captured logger: so does this.
+        for name, propagate in state.propagate.items():
+            logger = logging.getLogger(name)
+            logger.removeHandler(state.dispatcher)
+            logger.propagate = propagate
     assert len(takes) == 1 + HOLD_LIMIT  # the entry, then the tries
 
 

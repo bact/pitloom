@@ -6,7 +6,8 @@
 """A file Pitloom could not write: ``file-unwritable``. The system refused
 the write (no write permission, a read-only file system, a full disk, a
 directory where the file should be): an ID registry file, a wheel an embed
-rewrites, the ``-o`` copy of an embedded SBOM. A wheel an embed rewrote
+rewrites, an SBOM written to ``-o`` (the library's ``output_path``) or
+staged by the Hatchling hook. A wheel an embed rewrote
 whose file mode could not be set back is ``file-unwritable/mode``.
 
 See also: :mod:`pitloom.messages._file_unreadable` (a file Pitloom could not
@@ -40,18 +41,21 @@ FILE_UNWRITABLE: Final = Message(
     "system refused it (no write permission on the file or its directory, a "
     "read-only file system, a full disk, a directory where the file should "
     "be). The ID registry file, written 'for the ID registry'; a wheel an "
-    "embed rewrites with its SBOM, or the '-o' copy of that SBOM, written "
-    "'for the SBOM'.",
+    "embed rewrites with its SBOM, the SBOM a command writes to '-o' (a "
+    "library call's output_path), or the SBOM the Hatchling build hook "
+    "stages, written 'for the SBOM'.",
     did="Tried to write an ID registry file through a temporary file "
     "beside it, so a "
     "failed write leaves its old content; where the directory refuses a "
     "temporary file, the file is written in place and a failure (a full "
     "disk) can leave it part-written. A wheel is written as a new file "
     "beside it, put in its place once complete: a refused write leaves the "
-    "wheel as it was; the '-o' copy is written in place, after the wheel. "
-    "As an ERROR ('loom id generate', 'loom id import', "
-    "'loom embed-wheel', 'loom wheel --embed'), the command exits 1 (an "
-    "embed-wheel batch goes on with its other wheels). As a WARNING "
+    "wheel as it was; an SBOM's '-o' file is written in place (an embed's "
+    "after the wheel), the hook's in a new temporary directory. "
+    "As an ERROR ('loom id generate', 'loom id import', a command writing "
+    "its SBOM to '-o', the build hook), the command exits 1 or the build "
+    "fails (an embed-wheel batch goes on with its other wheels). As a "
+    "WARNING "
     f"({SAVE_SURFACES}, saving the ids a run added after its SBOM is "
     "built), the SBOM stands and the ids are not saved: the next run mints "
     "them again.",

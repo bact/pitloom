@@ -186,6 +186,9 @@ def generate_project_sbom(
             :func:`~pitloom.extract.remote.huggingface.refuse_hub_model_target`.
         pitloom.extract.remote.errors.RemoteSourceError: a PyPI URL's sdist
             could not be fetched or verified (``pypi.*``).
+        pitloom.messages.CodedOSError: The system refused a write
+            (``file-unwritable``): the ``-o`` copy at *output_path* (as
+            given).
     """
     configure_logging()
     refuse_hub_model_target(project_target)

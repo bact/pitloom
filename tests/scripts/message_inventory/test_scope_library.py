@@ -5,9 +5,10 @@
 
 """``scripts/message_inventory/_scope.py``: a raise is a library caller's
 misuse, out of scope, only through the helpers of ``LIBRARY_EXC`` (the loom
-SDK outside a ``loom.run()``) or in a function ``LIBRARY_SITES`` names (a
-value of the wrong Python type); a library text alone (``loom SDK: ...``,
-``No model set``) or a ``TypeError`` elsewhere stays counted.
+SDK outside a ``loom.run()``) or as a raise ``LIBRARY_SITES`` names by
+file, function, class and text (a value of the wrong Python type); a library
+text alone (``loom SDK: ...``, ``No model set``), a ``TypeError`` elsewhere,
+or another raise in a named function stays counted.
 
 Each case is a line of :data:`SOURCE` or :data:`SITE_SOURCE` ending in
 ``# in: <id>`` (the ratchet counts it) or ``# out: <id>`` (it does not).
@@ -17,6 +18,7 @@ See also: test_scope_os_error.py (rule R-a), test_inventory.py.
 
 from __future__ import annotations
 
+import importlib
 import re
 from pathlib import Path
 from types import ModuleType
@@ -36,14 +38,31 @@ def call(value):
     raise ValueError("loom: croissant= is a URL")  # in: old-prefix
     raise ValueError("x is a Hugging Face source; not enriched")  # in: hf
 """
-#: The one function ``LIBRARY_SITES`` names, and another in its file.
+#: Two raises ``LIBRARY_SITES`` names, the same text in another function,
+#: and new raises beside a named one: none of those is exempt.
 SITE_SOURCE = """\
 def _declared_licence(value):
-    raise TypeError(f"loom SDK: declared_license is not a str: {value}")  # out: site
+    raise TypeError(DECLARED_LICENSE_TYPE_ERROR % value)  # out: site
+    raise TypeError("loom SDK: declared_license is not a str")  # in: new-text
+    raise ValueError(DECLARED_LICENSE_TYPE_ERROR % value)  # in: new-class
 def other(value):
-    raise TypeError(f"loom SDK: declared_license is not a str: {value}")  # in: other
+    raise TypeError(DECLARED_LICENSE_TYPE_ERROR % value)  # in: other
 """
-_FILES = {"caller.py": SOURCE, "_loom_dataset_meta.py": SITE_SOURCE}
+#: ``IdRegistry._mint_id``: its library raise, and a new uncoded one.
+REGISTRY_SOURCE = """\
+class IdRegistry:
+    def _mint_id(self, prefix):
+        raise ValueError("ID registry: no id prefix for an empty type name")  # out: reg
+        raise ValueError("ID registry: id number past the ceiling")  # in: reg-new
+"""
+_FILES = {
+    "caller.py": SOURCE,
+    "_loom_dataset_meta.py": (
+        'DECLARED_LICENSE_TYPE_ERROR = "loom SDK: declared_license must be a str, '
+        'not %s"\n' + SITE_SOURCE
+    ),
+    "id_registry/_registry.py": REGISTRY_SOURCE,
+}
 
 _MARK = re.compile(r"# (in|out): (\S+)$")
 CASES = [
@@ -64,12 +83,13 @@ def records_fixture(
     package.mkdir(parents=True)
     (package / "__init__.py").write_bytes(b"")
     for name, source in _FILES.items():
+        (package / name).parent.mkdir(exist_ok=True)
         (package / name).write_bytes(source.encode("utf-8"))
     return mi.inventory(Path(root))  # type: ignore[no-any-return]
 
 
 def test_every_case_is_found() -> None:
-    assert len(CASES) == 11
+    assert len(CASES) == 15
 
 
 @pytest.mark.parametrize(
@@ -88,3 +108,62 @@ def test_only_the_helper_or_a_named_site_is_library_misuse(
         r for r in records if r["file"] == f"src/pitloom/{name}" and r["line"] == line
     ]
     assert mi.in_scope(site) is scoped
+
+
+#: The library exemptions as ruled, by file, function and class (the text
+#: of each is checked against the tree by tests/test_message_ratchet.py): a
+#: new helper name or a new raise is a decision, so it changes this test too.
+_LIBRARY_EXC = frozenset({"_no_active_run"})
+_REGISTRY = "src/pitloom/id_registry/_registry.py"
+_LIBRARY_SITES = frozenset(
+    {
+        ("src/pitloom/_loom_dataset_meta.py", "_declared_licence", "TypeError"),
+        (
+            "src/pitloom/core/_models_wheel_types.py",
+            "validate_build_timeout",
+            "TypeError",
+        ),
+        (
+            "src/pitloom/core/build_options.py",
+            "BuildOptions.__post_init__",
+            "TypeError",
+        ),
+        ("src/pitloom/core/scalar_text.py", "scalar_text", "TypeError"),
+        (_REGISTRY, "_require_bool", "TypeError"),
+        (_REGISTRY, "IdRegistry.load", "TypeError"),
+        (_REGISTRY, "IdRegistry._mint_id", "ValueError"),
+        (_REGISTRY, "IdRegistry.save", "ValueError"),
+        ("src/pitloom/id_registry/_types.py", "_require_names", "TypeError"),
+    }
+)
+
+
+def test_the_library_exemptions_are_pinned(mi: ModuleType) -> None:
+    scope = importlib.import_module(f"{mi.__name__}._scope")
+    assert scope.LIBRARY_EXC == _LIBRARY_EXC
+    assert len(scope.LIBRARY_SITES) == len(_LIBRARY_SITES)
+    assert {site[:3] for site in scope.LIBRARY_SITES} == _LIBRARY_SITES
+
+
+def test_a_new_helper_or_a_loom_prefix_fails_the_ratchet(
+    mi_main: ModuleType, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A raise through a helper ``LIBRARY_EXC`` does not name, or a text
+    starting ``loom: ``, is an uncoded site: the ratchet fails on it."""
+    package = tmp_path / "src" / "pitloom"
+    package.mkdir(parents=True)
+    (package / "__init__.py").write_bytes(b"")
+    source = package / "caller.py"
+    source.write_bytes(b'def call():\n    raise _no_active_run("set_model")\n')
+    baseline = tmp_path / "uncoded.txt"
+    args = ["--root", str(tmp_path), "--baseline", str(baseline)]
+    assert mi_main.main([*args, "--write-baseline"]) == 0
+    assert mi_main.main([*args, "--check"]) == 0
+    for raise_line in ('raise _no_model_set("x")', 'raise ValueError("loom: x")'):
+        source.write_bytes(
+            b'def call():\n    raise _no_active_run("set_model")\n'
+            + f"    {raise_line}\n".encode()
+        )
+        capsys.readouterr()
+        assert mi_main.main([*args, "--check"]) == 1
+        assert capsys.readouterr().err.startswith("ERROR: pitloom.caller: 1 uncoded")

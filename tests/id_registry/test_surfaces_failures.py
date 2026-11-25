@@ -42,7 +42,6 @@ plus the completeness guards these sweeps rely on to stay exhaustive).
 from __future__ import annotations
 
 import json
-import logging
 import os
 import re
 import sys
@@ -217,7 +216,7 @@ def test_raising_surfaces_declared_bad_registry_every_mode(
     content: str | None,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
-    caplog: pytest.LogCaptureFixture,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     registry_path = tmp_path / "bad.json"
     if content is not None:
@@ -253,12 +252,15 @@ def test_raising_surfaces_declared_bad_registry_every_mode(
 
     if surface == "hook":
         build_data: dict[str, object] = {}
-        with caplog.at_level(logging.ERROR):
-            with pytest.raises(_raised(content), match="^" + _reason(content)):
-                run_hook(tmp_path, monkeypatch, declare, build_data=build_data)
-        error_records = [r for r in caplog.records if r.levelname == "ERROR"]
-        assert len(error_records) == 1, f"{surface}/{mode}: {caplog.records}"
-        assert getattr(error_records[0], "pitloom_code", None) == _code(content)
+        with pytest.raises(_raised(content), match="^" + _reason(content)):
+            run_hook(tmp_path, monkeypatch, declare, build_data=build_data)
+        error_lines = [
+            line
+            for line in capsys.readouterr().err.splitlines()
+            if line.startswith("ERROR:")
+        ]
+        assert len(error_lines) == 1, f"{surface}/{mode}: {error_lines}"
+        assert error_lines[0].endswith(f"[{_code(content)}]")
         assert "sbom_files" not in build_data
         return
 

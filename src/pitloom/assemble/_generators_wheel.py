@@ -142,6 +142,9 @@ def generate_wheel_sbom(
             transient I/O error).
         pitloom.extract.remote.errors.RemoteSourceError: a PyPI URL's
             wheel could not be fetched or verified (``pypi.*``).
+        pitloom.messages.CodedOSError: The system refused a write
+            (``file-unwritable``): the ``-o`` copy at *output_path* (as
+            given).
     """
     if isinstance(wheel_path, str) and is_pypi_url(wheel_path):
         return generate_pypi_sbom(
@@ -241,6 +244,9 @@ def generate_wheel_sbom_with_metadata(
             (``file-unreadable``: a directory on its way refuses search).
         OSError: The file itself cannot be opened (its own permissions, a
             transient I/O error).
+        pitloom.messages.CodedOSError: The system refused a write
+            (``file-unwritable``): the ``-o`` copy at *output_path* (as
+            given).
     """
     configure_logging()
     del check_url  # nothing is fetched for a local wheel

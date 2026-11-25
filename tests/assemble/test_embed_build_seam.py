@@ -202,7 +202,7 @@ def test_embed_rejects_invalid_method_before_assembling(
 ) -> None:
     project = demo_project(tmp_path)
     wheel = _make_dummy_wheel(tmp_path / "dist", "demo", "1.0.0")
-    with pytest.raises(ValueError, match="content_type_method must be one of"):
+    with pytest.raises(ValueError, match="^content_type_method: must be one of"):
         embed_wheel_sbom(
             wheel,
             project_dir=project,

@@ -106,7 +106,7 @@ class CallSites:
             "site_kind": site_kind,
             "uses_loggable": uses_call(nodes, SANITISERS),
             "uses_quote_source": uses_call(nodes, {"quote_source"}),
-            **code_fields(self.coder.site_kind(mod, call)),
+            **code_fields(self.coder.site_kind(mod, call, func)),
             "relays": relay_kind(mod, (emitter, call, tmpl_node), func, cls),
             **analyse(template),
             "source_lines": end - start + 1,
