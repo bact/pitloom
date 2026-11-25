@@ -60,7 +60,7 @@ def _without_addresses(text: str) -> str:
     return "".join(out)
 
 
-#: `` (Request ID: ...)``, as ``huggingface_hub`` writes the id of an HTTP
+#: ``(Request ID: ...)``, as ``huggingface_hub`` writes the id of an HTTP
 #: request that failed into its exception's text (the response's
 #: ``X-Request-Id``, else ``X-Amzn-Trace-Id``, else ``X-Amz-Cf-Id`` header,
 #: each under its own label): a new id on every request.
