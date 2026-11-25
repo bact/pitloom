@@ -170,9 +170,13 @@ counts are in [message-catalogue-migration-plan.md](message-catalogue-migration-
   flags and codes): raise to 0.25.0 in every `SKILL.md`, example and install
   line at the cut, keeping "0.24.0 or later" on the PyPI-URL lines.
 - [ ] **LLMSC 2027 paper camera-ready** (user, 2026-11-23): the submitted
-  paper reports Pitloom 0.24.0. Once 0.25.0 is out and LicenseID is 0.9.x,
-  re-run its observations (Hub probe, embedded models, test files), then
-  update its versions, counts and the reader gaps fixed since (#483, #509).
+  paper reports Pitloom 0.24.0; keep its structure, update only the data.
+  Once 0.25.0 is out and LicenseID is 0.9.x, re-run its observations (Hub
+  probe, embedded models, test files), then update its versions, counts and
+  the reader gaps fixed since (#483, #509, and #514 fixed by #517: ONNX
+  default graph names, GGUF tokeniser header budget). If SBOM-MinBench 0.2 is
+  released by then, take the Hub sample from it (not poolable with 0.1: 711
+  entries, up to 20 files per repository).
 - [ ] **Review follow-ups** (the #492 and #480-#494 reviews): the open
   catalogue, code-shape, docs and size items are listed in
   [message-catalogue-review-rounds.md](../implementation/message-catalogue-review-rounds.md);
