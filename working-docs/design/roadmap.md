@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-11-23
+Last-Modified: 2026-11-25
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -152,10 +152,24 @@ counts are in [message-catalogue-migration-plan.md](message-catalogue-migration-
   (15, #513; ratchet 108 to 85), wheels and embedding (16, #515; ratchet 85 to
   44), library misuse and scope rules (17a, #524; ratchet 44 to 27), authors,
   the loom SDK and the SBOM base name (17b, #527 guessed; ratchet 27 to 15),
-  the generated values page (#499). The
+  the generated values page (#499), sweep A (#536: library raises coded or
+  `InternalError`, `file-unwritable` for `-o` and hook writes, LicenseID 0.9.2
+  pinned; merged 2026-11-25, ratchet 0). The
   consistency re-check of the merged families is done (#494). Plans:
   [message-catalogue-pr8-12-plan.md](message-catalogue-pr8-12-plan.md),
   [message-catalogue-pr12-18-plan.md](message-catalogue-pr12-18-plan.md).
+- [ ] **Catalogue sweeps B and C**, then the `TOKEN_RE`/masking PR, the 0.25.0
+  cut and a consistency rescan. B ("strict"): prove `DETAIL_EXC` classes, a
+  strict uncoded-record check, a manual-matrix line classifier. C ("quotes and
+  wording"): check the 84 unchecked doc quotes, singular "1 second", per-line
+  `since`. See [message-catalogue-sweep-plan.md](message-catalogue-sweep-plan.md).
+- [ ] **Sweep A leftovers** (#536): the loom SDK fragment write
+  (`_loom_active_run.py`, bare `PermissionError`, needs its own wording); the
+  per-wheel `except (ValueError, OSError)` in `cli/commands/utils.py` and
+  `verify_wheel.py` swallow `InternalError`; `os.path.abspath(script_path)`
+  raises when the cwd is gone; a wheel-scanned GGUF dataset's provenance names
+  the temporary copy; `test_usage_parse` flakes under `--cov -n 4`. See
+  [the plan](message-catalogue-sweep-plan.md#build-notes-sweep-a), "Left for later".
 - [ ] **0.25.0 cut sweep** (not released): the skills' floor `pitloom >=
   0.24.1` names no release (0.24.0 is the last tag; skills document 0.25.0
   flags and codes): raise to 0.25.0 in every `SKILL.md`, example and install
@@ -187,12 +201,6 @@ counts are in [message-catalogue-migration-plan.md](message-catalogue-migration-
   real Linux-only hang: suspect the link-loop guard's `sys.setprofile` hook
   (`_models_wheel_guard.py`); first step, run `tests/core/models_wheel` under
   `-n 4` on Linux.
-- [ ] **`pypi-url-unusable` is also logged bare before it is raised**
-  (`assemble/_model_generator.py:_refuse_pypi_url`, found in PR 14b): the same
-  duplicate that 14b dropped for `pypi-url-invalid` (Q15); `generate_model_sbom`
-  on a PyPI URL prints the line twice. A test pins it
-  (`test_generate_pypi_hosts.py`). Needs the same ruling, then drop it and the
-  pin.
 - [ ] **A repo id `huggingface_hub` refuses is said as `hub-response-invalid`**
   (found in PR 14b round 1; the misroute is new in 14b, `main` said a neutral
   "Failed to load model_info()"): `_HF_ID_RE` accepts `a/b--c`, `a/b..c`, `a/b.git`,
@@ -201,16 +209,8 @@ counts are in [message-catalogue-migration-plan.md](message-catalogue-migration-
   ("the Hub may not speak the Hugging Face API") points away from the typo.
   Refuse these ids in `parse_hf_model_id` with `hf-url-invalid`, reusing the
   dataset rule (`core/dataset_names.is_hub_dataset_id`), and test it.
-- [ ] **The `failure` cut is counted before memory addresses are dropped**
-  (`messages/_field_writers.py:failure_text`, new in 14b; `main` had no cut): a text over 500 characters with
-  an object repr before the cut can show a different tail per run. Drop the
-  addresses from the masked text, then cut.
 - [ ] **`docs/ai-model-formats.md` is over the 30 KB limit** (about 39 KB, over
   already on `main`); split it, with `docs/git-urls.md`.
-- [ ] **Hub failure lines hold a per-run Request ID** (found in PR 14b round
-  2): `huggingface_hub`'s 4xx/5xx text carries `(Request ID: Root=...)`, so the
-  line differs on every real run (same on `main`). Drop it where the failure
-  is written, with the canonical-output follow-ups.
 - [ ] **A revision URL is read at the default branch with no signal**
   (`https://huggingface.co/o/m/tree/<sha>`, found in PR 14b round 2): a
   pre-existing silent deviation; say it (INFO) or honour the revision.
@@ -223,9 +223,6 @@ counts are in [message-catalogue-migration-plan.md](message-catalogue-migration-
   in `plugins/_hatch_document.py` (`build_document_model`) survive a change to
   `is not False` or a negation; add a test per state (`True`, `False`, `None`
   with the hint).
-- [ ] **`error_frame`'s docstring says the hook "runs where no frame is open"**
-  (`logging_config.py`), but `plugins/hatch.py` opens `error_frame(HOOK_FRAME)`
-  itself; correct the docstring.
 - [ ] **Hub API calls bypass the fetch policy**: `model_info()` and
   `dataset_info()` carry a 30 s socket timeout (#507) but no total deadline,
   no response cap, and `huggingface_hub` follows redirects unchecked. Replace

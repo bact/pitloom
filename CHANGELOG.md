@@ -182,6 +182,9 @@ and this project adheres to
   lookup when no ID registry is loaded (`model-file-missing`) ([#527])
 - A missing `croissant=` file is `input-not-found`; an unreachable Croissant URL
   is `download-network-failed` or `download-timeout` ([#534])
+- A Hub failure line drops the request id (`(Request ID: ...)`); it and a
+  memory address go before the 500-character cut: the line is the same per run
+  ([#TBD])
 
 ### Security
 

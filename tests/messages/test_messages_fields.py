@@ -241,6 +241,89 @@ def test_failure_text_drops_a_memory_address(text: str, expected: str) -> None:
     assert failure_text(TypeError(text)) == expected
 
 
+#: The text ``huggingface_hub`` 2.2 raises for a 404, its request id as
+#: ``%s`` (``(Request ID: ...)`` before the first newline).
+_HUB_404 = (
+    "Client error '404 Not Found' for url 'https://huggingface.co/api/models/o/m'"
+    "%s\nFor more information check: https://example.invalid/404"
+)
+_HUB_404_SAID = (
+    "Client error '404 Not Found' for url 'https://huggingface.co/api/models/o/m'"
+    " For more information check: https://example.invalid/404"
+)
+_ROOT_ID = "Root=1-659fc3fa-3031673e0f92c71a2260dbe2;bc6f4dfb-b30a-4862-af0a"
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        (_HUB_404 % f" (Request ID: {_ROOT_ID})", _HUB_404_SAID),
+        (_HUB_404 % " (Amzn Trace ID: Root=1-659fc3fa-3031673e)", _HUB_404_SAID),
+        (_HUB_404 % " (Amz CF ID: Mwhe_c3Kt650GcdKEFomX==)", _HUB_404_SAID),
+        (_HUB_404 % " (Request ID: id with space)", _HUB_404_SAID),
+        (
+            "403 Client Error. (Request ID: a) and (Request ID: b)",
+            "403 Client Error. and",
+        ),
+        ("(Request ID: a) first", " first"),
+        (_HUB_404_SAID, _HUB_404_SAID),
+        ("Request ID: abc", "Request ID: abc"),
+        ("(Request IDs: abc)", "(Request IDs: abc)"),
+        ("(request id: abc)", "(request id: abc)"),
+        ("(Trace ID: abc)", "(Trace ID: abc)"),
+        ("(Request ID: )", "(Request ID: )"),
+        ("(Request ID: a (b))", "(Request ID: a (b))"),
+    ],
+    ids=[
+        "request-id",
+        "amzn-trace-id",
+        "amz-cf-id",
+        "value-with-space",
+        "two-ids",
+        "at-the-start",
+        "none",
+        "no-parentheses",
+        "other-label",
+        "other-case",
+        "unlabelled-trace",
+        "empty-value",
+        "nested-parentheses",
+    ],
+)
+def test_failure_text_drops_a_hub_request_id(text: str, expected: str) -> None:
+    """``huggingface_hub`` writes a new request id into every failure's text;
+    the line must not differ per run, nor lose text that only looks alike."""
+    assert failure_text(ValueError(text)) == expected
+
+
+@pytest.mark.parametrize(
+    "per_run",
+    [
+        (" (Request ID: Root=1-aaaa)", " (Request ID: Root=1-bbbbbbbbbbbbbbbbbbbb)"),
+        ("<A object at 0x10>", "<A object at 0x7f3a2b1c0d9e>"),
+    ],
+    ids=["request-id", "address"],
+)
+@pytest.mark.parametrize(
+    "before",
+    [FAILURE_CHARACTERS - 30, FAILURE_CHARACTERS - 22],
+    ids=["before-the-cut", "across-the-cut"],
+)
+def test_failure_text_cut_is_the_same_on_every_run(
+    per_run: tuple[str, str], before: int
+) -> None:
+    """What differs per run is dropped before the cut: a request id or an
+    address before or across the cut leaves the same kept text, its
+    secrets still masked."""
+    tail = " https://user:SECRETPASSWORD@host/x " + "b" * 1000
+    shown = [failure_text(ValueError("a" * before + one + tail)) for one in per_run]
+    assert per_run[0] != per_run[1]
+    assert shown[0] == shown[1]
+    assert len(shown[0]) == FAILURE_CHARACTERS + len("...")
+    assert shown[0].startswith("a" * before) and "Root" not in shown[0]
+    assert "SECRET" not in shown[0] and "0x" not in shown[0]
+
+
 def test_failure_text_is_cut_after_masking() -> None:
     """A server's error page (``huggingface_hub`` puts it in the exception's
     text) cannot make the line longer than a reader trusts, and a token

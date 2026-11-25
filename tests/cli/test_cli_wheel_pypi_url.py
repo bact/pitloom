@@ -21,6 +21,7 @@ import pytest
 
 from pitloom.assemble import generate_pypi_sbom
 from pitloom.extract.remote import git as git_module
+from pitloom.messages.pypi import MODEL_URL_LINE, PYPI_URL_UNUSABLE
 from tests._fake_pypi_server import FakePypi
 from tests.assemble._pypi_dists import (
     URL,
@@ -133,9 +134,14 @@ def test_model_refuses_a_pypi_url_without_a_fetch(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
+    """Said once: one ``ERROR:`` line with its code, nothing before it."""
     assert run(monkeypatch, tmp_path, "model", URL) == 1
     err = capsys.readouterr().err
-    assert "loom wheel" in err and "loom project" in err
+    [line] = err.splitlines()
+    assert line.startswith("ERROR: ")
+    assert line.endswith(
+        f"{MODEL_URL_LINE.render({'url': URL})} [{PYPI_URL_UNUSABLE.code}]"
+    )
     assert_clean_stderr(err)
     _no_fetch(fake)
 

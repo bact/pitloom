@@ -27,6 +27,7 @@ from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
+from huggingface_hub import hf_raise_for_status
 from huggingface_hub.errors import HfHubHTTPError, OfflineModeIsEnabled
 
 from pitloom.core.internal_error import InternalError
@@ -69,6 +70,19 @@ def _hub_http_error(message: str = "boom") -> HfHubHTTPError:
         message, response=client.Response(500, request=request)
     )
     return error
+
+
+def _raised_for_status(headers: dict[str, str]) -> Exception:
+    """What ``huggingface_hub`` raises for a 404 answer with *headers*, its
+    response of the HTTP client the library uses."""
+    client = importlib.import_module(
+        HfHubHTTPError.__mro__[1].__module__.split(".", 1)[0]
+    )
+    request = client.Request("GET", "http://hub.invalid/api/models/o/m")
+    response = client.Response(404, headers=headers, request=request, text="gone")
+    with pytest.raises(HfHubHTTPError) as raised:
+        hf_raise_for_status(response)
+    return raised.value
 
 
 def _client_error(client: str, name: str) -> Callable[[], Exception]:
@@ -200,6 +214,21 @@ def test_the_offline_line_names_the_page_and_what_is_not_recorded(
     line = _say(capsys, OfflineModeIsEnabled("x"), outcome="licence not recorded")
     assert line.startswith(f"WARNING: URL={_PAGE}: ")
     assert "licence not recorded" in line and line.endswith("[offline-unusable]")
+
+
+@pytest.mark.parametrize("header", ["x-request-id", "X-Amzn-Trace-Id", "x-amz-cf-id"])
+def test_a_failed_request_is_said_alike_whatever_its_request_id(
+    capsys: pytest.CaptureFixture[str], header: str
+) -> None:
+    """``huggingface_hub`` writes the response's request id into its text
+    (``(Request ID: Root=...)``), new on every request: the line must be the
+    same on every run."""
+    first = _raised_for_status({header: "Root=1-659fc3fa-3031673e0f92c71a"})
+    second = _raised_for_status({header: "Root=1-7a1b2c3d-00000000000000ff"})
+    assert "Root=1-659fc3fa" in str(first) and str(first) != str(second)
+    lines = [_say(capsys, first), _say(capsys, second)]
+    assert lines[0] == lines[1] and "Root=" not in lines[0]
+    assert _code(lines[0]) == DOWNLOAD_FAILED.code
 
 
 def test_an_internal_error_is_passed_on_unsaid(
