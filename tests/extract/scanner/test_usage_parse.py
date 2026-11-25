@@ -142,22 +142,31 @@ def test_no_other_thread_runs_while_the_parse_stack_size_is_set() -> None:
     # allows, must only ever see the size the host set. From Python 3.12
     # starting a thread raises an audit event, and a Python audit hook (one
     # an earlier test made Pitloom install, say) lets the watcher run while
-    # the size is set: it may then see the floor, never more.
+    # the size is set: it may then see the floor, never more. The parses
+    # wait for the watcher to run: before it, the watcher installs the
+    # threading hooks (coverage's), which on Python 3.10 and 3.11 can fail
+    # while a parse thread installs them, and the watcher then never runs.
     before = threading.stack_size()
     seen: set[int] = set()
-    stop = threading.Event()
+    rounds = [0]
+    running, stop = threading.Event(), threading.Event()
 
     def watch() -> None:
+        running.set()
         while not stop.is_set():
             seen.add(threading.stack_size())
+            rounds[0] += 1
 
     interval = sys.getswitchinterval()
     watcher = threading.Thread(target=watch, daemon=True)
     sys.setswitchinterval(1e-6)
     try:
         watcher.start()
+        assert running.wait(timeout=20)
+        rounds_before = rounds[0]
         for _ in range(200):
             _usage_parse.parse_python("x = 1\n")
+        rounds_during = rounds[0] - rounds_before
     finally:
         stop.set()
         watcher.join()
@@ -166,7 +175,8 @@ def test_no_other_thread_runs_while_the_parse_stack_size_is_set() -> None:
     if sys.version_info >= (3, 12):
         allowed.add(8 * _MIB)
     assert seen <= allowed
-    assert before in seen
+    # The watcher ran while the parses did.
+    assert rounds_during > 0
 
 
 def test_the_parse_thread_runs_under_the_threading_profile_hook() -> None:

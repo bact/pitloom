@@ -32,6 +32,8 @@ import pytest
 from pitloom.extract import _usage_parse
 from tests._bounded import run_bounded_in_child
 
+pytestmark = pytest.mark.platform
+
 
 def _hook(*_: object) -> None:
     """A trace or profile function that sees nothing."""
@@ -93,9 +95,8 @@ def test_a_hook_raising_at_the_first_call_still_parses_and_returns(
 def _hooked_call(
     work: Callable[[], object], begun: Callable[[], bool] = lambda: False
 ) -> object:
-    return _usage_parse._hooked_call(  # pylint: disable=protected-access
-        work, begun
-    )
+    # pylint: disable-next=protected-access
+    return _usage_parse._hooked_call(work, begun)
 
 
 @pytest.mark.parametrize(
@@ -213,18 +214,21 @@ def test_an_interrupted_install_is_not_tried_again() -> None:
     work.assert_not_called()
 
 
-def parse_interrupted() -> str:
-    """In a child: what :func:`parse_python` raises when the parse thread
-    is interrupted before the parse."""
-    with patch.object(_usage_parse, "_hooked_call", side_effect=KeyboardInterrupt):
-        try:
-            _usage_parse.parse_python("x = 1\n")
-        except KeyboardInterrupt as exc:
-            return type(exc).__name__
-    return "returned"
-
-
-def test_an_interrupt_in_the_parse_thread_reaches_the_caller() -> None:
-    assert run_bounded_in_child(f"{__name__}:parse_interrupted") == (
-        "KeyboardInterrupt"
-    )
+@pytest.mark.parametrize(
+    "raised", [None, RuntimeError("hook"), KeyboardInterrupt()], ids=repr
+)
+def test_the_thread_records_an_outcome_and_releases(
+    raised: BaseException | None,
+) -> None:
+    done = threading.Lock()
+    # pylint: disable-next=consider-using-with
+    done.acquire()
+    outcome: list[object] = []
+    with patch.object(
+        _usage_parse, "_hooked_call", return_value="tree", side_effect=raised
+    ) as hooked:
+        # pylint: disable-next=protected-access
+        _usage_parse._hooked_outcome(_hook, bool, outcome, done)
+    hooked.assert_called_once_with(_hook, bool)
+    assert outcome == [raised or "tree"]
+    assert not done.locked()

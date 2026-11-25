@@ -29,7 +29,7 @@ import ast
 import logging
 import sys
 import warnings
-from _thread import allocate_lock, start_new_thread
+from _thread import LockType, allocate_lock, start_new_thread
 from collections import deque
 from collections.abc import Callable
 from functools import partial
@@ -150,6 +150,30 @@ def _hooked_call(call: Callable[[], _T], begun: Callable[[], bool]) -> _T:
     return call()
 
 
+def _hooked_outcome(
+    call: Callable[[], _T],
+    begun: Callable[[], bool],
+    outcome: list[_T | BaseException],
+    done: LockType,
+) -> None:
+    """The parse thread's first frame: :func:`_hooked_call` of *call*, its
+    result or exception put in *outcome*, then *done* released. The frame
+    is entered before any hook is installed, and a trace hook, or a hook
+    at an earlier event, cannot stop it short of the release, whatever it
+    does in the frames below. A profile hook that raises at the very C
+    call that releases *done* still can (a ``c_call`` event fires in this
+    frame, and a raise there skips the call; CPython then unsets the
+    hook): that needs a deliberately hostile hook, and no known tool does
+    it. Coverage uses a trace function only."""
+    try:
+        outcome.append(_hooked_call(call, begun))
+    # pylint: disable-next=broad-exception-caught
+    except BaseException as exc:  # raised again in the caller's thread
+        outcome.append(exc)
+    finally:
+        done.release()
+
+
 def _start_with_stack(work: Callable[[], None], size: int) -> bool:
     """Run *work* on a new thread with a stack of *size* bytes; ``False``
     when the size or the thread is refused (it is then not started). The
@@ -213,17 +237,7 @@ def parse_python(text: str) -> ast.Module:
         begun.append(None)  # first: a hook can abort the call before it
         return _parse(source)
 
-    def work() -> None:
-        # The thread's first frame, entered with no hook: whatever a hook
-        # does in the frames below, it records an outcome and releases.
-        try:
-            outcome.append(_hooked_call(parse, partial(bool, begun)))
-        # pylint: disable-next=broad-exception-caught
-        except BaseException as exc:  # raised again in the caller's thread
-            outcome.append(exc)
-        finally:
-            done.release()
-
+    work = partial(_hooked_outcome, parse, partial(bool, begun), outcome, done)
     size = stack_bytes(len(source))
     # More than the floor only on Python 3.10, which would crash, not raise,
     # on a stack too small for the text.
