@@ -397,6 +397,10 @@ _ADVERSARIAL: dict[str, Callable[[int], str]] = {
     "scheme-long-run": lambda n: "Bearer " + "aB3" * (n // 3),
     "header-runs": lambda n: "Authorization: Bearer x " * (n // 24),
     "header-gaps": lambda n: "authorization" + " " * n + "x",
+    "scheme-pct20-chain": lambda n: "Bearer%20x." * (n // 11),
+    "basic-pct20-chain": lambda n: "Basic%20QQ==." * (n // 13),
+    "header-pct20-chain": lambda n: "Authorization=x%20a." * (n // 20),
+    "word-pct20-chain": lambda n: "a.Bearer%20" * (n // 11),
 }
 
 

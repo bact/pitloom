@@ -20,9 +20,10 @@ The rule, in two passes:
   case, an optional quote, ``:`` or ``=``, an optional quote): after the
   scheme ``Bearer``, ``Basic`` or ``token`` and its separators, the
   credential whatever its length or shape: the run of RFC 6750 ``b64token``
-  characters (letters, digits, ``-._~+/``, ``=`` and ``%XX`` escapes) is
-  masked. A placeholder (``<token>``, ``${TOKEN}``, ``$GITHUB_TOKEN``) starts
-  with none of them and is kept; a prose word after the scheme is masked
+  characters (letters, digits, ``-._~+/``, ``=`` and ``%XX`` escapes but
+  ``%20``, a space, which a ``b64token`` cannot hold) is masked. A
+  placeholder (``<token>``, ``${TOKEN}``, ``$GITHUB_TOKEN``) starts with
+  none of them and is kept; a prose word after the scheme is masked
   (``Authorization: Bearer token required`` prints ``Bearer *** required``).
   After any other scheme (``Negotiate``, ``NTLM``, ``ApiKey``), the run is
   masked only when it looks random, as after a scheme word alone, so that
@@ -64,8 +65,10 @@ its end; after a header name and a scheme other than the three, the same; a
 header's ``response=`` or ``Signature=`` value over several lines.
 
 Linear: each run is read once in a lookahead after its scheme and
-separators, and runs never overlap; a header's ``response=`` or
-``Signature=`` is looked for only up to the next header name or line end.
+separators, and runs never overlap, since no separator is a run character
+(``%20`` ends a run: as part of it, ``"Bearer%20x." * n`` made each scheme's
+run reach the end of the text); a header's ``response=`` or ``Signature=`` is
+looked for only up to the next header name or line end.
 """
 
 from __future__ import annotations
@@ -91,8 +94,9 @@ _WORD_SEPARATORS = (
     r"|%20)+"
 )
 #: A run of ``b64token`` characters and ``%XX`` escapes, in a lookahead
-#: (group ``run``).
-_RUN = r"(?=(?P<run>(?:[A-Za-z0-9._~+/=-]|%[0-9A-Fa-f]{2})*))"
+#: (group ``run``). ``%20`` is a separator, not part of a run: as both, the
+#: runs after ``"Bearer%20x." * n`` would overlap (quadratic).
+_RUN = r"(?=(?P<run>(?:[A-Za-z0-9._~+/=-]|%(?!20)[0-9A-Fa-f]{2})*))"
 #: A scheme word alone, its separators and its run.
 _SCHEME_RE = re.compile(
     "(?=[Bb])"
