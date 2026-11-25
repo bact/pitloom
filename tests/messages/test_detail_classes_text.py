@@ -51,7 +51,7 @@ pytestmark = pytest.mark.platform  # projects, lock files, the entry point
 _OVERLONG = "1" * (MAX_VERSION_NUMBER_DIGITS + 1)
 _PARSER = "src/pitloom/cli/parser.py"
 _OPTIONS = "src/pitloom/cli/options.py"
-_ID = "src/pitloom/cli/id.py"
+_ID_ARGS = "src/pitloom/cli/_id_args.py"
 _GATE = "src/pitloom/core/extra_gate.py"
 _PEP508 = "src/pitloom/core/pep508.py"
 _REQS = "src/pitloom/core/requirements.py"
@@ -314,9 +314,9 @@ _ARGPARSE_CASES = [
         "--accept-url-credential",
         "nope",
     ),
-    _option("_namespace_arg", _ID, "id", "generate", "--namespace", "no iri"),
-    _option("_registry_file_arg", _ID, "id", "generate", "-o", "-"),
-    _option("_entity_arg", _ID, "id", "generate", "-e", "x:"),
+    _option("namespace_arg", _ID_ARGS, "id", "generate", "--namespace", "no iri"),
+    _option("registry_file_arg", _ID_ARGS, "id", "generate", "-o", "-"),
+    _option("entity_arg", _ID_ARGS, "id", "generate", "-e", "x:"),
     _option("_build_timeout_arg", _OPTIONS, "project", "--build-timeout", "soon"),
     _option("_flag_integer", _OPTIONS, "project", "--max-source-metadata-bytes", "a"),
     _option("byte_budget", _OPTIONS, "project", "--max-source-metadata-bytes", "3"),
@@ -324,6 +324,7 @@ _ARGPARSE_CASES = [
         "positive_byte_ceiling", _OPTIONS, "project", "--max-model-extract-bytes", "0"
     ),
     _option("creation_datetime", _OPTIONS, "project", "--creation-datetime", "now"),
+    _option("non_empty_path", "src/pitloom/cli/_path_args.py", "wheel", "-o", ""),
     *(
         _option(
             f"{action}.__call__",

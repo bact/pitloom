@@ -66,6 +66,7 @@ from pitloom.id_registry import (
     resolve_registry,
 )
 from pitloom.logging_config import configure_logging
+from pitloom.messages.targets import refuse_empty_input
 
 
 def _warn_if_metadata_without_config(
@@ -179,7 +180,8 @@ def generate_project_sbom(
 
     Raises:
         FileNotFoundError: *project_dir* is given for an sdist and is not a
-            directory.
+            directory; *project_target* is given as empty
+            (``input-not-found``).
         ValueError: *project_target* is a Hugging Face model URL
             (``target-wrong-format``), or a malformed one
             (``hf-url-invalid``):
@@ -191,6 +193,7 @@ def generate_project_sbom(
             given).
     """
     configure_logging()
+    refuse_empty_input(project_target, "project path")
     refuse_hub_model_target(project_target)
     if isinstance(project_target, str) and is_pypi_url(project_target):
         if project_metadata is not None:

@@ -379,7 +379,57 @@ def test_markers_apply_per_test_only(tmp_path: Path) -> None:
     a module-wide marker allows nothing, a marker on one parameter does not
     cover its sibling, and a stale allowance fails, unless the test was
     skipped in its body or its setup."""
-    (tmp_path / "test_child.py").write_text(textwrap.dedent(_CHILD_TESTS))
+    out = _run_child(tmp_path, _CHILD_TESTS)
+    assert "4 passed, 2 skipped, 3 errors" in out, out
+    assert "ERROR test_child.py::test_module_marker_allows_nothing" in out
+    assert "ERROR test_child.py::test_param[unallowed]" in out
+    assert "ERROR test_child.py::test_stale" in out
+
+
+_CHILD_FIXTURES = """
+import logging
+
+import pytest
+
+_LOG = logging.getLogger("pitloom.smoke")
+
+
+@pytest.fixture(scope="module")
+def noisy_setup():
+    _LOG.warning("said in a module fixture's setup")
+
+
+@pytest.fixture(scope="class")
+def noisy_teardown():
+    yield
+    _LOG.warning("said in a class fixture's teardown")
+
+
+@pytest.mark.uncoded_output("said in")
+def test_setup(noisy_setup):
+    pass
+
+
+class TestTeardown:
+    def test_teardown(self, noisy_teardown):
+        pass
+"""
+
+
+def test_a_wider_fixture_is_held_to_the_check(tmp_path: Path) -> None:
+    """An uncoded record in a module fixture's setup or a class fixture's
+    teardown errors the test that ran it, naming the fixture; a test's
+    marker does not allow it."""
+    out = _run_child(tmp_path, _CHILD_FIXTURES)
+    assert "1 passed, 2 errors" in out, out
+    assert "the setup of fixture 'noisy_setup' (module" in out
+    assert "the teardown of fixture 'noisy_teardown' (class" in out
+
+
+def _run_child(tmp_path: Path, source: str) -> str:
+    """Run *source* as a child pytest with the repository's configuration
+    and fixtures; its stdout."""
+    (tmp_path / "test_child.py").write_text(textwrap.dedent(source))
     env = dict(os.environ)
     env["PYTHONPATH"] = os.pathsep.join([str(_REPO / "src"), str(_REPO)])
     done = subprocess.run(  # nosec B603
@@ -407,8 +457,4 @@ def test_markers_apply_per_test_only(tmp_path: Path) -> None:
         check=False,
         timeout=300,
     )
-    out = done.stdout.decode("utf-8", errors="replace")
-    assert "4 passed, 2 skipped, 3 errors" in out, out
-    assert "ERROR test_child.py::test_module_marker_allows_nothing" in out
-    assert "ERROR test_child.py::test_param[unallowed]" in out
-    assert "ERROR test_child.py::test_stale" in out
+    return done.stdout.decode("utf-8", errors="replace")

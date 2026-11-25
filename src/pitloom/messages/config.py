@@ -59,6 +59,7 @@ from pitloom.messages._config_say import (
     hook_unknown_keys,
     invalid_value,
     loom_sdk_invalid_value,
+    loom_sdk_type_error,
     must_be,
     warn_config_unknown_key,
 )
@@ -108,6 +109,7 @@ __all__ = [
     "invalid_value",
     "kind_text",
     "loom_sdk_invalid_value",
+    "loom_sdk_type_error",
     "must_be",
     "warn_config_unknown_key",
 ]

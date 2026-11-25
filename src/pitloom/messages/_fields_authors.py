@@ -22,6 +22,7 @@ from collections.abc import Callable, Mapping
 from types import MappingProxyType
 from typing import Final
 
+from pitloom.core.internal_error import InternalError
 from pitloom.logging_config import EXCERPT_CHARS, excerpt
 from pitloom.messages._field_type import Field
 from pitloom.messages._field_writers import plain_text, whole
@@ -45,11 +46,12 @@ def authors_text(value: object) -> str:
     :data:`SHOWN_FIELDS`, then ``...`` when there are more.
 
     Raises:
-        ValueError: It is none of these, empty, or holds anything but text.
+        pitloom.core.internal_error.InternalError: It is none of these, empty,
+            or holds anything but text.
     """
     fields = [value] if isinstance(value, str) else value
     if not isinstance(fields, (list, tuple)) or not fields:
-        raise ValueError(f"not author fields: {value!r}")
+        raise InternalError(f"not author fields: {value!r}")
     texts = [excerpt(plain_text(field)) for field in fields]
     if len(texts) == 1:
         return texts[0]
@@ -61,10 +63,10 @@ def author_key_text(value: object) -> str:
     """One of :data:`AUTHOR_FIELD_KEYS`.
 
     Raises:
-        ValueError: It is not.
+        pitloom.core.internal_error.InternalError: It is not.
     """
     if value not in AUTHOR_FIELD_KEYS:
-        raise ValueError(f"not an author key: {value!r}")
+        raise InternalError(f"not an author key: {value!r}")
     return plain_text(value)
 
 
@@ -75,7 +77,7 @@ def _counted(unit: str, units: str) -> tuple[str, Callable[[object], str]]:
     def write(value: object) -> str:
         number = whole(value)
         if number < 1:
-            raise ValueError(f"not a count of {units}: {value!r}")
+            raise InternalError(f"not a count of {units}: {value!r}")
         return f"{number} {unit if number == 1 else units}"
 
     pattern = rf"1 {re.escape(unit)}|(?:[2-9]|[1-9][0-9]+) {re.escape(units)}"

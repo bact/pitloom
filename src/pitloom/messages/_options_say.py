@@ -99,7 +99,8 @@ def namespace_invalid(value: str, problem: str) -> CodedValueError:
     credentials masked.
 
     Raises:
-        ValueError: (a plain one) *problem* is not one the line can say.
+        pitloom.core.internal_error.InternalError: *problem* is not one
+            the line can say.
     """
     if not value:
         return CodedValueError(OPTION_INVALID, line=NAMESPACE_EMPTY_LINE)

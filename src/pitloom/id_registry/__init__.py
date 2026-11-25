@@ -33,6 +33,7 @@ from pitloom.id_registry._ambiguous import say_ambiguous_keys
 from pitloom.id_registry._credentials import (
     check_key_credentials,
     require_key_without_credentials,
+    require_registry_namespace,
 )
 from pitloom.id_registry._persist import (
     persist_registry,
@@ -106,6 +107,7 @@ __all__ = [
     "registry_file_path",
     "registry_key_for_path",
     "require_key_without_credentials",
+    "require_registry_namespace",
     "resolve_registry",
     "save_registry",
     "sha256_file",

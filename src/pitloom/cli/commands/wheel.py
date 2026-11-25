@@ -34,6 +34,7 @@ from pitloom.cli.options_config import (
     add_archive_project_dir_argument,
     explicit_config_and_options,
 )
+from pitloom.core.current_dir import current_dir
 from pitloom.core.inert_options import (
     EMBED_STANDALONE,
     EMBEDDED_SBOM_PARAMS,
@@ -111,7 +112,8 @@ def _run_wheel_command(args: argparse.Namespace) -> int:
     output_path = (
         args.output
         if embed
-        else args.output or (Path.cwd() / f"{wheel_path.name}{SPDX3_JSONLD_EXTENSION}")
+        else args.output
+        or (current_dir() / f"{wheel_path.name}{SPDX3_JSONLD_EXTENSION}")
     )
 
     if args.verbose:

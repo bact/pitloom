@@ -23,6 +23,7 @@ from collections.abc import Mapping
 from types import MappingProxyType
 from typing import Final
 
+from pitloom.core.internal_error import InternalError
 from pitloom.messages._field_tables import VALUE_TYPES
 from pitloom.messages._field_type import QUOTED, Field
 from pitloom.messages._field_writers import (
@@ -46,7 +47,8 @@ def _dataset_name_text(value: object) -> str:
     for a dataset declared without a name, as Python shows it.
 
     Raises:
-        ValueError: *value* is neither text nor ``None``.
+        pitloom.core.internal_error.InternalError: *value* is neither text nor
+            ``None``.
     """
     return "None" if value is None else quoted_name_text(value)
 
@@ -96,11 +98,11 @@ def dataset_field_text(value: object) -> str:
     """A dataset field (:data:`DATASET_FIELD`), as given.
 
     Raises:
-        ValueError: It is not text of that shape.
+        pitloom.core.internal_error.InternalError: It is not text of that shape.
     """
     text = plain_text(value)
     if re.fullmatch(DATASET_FIELD, text) is None:
-        raise ValueError(f"not a dataset field: {text!r}")
+        raise InternalError(f"not a dataset field: {text!r}")
     return text
 
 

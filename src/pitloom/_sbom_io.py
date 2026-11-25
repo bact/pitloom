@@ -111,9 +111,11 @@ def write_stdout_lf(text: str) -> None:
 
 
 @contextlib.contextmanager
-def coded_write(file: str | os.PathLike[str]) -> Iterator[None]:
+def coded_write(file: str | os.PathLike[str], *, use: str = SBOM_USE) -> Iterator[None]:
     """Say a write of *file* (as the line names it) the system refuses as
-    ``file-unwritable`` for the SBOM: an :class:`OSError` that carries a
+    ``file-unwritable`` for *use* (one of
+    :data:`~pitloom.messages.READ_USES`, the SBOM by default): an
+    :class:`OSError` that carries a
     code of ours (a refused read of a wheel, coded where it is read by
     :func:`~pitloom.core.wheel_dist_info.refuse_unreadable`) passes as it
     is."""
@@ -122,7 +124,7 @@ def coded_write(file: str | os.PathLike[str]) -> Iterator[None]:
     except OSError as exc:
         if code_of(exc) is not None:
             raise
-        raise file_unwritable_error(exc, file=file, use=SBOM_USE) from exc
+        raise file_unwritable_error(exc, file=file, use=use) from exc
 
 
 def write_sbom_output(sbom_json: str, output_path: Path | str | None) -> None:

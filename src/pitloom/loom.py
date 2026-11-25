@@ -16,6 +16,7 @@ import types
 from pathlib import Path
 
 from pitloom._loom_active_run import _ActiveRun
+from pitloom._loom_args import check_sdk_arguments
 from pitloom.core.config import PitloomConfig
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.credential_policy import CredentialPolicy
@@ -107,6 +108,11 @@ class Run(contextlib.ContextDecorator):
             ``refuse``. A field with a credential that neither accepts is
             warned of when the run ends (the ``warn`` mode, the default), or
             refused and no fragment written (the ``refuse`` mode).
+
+    Raises:
+        TypeError: An argument is of the wrong type (``option-invalid``, a
+            :class:`~pitloom.messages.CodedTypeError`), as every loom call
+            refuses one.
     """
 
     # pylint: disable-next=too-many-arguments
@@ -121,7 +127,15 @@ class Run(contextlib.ContextDecorator):
         max_dataset_hash_bytes: int | None = None,
         credentials: CredentialPolicy | None = None,
     ):
-        self.output_file = str(output_file)
+        check_sdk_arguments(
+            ("output_file", "pretty"),
+            output_file=output_file,
+            pretty=pretty,
+            creation_metadata=creation_metadata,
+            id_registry=id_registry,
+            credentials=credentials,
+        )
+        self.output_file = os.fspath(output_file)
         self.pretty = pretty
         self.creation_metadata = creation_metadata or CreationMetadata()
         self.id_registry = id_registry
@@ -254,7 +268,8 @@ def add_dataset(
             its ``README.md``) is read for its ``license`` (with
             ``license_name``/``license_link`` for ``other``), ``version``
             and ``tags``.
-        dataset_type: An SPDX ``dataset_DatasetType`` name.
+        dataset_type: An SPDX ``dataset_DatasetType`` name, spelt as the
+            specification spells it (``text``, ``noAssertion``).
         croissant: A local Croissant JSON-LD file describing the dataset;
             its licence, version, description, creator and other dataset
             fields are written onto the package, each with its provenance.
@@ -268,9 +283,11 @@ def add_dataset(
             any source, and the next source may state one.
 
     Raises:
-        TypeError: *declared_license* is not a string.
-        ValueError: *croissant* is a URL, not a regular file, or cannot be
-            read as Croissant.
+        TypeError: An argument is of the wrong type (``option-invalid``, a
+            :class:`~pitloom.messages.CodedTypeError`).
+        ValueError: *dataset_type* names no ``dataset_DatasetType``
+            (``option-invalid``); *croissant* is a URL, not a regular file,
+            or cannot be read as Croissant.
     """
     if _active_run is None:
         raise _no_active_run("add_dataset")

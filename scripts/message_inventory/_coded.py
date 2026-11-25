@@ -7,9 +7,11 @@ message, so its line ends in `` [code]``.
 
 A call has a *static* code when it
 
-- is ``emit(...)``, ``CodedValueError(...)``, ``CodedImportError(...)``,
-  ``CodedFileNotFoundError(...)``, ``CodedRuntimeError(...)``, or a coded
-  exception said again (``recoded(...)``, ``exc.located(...)``), or
+- is ``emit(...)``, a coded exception class (``CodedValueError(...)``,
+  ``CodedImportError(...)``, ``CodedFileNotFoundError(...)``,
+  ``CodedOSError(...)``, ``CodedRuntimeError(...)``,
+  ``CodedTypeError(...)``), or a coded exception said again
+  (``recoded(...)``, ``exc.located(...)``), or
 - passes ``code=`` (or ``pitloom_code=``, as an exception class's own
   keyword) a string or a ``pitloom.messages`` constant, or
 - passes ``extra=`` holding a ``pitloom_code`` key (``CODE_ATTR``), or
@@ -33,6 +35,13 @@ class whose body holds such a call: a helper wrapping a coded call codes
 every caller's line. A body is scanned for the direct markers only, not
 through further calls, each call's ``extra=<name>`` read through the
 function in the body that makes it; a body with both kinds is static.
+
+A function that returns a coded value (``return CodedValueError(...)``)
+is judged by what it returns instead: coded only when every value it
+returns is (each return expression, a returned name through its
+assignments, an in-package call through that function's own kind), since a
+caller raising its result says whichever branch ran. ``None``, numbers and
+booleans returned are no message and are not judged.
 
 See also: ``_walker.py`` (sets ``coded`` and ``forwards_code`` on each record).
 """
@@ -59,7 +68,9 @@ STATIC_CALLS = frozenset(
         "emit",
         "CodedFileNotFoundError",
         "CodedImportError",
+        "CodedOSError",
         "CodedRuntimeError",
+        "CodedTypeError",
         "CodedValueError",
         "located",
         "recoded",
@@ -162,6 +173,33 @@ def call_code_kind(
     return best_kind(kinds)
 
 
+def _own_returns(func: ast.AST) -> list[ast.expr]:
+    """The values *func*'s own body (no nested scope) returns, but for a
+    constant that is not a string (``None``, a number, a boolean)."""
+    values: list[ast.expr] = []
+    todo: list[ast.AST] = list(ast.iter_child_nodes(func))
+    while todo:
+        node = todo.pop()
+        if isinstance(node, _SCOPES):
+            continue
+        if isinstance(node, ast.Return) and node.value is not None:
+            value = node.value
+            if not (
+                isinstance(value, ast.Constant) and not isinstance(value.value, str)
+            ):
+                values.append(value)
+        todo.extend(ast.iter_child_nodes(node))
+    return values
+
+
+def worst_kind(kinds: set[str | None]) -> str | None:
+    """``None`` over ``FORWARD`` over ``STATIC``: the kind every one of
+    *kinds* has at least."""
+    if None in kinds:
+        return None
+    return FORWARD if FORWARD in kinds else STATIC
+
+
 def _calls_in(node: ast.AST) -> list[tuple[ast.Call, ast.AST | None]]:
     """Each call under *node*, with the innermost function that makes it
     (``None`` for a call in a top-level class body, outside any method)."""
@@ -191,10 +229,40 @@ class CodedChecker:
         :meth:`site_kind` reads it."""
         key = id(node)
         if key not in self._memo:
-            self._memo[key] = best_kind(
+            # Read as uncoded while being judged: a helper returning its own
+            # call's value does not code itself.
+            self._memo[key] = None
+            kind = best_kind(
                 {call_code_kind(call, mod, func) for call, func in _calls_in(node)}
             )
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                returned = {self._value_kind(mod, node, v) for v in _own_returns(node)}
+                if returned & {STATIC, FORWARD}:
+                    kind = worst_kind(returned)
+            self._memo[key] = kind
         return self._memo[key]
+
+    def _value_kind(
+        self, mod: Module, func: FuncNode, value: ast.expr, follow: bool = True
+    ) -> str | None:
+        """How the value *func* returns is coded: a name through the values
+        *func* assigns to it (one level), else the best of the calls in it,
+        directly or through the in-package function or class each calls."""
+        if isinstance(value, ast.Name) and follow:
+            return best_kind(
+                {
+                    self._value_kind(mod, func, v, follow=False)
+                    for v in _assigned_values(func, value.id)
+                }
+            )
+        kinds: set[str | None] = set()
+        for sub in ast.walk(value):
+            if isinstance(sub, ast.Call):
+                kinds.add(call_code_kind(sub, mod, func))
+                found = self.idx.lookup(mod, sub.func)
+                if found is not None:
+                    kinds.add(self.body_kind(*found))
+        return best_kind(kinds)
 
     def site_kind(
         self, mod: Module, call: ast.Call | None, func: ast.AST | None = None

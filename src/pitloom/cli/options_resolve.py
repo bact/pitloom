@@ -35,6 +35,7 @@ from pitloom.core.creation import (
     Creator,
     Tool,
 )
+from pitloom.core.current_dir import current_dir
 from pitloom.core.file_names import default_sbom_basename, sbom_file_name
 from pitloom.core.project import ProjectMetadata, is_sdist_archive
 from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
@@ -355,11 +356,11 @@ def _resolve_output_path(
 def _resolve_model_output_path(explicit: Path | None, model_path: Path) -> Path:
     if explicit is not None:
         return explicit
-    return Path.cwd() / (model_path.name + SPDX3_JSONLD_EXTENSION)
+    return current_dir() / (model_path.name + SPDX3_JSONLD_EXTENSION)
 
 
 def _resolve_hf_output_path(explicit: Path | None, model_id: str) -> Path:
     if explicit is not None:
         return explicit
     stem = model_id.split("/")[-1]
-    return Path.cwd() / (stem + SPDX3_JSONLD_EXTENSION)
+    return current_dir() / (stem + SPDX3_JSONLD_EXTENSION)

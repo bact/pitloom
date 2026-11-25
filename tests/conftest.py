@@ -5,6 +5,7 @@
 
 """Shared pytest fixtures and configuration."""
 
+import functools
 import ipaddress
 import json
 import logging
@@ -38,6 +39,7 @@ from tests._spdx3_validate import use_offline_model
 from tests._strict_uncoded import (
     MARKER,
     Finding,
+    FixtureWatch,
     call_ran,
     failures,
     line_finding,
@@ -360,3 +362,27 @@ def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
     for item in items:
         if is_platform_file(item.path, root):
             item.add_marker(pytest.mark.platform)
+
+
+_FIXTURE_WATCH = FixtureWatch()
+
+
+@pytest.hookimpl(wrapper=True)
+def pytest_fixture_setup(
+    fixturedef: pytest.FixtureDef[Any], request: pytest.FixtureRequest
+) -> Iterator[Any]:
+    """Hold a module-, class- or session-scoped fixture's setup and teardown
+    to the strict check (:class:`tests._strict_uncoded.FixtureWatch`): a
+    finding errors the test that set it up or tore it down. The teardown
+    window is two finalizers around the fixture's own (they run LIFO)."""
+    del request
+    if fixturedef.scope == "function":
+        return (yield)
+    name = f"{fixturedef.argname!r} ({fixturedef.scope}, {fixturedef.baseid})"
+    fixturedef.addfinalizer(functools.partial(_FIXTURE_WATCH.leave, name, "teardown"))
+    _FIXTURE_WATCH.enter()
+    try:
+        return (yield)
+    finally:
+        fixturedef.addfinalizer(_FIXTURE_WATCH.enter)
+        _FIXTURE_WATCH.leave(name, "setup")

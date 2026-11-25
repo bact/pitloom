@@ -30,6 +30,7 @@ from pitloom.messages import (
     code_of,
     trusted_message,
 )
+from pitloom.messages._field_tables import CWD_USE
 from pitloom.messages.files import (
     CONFIG_USE,
     DIR_UNLISTABLE,
@@ -328,9 +329,9 @@ def test_every_use_of_the_table_is_passed_and_no_other() -> None:
     """The table is closed and live: every ``use=`` a call of a taker
     passes is a text of it (a literal, a module constant or a shared one)
     or hands one on, and each of its uses is passed by some call."""
-    # The input probe passes INPUT_USE from inside the catalogue, which
-    # source_modules() leaves out.
-    passed: set[str] = {INPUT_USE}
+    # The input probe passes INPUT_USE, and current_dir_error CWD_USE, from
+    # inside the catalogue, which source_modules() leaves out.
+    passed: set[str] = {INPUT_USE, CWD_USE}
     for path, tree in source_modules():
         texts = {**_SHARED_USES, **_texts(tree)}
         for node in ast.walk(tree):

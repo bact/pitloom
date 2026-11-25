@@ -15,6 +15,7 @@ import re
 from collections.abc import Mapping
 from typing import Final
 
+from pitloom.core.internal_error import InternalError
 from pitloom.messages._fields import FIELDS
 
 #: A name in a template.
@@ -61,19 +62,19 @@ def written(template: str, values: Mapping[str, object]) -> dict[str, str]:
     """Each value of *values* written by its field, for *template*.
 
     Raises:
-        ValueError: *values* names other fields than *template*, or a
-            written value does not have its field's shape.
+        pitloom.core.internal_error.InternalError: *values* names other fields
+            than *template*, or a written value does not have its field's shape.
     """
     names = template_names(template)
     if set(values) != set(names):
-        raise ValueError(
+        raise InternalError(
             f"{template!r} takes {sorted(set(names))}, not {sorted(values)}"
         )
     texts: dict[str, str] = {}
     for name in dict.fromkeys(names):
         text = FIELDS[name].write(values[name])
         if re.fullmatch(FIELDS[name].pattern, text) is None:
-            raise ValueError(f"{name}={text!r} is not a {name}")
+            raise InternalError(f"{name}={text!r} is not a {name}")
         texts[name] = text
     return texts
 

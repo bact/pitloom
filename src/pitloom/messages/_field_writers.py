@@ -5,7 +5,8 @@
 
 """How the catalogue writes a caller's value as a field's text: each
 writer takes the value a call site passes and returns the text printed, or
-raises :class:`ValueError` for a value of the wrong type.
+raises :class:`~pitloom.core.internal_error.InternalError` for a value of the
+wrong type.
 
 See also: :mod:`pitloom.messages._fields` (the fields and their shapes).
 """
@@ -17,6 +18,7 @@ import re
 from typing import Final
 
 from pitloom.core.given_path import given_spelling
+from pitloom.core.internal_error import InternalError
 from pitloom.core.quote_source import given_path_text, quote_source
 from pitloom.core.url_masking import mask_checkout, sanitize_url
 from pitloom.log_masking import masked_text
@@ -93,13 +95,14 @@ def _path_text(value: object) -> str:
     it masked (:func:`~pitloom.core.url_masking.masked_given_path`).
 
     Raises:
-        ValueError: It is neither, or names a path in bytes.
+        pitloom.core.internal_error.InternalError: It is neither, or names a
+            path in bytes.
     """
     if isinstance(value, (str, os.PathLike)):
         spelt = given_spelling(value)
         if isinstance(os.fspath(spelt), str):
             return given_path_text(spelt)
-    raise ValueError(f"not a path: {value!r}")
+    raise InternalError(f"not a path: {value!r}")
 
 
 def file_text(value: object) -> str:
@@ -116,10 +119,10 @@ def whole(value: object) -> int:
     """*value* when it is an ``int`` of zero or more (a ``bool`` is not).
 
     Raises:
-        ValueError: It is not.
+        pitloom.core.internal_error.InternalError: It is not.
     """
     if isinstance(value, bool) or not isinstance(value, int) or value < 0:
-        raise ValueError(f"not a whole number: {value!r}")
+        raise InternalError(f"not a whole number: {value!r}")
     return value
 
 
@@ -143,10 +146,10 @@ def plain_text(value: object) -> str:
     """*value* when it is a ``str``.
 
     Raises:
-        ValueError: It is not.
+        pitloom.core.internal_error.InternalError: It is not.
     """
     if not isinstance(value, str):
-        raise ValueError(f"not text: {value!r}")
+        raise InternalError(f"not text: {value!r}")
     return value
 
 
@@ -246,10 +249,11 @@ def failure_text(value: object) -> str:
     library caller in an exception, past the log sink.
 
     Raises:
-        ValueError: *value* is not an exception (a text included).
+        pitloom.core.internal_error.InternalError: *value* is not an exception
+            (a text included).
     """
     if not isinstance(value, BaseException):
-        raise ValueError(f"not an exception: {value!r}")
+        raise InternalError(f"not an exception: {value!r}")
     if isinstance(value, OSError) and value.strerror:
         return one_line(value.strerror, FAILURE_CHARACTERS, ellipsis=True)
     return failure_reason(value, FAILURE_CHARACTERS, ellipsis=True, steady=_steady)
@@ -260,11 +264,11 @@ def joined(value: object) -> str:
     nothing, which the field's shape refuses.
 
     Raises:
-        ValueError: It is neither (a ``str`` included), or holds anything
-            but text.
+        pitloom.core.internal_error.InternalError: It is neither (a ``str``
+            included), or holds anything but text.
     """
     if not isinstance(value, (list, tuple)):
-        raise ValueError(f"not a list: {value!r}")
+        raise InternalError(f"not a list: {value!r}")
     return ", ".join(plain_text(item) for item in value)
 
 
@@ -274,7 +278,7 @@ def entity_text(value: object) -> str:
     a control character.
 
     Raises:
-        ValueError: It is not a ``str``.
+        pitloom.core.internal_error.InternalError: It is not a ``str``.
     """
     return loggable(given_path_text(plain_text(value)))
 
@@ -287,7 +291,7 @@ def cut_entity_text(value: object) -> str:
     comparison of two written values needs.
 
     Raises:
-        ValueError: It is not a ``str``.
+        pitloom.core.internal_error.InternalError: It is not a ``str``.
     """
     return cut_and_escaped(given_path_text(plain_text(value)))
 
@@ -298,9 +302,9 @@ def entities_text(value: object) -> str:
     which the field's shape refuses.
 
     Raises:
-        ValueError: It is neither (a ``str`` included), or holds anything
-            but text.
+        pitloom.core.internal_error.InternalError: It is neither (a ``str``
+            included), or holds anything but text.
     """
     if not isinstance(value, (list, tuple)):
-        raise ValueError(f"not a list: {value!r}")
+        raise InternalError(f"not a list: {value!r}")
     return ", ".join(entity_text(item) for item in value)

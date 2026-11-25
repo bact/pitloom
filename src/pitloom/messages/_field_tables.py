@@ -105,6 +105,12 @@ CONFIG_USE: Final = "for the configuration"
 #: ``setup.py``, an installed ``METADATA`` or ``PKG-INFO``) is read for: one
 #: of :data:`READ_USES`.
 METADATA_USE: Final = "for the project metadata"
+#: What the current directory is read for, where a path is resolved
+#: against it: one of :data:`READ_USES`.
+CWD_USE: Final = "for resolving relative paths"
+#: What the fragment a ``loom.run()`` writes is written for: one of
+#: :data:`READ_USES`.
+FRAGMENT_USE: Final = "for the SBOM fragment"
 
 #: What a file was read for, or a directory listed for, as a
 #: ``file-unreadable`` or ``dir-unlistable`` line says it after ``could not
@@ -128,7 +134,9 @@ READ_USES: Final = (
     "for the model card",
     "for the model hash",
     "for the PyPI release metadata",
+    CWD_USE,
     SBOM_USE,
+    FRAGMENT_USE,
     "for the script hash",
     "for usage scanning",
 )

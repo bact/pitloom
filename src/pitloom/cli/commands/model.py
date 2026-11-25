@@ -27,6 +27,7 @@ from pitloom.cli.options import (
 )
 from pitloom.cli.options_config import explicit_config_and_options
 from pitloom.core.build_options import BuildOptions
+from pitloom.core.given_path import TypedPath
 from pitloom.core.inert_options import GIT_MODEL, HF, MODEL_FILE, forward_options
 from pitloom.core.url_masking import sanitize_url
 from pitloom.extract.model_target import MODEL, model_path_of
@@ -140,7 +141,7 @@ def _run_model_command(args: argparse.Namespace) -> int:
         return run_remote(args, target.strip(), MODEL, BuildOptions())
     # The path as given goes to the generator, so its log lines name the
     # file as the user wrote it.
-    opened_path = existing_model_path(Path(target))
+    opened_path = existing_model_path(TypedPath(target))
     if opened_path is None:
         # Named as given, with the credentials of anything URL-shaped in it
         # masked.

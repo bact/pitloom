@@ -16,10 +16,12 @@ from __future__ import annotations
 import logging
 import os
 from pathlib import Path
+from typing import Any
 from uuid import uuid4
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
+from pitloom._loom_args import check_sdk_arguments, loom_config
 from pitloom._loom_caller import (
     _default_run_comment,
     _get_caller_info,
@@ -30,12 +32,12 @@ from pitloom._loom_caller import (
 from pitloom._loom_dataset import LoomElements
 from pitloom._loom_dataset_meta import read_sources
 from pitloom._loom_model import LoomModels
-from pitloom._sbom_io import write_text_lf
+from pitloom._sbom_io import coded_write, write_text_lf
 from pitloom.assemble.spdx3.creation_info import build_creation_info
 from pitloom.core.config import PitloomConfig
-from pitloom.core.config_cascade import load_config_file
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.credential_policy import CredentialPolicy
+from pitloom.core.current_dir import current_dir
 from pitloom.core.lfs_pointer import UnreadPointers
 from pitloom.core.model_extract_limit import (
     require_max_dataset_hash_bytes,
@@ -45,8 +47,8 @@ from pitloom.core.models import build_relationship
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 from pitloom.id_registry import IdRegistry, IdRegistrySession, resolve_registry
 from pitloom.logging_config import configure_logging
-from pitloom.messages import CodedValueError, emit, recoded
-from pitloom.messages.config import Parameter, invalid_value
+from pitloom.messages import FRAGMENT_USE, emit
+from pitloom.messages.config import Parameter
 from pitloom.messages.fragments import REFERENCE_NOT_FOUND_DATASET
 
 log = logging.getLogger("pitloom.loom")
@@ -59,32 +61,6 @@ __all__ = [
     "_record_hyperparameter_provenance",
     "loom_config",
 ]
-
-
-def loom_config(pitloom_config: PitloomConfig | str | Path | None) -> PitloomConfig:
-    """The config of a loom run: *pitloom_config* itself, the file it names
-    loaded like ``--config`` (a relative path from the current directory),
-    else the defaults. Never an implicit ``[tool.pitloom]``.
-
-    Raises:
-        ValueError: the named file is missing (``input-not-found``),
-            unreadable (``file-unreadable``) or invalid (``config-invalid``,
-            ``config-malformed``): a :class:`~pitloom.messages.CodedValueError`
-            naming it.
-    """
-    if pitloom_config is None:
-        return PitloomConfig()
-    if isinstance(pitloom_config, PitloomConfig):
-        return pitloom_config
-    if not isinstance(pitloom_config, (str, os.PathLike)):
-        raise invalid_value(
-            Parameter("pitloom_config"), "config-source", pitloom_config
-        )
-    path = Path(pitloom_config)
-    try:
-        return load_config_file(path, source="pitloom_config")
-    except FileNotFoundError as exc:
-        raise recoded(CodedValueError, exc) from None
 
 
 def _append_once(
@@ -127,7 +103,7 @@ class _ActiveRun:
         resolved = resolve_registry(
             id_registry,
             config.id_registry,
-            Path.cwd(),
+            current_dir(),
             refuse_credentials=self.credentials.refuse,
         )
         max_hash_bytes = (
@@ -146,11 +122,11 @@ class _ActiveRun:
         self.doc_uuid = str(uuid4())
         self.session = IdRegistrySession(resolved)
         script_path = _get_caller_script_path()
-        # (as captured, absolute now: the script may change directory)
+        # Named as invoked; absolute now: the script may change directory.
         self.caller_script: tuple[str, Path] | None = (
             None
             if script_path is None
-            else (cwd_relative_label(script_path), Path(os.path.abspath(script_path)))
+            else (cwd_relative_label(script_path), current_dir() / script_path)
         )
         self._model_generated: bool | None = None
 
@@ -208,6 +184,14 @@ class _ActiveRun:
         """Declare the primary AI model being trained. *path*, its file, is
         hashed at run exit and gates its registry lookup (see
         :mod:`pitloom._loom_model`)."""
+        check_sdk_arguments(
+            ("name",),
+            name=name,
+            model_type=model_type,
+            hyperparameters=hyperparameters,
+            generated=generated,
+            path=path,
+        )
         self.models.declare(
             name,
             model_type=model_type,
@@ -238,6 +222,7 @@ class _ActiveRun:
     def set_model_hyperparameters(self, hyperparameters: dict[str, str]) -> None:
         """Update the last declared model with hyperparameters captured after
         training."""
+        check_sdk_arguments(("hyperparameters",), hyperparameters=hyperparameters)
         self.models.set_hyperparameters(hyperparameters, _get_caller_info())
 
     def _build_dataset_package(
@@ -249,7 +234,15 @@ class _ActiveRun:
     ) -> spdx3.dataset_DatasetPackage:
         """Build a ``dataset_DatasetPackage`` for *name* (see
         :meth:`~pitloom._loom_dataset.LoomElements.dataset`), with what its
-        sources state (:func:`~pitloom._loom_dataset_meta.read_sources`)."""
+        sources state (:func:`~pitloom._loom_dataset_meta.read_sources`),
+        once its arguments are checked."""
+        check_sdk_arguments(
+            ("name", "dataset_type"),
+            name=name,
+            dataset_type=dataset_type,
+            croissant=croissant,
+            declared_license=declared_license,
+        )
         caller_info = _get_caller_info()
         sources = read_sources(
             name,
@@ -319,14 +312,19 @@ class _ActiveRun:
         declared_license: str | None = None,
     ) -> None:
         """Declare a derived/processed dataset produced by a preprocessing step."""
+        check_sdk_arguments(
+            (), data_preprocessing=data_preprocessing, input_datasets=input_datasets
+        )
         dataset_pkg = self._build_dataset_package(
             name, dataset_type, croissant, declared_license
         )
         if data_preprocessing is not None:
-            dataset_pkg.dataset_dataPreprocessing = data_preprocessing
+            dataset_pkg.dataset_dataPreprocessing = list(data_preprocessing)
             self.elements.declare_preprocessing(dataset_pkg)
 
-        self._add_output(dataset_pkg, input_datasets)
+        self._add_output(
+            dataset_pkg, None if input_datasets is None else list(input_datasets)
+        )
 
     def _add_output(
         self, package: spdx3.dataset_DatasetPackage, sources: list[str] | None
@@ -345,62 +343,57 @@ class _ActiveRun:
                 return
         self.output_datasets.append((package, sources))
 
+    def _relate(
+        self, from_id: str | None, to_ids: list[str], rel_type: str, **kwargs: Any
+    ) -> None:
+        """Add the relationship *rel_type* from *from_id* to *to_ids* (none
+        without a *from_id*); *kwargs* as for
+        :func:`~pitloom.core.models.build_relationship`."""
+        rel = build_relationship(
+            from_id=from_id,
+            to_ids=to_ids,
+            rel_type=rel_type,
+            doc_name="loom",
+            doc_uuid=self.doc_uuid,
+            creation_info=self.creation_info,
+            **kwargs,
+        )
+        if rel:
+            self.exporter.add_relationship(rel)
+
     def _emit_model_dataset_relationships(self) -> None:
         """Emit trainedOn and testedOn relationships for models and datasets."""
         if not self.model:
             return
-        for dataset in self.datasets:
-            rel = build_relationship(
-                from_id=self.model.spdxId,
-                to_ids=[require_spdx_id(dataset)],
-                rel_type=spdx3.RelationshipType.trainedOn,
-                doc_name="loom",
-                doc_uuid=self.doc_uuid,
-                creation_info=self.creation_info,
-            )
-            if rel:
-                self.exporter.add_relationship(rel)
-
-        for dataset in self.validation_datasets:
-            rel = build_relationship(
-                from_id=self.model.spdxId,
-                to_ids=[require_spdx_id(dataset)],
-                rel_type=spdx3.RelationshipType.testedOn,
-                doc_name="loom",
-                doc_uuid=self.doc_uuid,
-                creation_info=self.creation_info,
-            )
-            if rel:
-                self.exporter.add_relationship(rel)
+        for datasets, rel_type in (
+            (self.datasets, spdx3.RelationshipType.trainedOn),
+            (self.validation_datasets, spdx3.RelationshipType.testedOn),
+        ):
+            for dataset in datasets:
+                self._relate(self.model.spdxId, [require_spdx_id(dataset)], rel_type)
 
     def _resolve_input_ids_for_output(
         self,
         wanted_names: list[str] | None,
         all_input_ids: list[str],
-        input_ids_by_name: dict[str | None, str],
+        input_ids_by_name: dict[str, str],
         output_ds_name: str | None,
     ) -> list[str]:
-        """Resolve specific input IDs requested by an output dataset."""
+        """Resolve specific input IDs requested by an output dataset; each
+        name no input was declared under is said once, in first-seen
+        order."""
         if wanted_names is None:
             return all_input_ids
         input_ids: list[str] = []
-        for wanted_name in wanted_names:
+        for wanted_name in dict.fromkeys(wanted_names):
             input_id = input_ids_by_name.get(wanted_name)
             if input_id is None:
-                # An untyped caller may name an input by any value: a text
-                # as given, ``None`` as Python shows it, any other value by
-                # its type (never ``str()`` of it: that may raise or be huge).
-                given: object = wanted_name
                 emit(
                     log,
                     REFERENCE_NOT_FOUND_DATASET,
                     logging.WARNING,
                     dataset=output_ds_name,
-                    dataset_input=(
-                        given
-                        if given is None or isinstance(given, str)
-                        else f"a value of type {type(given).__name__}"
-                    ),
+                    dataset_input=wanted_name,
                 )
                 continue
             input_ids.append(input_id)
@@ -411,7 +404,7 @@ class _ActiveRun:
         if not self.output_datasets:
             return
         all_input_ids = [require_spdx_id(ds) for ds in self.input_datasets]
-        input_ids_by_name: dict[str | None, str] = {
+        input_ids_by_name: dict[str, str] = {
             name: require_spdx_id(ds)
             for ds in self.input_datasets
             for name in self.elements.names_of(ds)
@@ -426,16 +419,11 @@ class _ActiveRun:
             ]
             if not input_ids:
                 continue
-            rel = build_relationship(
+            self._relate(
                 from_id=output_ds.spdxId,
                 to_ids=input_ids,
                 rel_type=spdx3.RelationshipType.hasInput,
-                doc_name="loom",
-                doc_uuid=self.doc_uuid,
-                creation_info=self.creation_info,
             )
-            if rel:
-                self.exporter.add_relationship(rel)
 
     def finalize(self) -> None:
         """Resolve the declared models, emit the relationships, write the
@@ -455,9 +443,9 @@ class _ActiveRun:
             pretty=self.pretty, credentials=self.credentials
         )
         output_path = Path(self.output_file)
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-
-        write_text_lf(output_path, fragment_json)
+        with coded_write(self.output_file, use=FRAGMENT_USE):
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            write_text_lf(output_path, fragment_json)
         self.lfs_pointers.warn()
         self.models.persist()
         self.session.info_layout_alias_hits()
@@ -485,42 +473,27 @@ class _ActiveRun:
         script_id = require_spdx_id(script_file)
 
         if generates_model and self.model is not None:
-            rel1 = build_relationship(
+            self._relate(
                 from_id=script_id,
                 to_ids=[require_spdx_id(self.model)],
                 rel_type=spdx3.RelationshipType.generates,
-                doc_name="loom",
-                doc_uuid=self.doc_uuid,
-                creation_info=self.creation_info,
                 rel_class=spdx3.LifecycleScopedRelationship,
                 scope=spdx3.LifecycleScopeType.build,
             )
-            if rel1:
-                self.exporter.add_relationship(rel1)
         elif self.model is not None and not generates_model:
-            rel2 = build_relationship(
+            self._relate(
                 from_id=script_id,
                 to_ids=[require_spdx_id(self.model)],
                 rel_type=spdx3.RelationshipType.hasDataFile,
-                doc_name="loom",
-                doc_uuid=self.doc_uuid,
-                creation_info=self.creation_info,
                 rel_class=spdx3.LifecycleScopedRelationship,
                 scope=spdx3.LifecycleScopeType.runtime,
             )
-            if rel2:
-                self.exporter.add_relationship(rel2)
 
         if output_targets:
-            rel3 = build_relationship(
+            self._relate(
                 from_id=script_id,
                 to_ids=output_targets,
                 rel_type=spdx3.RelationshipType.generates,
-                doc_name="loom",
-                doc_uuid=self.doc_uuid,
-                creation_info=self.creation_info,
                 rel_class=spdx3.LifecycleScopedRelationship,
                 scope=spdx3.LifecycleScopeType.build,
             )
-            if rel3:
-                self.exporter.add_relationship(rel3)

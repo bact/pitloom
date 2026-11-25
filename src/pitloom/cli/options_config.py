@@ -30,6 +30,7 @@ from pathlib import Path
 from typing import Any
 
 from pitloom.cli._parser_credentials import credential_policy_from_args
+from pitloom.cli._path_args import non_empty_path
 from pitloom.cli.options_resolve import (
     _resolve_creation_metadata,
     load_explicit_config,
@@ -169,7 +170,7 @@ def add_archive_project_dir_argument(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--project-dir",
         dest=ARCHIVE_PROJECT_DIR_DEST,
-        type=TypedPath,
+        type=non_empty_path,
         default=None,
         metavar="DIR",
         help=(

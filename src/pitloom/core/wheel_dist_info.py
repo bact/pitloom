@@ -53,6 +53,7 @@ from pitloom.messages.targets import (
     TARGET_WRONG_FORMAT,
     input_not_found,
     is_input_file,
+    refuse_empty_input,
 )
 from pitloom.messages.wheels import (
     DIST_INFO_NONE,
@@ -152,7 +153,15 @@ def require_wheel_path(path: Path | str) -> None:
     """Raise :class:`WheelRefused` unless :func:`is_wheel_path`.
 
     The one rule every surface that takes a wheel applies, with one message.
+    A path given as empty (``""``, or a
+    :class:`~pitloom.core.given_path.TypedPath` of it) names no file at all.
+
+    Raises:
+        WheelRefused: the file name does not end in ``.whl``.
+        pitloom.messages.CodedFileNotFoundError: *path* is given as empty
+            (``input-not-found``).
     """
+    refuse_empty_input(path, "wheel file")
     if not is_wheel_path(path):
         raise NotAWheelError(TARGET_WRONG_FORMAT, line=NOT_A_WHEEL_LINE, file=path)
 

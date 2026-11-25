@@ -5,15 +5,18 @@
 
 """Saying ``input-not-found``: the one probe of a path named for Pitloom to
 read (:func:`input_exists`, :func:`is_input_file`, :func:`is_input_dir`),
-the error to raise for one that is not there (:func:`input_not_found`), the
-command line's ``ERROR:`` line for one (:func:`say_input_not_found`), and the
+the error to raise for one that is not there (:func:`input_not_found`,
+:func:`refuse_empty_input` for one given as empty), the command line's
+``ERROR:`` line for one (:func:`say_input_not_found`), and the
 ``WARNING:`` for a configured SBOM fragment that is not there
 (:func:`warn_fragment_not_found`).
 
 An input check goes through the probe, never :func:`os.path.isfile` and its
 siblings, which say ``False`` for a path the system will not let Pitloom
 look at (a directory above it without search permission): that is
-``file-unreadable``, not ``input-not-found``.
+``file-unreadable``, not ``input-not-found``. A path given as empty names
+nothing, as ``os.stat("")`` says, although :class:`pathlib.Path` reads it
+as ``.``: the probe says nothing is there.
 
 See also: :mod:`pitloom.messages._input_not_found` (the entries).
 """
@@ -27,6 +30,7 @@ from collections.abc import Mapping
 from types import MappingProxyType
 from typing import Final
 
+from pitloom.core.given_path import given_spelling
 from pitloom.core.internal_error import InternalError
 from pitloom.core.path_probe import stat_if_present
 from pitloom.logging_config import print_error
@@ -40,6 +44,7 @@ from pitloom.messages._input_not_found import (
     INPUT_NOT_FILE_LINE,
     INPUT_NOT_FOUND,
     INPUT_NOT_FOUND_FRAGMENT,
+    MODEL_FILE_NOT_FOUND_LINE,
     REQUIRED_FRAGMENT_LINE,
 )
 from pitloom.messages._types import Line
@@ -59,19 +64,57 @@ _WRONG_KIND_LINES: Final[Mapping[str, Line]] = MappingProxyType(
 )
 
 
+#: The kind :func:`refuse_empty_input` names a model file by: the model
+#: routes' own line (``Model file not found``), not one of
+#: :data:`~pitloom.messages._field_tables.INPUT_KINDS`.
+MODEL_FILE_KIND: Final = "model file"
+
+
+def is_empty_input(given: str | os.PathLike[str]) -> bool:
+    """Whether *given* was spelt as nothing (``""``): its
+    :class:`~pitloom.core.given_path.TypedPath` or
+    :class:`~pitloom.core.given_path.GivenPath` spelling, else itself."""
+    return os.fspath(given_spelling(given)) == ""
+
+
+def refuse_empty_input(given: str | os.PathLike[str], kind: str) -> None:
+    """Raise ``input-not-found`` for *given*, an input path named as *kind*
+    (one of :data:`~pitloom.messages._field_tables.INPUT_KINDS`, or
+    :data:`MODEL_FILE_KIND`), when it was given as empty: nothing is there,
+    although :class:`pathlib.Path` would read it as the current directory.
+    Called at each entry taking an input path, before any format check.
+
+    Raises:
+        pitloom.messages.CodedFileNotFoundError: *given* is empty.
+        pitloom.core.internal_error.InternalError: *kind* is neither.
+    """
+    if kind != MODEL_FILE_KIND and kind not in INPUT_KINDS:
+        raise InternalError(f"input kind {kind!r} is not in INPUT_KINDS")
+    if not is_empty_input(given):
+        return
+    if kind == MODEL_FILE_KIND:
+        raise CodedFileNotFoundError(
+            INPUT_NOT_FOUND, line=MODEL_FILE_NOT_FOUND_LINE, path=""
+        )
+    raise input_not_found(kind, "")
+
+
 def _input_stat(
     path: str | os.PathLike[str], shown: str | os.PathLike[str] | None
 ) -> os.stat_result | None:
     """``os.stat(path)``, or ``None`` when nothing is there: missing
-    (:func:`~pitloom.core.path_probe.is_missing_errno`, a link loop
-    included), a dangling link (it leads nowhere), or a path no file can
-    have (an embedded NUL).
+    (:func:`~pitloom.core.path_probe.is_missing_errno`, a link loop and a
+    name too long included), a dangling link (it leads nowhere), a path no
+    file can have (an embedded NUL), or a path given as empty
+    (:func:`is_empty_input` of *shown*, else of *path*).
 
     Raises:
         pitloom.messages.CodedValueError: The system will not let Pitloom
             look (a directory above *path* without search permission, an
             I/O error): ``file-unreadable``, naming *shown*, else *path*.
     """
+    if is_empty_input(path if shown is None else shown):
+        return None
     try:
         return stat_if_present(path)
     except ValueError:

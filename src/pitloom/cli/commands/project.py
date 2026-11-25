@@ -30,6 +30,7 @@ from pitloom.cli.options import (
 from pitloom.cli.options_config import add_archive_project_dir_argument, run_options
 from pitloom.cli.verbose import log_verbose_options
 from pitloom.core.build_options import BuildOptions
+from pitloom.core.current_dir import current_dir
 from pitloom.core.given_path import TypedPath
 from pitloom.core.inert_options import (
     GIT,
@@ -122,6 +123,8 @@ def _project_target(text: str) -> Path | str:
 def _run_project_command(args: argparse.Namespace) -> int:
     """Generate a Source SBOM from a project directory, sdist archive or Git
     URL."""
+    if args.project_dir is None:  # not a parser default: the parser builds
+        args.project_dir = current_dir()  # with the current directory gone
     if isinstance(args.project_dir, str):
         # A Hugging Face model URL is refused as the library refuses it.
         refuse_hub_model_target(args.project_dir)
@@ -160,7 +163,7 @@ def add_parser(subparsers: Any, parent_parser: argparse.ArgumentParser) -> None:
         "project_dir",
         type=_project_target,
         nargs="?",
-        default=Path.cwd(),
+        default=None,
         help="Path to project directory or sdist archive (.tar.gz, .zip), the "
         "https URL of a PyPI project or release page (its sdist is "
         "downloaded and checked against the SHA-256 PyPI declares; its own "

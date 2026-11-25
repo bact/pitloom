@@ -398,9 +398,7 @@ def _registry_surfaces(tmp: Path, mp: pytest.MonkeyPatch) -> dict[str, object]:
     (tmp / "src").mkdir()
     (tmp / "src" / "a.py").write_text("x\n", encoding="utf-8")
     base = ["id", "generate", "--project-dir", str(tmp), "-o", str(tmp / "r.json")]
-    with pytest.raises(SystemExit) as stopped:
-        _cli(base + ["--namespace", _NS, str(tmp / "src")], mp)
-    found["cli-namespace"] = stopped.value.code
+    found["cli-namespace"] = _cli(base + ["--namespace", _NS, str(tmp / "src")], mp)
     key = ["-e", f"{HOME}:ai_AIPackage", "--refuse-url-credentials", "src"]
     found["cli-key"] = _cli(base + key, mp)
     (tmp / "bad.json").write_text(
@@ -419,7 +417,7 @@ def test_a_credentialed_namespace_or_key_is_refused_on_every_registry_surface(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     """One refusal per surface, the library's coded as the command line's
-    ``-e``; argparse (exit 2) and a malformed file keep their own code."""
+    ``-e`` and ``--namespace``; a malformed file keeps its own code."""
     monkeypatch.chdir(tmp_path)
     found = _registry_surfaces(tmp_path, monkeypatch)
     _, err = capsys.readouterr()
@@ -428,11 +426,11 @@ def test_a_credentialed_namespace_or_key_is_refused_on_every_registry_surface(
         "library-new": registry,
         "constructor": registry,
         "register": registry,
-        "cli-namespace": 2,
+        "cli-namespace": 1,
         "cli-key": 1,
         "file": "registry-malformed",
     }
-    assert f"[{registry}]" in err and "holds user information" in err
+    assert err.count(f"[{registry}]") == 2 and "holds user information" in err
     assert not leaks(err) and not (tmp_path / "r.json").exists()
 
 

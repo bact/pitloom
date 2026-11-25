@@ -191,7 +191,7 @@ def test_every_namespace_surface_refuses_the_shape(
 ) -> None:
     """``IdRegistry(namespace=...)``, a registry file's namespace and
     ``loom id generate --namespace`` each refuse the namespace, never
-    saying it as written."""
+    saying it as written; the command with the library's code."""
     with pytest.raises(ValueError) as caught:
         IdRegistry(namespace=namespace)
     assert code_of(caught.value) == _REGISTRY
@@ -205,7 +205,8 @@ def test_every_namespace_surface_refuses_the_shape(
     (tmp_path / "src" / "a.py").write_bytes(b"x\n")
     done = _run(tmp_path, "id", "generate", "--namespace", namespace, "src")
     err = done.stderr.decode()
-    assert done.returncode == 2 and "S3CRET" not in err and _TOKEN not in err
+    assert done.returncode == 1 and "S3CRET" not in err and _TOKEN not in err
+    assert err.endswith(f" [{_REGISTRY}]\n")  # the library's code
 
 
 def test_an_element_id_with_a_url_inside_it_is_refused() -> None:

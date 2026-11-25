@@ -34,7 +34,7 @@ from pitloom.messages.network import (
     DOWNLOAD_TIMEOUT,
     DOWNLOAD_TIMEOUT_LINE,
 )
-from pitloom.messages.targets import input_not_found
+from pitloom.messages.targets import input_exists, input_not_found
 from pitloom.messages.text import JSON_MALFORMED, NOT_JSON_LINE, NOT_OBJECT_LINE
 
 if TYPE_CHECKING:
@@ -257,6 +257,10 @@ def fetch_json(
             with urllib.request.urlopen(url, timeout=timeout) as resp:  # nosec B310
                 raw = resp.read(max_bytes + 1)
         else:
+            if not input_exists(source):  # a NUL in the name included
+                raise recoded(
+                    CodedValueError, input_not_found(input_kind, source)
+                ) from None
             # A FIFO or device would block the open or the read.
             if not stat.S_ISREG(os.stat(source).st_mode):
                 raise NotRegularFileError

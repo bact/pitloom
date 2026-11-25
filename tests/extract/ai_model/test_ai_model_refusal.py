@@ -21,7 +21,12 @@ import pytest
 
 from pitloom.assemble import generate_model_sbom
 from pitloom.core.ai_metadata import AiModelFormat
-from pitloom.extract.ai_model import not_a_model_reason, read_ai_model
+from pitloom.extract.ai_model import (
+    NOT_A_MODEL_MESSAGE,
+    not_a_model_reason,
+    read_ai_model,
+    refusal_error,
+)
 from pitloom.messages import MESSAGES, code_of
 from tests._lfs import lfs_pointer_bytes
 from tests._message_drift import raised_as
@@ -137,13 +142,14 @@ def test_read_ai_model_of_an_unreadable_unknown_file_is_no_model(
     assert code_of(caught.value) == _WRONG
 
 
-def test_a_pointer_that_cannot_be_read_again_is_refused_by_its_reason(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+@pytest.mark.parametrize("name", ["w.gguf", "w.bin"])
+def test_a_pointer_that_cannot_be_read_again_is_refused_coded(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, name: str
 ) -> None:
     """``refuse_named_pointer`` returns when the file cannot be read again,
-    so there is no ``oid`` to name: the refusal states the reason, uncoded,
-    on every surface."""
-    f = tmp_path / "w.gguf"
+    so there is no ``oid`` to name: the pointer changed between the reads,
+    refused as ``lfs-pointer-malformed`` on every surface."""
+    f = tmp_path / name
     f.write_bytes(lfs_pointer_bytes(b"w"))
 
     def _gone(_path: object) -> None:
@@ -151,7 +157,29 @@ def test_a_pointer_that_cannot_be_read_again_is_refused_by_its_reason(
 
     monkeypatch.setattr("pitloom.core.lfs_pointer.read_lfs_pointer", _gone)
     for read in (read_ai_model, generate_model_sbom):
-        with pytest.raises(ValueError) as caught:
+        with pytest.raises(ValueError, match=_LOOKS) as caught:
             read(f)
-        assert str(caught.value) == f"'{f}': header is a Git LFS pointer"
-        assert code_of(caught.value) is None
+        assert raised_as(caught.value, MESSAGES["lfs-pointer-malformed"])
+
+
+@pytest.mark.parametrize(
+    ("named", "reason", "code"),
+    [
+        (AiModelFormat.GGUF, "header is not gguf", _WRONG),
+        (None, "file is empty", _WRONG),
+        (None, None, _WRONG),
+        (None, NOT_A_MODEL_MESSAGE, _WRONG),
+        (AiModelFormat.GGUF, "header is a Git LFS pointer", "lfs-pointer-malformed"),
+        (None, "header is a Git LFS pointer", "lfs-pointer-malformed"),
+        # A reason that does not match *named* falls to the plain refusal.
+        (None, "header is not gguf", _WRONG),
+        (AiModelFormat.ONNX, "header is not gguf", _WRONG),
+    ],
+    ids=["not-named", "empty", "none", "not-a-model", "lfs-named", "lfs", "x1", "x2"],
+)
+def test_refusal_error_is_coded_for_every_reason(
+    named: AiModelFormat | None, reason: str | None, code: str
+) -> None:
+    """Every return of ``refusal_error`` says a catalogued line."""
+    exc = refusal_error("m.gguf", named, reason)
+    assert raised_as(exc, MESSAGES[code])

@@ -41,6 +41,7 @@ from typing import cast
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
+from pitloom._loom_args import DATASET_TYPES
 from pitloom._loom_caller import (
     HASH_PROVENANCE_FIELD,
     LOOM_PROVENANCE_CONFIG,
@@ -68,6 +69,7 @@ from pitloom.core.dataset_hash import DatasetDigest
 from pitloom.core.dataset_names import dataset_key, log_one_dataset
 from pitloom.core.evidence import record_fact, record_stated
 from pitloom.core.file_hash import FileDigests, HexDigests, file_digests
+from pitloom.core.internal_error import InternalError
 from pitloom.core.lfs_pointer import LfsPointer, UnreadPointers
 from pitloom.core.models import build_relationship, generate_spdx_id
 from pitloom.core.path_probe import is_missing_errno, is_regular_file
@@ -104,14 +106,15 @@ __all__ = [
 
 
 def _dataset_kind(dataset_type: str) -> str:
-    """The ``dataset_DatasetType`` term for *dataset_type* (``text`` when
-    it names none)."""
-    return cast(
-        str,
-        getattr(
-            spdx3.dataset_DatasetType, dataset_type, spdx3.dataset_DatasetType.text
-        ),
-    )
+    """The ``dataset_DatasetType`` term named *dataset_type*, one of
+    :data:`~pitloom._loom_args.DATASET_TYPES` (checked at the call).
+
+    Raises:
+        pitloom.core.internal_error.InternalError: It names none.
+    """
+    if dataset_type not in DATASET_TYPES:
+        raise InternalError(f"not a dataset type: {dataset_type!r}")
+    return cast(str, spdx3.dataset_DatasetType.NAMED_INDIVIDUALS[dataset_type])
 
 
 @dataclass

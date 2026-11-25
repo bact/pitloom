@@ -64,6 +64,7 @@ from pitloom.messages.pypi import (
     MODEL_URL_LINE,
     PYPI_URL_UNUSABLE,
 )
+from pitloom.messages.targets import MODEL_FILE_KIND, refuse_empty_input
 
 log = logging.getLogger(__name__)
 
@@ -282,12 +283,15 @@ def generate_model_sbom(
         CodedValueError: ``pypi-url-unusable``: *source* is a PyPI URL (a
             release is not a model), refused as ``loom model`` refuses it,
             before anything is read or fetched.
+        pitloom.messages.CodedFileNotFoundError: *source* is given as empty
+            (``input-not-found``).
         pitloom.messages.CodedOSError: The system refused a write
             (``file-unwritable``): the ``-o`` copy at *output_path* (as
             given).
     """
     configure_logging()
     _refuse_pypi_url(source)
+    refuse_empty_input(source, MODEL_FILE_KIND)
     if max_download_bytes is not None:
         require_download_override(max_download_bytes)  # even if inert
     source_str = str(source)
@@ -396,11 +400,14 @@ def enrich_model(
     (:class:`~pitloom.core.credential_policy.CredentialPolicy`).
 
     Raises:
+        pitloom.messages.CodedFileNotFoundError: *source* is given as empty
+            (``input-not-found``).
         pitloom.messages.CodedOSError: The system refused a write
             (``file-unwritable``): the fragment at *output_path* (as
             given).
     """
     configure_logging()
+    refuse_empty_input(source, MODEL_FILE_KIND)
     source_str = str(source)
     if is_huggingface_source(source_str):
         raise invalid_value(Parameter("source"), "local-model", got=source_str)

@@ -24,6 +24,7 @@ from collections.abc import Mapping
 from types import MappingProxyType
 from typing import Final
 
+from pitloom.core.internal_error import InternalError
 from pitloom.logging_config import EXCERPT_CHARS, excerpt, one_line
 from pitloom.messages._field_tables import LOCK_KEYS, SOURCE_KINDS, VALUE_TYPES
 from pitloom.messages._field_type import Field
@@ -67,12 +68,13 @@ def excerpts_text(value: object) -> str:
     nothing, which the field's shape refuses.
 
     Raises:
-        ValueError: It is none of these, or holds anything but text.
+        pitloom.core.internal_error.InternalError: It is none of these, or holds
+            anything but text.
     """
     if isinstance(value, str):
         return excerpt_text(value)
     if not isinstance(value, (list, tuple, set, frozenset)):
-        raise ValueError(f"not a text or a collection: {value!r}")
+        raise InternalError(f"not a text or a collection: {value!r}")
     texts = [plain_text(item) for item in value]
     return ", ".join(excerpt_text(text) for text in sorted(texts))
 
@@ -81,11 +83,11 @@ def line_number_text(value: object) -> str:
     """A line number: a whole number of 1 or more, in digits.
 
     Raises:
-        ValueError: It is not.
+        pitloom.core.internal_error.InternalError: It is not.
     """
     number = whole(value)
     if number < 1:
-        raise ValueError(f"not a line number: {value!r}")
+        raise InternalError(f"not a line number: {value!r}")
     return str(number)
 
 
@@ -95,12 +97,12 @@ def value_type_text(value: object) -> str:
     The caller passes the value, never its type's name.
 
     Raises:
-        ValueError: Its type is not in the table (no TOML or JSON reader
-            loads it).
+        pitloom.core.internal_error.InternalError: Its type is not in the table
+            (no TOML or JSON reader loads it).
     """
     name = type(value).__name__
     if name not in VALUE_TYPES:
-        raise ValueError(f"not a type a lock file holds: {name!r}")
+        raise InternalError(f"not a type a lock file holds: {name!r}")
     return name
 
 

@@ -33,9 +33,13 @@ __all__ = [
     "stat_if_present",
 ]
 
-#: errno values Path.exists()/is_file() themselves treat as "this path
-#: doesn't apply" rather than a real failure (POSIX).
-STAT_MISSING_ERRNOS = frozenset({errno.ENOENT, errno.ENOTDIR, errno.EBADF, errno.ELOOP})
+#: errno values that mean "nothing is at this path" rather than a real
+#: failure (POSIX): those Path.exists()/is_file() themselves treat so, plus
+#: ENAMETOOLONG, a name the file system cannot hold (Python 3.14's
+#: Path.exists() and Windows, whose WinError 206 is ENOENT, say so too).
+STAT_MISSING_ERRNOS = frozenset(
+    {errno.ENOENT, errno.ENOTDIR, errno.EBADF, errno.ELOOP, errno.ENAMETOOLONG}
+)
 #: Windows counterparts of the same errno set, per CPython's
 #: pathlib._ignore_error().
 STAT_MISSING_WINERRORS = frozenset({21, 123, 1921})
@@ -45,8 +49,10 @@ def is_missing_errno(exc: OSError) -> bool:
     """True when *exc* (raised by a ``stat()``/``exists()``-style call)
     represents a genuinely missing path, using the same errno (POSIX) or
     ``winerror`` (Windows) classification ``Path.exists()`` uses
-    internally -- any other ``OSError`` (e.g. permission denied) means the
-    path is present but inaccessible, not missing.
+    internally on Python 3.10-3.13, plus a name too long to exist
+    (:data:`STAT_MISSING_ERRNOS`) -- any other ``OSError`` (e.g.
+    permission denied) means the path is present but inaccessible, not
+    missing.
 
     Checks both unconditionally (``or``, not "prefer winerror when set"):
     a real Windows ``FileNotFoundError`` carries *both* ``errno=ENOENT``

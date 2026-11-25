@@ -19,6 +19,7 @@ from pitloom.core.credential_policy import (
     require_mode,
 )
 from pitloom.core.enrich_config import EnrichConfig
+from pitloom.core.file_names import is_plain_file_name, sbom_base_name
 from pitloom.core.model_extract_limit import DEFAULT_MAX_DOWNLOAD_BYTES
 from pitloom.core.provenance import (
     DEFAULT_PROVENANCE_SCHEMA,
@@ -210,15 +211,24 @@ class PitloomConfig:
     url_credentials: str = MODE_WARN
 
     def __post_init__(self) -> None:
-        """Refuse a bad ``accept_url_credentials`` entry or
-        ``url_credentials`` when the config is built, as ``loom.Run``
-        refuses one, not at its first use.
+        """Refuse a bad ``accept_url_credentials`` entry, ``url_credentials``
+        or ``sbom_basename`` when the config is built, as ``loom.Run``
+        refuses one, not at its first use; a ``sbom_basename`` ending in
+        ``.spdx3.json`` keeps its base, with one ``WARNING:``.
 
         Raises:
-            ValueError: an entry is not a fingerprint, or the mode is neither warn nor
-                refuse.
+            ValueError: an entry is not a fingerprint, the mode is neither
+                warn nor refuse, or ``sbom_basename`` is not a plain file
+                name (``option-invalid``).
         """
         _ = self.credential_policy
+        if self.sbom_basename is not None:
+            where = Parameter("PitloomConfig.sbom_basename")
+            if not isinstance(self.sbom_basename, str) or not is_plain_file_name(
+                self.sbom_basename
+            ):
+                raise invalid_value(where, "file-name", got=self.sbom_basename)
+            self.sbom_basename = sbom_base_name(self.sbom_basename, where)
 
     @property
     def credential_policy(self) -> CredentialPolicy:
