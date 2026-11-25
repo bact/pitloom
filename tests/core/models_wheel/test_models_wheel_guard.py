@@ -24,6 +24,7 @@ import re
 import subprocess
 import sys
 import time
+from collections.abc import AsyncIterator, Iterator
 from contextlib import ExitStack
 from pathlib import Path
 from types import SimpleNamespace
@@ -243,6 +244,38 @@ def test_a_swallowing_handler_does_not_keep_the_cap_from_stopping(
     assert not swallowed and sys.getprofile() is None
 
 
+def test_a_generator_closed_past_the_cap_does_not_swallow_the_stop(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A generator closed by its finaliser (``any()`` cut short) is the first
+    call past the cap: a stop raised there is only "ignored", and the hook,
+    removed once it raises, would leave the rest of the block uncapped: a
+    link loop's walk would never end.
+
+    Python 3.13 emits no ``call`` event for the finaliser's close of a
+    handler-free suspended generator, so there the unfixed hook already stops
+    and this test passes without the fix (measured on 3.13.5); it fails
+    without the fix on 3.10, 3.11, 3.12 and 3.14."""
+    ignored: list[object] = []
+    monkeypatch.setattr(sys, "unraisablehook", ignored.append)
+    with reading_remote_clone(str(tmp_path)):
+        deadline = guard.discovery_deadline(tmp_path)
+        # pylint: disable-next=protected-access
+        assert isinstance(deadline, guard._Deadline)
+        with pytest.raises(DiscoveryTimeoutError):
+            with deadline:
+                # In a dict, not a local: Python 3.10 hands a profile hook a
+                # snapshot of the locals, which would keep it alive.
+                held = {"started": _generator()}
+                next(held["started"])
+                # pylint: disable-next=protected-access
+                deadline._until = -1.0  # past the cap; not a call
+                del held["started"]  # closed here: no call before
+                for _ in range(3):
+                    len("x")
+    assert not ignored
+
+
 _LOOP = {"demo/a": ".", "demo/b": "."}
 _FIND = b'packages.find.where = ["."]\n'
 _DATA = b'[tool.setuptools.package-data]\ndemo = ["**/*.txt"]\n'
@@ -294,27 +327,61 @@ def test_a_link_loop_in_a_clone_is_stopped_by_the_cap(
     assert not re.search(r"\w file discovery failed;", caplog.text)
 
 
+def _generator() -> Iterator[int]:
+    yield 1
+    yield 2
+
+
+async def _coroutine() -> None:
+    return None
+
+
+async def _async_generator() -> AsyncIterator[int]:
+    yield 1
+
+
 @pytest.mark.parametrize(
-    ("event", "exiting", "until", "stops"),
+    ("event", "code", "until", "stops"),
     [
-        ("call", False, -1.0, True),
-        ("c_call", False, -1.0, True),
-        ("return", False, -1.0, False),
-        ("call", True, -1.0, False),
-        ("call", False, 60.0, False),
+        ("call", "here", -1.0, True),
+        ("c_call", "here", -1.0, True),
+        ("return", "here", -1.0, False),
+        ("call", "exit", -1.0, False),
+        ("call", "here", 60.0, False),
+        ("call", "generator", -1.0, False),
+        ("call", "coroutine", -1.0, False),
+        ("call", "async-generator", -1.0, False),
+        ("c_call", "generator", -1.0, True),
     ],
-    ids=["call", "c-call", "return", "exit", "in-time"],
+    ids=[
+        "call",
+        "c-call",
+        "return",
+        "exit",
+        "in-time",
+        "generator",
+        "coroutine",
+        "async-generator",
+        "c-call-in-generator",
+    ],
 )
 def test_the_hook_stops_a_call_past_the_cap_only(
-    tmp_path: Path, event: str, exiting: bool, until: float, stops: bool
+    tmp_path: Path, event: str, code: str, until: float, stops: bool
 ) -> None:
     """The hook itself (a profile hook is not traced, so it is called here):
     a call of Python or C past the cap stops, never one of the cap's own
-    end."""
+    end nor a generator's (or coroutine's) start or resume; a call of C made
+    in a generator does."""
     # pylint: disable=protected-access
     deadline = guard._Deadline(tmp_path)
     deadline._until = time.monotonic() + until
-    here = test_the_hook_stops_a_call_past_the_cap_only.__code__
-    frame: Any = SimpleNamespace(f_code=guard._EXIT_CODE if exiting else here)
+    codes = {
+        "here": test_the_hook_stops_a_call_past_the_cap_only.__code__,
+        "exit": guard._EXIT_CODE,
+        "generator": _generator.__code__,
+        "coroutine": _coroutine.__code__,
+        "async-generator": _async_generator.__code__,
+    }
+    frame: Any = SimpleNamespace(f_code=codes[code])
     with pytest.raises(guard._Expired) if stops else ExitStack():
         deadline._check(frame, event, None)
