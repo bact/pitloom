@@ -22,11 +22,13 @@ This module holds the harness and the meta-tests: the table's names are
 of a table name in ``src/`` (a model reader's aside, detail by where it is)
 sits in a (file, function) the table lists, and each listed site raises.
 
-The site meta-test sees only the direct forms ``raise Name(...)`` and
-``raise Name``. An aliased import, a dotted raise, ``err = X(...); raise err``
-and a factory (``model_parameters._over_cap()``) are outside it: the
-inventory ratchet counts the first two, and the factory's raises have their
-own cases (``FACTORY_CASES`` in test_detail_classes_archives.py). A second
+The site meta-test reads a raise by the name it spells (dotted names too,
+which is how ``argparse``'s are matched). It misses a dotted raise of a class
+the table keys by its bare name, an aliased import, ``err = X(...); raise
+err`` and a factory (``model_parameters._over_cap()``): the ratchet counts
+an alias or a dotted name outside ``DETAIL_EXC``, and the factory's raises
+have their own cases (``FACTORY_CASES`` in test_detail_classes_archives.py),
+whose spy also checks the factory's caller against the site. A second
 raise of one class in a listed function (``read_lock_bytes`` raises
 ``LockFileRefusedError`` three times, its type check twice and the cap once)
 needs no case of its own when it says the same code in the same way: the
@@ -126,10 +128,13 @@ class Case:
     #: The payload a carrier's line says.
     payload: Callable[[Any], str] | None = None
     #: Where the instance is built when not at the raise (a factory), as
-    #: ``(file, function name)``.
+    #: ``(file, function name)``; the ``site`` must then be its caller.
     made_in: tuple[str, str] | None = None
     #: Tells two cases of one site apart in the test id.
     tag: str = ""
+    #: The builder is reached through a callback, so the site is any frame
+    #: above it, not its direct caller.
+    relayed: bool = False
 
 
 def case_id(case: Case) -> str:
@@ -142,11 +147,14 @@ class _Made(NamedTuple):
     exc: BaseException
     file: str
     function: str
+    #: The frames above the one that built it, nearest first, each as
+    #: ``(file, function)``.
+    above: tuple[tuple[str, str], ...]
 
 
 def _spy(monkeypatch: pytest.MonkeyPatch, cls: type[BaseException]) -> list[_Made]:
     """Every instance of *cls* built from now on, with the file and function
-    of the frame that built it."""
+    of the frame that built it and the frames above it."""
     made: list[_Made] = []
     original = cls.__init__
 
@@ -155,7 +163,21 @@ def _spy(monkeypatch: pytest.MonkeyPatch, cls: type[BaseException]) -> list[_Mad
         caller = frame.f_back if frame is not None else None
         if caller is not None:
             code = caller.f_code
-            made.append(_Made(self, Path(code.co_filename).as_posix(), code.co_name))
+            above = []
+            outer = caller.f_back
+            while outer is not None:
+                above.append(
+                    (Path(outer.f_code.co_filename).as_posix(), outer.f_code.co_name)
+                )
+                outer = outer.f_back
+            made.append(
+                _Made(
+                    self,
+                    Path(code.co_filename).as_posix(),
+                    code.co_name,
+                    tuple(above),
+                )
+            )
         original(self, *args, **kwargs)
 
     monkeypatch.setattr(cls, "__init__", __init__)
@@ -241,14 +263,32 @@ def _at(made: _Made, file: str, function: str) -> bool:
     return made.file.endswith(file.removeprefix("src/")) and made.function == function
 
 
+def _called_from(made: _Made, case: Case) -> bool:
+    """Whether the instance was built under the case's site: for a factory,
+    by the site itself (the factory's direct caller), or, *relayed*, with the
+    site anywhere above."""
+    file, function = case.site[0].removeprefix("src/"), case.site[1].rpartition(".")[2]
+    frames = made.above if case.relayed else made.above[:1]
+    return any(f.endswith(file) and name == function for f, name in frames)
+
+
 def prove(case: Case, env: Env) -> None:
     """Run *case*: the class is raised at its site, then said by its kind."""
     env.caplog.set_level(logging.INFO)
     made = _spy(env.monkeypatch, resolve(case.exc))
     outcome = case.trigger(env)
-    file, function = case.made_in or (case.site[0], case.site[1].rpartition(".")[2])
-    mine = [m.exc for m in made if _at(m, file, function)]
-    assert mine, (case.name, case.site, [(m.file, m.function) for m in made])
+    site_file, site_function = case.site[0], case.site[1].rpartition(".")[2]
+    file, function = case.made_in or (site_file, site_function)
+    mine = [
+        m.exc
+        for m in made
+        if _at(m, file, function) and (case.made_in is None or _called_from(m, case))
+    ]
+    assert mine, (
+        case.name,
+        case.site,
+        [(m.file, m.function, m.above[:1]) for m in made],
+    )
     said = coded(outcome)
     if case.kind == "signal":
         assert outcome.ok, outcome

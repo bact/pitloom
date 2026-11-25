@@ -166,6 +166,7 @@ CASES = [
         _duplicate,
         code="wheel-invalid",
         made_in=("src/pitloom/messages/_wheels_say.py", "refuse_duplicate_name"),
+        relayed=True,
     ),
     _header_case(
         "_lines",

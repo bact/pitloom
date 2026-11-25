@@ -120,3 +120,38 @@ one-line markers). B1 and B2 are file-disjoint (`_scope.py` versus
   markers for the 24 other files, then docs.
 
 Gates and risks: see the evidence page, sections "Gates" and "Risks".
+
+## Carried to sweep C or the rescan (found in the B2 reviews, 2026-11-25)
+
+- **More `InternalError` swallowing** (read, not run): `_embed_overlay.py:111`
+  (per wheel, said as "authors unread"), `assemble/spdx3/deps_pypi.py:192`,
+  `extract/scanner.py:431` (per-file usage scan), `cli/_id_target.py:104,184`,
+  `cli/id.py:231`, `_loom_model.py:322`,
+  `extract/project/_requirements_files.py:295`. Already guarded:
+  `scanner.py:338`, `fragment.py:268`, `_fragments_read.py`, `sdist.py:284`,
+  `pyproject.py:342`. The roughly 200 broad excepts in `extract/ai_model`
+  readers are not ruled on. One rule: re-raise `InternalError` first.
+- **Inventory:** `_module_bindings` does not look inside other functions, so
+  `global RELAY_EXTRA` rebinding slips (the maskers share the gap).
+- **Argparse wording** (amendment 6): a line whose `usage_code()` is `None`
+  stays `uncoded` and fails unless marked; check on 3.11-3.14 legs.
+- **Summary regex** has two `.+` fields without DOTALL: about 0.4 s at the
+  65,536-character cap on a raw-newline line (test harness only).
+- **Manual checks outside `universal()`/`expect_tagged()`**:
+  `_checks_loom.py:179` and any `_checks_wheel.py` line still test
+  `startswith(TAGS)` themselves.
+- **A loom SDK fragment write**, `os.path.abspath(script_path)` with the cwd
+  gone, the floor-docs test reading only the first `licenseid>=` (sweep A
+  leftovers).
+- **Hub `log.debug` of `exc.request_id`** (optional, off stderr), from the
+  #537 review.
+- **`existing_model_path()`** (`cli/commands/utils.py`, used by `enrich`) uses
+  `Path.exists()`: a long `ftp://...` target raises an uncoded
+  `OSError(ENAMETOOLONG)` on macOS/Linux up to Python 3.13 and reads as missing
+  on 3.14 and Windows, so the line differs by OS and Python. Minimal fix: probe
+  through `input_exists(given, shown=target)` and treat `ENAMETOOLONG` as
+  missing ("a name that cannot exist is absent"), with a regression test.
+  Unchanged from main, so not a B2 regression.
+- **`line_kind` reads `(a log message that could not be shown) [real-code]` as
+  `uncoded`**, which is why one test needs an allowance: teach it "fixed text
+  plus a catalogued code = coded".
