@@ -99,7 +99,7 @@ and this project adheres to
   `--config` file error names the file once ([#497])
 - A `creation-datetime` in `[tool.pitloom]` that is not a date is refused even
   when `--creation-datetime` overrides it ([#497])
-- Requires `licenseid>=0.9.2,<0.10`: a bare `GPL-2.0` tag stays as written, not
+- Requires `licenseid>=0.9.3,<0.10`: a bare `GPL-2.0` tag stays as written, not
   `GPL-2.0-only`; a full GPL text without a variant is still `-only`; rebuild the
   database with `licenseid update --source packaged` ([#502], [#536])
 - Git URL messages say `URL=` and a code after `Git source: `; a Git or PyPI
