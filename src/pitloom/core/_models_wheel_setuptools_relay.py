@@ -41,6 +41,7 @@ from pathlib import Path
 
 from pitloom.core.quote_source import quote_source
 from pitloom.core.warning_capture import WARNINGS_LOCK, recorded_in_thread
+from pitloom.log_masking import masked_lines
 from pitloom.logging_config import one_line
 from pitloom.messages import RELAY_EXTRA
 
@@ -69,8 +70,11 @@ def _say_stderr(line: str, level: int) -> None:
 def relay_stderr_text(project_dir: Path, text: str, dropped: int = 0) -> None:
     """Log each non-blank line of *text*, which setuptools wrote to stderr
     while reading *project_dir*, as one tagged record; then, when *dropped*
-    characters were not kept, one ``DEBUG`` line saying how many."""
-    for line in text.splitlines():
+    characters were not kept, one ``DEBUG`` line saying how many. *text* is
+    masked whole before it is split
+    (:func:`~pitloom.log_masking.masked_lines`), so a password holding a
+    line break is not relayed in pieces."""
+    for line in masked_lines(text):
         if not line.strip():
             continue
         is_error = line.lstrip().lower().startswith(_ERROR_PREFIX)

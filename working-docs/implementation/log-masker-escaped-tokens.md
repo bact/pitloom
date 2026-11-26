@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-23
-Last-Modified: 2026-11-24
+Last-Modified: 2026-11-26
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -292,11 +292,17 @@ headers): all under the bound.
   (a zero-width space inside a token) still prints through them. Moving them
   to mask-first is a cross-package change, not done here. Also open: an scp
   password with non-ASCII or a raw `@`, `Cookie:` and `X-Api-Key:` values, a
-  quoted `Bearer 'x'` (one roadmap bullet).
+  quoted `Bearer 'x'` (one roadmap bullet). **Fixed in #544**
+  ([log-masking-before-collapse.md](log-masking-before-collapse.md)):
+  `loggable()` masks on its escape path, and every collapse or split site
+  masks first; the scp password may hold `@` (and is read whole once
+  escaped); a closed list of secret headers, cookies and a quoted credential
+  are masked.
 - `_SCHEME_RUN_RE` and `URL_AS_PATH_RE` (no `word_start`) read
   `\thttps://u:p@h` as scheme `thttps`; its user information is masked all the
   same, so they were left as they are.
 - A JSON escape `\b` or `\f` (not written by `ascii()`) is no boundary.
 - A token after an ANSI colour sequence (`token: \x1b[33mghp_...`, coloured
   build or pip output) is not masked, raw or escaped: the `m` glues to the
-  prefix.
+  prefix. **Fixed in #544**: a CSI sequence of up to 16 parameter
+  characters is a boundary.

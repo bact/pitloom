@@ -172,6 +172,21 @@ def test_read_environment_run_failure_names_the_stderr_cause() -> None:
             read_environment()
 
 
+@pytest.mark.parametrize("brk", ["\n", "\r\n"], ids=["lf", "crlf"])
+def test_read_environment_masks_the_stderr_before_it_picks_the_last_line(
+    brk: str,
+) -> None:
+    """Split first, the last line would hold the end of the password."""
+    stderr = f"x\nsee https://u:S3cr{brk}3tPw99x@h/x\n".encode()
+    error = subprocess.CalledProcessError(1, ["pipdeptree"], stderr=stderr)
+    with patch("subprocess.run", side_effect=error):
+        with pytest.raises(RuntimeError) as raised:
+            read_environment()
+    text = str(raised.value)
+    assert "S3cr" not in text and "3tPw99x" not in text
+    assert "see https://***:***@h/x" in text
+
+
 def test_read_environment_orders_packages_and_dependencies_by_key() -> None:
     """Output order is pipdeptree's, so it is fixed here, not assumed."""
 

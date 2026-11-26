@@ -218,13 +218,18 @@ def is_account_name(scheme: str, userinfo: str) -> bool:
 #: The ``user:password@`` of an scp-style address (``alice:pw@host:o/r``): no
 #: scheme, so no URL scan finds it. A ``/`` or ``\\`` is not in the
 #: password (a drive or a path), and the host is followed by ``:`` and a path.
+#: An ``@`` may be, also at its start or end: the host follows the last
+#: ``@`` (git and OpenSSH split ``user@host`` there), so
+#: ``alice:pw@x@host:o/r`` hides ``pw@x`` and ``alice:pw@@host:o/r`` hides
+#: ``pw@``. The password is read to the first ``:``, ``/``, ``\\`` or white
+#: space, then back to its last ``@`` (linear: no password spans a ``:``).
 #: A host of two characters or more may be followed by an absolute path
 #: (``host:/srv/r``); a one-character one is a drive (``C:\\``). An image
 #: reference (``python:3.11@sha256:abc``) is not an address. It may start
 #: right after an escape sequence (``x:\\talice:pw@host:o/r``,
 #: :func:`~pitloom.core.url_masking._boundary.word_start`).
 SCP_USERINFO_RE = re.compile(
-    word_start(r"\w.+:@/\\-") + r"[\w.+-]+:[^\s@/\\:]+@"
+    word_start(r"\w.+:@/\\-") + r"[\w.+-]+:[^\s/\\:]+@"
     r"(?!(?i:sha\d+|md5|blake\w+):)"
     r"(?=[\w.-]{2,}:(?!//)|[\w.-]:(?![/\\]))"
 )

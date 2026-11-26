@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-20
-Last-Modified: 2026-11-20
+Last-Modified: 2026-11-26
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -228,7 +228,7 @@ Docs, skills, CHANGELOG, working docs:
   - migration row 14 (C1, actual counts);
   - frames-forward: PR 14 section marked built, rule 3 updated for exact codes (C2), "Not decided" item closed (C10);
   - review-rounds Round 5;
-  - roadmap/known-bugs: C12, the Hub API via `fetch_json`, dataset revision parity, the TOKEN_RE root cause (still open from Round 4).
+  - roadmap/known-bugs: C12, the Hub API via `fetch_json`, dataset revision parity, the TOKEN_RE root cause from Round 4 (closed: #526's `word_start()`; the order and shape leaks left after it are the log masking PR, [log-masking-before-collapse.md](../implementation/log-masking-before-collapse.md)).
 - Format-gap ledger: none.
 
 ## 8. Risks and unknowns (ranked)

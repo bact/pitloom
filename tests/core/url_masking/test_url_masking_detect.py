@@ -83,13 +83,14 @@ def test_refusal_reads_a_whole_value_and_never_prose() -> None:
         ("a://u:S3CRET@h/x", {"secret"}),
         ("C:\\u@h\\x", set()),
         ("build:42@ci:linux", {"scp"}),
+        ("foo:bar@baz@qux:path", {"scp"}),
         ("build:42@ci:linux now", set()),
         ("", set()),
     ],
     ids=[
         *("weak", "weak-in-weak", "secret-in-weak", "space-path", "space-user"),
         *("requirement", "requirement-account", "requirement-scp"),
-        *("one-letter-scheme", "drive", "scp"),
+        *("one-letter-scheme", "drive", "scp", "scp-at"),
         *("scp-sentence", "empty"),
     ],
 )

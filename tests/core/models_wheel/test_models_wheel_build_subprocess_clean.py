@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Tests for the build-output line cleaning behind the ``--allow-build``
-``WARNING:``/``DEBUG:`` lines.
+``WARNING:``/``DEBUG:`` lines, and the tail masked before it is split.
 
 See also: tests/core/models_wheel/test_models_wheel_build_subprocess.py
 (``test_run_build_subprocess_nonzero_exit`` runs the same cleaning on a
@@ -13,9 +13,18 @@ real child's output).
 
 from __future__ import annotations
 
+import logging
+from pathlib import Path
+
 import pytest
 
-from pitloom.core._models_wheel_build_subprocess import _clean_line
+from pitloom.core._models_wheel_build_subprocess import (
+    _clean_line,
+    _debug_log_tail,
+    _last_message_line,
+)
+
+pytestmark = pytest.mark.platform
 
 
 @pytest.mark.parametrize(
@@ -39,3 +48,19 @@ from pitloom.core._models_wheel_build_subprocess import _clean_line
 )
 def test_clean_line(line: str, expected: str) -> None:
     assert _clean_line(line) == expected
+
+
+@pytest.mark.parametrize("brk", [b"\n", b"\r\n"], ids=["lf", "crlf"])
+def test_build_log_tail_masked_whole(
+    brk: bytes, tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """The tail is masked before it is split: the ``DEBUG`` lines and the
+    last line an error shows hold no piece of a password split by a line
+    break."""
+    log_path = tmp_path / "build.log"
+    log_path.write_bytes(b"step\nerror: https://u:S3cr" + brk + b"3tPw99x@h/x" + brk)
+    with caplog.at_level(logging.DEBUG, logger="pitloom"):
+        lines = _debug_log_tail(log_path)
+    shown = [*caplog.messages, _last_message_line(lines)]
+    assert not any("S3cr" in t or "3tPw99x" in t for t in shown)
+    assert _last_message_line(lines) == "error: https://***:***@h/x"

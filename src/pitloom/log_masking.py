@@ -50,6 +50,14 @@ def masked_text(text: str) -> str:
         return UNSHOWN_MESSAGE
 
 
+def masked_lines(text: str) -> list[str]:
+    """The lines of *text* (:meth:`str.splitlines`) once it is masked whole
+    (:func:`masked_text`): masked before it is split, so a password holding
+    a line break is masked whole, not left in pieces on two lines, whichever
+    of them a caller keeps. Never raises."""
+    return masked_text(text).splitlines()
+
+
 #: The third-party loggers (and their ``.*`` children) whose records are
 #: masked too, only where they hold a credential: the HTTP clients Pitloom
 #: fetches through, whose ``DEBUG`` lines name a request's target with its
