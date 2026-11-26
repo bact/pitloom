@@ -8,18 +8,15 @@ a record or an ``ERROR:`` line said without a code needs a kind that
 explains it, or the test's own ``uncoded_output`` marker; a stale allowance
 fails.
 
-See also: tests/messages/test_drift_records.py (coded records),
+See also: tests/messages/test_drift_strict_child.py (the check in a child
+pytest), tests/messages/test_drift_records.py (coded records),
 tests/messages/test_line_kind.py (reading a line back).
 """
 
 from __future__ import annotations
 
 import logging
-import os
 import re
-import subprocess  # nosec B404
-import sys
-import textwrap
 import types
 from pathlib import Path
 from typing import Literal
@@ -33,6 +30,7 @@ from tests._loom_child import run_loom, uncoded_failures
 from tests._message_drift import record_problem
 from tests._strict_uncoded import (
     Finding,
+    FixtureWatch,
     Verdict,
     call_ran,
     check,
@@ -44,7 +42,6 @@ from tests._strict_uncoded import (
     strict_finding,
 )
 
-_REPO = Path(__file__).resolve().parents[2]
 _SUMMARY_TEXT = "merge: merged 3 fragment(s)"
 
 
@@ -292,6 +289,31 @@ def test_an_info_record_is_seen_once_enabled(
         logging.getLogger("pitloom.strict_probe").debug("not checked")
 
 
+def _hooks() -> tuple[object, object]:
+    # pylint: disable-next=protected-access
+    return logging.Logger.handle, logging_config._write_error_line
+
+
+def test_a_fixture_watch_hooks_once(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A second :meth:`FixtureWatch.install` keeps the first hooks: one
+    note per line, never a hook over a hook."""
+    before = _hooks()
+    # Undone after the test: install() replaces both for the process.
+    monkeypatch.setattr(logging.Logger, "handle", before[0])
+    monkeypatch.setattr(logging_config, "_write_error_line", before[1])
+    watch = FixtureWatch()
+    watch.install()
+    hooks = _hooks()
+    watch.install()
+    assert hooks[0] is not before[0] and hooks[1] is not before[1]
+    assert _hooks() == hooks
+
+
+def test_a_fixture_watch_must_be_installed_first() -> None:
+    with pytest.raises(RuntimeError, match=r"install\(\) not called"):
+        FixtureWatch().enter()
+
+
 def _fake_loom(root: Path, stderr: bytes) -> Path:
     """A ``pitloom`` package whose ``main`` writes the bytes *stderr*
     unchanged (text-mode stderr would turn each ``\\n`` into ``\\r\\n`` on
@@ -328,87 +350,3 @@ def test_uncoded_failures_reads_each_line() -> None:
         "an uncoded stderr line (thread 'MainThread'): 'ERROR: \ufffd own'"
     ]
     assert not uncoded_failures(stderr, ["own"])
-
-
-_CHILD_TESTS = """
-import logging
-
-import pytest
-
-pytestmark = pytest.mark.uncoded_output("module wide")
-
-_LOG = logging.getLogger("pitloom.smoke")
-
-
-def test_module_marker_allows_nothing():
-    _LOG.warning("module wide")
-
-
-@pytest.mark.parametrize(
-    "said",
-    [pytest.param("allowed", marks=pytest.mark.uncoded_output("^WARNING: allowed$")),
-     "unallowed"],
-)
-def test_param(said):
-    _LOG.warning(said)
-
-
-@pytest.mark.uncoded_output("never said")
-def test_stale():
-    pass
-
-
-@pytest.mark.uncoded_output("never said")
-def test_skipped_in_body():
-    pytest.skip("not here")
-
-
-@pytest.fixture
-def skipping():
-    pytest.skip("no setup")
-
-
-@pytest.mark.uncoded_output("never said")
-def test_skipped_in_setup(skipping):
-    pass
-"""
-
-
-def test_markers_apply_per_test_only(tmp_path: Path) -> None:
-    """In a child pytest with the repository's configuration and fixtures:
-    a module-wide marker allows nothing, a marker on one parameter does not
-    cover its sibling, and a stale allowance fails, unless the test was
-    skipped in its body or its setup."""
-    (tmp_path / "test_child.py").write_text(textwrap.dedent(_CHILD_TESTS))
-    env = dict(os.environ)
-    env["PYTHONPATH"] = os.pathsep.join([str(_REPO / "src"), str(_REPO)])
-    done = subprocess.run(  # nosec B603
-        [
-            sys.executable,
-            "-m",
-            "pytest",
-            "-c",
-            str(_REPO / "pyproject.toml"),
-            "--rootdir",
-            str(tmp_path),
-            "-p",
-            "tests.conftest",
-            "-p",
-            "no:cacheprovider",
-            "-n",
-            "0",
-            "-q",
-            "-rE",
-            str(tmp_path / "test_child.py"),
-        ],
-        cwd=tmp_path,
-        env=env,
-        capture_output=True,
-        check=False,
-        timeout=300,
-    )
-    out = done.stdout.decode("utf-8", errors="replace")
-    assert "4 passed, 2 skipped, 3 errors" in out, out
-    assert "ERROR test_child.py::test_module_marker_allows_nothing" in out
-    assert "ERROR test_child.py::test_param[unallowed]" in out
-    assert "ERROR test_child.py::test_stale" in out

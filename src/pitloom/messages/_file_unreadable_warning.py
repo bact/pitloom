@@ -7,9 +7,10 @@
 (:func:`warn_file_unreadable`) and for a directory it could not list
 (:func:`warn_dir_unlistable`), and the one error for a file whose read
 raises (:func:`file_unreadable_error`), a directory whose listing raises
-(:func:`dir_unlistable_error`) and a file whose write raises
-(:func:`file_unwritable_error`): the entry chosen by the exception, and
-never for one that is absent.
+(:func:`dir_unlistable_error`), a file whose write raises
+(:func:`file_unwritable_error`) and the current directory
+(:func:`current_dir_error`): the entry chosen by the exception, and never
+for one that is absent (but the current directory).
 
 See also: :mod:`pitloom.messages._file_unreadable` (the entries).
 """
@@ -23,8 +24,10 @@ from pitloom.core.internal_error import InternalError
 from pitloom.core.path_confine import OutsideRootError
 from pitloom.core.path_probe import is_missing_errno
 from pitloom.messages._emit import CodedOSError, CodedValueError, emit
+from pitloom.messages._field_tables import CWD_USE
 from pitloom.messages._file_unreadable import (
     DIR_ERROR_LINE,
+    DIR_READ_ERROR_LINE,
     DIR_UNLISTABLE,
     FILE_ERROR_LINE,
     FILE_UNREADABLE,
@@ -243,4 +246,20 @@ def dir_unlistable_error(
     _refuse_absent(exc)
     return CodedValueError(
         DIR_UNLISTABLE, line=DIR_ERROR_LINE, dir=directory, use=use, failure=exc
+    )
+
+
+def current_dir_error(exc: OSError) -> CodedValueError:
+    """The error to raise when the current directory could not be read
+    where a path is resolved against it (*exc*, from
+    :func:`os.getcwd`: gone, or not readable): ``file-unreadable``, named
+    ``DIR=.``, what *exc* reports. Unlike a file, a current directory gone
+    is no absent input: the user named nothing, Pitloom cannot go on. The
+    caller raises it ``from exc``."""
+    return CodedValueError(
+        FILE_UNREADABLE,
+        line=DIR_READ_ERROR_LINE,
+        dir=".",
+        use=CWD_USE,
+        failure=system_failure(exc),
     )

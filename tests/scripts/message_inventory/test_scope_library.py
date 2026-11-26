@@ -41,12 +41,12 @@ def call(value):
 #: Two raises ``LIBRARY_SITES`` names, the same text in another function,
 #: and new raises beside a named one: none of those is exempt.
 SITE_SOURCE = """\
-def _declared_licence(value):
-    raise TypeError(DECLARED_LICENSE_TYPE_ERROR % value)  # out: site
-    raise TypeError("loom SDK: declared_license is not a str")  # in: new-text
-    raise ValueError(DECLARED_LICENSE_TYPE_ERROR % value)  # in: new-class
+def scalar_text(value):
+    raise TypeError(f"not a scalar: {type(value).__name__}")  # out: site
+    raise TypeError("not a scalar")  # in: new-text
+    raise ValueError(f"not a scalar: {type(value).__name__}")  # in: new-class
 def other(value):
-    raise TypeError(DECLARED_LICENSE_TYPE_ERROR % value)  # in: other
+    raise TypeError(f"not a scalar: {type(value).__name__}")  # in: other
 """
 #: ``IdRegistry._mint_id``: its library raise, and a new uncoded one.
 REGISTRY_SOURCE = """\
@@ -57,10 +57,7 @@ class IdRegistry:
 """
 _FILES = {
     "caller.py": SOURCE,
-    "_loom_dataset_meta.py": (
-        'DECLARED_LICENSE_TYPE_ERROR = "loom SDK: declared_license must be a str, '
-        'not %s"\n' + SITE_SOURCE
-    ),
+    "core/scalar_text.py": SITE_SOURCE,
     "id_registry/_registry.py": REGISTRY_SOURCE,
 }
 
@@ -117,7 +114,6 @@ _LIBRARY_EXC = frozenset({"_no_active_run"})
 _REGISTRY = "src/pitloom/id_registry/_registry.py"
 _LIBRARY_SITES = frozenset(
     {
-        ("src/pitloom/_loom_dataset_meta.py", "_declared_licence", "TypeError"),
         (
             "src/pitloom/core/_models_wheel_types.py",
             "validate_build_timeout",

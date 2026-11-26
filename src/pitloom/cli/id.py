@@ -10,13 +10,10 @@ from __future__ import annotations
 import argparse
 import logging
 import os
-import re
-import unicodedata
 from pathlib import Path
 from typing import Any
 
-from packaging.utils import InvalidName, canonicalize_name
-
+from pitloom.cli._id_args import entity_arg, namespace_arg, registry_file_arg
 from pitloom.cli._id_entity import EntityEntry, entity_entry, say_stored_as
 from pitloom.cli._id_target import (
     _log_config_hint,
@@ -30,18 +27,16 @@ from pitloom.cli._parser_credentials import (
     REFUSE_HELP_ID_IMPORT,
     add_refuse_argument,
 )
+from pitloom.cli._path_args import non_empty_path
 from pitloom.cli.commands.utils import cli_error_handler
 from pitloom.cli.kv_output import print_kv
 from pitloom.cli.options import positive_byte_ceiling
+from pitloom.core.current_dir import current_dir
 from pitloom.core.given_path import TypedPath, keep_spelling
-from pitloom.core.iri import require_namespace_iri
 from pitloom.id_registry import (
-    AI_PACKAGE_TYPE,
-    DATASET_PACKAGE_TYPE,
-    FILE_TYPE,
-    PACKAGE_TYPE,
     IdRegistry,
     check_key_credentials,
+    require_registry_namespace,
     save_registry,
     say_ambiguous_keys,
 )
@@ -53,6 +48,7 @@ from pitloom.messages.targets import (
     NO_ID_PATHS_LINE,
     is_input_dir,
     is_input_file,
+    refuse_empty_input,
     say_input_not_found,
 )
 
@@ -62,16 +58,6 @@ log = logging.getLogger("pitloom.id_registry")
 #: fallback (see :func:`_default_id_generate_paths`). CLI-only: no other
 #: id_registry consumer needs this list.
 _DEFAULT_ID_GENERATE_DIR_NAMES: tuple[str, ...] = ("src", "data", "models")
-
-#: The TYPEs ``id generate -e NAME:TYPE`` accepts: the types a lookup reads.
-_ENTITY_TYPES: tuple[str, ...] = (
-    AI_PACKAGE_TYPE,
-    DATASET_PACKAGE_TYPE,
-    FILE_TYPE,
-    PACKAGE_TYPE,
-)
-#: The shape of an SPDX 3 compact type name (``prefix_ClassName``).
-_COMPACT_TYPE = re.compile(r"[a-z]+_[A-Z][A-Za-z0-9]*")
 
 
 def _load_or_create_registry(
@@ -100,75 +86,6 @@ def _load_or_create_registry(
             refuse_credentials=refuse_credentials,
         )
     return IdRegistry.load(registry_path, refuse_credentials=refuse_credentials)
-
-
-def _namespace_arg(text: str) -> str:
-    """``type=`` callable for ``--namespace``: validate through
-    :func:`~pitloom.core.iri.require_namespace_iri`, reported the normal
-    argparse way (``argument --namespace: ...``, exit code 2)."""
-    try:
-        return require_namespace_iri(text)
-    except ValueError as exc:
-        raise argparse.ArgumentTypeError(str(exc)) from exc
-
-
-def _registry_file_arg(text: str) -> Path:
-    """``type=`` callable for ``-o``: a file path, never ``-``: a registry is
-    not written to stdout, and ``-`` would name a file called ``-``. The path
-    keeps the spelling typed, for a message to name it."""
-    if text == "-":
-        raise argparse.ArgumentTypeError("'-' (stdout) is not supported")
-    return TypedPath(text)
-
-
-def _entity_arg(text: str) -> tuple[str, str]:
-    """``type=`` callable for ``-e NAME[:TYPE]``: ``(TYPE, NAME)``.
-
-    Split at the last ``:`` only when what follows is one of
-    :data:`_ENTITY_TYPES`, so the ``:`` of a URL or a drive letter stays in
-    NAME. A typo is reported the argparse way (exit 2), never silently made
-    part of NAME: a trailing ``:``, a suffix shaped like a compact type, a
-    known one in another case or with whitespace around it, a control
-    character (a newline) anywhere, and an empty or blank NAME, or package
-    name before a ``software_Package``'s ``@VERSION``, or one that is no
-    PEP 508 name (:func:`_name_problem`).
-    """
-    if any(unicodedata.category(char) == "Cc" for char in text):
-        raise argparse.ArgumentTypeError(f"control character in {text!r}")
-    name, _, suffix = text.rpartition(":")
-    if suffix in _ENTITY_TYPES:
-        type_name = suffix
-    elif (
-        text.endswith(":")
-        or _COMPACT_TYPE.fullmatch(suffix.strip())
-        or suffix.strip().lower() in {known.lower() for known in _ENTITY_TYPES}
-    ):
-        raise argparse.ArgumentTypeError(
-            f"unknown TYPE {suffix!r} (one of: {', '.join(_ENTITY_TYPES)})"
-        )
-    else:
-        name, type_name = text, AI_PACKAGE_TYPE
-    problem = _name_problem(type_name, name)
-    if problem is not None:
-        raise argparse.ArgumentTypeError(f"{problem[0]} in {text!r}{problem[1]}")
-    return type_name, name
-
-
-def _name_problem(type_name: str, name: str) -> tuple[str, str] | None:
-    """``(problem, hint)`` for a NAME that is empty or blank, or for a
-    ``software_Package`` NAME (before its ``@VERSION``) that is blank or no
-    PEP 508 name (a specifier, a space: no package a lookup reads has it),
-    with the spelling a version takes when ``==`` was typed; else ``None``."""
-    stated = name.partition("@")[0] if type_name == PACKAGE_TYPE else name
-    if not stated.strip():
-        return "no NAME", ""
-    if type_name != PACKAGE_TYPE:
-        return None
-    try:
-        canonicalize_name(stated, validate=True)
-    except InvalidName:
-        return "invalid package NAME", "; write NAME@VERSION" if "==" in name else ""
-    return None
 
 
 def _default_id_generate_paths(project_dir: Path) -> list[Path]:
@@ -236,7 +153,8 @@ def _save(registry: IdRegistry, registry_path: Path) -> bool:
 
 def _generate_paths(args: argparse.Namespace, project_dir: Path) -> list[Path]:
     """The `id generate` PATHs, each rooted at *project_dir*; ``ValueError``
-    for one outside it, or when there is none to index.
+    for one outside it, or when there is none to index;
+    ``input-not-found`` for an empty one.
 
     A relative PATH resolves against the current directory, like every
     other command, and is made absolute before ``IdRegistry.generate()``
@@ -246,9 +164,12 @@ def _generate_paths(args: argparse.Namespace, project_dir: Path) -> list[Path]:
     *project_dir*.
     """
     if args.paths:
-        lexical_project_dir = _normalized_absolute(args.project_dir or Path.cwd())
+        lexical_project_dir = _normalized_absolute(args.project_dir or current_dir())
         paths: list[Path] = []
         for path in args.paths:
+            # Where a missing PATH is said (after the registry is settled):
+            # an empty one reads as the current directory.
+            refuse_empty_input(path, "PATH")
             resolved = _resolve_id_generate_path(path, project_dir, lexical_project_dir)
             if resolved is None:
                 raise CodedValueError(
@@ -326,7 +247,9 @@ def _register_entities(
 
 def _run_id_generate(args: argparse.Namespace) -> int:
     """Run `loom id generate`."""
-    project_dir: Path = (args.project_dir or Path.cwd()).resolve()
+    if args.namespace is not None:
+        require_registry_namespace(args.namespace)  # before any file is read
+    project_dir: Path = (args.project_dir or current_dir()).resolve()
     if not is_input_dir(project_dir, shown=args.project_dir or project_dir):
         say_input_not_found("project directory", args.project_dir or project_dir)
         return 1
@@ -354,12 +277,13 @@ def _run_id_generate(args: argparse.Namespace) -> int:
 
 def _run_id_import(args: argparse.Namespace) -> int:
     """Run `loom id import`."""
+    refuse_empty_input(args.sbom, "SBOM file")
     sbom_path: Path = args.sbom.resolve()
     if not is_input_file(sbom_path, shown=args.sbom):
         say_input_not_found("SBOM file", args.sbom)
         return 1
 
-    project_dir: Path = (args.project_dir or Path.cwd()).resolve()
+    project_dir: Path = (args.project_dir or current_dir()).resolve()
     if not is_input_dir(project_dir, shown=args.project_dir or project_dir):
         say_input_not_found("project directory", args.project_dir or project_dir)
         return 1
@@ -428,7 +352,7 @@ def add_parser(subparsers: Any, _parent_parser: argparse.ArgumentParser) -> None
     gen_parser.add_argument(
         "-o",
         "--id-registry",
-        type=_registry_file_arg,
+        type=registry_file_arg,
         default=None,
         metavar="FILE",
         help=(
@@ -439,13 +363,13 @@ def add_parser(subparsers: Any, _parent_parser: argparse.ArgumentParser) -> None
     )
     gen_parser.add_argument(
         "--project-dir",
-        type=TypedPath,
+        type=non_empty_path,
         default=None,
         help="Project directory root.",
     )
     gen_parser.add_argument(
         "--namespace",
-        type=_namespace_arg,
+        type=namespace_arg,
         default=None,
         metavar="IRI",
         help=(
@@ -458,7 +382,7 @@ def add_parser(subparsers: Any, _parent_parser: argparse.ArgumentParser) -> None
         "-e",
         "--entity",
         action="append",
-        type=_entity_arg,
+        type=entity_arg,
         default=None,
         metavar="NAME[:TYPE]",
         help=(
@@ -502,7 +426,7 @@ def add_parser(subparsers: Any, _parent_parser: argparse.ArgumentParser) -> None
     imp_parser.add_argument(
         "-o",
         "--id-registry",
-        type=_registry_file_arg,
+        type=registry_file_arg,
         default=None,
         metavar="FILE",
         help=(
@@ -513,7 +437,7 @@ def add_parser(subparsers: Any, _parent_parser: argparse.ArgumentParser) -> None
     )
     imp_parser.add_argument(
         "--project-dir",
-        type=TypedPath,
+        type=non_empty_path,
         default=None,
         help=(
             "Project directory root: a new registry's root, which the SBOM's "

@@ -47,14 +47,12 @@ from pitloom.extract.dataset import read_croissant, read_dataset_card
 from pitloom.extract.dataset.licence import dataset_licence
 from pitloom.messages import emit
 from pitloom.messages.config import Parameter, loom_sdk_invalid_value
-from pitloom.messages.datasets import LOOM_SDK_PREFIX
 from pitloom.messages.files import DIR_READ_LINE, FILE_UNREADABLE, warn_over_cap
 from pitloom.messages.text import warn_text_unsafe
 
 log = logging.getLogger("pitloom.loom")
 
 __all__ = [
-    "DECLARED_LICENSE_TYPE_ERROR",
     "DatasetDoc",
     "DatasetSources",
     "escape_display_text",
@@ -62,10 +60,6 @@ __all__ = [
     "read_sources",
     "write_metadata",
 ]
-
-#: ``TypeError`` text for a ``declared_license=`` that is not a string.
-#: Argument: the value's type name.
-DECLARED_LICENSE_TYPE_ERROR = f"{LOOM_SDK_PREFIX}declared_license must be a str, not %s"
 
 #: Fields the loom call itself sets: never taken from a source.
 _DECLARED_FIELDS = frozenset({"name", "dataset_types", "provenance"})
@@ -109,18 +103,13 @@ class DatasetSources:
         return merge_metadata(name, [*self.declared, *self.read])
 
 
-def _declared_licence(value: object) -> str | None:
-    """The licence the caller's ``declared_license=`` *value* states: their
-    own ``NOASSERTION`` (any case) as given; a placeholder (blank,
-    ``unknown``, a bare ``other``) none, as from any source.
-
-    Raises:
-        TypeError: *value* is not a string.
-    """
+def _declared_licence(value: str | None) -> str | None:
+    """The licence the caller's ``declared_license=`` *value* (checked at
+    the call) states: their own ``NOASSERTION`` (any case) as given; a
+    placeholder (blank, ``unknown``, a bare ``other``) none, as from any
+    source."""
     if value is None:
         return None
-    if not isinstance(value, str):
-        raise TypeError(DECLARED_LICENSE_TYPE_ERROR % type(value).__name__)
     if value.strip().upper() == _NOASSERTION:
         return value.strip()
     licence = dataset_licence(value, source="declared_license")
@@ -139,7 +128,6 @@ def read_sources(
     directory (:func:`~pitloom._loom_caller.cwd_relative_label`).
 
     Raises:
-        TypeError: *declared_license* is not a string.
         ValueError: *croissant* is a URL (``option-invalid``), or cannot be
             read as Croissant.
     """

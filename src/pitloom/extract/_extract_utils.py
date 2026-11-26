@@ -212,6 +212,26 @@ def _download_error(url: str, exc: BaseException, timeout: float) -> CodedValueE
     )
 
 
+def _read_local(source: str | Path, size: int, input_kind: str) -> bytes:
+    """At most *size* bytes of the regular file *source*.
+
+    Raises:
+        pitloom.messages.CodedValueError: A NUL in the name: no file has it
+            (``input-not-found``, named as *input_kind*).
+        OSError: The look or the read failed; a FIFO or device, which would
+            block it, is a
+            :class:`~pitloom.core.path_confine.NotRegularFileError`.
+    """
+    try:
+        mode = os.stat(source).st_mode
+    except ValueError:
+        raise recoded(CodedValueError, input_not_found(input_kind, source)) from None
+    if not stat.S_ISREG(mode):
+        raise NotRegularFileError
+    with Path(source).open("rb") as fh:
+        return fh.read(size)
+
+
 # pylint: disable-next=too-many-arguments
 def fetch_json(
     source: str | Path,
@@ -256,11 +276,7 @@ def fetch_json(
             with urllib.request.urlopen(url, timeout=timeout) as resp:  # nosec B310
                 raw = resp.read(max_bytes + 1)
         else:
-            # A FIFO or device would block the open or the read.
-            if not stat.S_ISREG(os.stat(source).st_mode):
-                raise NotRegularFileError
-            with Path(source).open("rb") as fh:
-                raw = fh.read(max_bytes + 1)
+            raw = _read_local(source, max_bytes + 1, input_kind)
     except (OSError, http.client.HTTPException) as exc:
         close_http_error(exc)
         # http.client.HTTPException (e.g. IncompleteRead on a connection that

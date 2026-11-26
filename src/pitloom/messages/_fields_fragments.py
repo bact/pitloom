@@ -26,6 +26,7 @@ from datetime import datetime, timezone
 from types import MappingProxyType
 from typing import Final
 
+from pitloom.core.internal_error import InternalError
 from pitloom.messages._field_type import QUOTED, Field
 from pitloom.messages._field_writers import (
     entity_text,
@@ -50,7 +51,7 @@ def property_text(value: object) -> str:
     document.
 
     Raises:
-        ValueError: It is not a ``str``.
+        pitloom.core.internal_error.InternalError: It is not a ``str``.
     """
     name = plain_text(value)
     return name[:-1] if name.endswith("_") else name
@@ -61,10 +62,11 @@ def datetime_text(value: object) -> str:
     SBOM states ``created`` (``1970-01-01T00:00:00Z``).
 
     Raises:
-        ValueError: It is not an aware ``datetime``.
+        pitloom.core.internal_error.InternalError: It is not an aware
+            ``datetime``.
     """
     if not isinstance(value, datetime) or value.tzinfo is None:
-        raise ValueError(f"not an aware datetime: {value!r}")
+        raise InternalError(f"not an aware datetime: {value!r}")
     return value.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 

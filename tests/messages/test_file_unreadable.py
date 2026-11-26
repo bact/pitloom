@@ -25,11 +25,13 @@ from pitloom.core.internal_error import InternalError
 from pitloom.core.path_confine import NotRegularFileError, OutsideRootError
 from pitloom.logging_config import CODE_ATTR
 from pitloom.messages import (
+    FRAGMENT_USE,
     READ_USES,
     Message,
     code_of,
     trusted_message,
 )
+from pitloom.messages._field_tables import CWD_USE
 from pitloom.messages.files import (
     CONFIG_USE,
     DIR_UNLISTABLE,
@@ -293,6 +295,7 @@ def _texts(tree: ast.Module) -> dict[str, str]:
 #: imported, not defined.
 _SHARED_USES = {
     "CONFIG_USE": CONFIG_USE,
+    "FRAGMENT_USE": FRAGMENT_USE,
     "INPUT_USE": INPUT_USE,
     "METADATA_USE": METADATA_USE,
     "REGISTRY_USE": REGISTRY_USE,
@@ -304,6 +307,7 @@ _SHARED_USES = {
 _USE_TAKERS = frozenset(
     {
         "CardKind",
+        "coded_write",
         "decode_member_text",
         "dir_unlistable_error",
         "fetch_json",
@@ -328,9 +332,9 @@ def test_every_use_of_the_table_is_passed_and_no_other() -> None:
     """The table is closed and live: every ``use=`` a call of a taker
     passes is a text of it (a literal, a module constant or a shared one)
     or hands one on, and each of its uses is passed by some call."""
-    # The input probe passes INPUT_USE from inside the catalogue, which
-    # source_modules() leaves out.
-    passed: set[str] = {INPUT_USE}
+    # The input probe passes INPUT_USE, and current_dir_error CWD_USE, from
+    # inside the catalogue, which source_modules() leaves out.
+    passed: set[str] = {INPUT_USE, CWD_USE}
     for path, tree in source_modules():
         texts = {**_SHARED_USES, **_texts(tree)}
         for node in ast.walk(tree):

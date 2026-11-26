@@ -49,6 +49,7 @@ from pitloom.messages.targets import (
     INPUT_NOT_FOUND,
     NO_WHEEL_MATCH_LINE,
     WHEEL_PATTERN_TOO_DEEP_LINE,
+    input_exists,
     input_not_found,
     is_input_file,
     relay_validator_text,
@@ -84,11 +85,26 @@ def existing_model_path(given: Path) -> Path | None:
     """The path to open for the model file named as *given*: *given* itself,
     so log lines name the file as the user wrote it, else its resolved form
     (``missing/../x`` collapses to ``x`` only there); ``None`` when neither
-    exists."""
-    if given.exists():
+    exists, or *given* is a :class:`~pitloom.core.given_path.TypedPath`
+    given as empty (the input probe, :func:`input_exists`).
+
+    Raises:
+        pitloom.messages.CodedValueError: *given* cannot be looked at
+            (``file-unreadable``).
+        OSError: Resolving *given* failed for a cause other than a missing
+            path (:func:`~pitloom.core.path_probe.is_missing_errno`).
+    """
+    if input_exists(given):
         return given
-    resolved = given.resolve()
-    return resolved if resolved.exists() else None
+    try:
+        # Python 3.10's Windows resolve() lets an invalid name (WinError
+        # 123) escape: missing all the same.
+        resolved = given.resolve()
+    except OSError as exc:
+        if is_missing_errno(exc):
+            return None
+        raise
+    return resolved if input_exists(resolved, shown=given) else None
 
 
 def _print_sbom_output_path(output_path: Path | str) -> None:
@@ -237,10 +253,11 @@ def refuse_non_wheel(path: Path | str) -> bool:
     """Print the one ``ERROR: FILE=<path>: not a .whl file`` line and return
     ``True`` where *path* is not a wheel by name
     (:func:`~pitloom.core.wheel_dist_info.require_wheel_path`), the same line
-    on every command that takes a wheel."""
+    on every command that takes a wheel; the ``input-not-found`` line where
+    *path* is given as empty."""
     try:
         require_wheel_path(path)
-    except WheelRefused as exc:
+    except (WheelRefused, FileNotFoundError) as exc:
         report_error_line(exc)
         return True
     return False

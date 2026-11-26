@@ -122,6 +122,9 @@ _ALLOWED = {
     "core/canonical_json.py:MAX_SAFE_INTEGER": _NOT_INPUT,
     "core/given_file.py:FETCH_MAX_BYTES": "over it: the reader's own warning",
     "core/lfs_pointer.py:LFS_POINTER_MAX_BYTES": "a format rule: longer is content",
+    "core/path_probe.py:NAME_MAX_BYTES": (
+        "a file system rule: a longer name cannot exist, so the path is missing"
+    ),
     "core/lfs_pointer.py:_MAX_SIZE": "a format rule: git-lfs states no more",
     "core/url_masking/_params.py:MAX_QUERY_MARKS": (
         "classification: such a value is read as a secret and removed, with the "

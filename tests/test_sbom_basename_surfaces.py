@@ -28,7 +28,7 @@ from pitloom.core.config import PitloomConfig
 from pitloom.core.project import ProjectMetadata
 from pitloom.embed import embed_wheel_sbom
 from pitloom.logging_config import CODE_ATTR, configure_logging
-from pitloom.messages import trusted_message
+from pitloom.messages import code_of, trusted_message
 from pitloom.messages.options import SBOM_NAME_INVALID
 from tests.assemble.conftest import _make_dummy_wheel
 from tests.extract.conftest import make_hook
@@ -268,6 +268,8 @@ def test_base_name_with_the_extension_is_not_doubled(
     ("surface", "label"),
     [
         ("library-kwarg", "sbom_basename"),
+        ("library-built-config", "PitloomConfig.sbom_basename"),
+        ("output-path-built-config", "PitloomConfig.sbom_basename"),
         ("embed-wheel-flag", "--sbom-basename"),
         ("embed-wheel-flag-project-dir", "--sbom-basename"),
     ],
@@ -284,6 +286,32 @@ def test_the_line_names_the_parameter_as_the_surface_spells_it(
     _, warnings = _SURFACES[surface](tmp_path, " x ", monkeypatch, capsys)
     assert len(warnings) == 1
     assert warnings[0].startswith(f"WARNING: {label}: a string ' x ' ")
+
+
+@pytest.mark.parametrize("base", ["a/b", "..", 5])
+def test_a_built_config_refuses_a_base_name_that_is_no_file_name(base: Any) -> None:
+    """At construction, named as the field, before anything is generated."""
+    with pytest.raises(ValueError) as raised:
+        PitloomConfig(sbom_basename=base)
+    assert code_of(raised.value) == "option-invalid"
+    assert str(raised.value).startswith("PitloomConfig.sbom_basename: must be ")
+
+
+def test_a_built_config_takes_an_empty_base_name_as_no_name() -> None:
+    """``""`` is the default, as no name is, not a file name refused."""
+    assert PitloomConfig(sbom_basename="").sbom_basename == ""
+
+
+def test_a_built_config_keeps_the_callers_logger() -> None:
+    """A dataclass is no entry point: a base name it does not warn of
+    leaves a library caller's ``pitloom`` logger as the caller set it."""
+    logger = logging.getLogger("pitloom")
+    mine = logging.NullHandler()
+    logger.handlers = [mine]
+    logger.setLevel(logging.ERROR)
+    assert PitloomConfig(sbom_basename="x").sbom_basename == "x"
+    assert logger.handlers == [mine]
+    assert logger.level == logging.ERROR
 
 
 @pytest.mark.parametrize("surface", sorted(_SURFACES))

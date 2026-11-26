@@ -65,7 +65,7 @@ def test_loom_module_level_helpers_inside_active_run() -> None:
             loom.add_input_dataset("raw_corpus.txt", dataset_type="text")
             loom.add_output_dataset(
                 "tokenized.bin",
-                dataset_type="binary",
+                dataset_type="other",
                 data_preprocessing=["tokenization", "subword"],
                 input_datasets=["raw_corpus.txt"],
             )

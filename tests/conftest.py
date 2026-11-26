@@ -5,6 +5,7 @@
 
 """Shared pytest fixtures and configuration."""
 
+import functools
 import ipaddress
 import json
 import logging
@@ -38,6 +39,7 @@ from tests._spdx3_validate import use_offline_model
 from tests._strict_uncoded import (
     MARKER,
     Finding,
+    FixtureWatch,
     call_ran,
     failures,
     line_finding,
@@ -55,6 +57,12 @@ _RECORD_FACTORY = logging.getLogRecordFactory()
 #: PYTEST_CURRENT_TEST environment variable, which Windows caps at 32,767
 #: characters: a long parametrize value needs a short explicit ``ids=``.
 MAX_NODEID_LENGTH = 1000
+
+#: The strict check over wider fixtures (``pytest_fixture_setup``), hooked
+#: here, before any test patches ``Logger.handle``, so a per-test patch
+#: always wraps it and its undoing never drops it.
+_FIXTURE_WATCH = FixtureWatch()
+_FIXTURE_WATCH.install()
 
 
 @pytest.fixture(autouse=True)
@@ -218,7 +226,10 @@ def _catalogued_records_are_valid(request: pytest.FixtureRequest) -> Iterator[No
     whatever the handlers, and on ``print_error``'s one seam
     ``_write_error_line``; the hooks are their own patch, undone at the end
     without touching the test's ``monkeypatch``. A logger named
-    ``pitloom.test_*`` is a test's own and is not checked."""
+    ``pitloom.test_*`` is a test's own and is not checked. An uncoded line
+    said while a wider fixture's window is open (one the test sets up with
+    ``request.getfixturevalue``) is that window's to report, not this
+    check's."""
     problems: list[str] = []
     findings: list[Finding] = []
     handle = logging.Logger.handle
@@ -231,13 +242,13 @@ def _catalogued_records_are_valid(request: pytest.FixtureRequest) -> Iterator[No
             finding = strict_finding(record)
             if finding is None:
                 problems.append(problem)
-            else:
+            elif not _FIXTURE_WATCH.watching:
                 findings.append(finding)
         handle(self, record)
 
     def watching_lines(line: str) -> None:
         finding = line_finding(line)
-        if finding is not None:
+        if finding is not None and not _FIXTURE_WATCH.watching:
             findings.append(finding)
         write(line)
 
@@ -360,3 +371,24 @@ def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
     for item in items:
         if is_platform_file(item.path, root):
             item.add_marker(pytest.mark.platform)
+
+
+@pytest.hookimpl(wrapper=True)
+def pytest_fixture_setup(
+    fixturedef: pytest.FixtureDef[Any], request: pytest.FixtureRequest
+) -> Iterator[Any]:
+    """Hold a module-, class- or session-scoped fixture's setup and teardown
+    to the strict check (:class:`tests._strict_uncoded.FixtureWatch`): a
+    finding errors the test that set it up or tore it down. The teardown
+    window is two finalizers around the fixture's own (they run LIFO)."""
+    del request
+    if fixturedef.scope == "function":
+        return (yield)
+    name = f"{fixturedef.argname!r} ({fixturedef.scope}, {fixturedef.baseid})"
+    fixturedef.addfinalizer(functools.partial(_FIXTURE_WATCH.leave, name, "teardown"))
+    _FIXTURE_WATCH.enter()
+    try:
+        return (yield)
+    finally:
+        fixturedef.addfinalizer(_FIXTURE_WATCH.enter)
+        _FIXTURE_WATCH.leave(name, "setup")

@@ -31,6 +31,7 @@ from collections.abc import Mapping
 from types import MappingProxyType
 from typing import Final
 
+from pitloom.core.internal_error import InternalError
 from pitloom.logging_config import EXCERPT_CHARS, loggable
 from pitloom.messages._compared_value import compared_text
 from pitloom.messages._field_type import QUOTED, Field
@@ -86,10 +87,10 @@ def exception_type_text(value: object) -> str:
     """The exception *value*'s type (:func:`exception_label`), escaped.
 
     Raises:
-        ValueError: It is not an exception.
+        pitloom.core.internal_error.InternalError: It is not an exception.
     """
     if not isinstance(value, BaseException):
-        raise ValueError(f"not an exception: {value!r}")
+        raise InternalError(f"not an exception: {value!r}")
     return loggable(exception_label(value))
 
 
@@ -102,12 +103,13 @@ def archive_text(value: object) -> str:
     (:func:`~pitloom.messages._field_writers.quoted_name_text`).
 
     Raises:
-        ValueError: It is neither a ``str`` nor a ``str`` path (``None``,
-            the ``filename`` of an in-memory ``ZipFile``, included).
+        pitloom.core.internal_error.InternalError: It is neither a ``str`` nor a
+            ``str`` path (``None``, the ``filename`` of an in-memory
+            ``ZipFile``, included).
     """
     raw = os.fspath(value) if isinstance(value, os.PathLike) else value
     if not isinstance(raw, str):
-        raise ValueError(f"not an archive name: {value!r}")
+        raise InternalError(f"not an archive name: {value!r}")
     return quoted_name_text(os.path.basename(raw))
 
 
@@ -119,11 +121,11 @@ def quoted_names_text(value: object) -> str:
     refuses.
 
     Raises:
-        ValueError: It is neither (a ``str`` included), or holds anything
-            but text.
+        pitloom.core.internal_error.InternalError: It is neither (a ``str``
+            included), or holds anything but text.
     """
     if not isinstance(value, (list, tuple)):
-        raise ValueError(f"not a list: {value!r}")
+        raise InternalError(f"not a list: {value!r}")
     shown = ", ".join(quoted_name_text(name) for name in value[:SHOWN_NAMES])
     more = len(value) - SHOWN_NAMES
     return f"{shown} and {more} more" if more > 0 else shown
@@ -133,10 +135,10 @@ def identity_part_text(value: object) -> str:
     """One of :data:`IDENTITY_PARTS`.
 
     Raises:
-        ValueError: It is not.
+        pitloom.core.internal_error.InternalError: It is not.
     """
     if value not in IDENTITY_PARTS:
-        raise ValueError(f"not a part of a wheel's identity: {value!r}")
+        raise InternalError(f"not a part of a wheel's identity: {value!r}")
     return plain_text(value)
 
 

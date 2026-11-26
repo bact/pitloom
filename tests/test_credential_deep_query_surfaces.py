@@ -120,10 +120,9 @@ def test_a_deeply_nested_query_is_refused_then_accepted_by_fingerprint(
 
 
 # The unshown text keeps its error's code when it had one: a plain OSError
-# (``Path.exists()`` on a name too long for the OS, as some platforms
-# raise) prints an uncoded line, a missing file a coded one
-# (`` [input-not-found]``). Each case takes its branch itself: what
-# ``Path.exists()`` does with this name differs by OS and Python version.
+# from the path check (a directory it may not search) prints an uncoded
+# line, a missing file a coded one (`` [input-not-found]``). Each case takes
+# its branch itself, the same on every OS and Python version.
 @pytest.mark.parametrize(
     "missing",
     [
@@ -151,7 +150,7 @@ def test_a_url_that_cannot_be_masked_never_prints_raw(
     def no_file(given: Path) -> Path | None:
         if missing:
             return None
-        raise OSError(errno.ENAMETOOLONG, os.strerror(errno.ENAMETOOLONG), str(given))
+        raise OSError(errno.EACCES, os.strerror(errno.EACCES), str(given))
 
     monkeypatch.setattr("pitloom.log_masking.masked_given_path", fail)
     monkeypatch.setattr("pitloom.cli.commands.enrich.existing_model_path", no_file)

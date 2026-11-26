@@ -22,7 +22,7 @@ from pathlib import Path
 
 from spdx_python_model.bindings import v3_0_1 as spdx3_bindings
 
-from pitloom._sbom_io import write_sbom_output
+from pitloom._sbom_io import refuse_empty_output, write_sbom_output
 from pitloom.assemble._generators_pypi import generate_pypi_sbom
 from pitloom.assemble._generators_shared import _sync_registry, archive_project_dir
 from pitloom.assemble.spdx3.document import build
@@ -66,6 +66,7 @@ from pitloom.id_registry import (
     resolve_registry,
 )
 from pitloom.logging_config import configure_logging
+from pitloom.messages.targets import refuse_empty_input
 
 
 def _warn_if_metadata_without_config(
@@ -179,7 +180,8 @@ def generate_project_sbom(
 
     Raises:
         FileNotFoundError: *project_dir* is given for an sdist and is not a
-            directory.
+            directory; *project_target* is given as empty
+            (``input-not-found``).
         ValueError: *project_target* is a Hugging Face model URL
             (``target-wrong-format``), or a malformed one
             (``hf-url-invalid``):
@@ -191,6 +193,8 @@ def generate_project_sbom(
             given).
     """
     configure_logging()
+    refuse_empty_output(output_path)
+    refuse_empty_input(project_target, "project path")
     refuse_hub_model_target(project_target)
     if isinstance(project_target, str) and is_pypi_url(project_target):
         if project_metadata is not None:

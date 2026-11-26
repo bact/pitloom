@@ -18,6 +18,7 @@ from collections.abc import Mapping
 from types import MappingProxyType
 from typing import Final
 
+from pitloom.core.internal_error import InternalError
 from pitloom.logging_config import one_line
 from pitloom.messages._field_type import Field
 from pitloom.messages._field_writers import number_text, plain_text
@@ -39,10 +40,11 @@ def exit_code_text(value: object) -> str:
     """An exit code, in digits; negative for a POSIX signal.
 
     Raises:
-        ValueError: *value* is not an ``int`` (a ``bool`` is not).
+        pitloom.core.internal_error.InternalError: *value* is not an ``int`` (a
+            ``bool`` is not).
     """
     if isinstance(value, bool) or not isinstance(value, int):
-        raise ValueError(f"not an exit code: {value!r}")
+        raise InternalError(f"not an exit code: {value!r}")
     return str(value)
 
 
@@ -56,7 +58,7 @@ def output_text(value: object) -> str:
     would hide the word boundary a token needs.
 
     Raises:
-        ValueError: *value* is not a ``str``.
+        pitloom.core.internal_error.InternalError: *value* is not a ``str``.
     """
     return one_line(plain_text(value), limit=OUTPUT_CHARACTERS, ellipsis=True)
 

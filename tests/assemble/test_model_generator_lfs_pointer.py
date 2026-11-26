@@ -57,11 +57,12 @@ def test_the_refusal_states_the_size_in_the_singular_for_one(
         generate_model_sbom(path)
 
 
-def test_a_pointer_that_cannot_be_read_again_keeps_the_plain_reason(
+def test_a_pointer_that_cannot_be_read_again_is_malformed(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """The refusal is said before the pointer is re-read for its ``oid``; a
-    read that then fails still refuses, without the ``oid`` and size."""
+    read that then fails still refuses, coded, without the ``oid`` and size
+    (a pointer that changed between the reads is a malformed one)."""
     path = tmp_path / "model.gguf"
     path.write_bytes(lfs_pointer_bytes(b"weights"))
 
@@ -69,7 +70,7 @@ def test_a_pointer_that_cannot_be_read_again_keeps_the_plain_reason(
         raise PermissionError(13, "Permission denied")
 
     monkeypatch.setattr(lfs_pointer, "read_lfs_pointer", unreadable)
-    with pytest.raises(ValueError, match="header is a Git LFS pointer") as caught:
+    with pytest.raises(ValueError, match="looks like a Git LFS pointer") as caught:
         generate_model_sbom(path)
     assert "content not pulled" not in str(caught.value)
-    assert code_of(caught.value) is None  # neither condition is known
+    assert code_of(caught.value) == "lfs-pointer-malformed"

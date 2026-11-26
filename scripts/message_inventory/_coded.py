@@ -7,9 +7,11 @@ message, so its line ends in `` [code]``.
 
 A call has a *static* code when it
 
-- is ``emit(...)``, ``CodedValueError(...)``, ``CodedImportError(...)``,
-  ``CodedFileNotFoundError(...)``, ``CodedRuntimeError(...)``, or a coded
-  exception said again (``recoded(...)``, ``exc.located(...)``), or
+- is ``emit(...)``, a coded exception class (``CodedValueError(...)``,
+  ``CodedImportError(...)``, ``CodedFileNotFoundError(...)``,
+  ``CodedOSError(...)``, ``CodedRuntimeError(...)``,
+  ``CodedTypeError(...)``), or a coded exception said again
+  (``recoded(...)``, ``exc.located(...)``), or
 - passes ``code=`` (or ``pitloom_code=``, as an exception class's own
   keyword) a string or a ``pitloom.messages`` constant, or
 - passes ``extra=`` holding a ``pitloom_code`` key (``CODE_ATTR``), or
@@ -33,6 +35,17 @@ class whose body holds such a call: a helper wrapping a coded call codes
 every caller's line. A body is scanned for the direct markers only, not
 through further calls, each call's ``extra=<name>`` read through the
 function in the body that makes it; a body with both kinds is static.
+
+A function that returns a coded value (``return CodedValueError(...)``)
+is judged by what it returns instead: coded only when every value it
+returns is, since a caller raising its result says whichever branch ran.
+Each return expression is split into the values it may give (both arms of
+``a if c else b``, each operand of ``a or b``), a returned name into each
+value assigned to it (one level), and each such value is coded by the best
+of the calls in it, an in-package call through that function's own kind.
+``None``, numbers and booleans are no message and are not judged; nor is a
+call back into a function still being judged (recursion): its kind is what
+its other returns make it.
 
 See also: ``_walker.py`` (sets ``coded`` and ``forwards_code`` on each record).
 """
@@ -59,7 +72,9 @@ STATIC_CALLS = frozenset(
         "emit",
         "CodedFileNotFoundError",
         "CodedImportError",
+        "CodedOSError",
         "CodedRuntimeError",
+        "CodedTypeError",
         "CodedValueError",
         "located",
         "recoded",
@@ -162,6 +177,45 @@ def call_code_kind(
     return best_kind(kinds)
 
 
+def _is_no_message(value: ast.expr) -> bool:
+    """Whether *value* is a constant that is not a string (``None``, a
+    number, a boolean): no message, not judged."""
+    return isinstance(value, ast.Constant) and not isinstance(value.value, str)
+
+
+def _own_returns(func: ast.AST) -> list[ast.expr]:
+    """The values *func*'s own body (no nested scope) returns."""
+    values: list[ast.expr] = []
+    todo: list[ast.AST] = list(ast.iter_child_nodes(func))
+    while todo:
+        node = todo.pop()
+        if isinstance(node, _SCOPES):
+            continue
+        if isinstance(node, ast.Return) and node.value is not None:
+            values.append(node.value)
+        todo.extend(ast.iter_child_nodes(node))
+    return values
+
+
+def _branches(value: ast.expr) -> list[ast.expr]:
+    """The values *value* may give: both arms of a conditional expression,
+    each operand of ``and``/``or``, recursively; but for those of
+    :func:`_is_no_message`."""
+    if isinstance(value, ast.IfExp):
+        return _branches(value.body) + _branches(value.orelse)
+    if isinstance(value, ast.BoolOp):
+        return [b for operand in value.values for b in _branches(operand)]
+    return [] if _is_no_message(value) else [value]
+
+
+def worst_kind(kinds: set[str | None]) -> str | None:
+    """``None`` over ``FORWARD`` over ``STATIC``: the kind every one of
+    *kinds* has at least."""
+    if None in kinds:
+        return None
+    return FORWARD if FORWARD in kinds else STATIC
+
+
 def _calls_in(node: ast.AST) -> list[tuple[ast.Call, ast.AST | None]]:
     """Each call under *node*, with the innermost function that makes it
     (``None`` for a call in a top-level class body, outside any method)."""
@@ -184,17 +238,83 @@ class CodedChecker:
     def __init__(self, idx: Index) -> None:
         self.idx = idx
         self._memo: dict[int, str | None] = {}
+        #: The functions being judged, by key, each with its depth on the
+        #: stack, and per depth the lowest depth its judgement read.
+        self._open: dict[int, int] = {}
+        self._low: list[int] = []
 
     def body_kind(self, mod: Module, node: FuncNode | ast.ClassDef) -> str | None:
         """The best code kind of any call in a function or class body, an
         ``extra=<name>`` read through the function that makes the call, as
-        :meth:`site_kind` reads it."""
+        :meth:`site_kind` reads it; a function returning a coded value by
+        the worst of its returns. A judgement that read a function still
+        being judged further out is not kept: it holds only for that one."""
         key = id(node)
-        if key not in self._memo:
-            self._memo[key] = best_kind(
+        if key in self._memo:
+            return self._memo[key]
+        depth = len(self._low)
+        self._open[key] = depth
+        self._low.append(depth)
+        try:
+            kind = best_kind(
                 {call_code_kind(call, mod, func) for call, func in _calls_in(node)}
             )
-        return self._memo[key]
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                returned: set[str | None] = set()
+                for value in _own_returns(node):
+                    returned |= self._value_kinds(mod, node, value)
+                if returned & {STATIC, FORWARD}:
+                    kind = worst_kind(returned)
+        finally:
+            del self._open[key]
+            low = self._low.pop()
+        if low < depth:
+            self._low[-1] = min(self._low[-1], low)
+        else:
+            self._memo[key] = kind
+        return kind
+
+    def _value_kinds(
+        self, mod: Module, func: FuncNode, value: ast.expr, follow: bool = True
+    ) -> set[str | None]:
+        """The code kind of each value *func* may return in *value*
+        (:func:`_branches`), a name through each value *func* assigns to it
+        (one level); empty when none is judged."""
+        kinds: set[str | None] = set()
+        for branch in _branches(value):
+            if isinstance(branch, ast.Name) and follow:
+                assigned = _assigned_values(func, branch.id)
+                if not assigned:
+                    kinds.add(None)
+                for v in assigned:
+                    kinds |= self._value_kinds(mod, func, v, follow=False)
+            else:
+                kinds |= self._branch_kind(mod, func, branch)
+        return kinds
+
+    def _branch_kind(
+        self, mod: Module, func: FuncNode, branch: ast.expr
+    ) -> set[str | None]:
+        """The best of the calls in *branch*, directly or through the
+        in-package function or class each calls; empty (not judged) when it
+        has none but a call back into a function being judged."""
+        kinds: set[str | None] = set()
+        recursive = False
+        for sub in ast.walk(branch):
+            if not isinstance(sub, ast.Call):
+                continue
+            kinds.add(call_code_kind(sub, mod, func))
+            found = self.idx.lookup(mod, sub.func)
+            if found is None:
+                continue
+            depth = self._open.get(id(found[1]))
+            if depth is None:
+                kinds.add(self.body_kind(*found))
+            else:
+                recursive = True
+                self._low[-1] = min(self._low[-1], depth)
+        best = best_kind(kinds)
+        return set() if best is None and recursive else {best}
 
     def site_kind(
         self, mod: Module, call: ast.Call | None, func: ast.AST | None = None

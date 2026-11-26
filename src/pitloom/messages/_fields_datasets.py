@@ -23,6 +23,7 @@ from collections.abc import Mapping
 from types import MappingProxyType
 from typing import Final
 
+from pitloom.core.internal_error import InternalError
 from pitloom.messages._field_tables import VALUE_TYPES
 from pitloom.messages._field_type import QUOTED, Field
 from pitloom.messages._field_writers import (
@@ -32,13 +33,14 @@ from pitloom.messages._field_writers import (
     quoted_name_text,
 )
 
-#: How a dataset name is shown.
-_SHOWN_NAME: Final = (
+#: How a dataset name given as text is shown.
+_SHOWN_TEXT: Final = (
     f"in quotes, a URL's credentials masked, cut to {NAME_CHARACTERS} "
     f"characters with `{NAME_CUT_MARK}` before the closing quote, escaped when "
-    "it holds a control character; `None` for a dataset declared without "
-    "a name"
+    "it holds a control character"
 )
+#: How a dataset name is shown.
+_SHOWN_NAME: Final = f"{_SHOWN_TEXT}; `None` for a dataset declared without a name"
 
 
 def _dataset_name_text(value: object) -> str:
@@ -46,7 +48,8 @@ def _dataset_name_text(value: object) -> str:
     for a dataset declared without a name, as Python shows it.
 
     Raises:
-        ValueError: *value* is neither text nor ``None``.
+        pitloom.core.internal_error.InternalError: *value* is neither text nor
+            ``None``.
     """
     return "None" if value is None else quoted_name_text(value)
 
@@ -96,11 +99,11 @@ def dataset_field_text(value: object) -> str:
     """A dataset field (:data:`DATASET_FIELD`), as given.
 
     Raises:
-        ValueError: It is not text of that shape.
+        pitloom.core.internal_error.InternalError: It is not text of that shape.
     """
     text = plain_text(value)
     if re.fullmatch(DATASET_FIELD, text) is None:
-        raise ValueError(f"not a dataset field: {text!r}")
+        raise InternalError(f"not a dataset field: {text!r}")
     return text
 
 
@@ -117,10 +120,10 @@ DATASET_FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
             f"a dataset by the name it was declared under, {_SHOWN_NAME}",
         ),
         "dataset_input": Field(
-            _NAME_OR_NONE,
-            _dataset_name_text,
+            QUOTED,
+            quoted_name_text,
             "'<dataset-input>'",
-            f"a name given in add_output_dataset's input_datasets, {_SHOWN_NAME}",
+            f"a name given in add_output_dataset's input_datasets, {_SHOWN_TEXT}",
         ),
         "dataset_spelling": Field(
             QUOTED,

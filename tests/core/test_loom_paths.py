@@ -4,7 +4,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """How the loom SDK spells the files it names: a model's ``path=`` is opened
-as the OS opens it, and the run's script is named like any other source.
+as the OS opens it, the run's script is named like any other source, and a
+fragment or current directory the system refuses is coded.
 
 See also: test_loom_model.py (the model's hash and registry lookup),
 test_loom_caller.py (the caller's provenance).
@@ -16,6 +17,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Any
@@ -23,6 +25,7 @@ from typing import Any
 import pytest
 
 from pitloom import loom
+from pitloom.messages import code_of
 from tests._symlink import CAN_SYMLINK
 
 
@@ -93,3 +96,50 @@ def test_a_script_outside_the_current_directory_is_named_by_its_file_name(
         if e["type"] == "software_File" and e["name"] == "train.py"
     ]
     assert _has_sha256(found, b"the script\n")
+
+
+#: A read-only directory mode refuses a write, and a process may remove its
+#: own current directory: POSIX only.
+_POSIX = sys.platform != "win32"
+
+
+@pytest.mark.skipif(not _POSIX, reason="a read-only directory mode: POSIX only")
+@pytest.mark.parametrize("name", ["frag.json", "sub/frag.json"], ids=["file", "dir"])
+def test_a_fragment_the_system_refuses_is_file_unwritable(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, name: str
+) -> None:
+    """The write, or the directory made for it, refused: coded, naming the
+    fragment as given."""
+    locked = tmp_path / "locked"
+    locked.mkdir()
+    monkeypatch.chdir(tmp_path)
+    locked.chmod(0o555)
+    try:
+        if os.access(locked, os.W_OK):
+            pytest.skip("the user may write a read-only directory (root)")
+        with pytest.raises(OSError) as raised:
+            with loom.run(f"locked/{name}"):
+                loom.set_model("m")
+    finally:
+        locked.chmod(0o755)
+    assert code_of(raised.value) == "file-unwritable"
+    assert str(raised.value).startswith(
+        f"FILE=locked/{name}: could not write for the SBOM fragment; "
+    )
+
+
+@pytest.mark.skipif(not _POSIX, reason="Windows cannot remove the cwd")
+def test_a_run_in_a_removed_directory_is_refused_when_entered(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Coded, before the run is active, even with an absolute output."""
+    gone = tmp_path / "gone"
+    gone.mkdir()
+    monkeypatch.chdir(gone)
+    gone.rmdir()
+    run = loom.run(tmp_path / "out.json")
+    with pytest.raises(ValueError) as raised:
+        run.__enter__()  # pylint: disable=unnecessary-dunder-call
+    assert code_of(raised.value) == "file-unreadable"
+    assert str(raised.value).startswith("DIR=.: could not read for resolving ")
+    assert loom._active_run is None  # pylint: disable=protected-access

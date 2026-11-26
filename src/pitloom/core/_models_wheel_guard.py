@@ -64,6 +64,7 @@ from types import FrameType, TracebackType
 from pitloom.core._models_wheel_clone import clone_root
 from pitloom.core._models_wheel_types import DiscoveryTimeoutError
 from pitloom.core.clone_mark import in_remote_clone
+from pitloom.core.current_dir import current_dir
 from pitloom.core.path_confine import is_inside
 from pitloom.messages.files import (
     OVER_CAP,
@@ -90,7 +91,7 @@ def discovery_chdir(project_dir: Path) -> Iterator[None]:
     exclusive write lock), restored on exit; in a clone, with the
     working directory and the clone off the import path
     (:func:`_off_import_path`)."""
-    original_cwd = Path.cwd()
+    original_cwd = current_dir()  # coded when gone, as there is no way back
     os.chdir(project_dir)
     try:
         if in_remote_clone():

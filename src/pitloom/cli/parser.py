@@ -10,11 +10,11 @@ from __future__ import annotations
 
 import argparse
 import sys
-from pathlib import Path
 from typing import Any, Final, NoReturn
 
 from pitloom.__about__ import __version__
 from pitloom.cli._parser_credentials import add_credential_arguments
+from pitloom.cli._path_args import non_empty_path
 from pitloom.cli.commands.embed_wheel import add_parser as add_embed_wheel
 from pitloom.cli.commands.enrich import add_parser as add_enrich
 from pitloom.cli.commands.env import add_parser as add_env
@@ -39,7 +39,6 @@ from pitloom.core.creation import (
     VALID_CREATOR_TYPES,
     Creator,
 )
-from pitloom.core.given_path import TypedPath
 from pitloom.logging_config import print_error
 from pitloom.messages import (
     COMMAND_FRAME,
@@ -156,7 +155,7 @@ def _build_parent_parser() -> argparse.ArgumentParser:
     parent.add_argument(
         "-o",
         "--output",
-        type=Path,
+        type=non_empty_path,
         metavar="FILE",
         help="Write JSON-LD SBOM to FILE.",
     )
@@ -295,7 +294,7 @@ def _build_parent_parser() -> argparse.ArgumentParser:
     )
     parent.add_argument(
         "--id-registry",
-        type=TypedPath,
+        type=non_empty_path,
         default=None,
         metavar="FILE",
         help=(

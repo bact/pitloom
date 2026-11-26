@@ -200,7 +200,8 @@ OPTION_INVALID: Final = Message(
     "date, an empty SBOM given to embed_sbom_in_wheel). Or a document "
     "namespace given as --namespace or to IdRegistry is not an absolute IRI "
     "without a '#' (the namespace lines, also the detail of 'argument "
-    "--namespace:'). Or a URL credential fingerprint given to the library is "
+    "--namespace:'); one holding a credential is credentials-unsafe/registry "
+    "on both. Or a URL credential fingerprint given to the library is "
     "not one; the line never shows the value, which may be a credential pasted "
     "by mistake. Or PitloomConfig.url_credentials is neither warn nor "
     "refuse, or CredentialPolicy(refuse=...) is no bool. The same faults "
@@ -214,7 +215,9 @@ OPTION_INVALID: Final = Message(
     "shape (ProvenanceConfig and PitloomConfig refuse a bad provenance "
     "format, schema or detail when built), a namespace that is none "
     "(IdRegistry), a fingerprint that is none (CredentialPolicy) or a "
-    "url-credentials that is no mode.",
+    "url-credentials that is no mode; a loom SDK call raises TypeError "
+    "carrying the code for an argument of the wrong type, ValueError for "
+    "an unknown dataset_type.",
     effect="not-written",
     actor="caller",
     advice="The caller may fix the option or value the line names ('loom "

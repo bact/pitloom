@@ -18,6 +18,7 @@ from dataclasses import dataclass
 from types import MappingProxyType
 from typing import Final
 
+from pitloom.core.internal_error import InternalError
 from pitloom.logging_config import CODE_LIKE_END, CODE_PATTERN
 from pitloom.messages._fields import FIELDS
 from pitloom.messages._templates import (
@@ -199,8 +200,8 @@ class Line:
         """The text printed for *values*, each written by its field.
 
         Raises:
-            ValueError: *values* names other fields, or a value does not
-                have its field's shape.
+            pitloom.core.internal_error.InternalError: *values* names other
+                fields, or a value does not have its field's shape.
         """
         return render(self.template, values)
 
@@ -324,8 +325,8 @@ class Message:
         must be one of them, else the only one.
 
         Raises:
-            ValueError: No line does, *line* is not one, or several do and
-                *line* does not say which.
+            pitloom.core.internal_error.InternalError: No line does, *line* is
+                not one, or several do and *line* does not say which.
         """
         wanted = frozenset(names)
         found = [ln for ln in self.lines if ln.level == level and ln.fields == wanted]
@@ -334,4 +335,6 @@ class Message:
         if line is None and len(found) == 1:
             return found[0]
         what = "that line is not one" if line is not None else f"{len(found)} name"
-        raise ValueError(f"{self.code}: {what} of its {level} lines {sorted(wanted)}")
+        raise InternalError(
+            f"{self.code}: {what} of its {level} lines {sorted(wanted)}"
+        )
