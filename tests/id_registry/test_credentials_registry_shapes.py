@@ -206,7 +206,7 @@ def test_every_namespace_surface_refuses_the_shape(
     done = _run(tmp_path, "id", "generate", "--namespace", namespace, "src")
     err = done.stderr.decode()
     assert done.returncode == 1 and "S3CRET" not in err and _TOKEN not in err
-    assert err.endswith(f" [{_REGISTRY}]\n")  # the library's code
+    assert err.splitlines()[-1].endswith(f" [{_REGISTRY}]")  # the library's code
 
 
 def test_an_element_id_with_a_url_inside_it_is_refused() -> None:
