@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-15
-Last-Modified: 2026-11-10
+Last-Modified: 2026-11-26
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -8,8 +8,10 @@ SPDX-License-Identifier: CC0-1.0
 
 # AI model scan limits: known limitations
 
-See also: [AI model scan limits](ai-model-scan-limits.md) for the caps
-themselves, the wheel gate and what a format cannot record, and
+See also: [AI model scan limits](ai-model-scan-limits.md) for the wheel
+gate and what a format cannot record,
+[Size and count caps](ai-model-scan-limits-caps.md) for the caps
+themselves, and
 [AI model formats](ai-model-formats.md) for what each reader extracts.
 
 The bounds keep a hostile file from being cheap to abuse; they do not make
@@ -42,7 +44,7 @@ it free. Figures are approximate, from measurements on one machine.
 - **Planned.** Header-only readers that never pass a file to a native
   library are planned for a future release. They would let the gated
   formats be read in wheels without `--trust-model-files` and replace
-  several of the [caps](ai-model-scan-limits.md#size-and-count-caps).
+  several of the [caps](ai-model-scan-limits-caps.md#size-and-count-caps).
 
 ## See also
 

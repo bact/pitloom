@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-29
-Last-Modified: 2026-11-11
+Last-Modified: 2026-11-26
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -10,8 +10,8 @@ SPDX-License-Identifier: CC0-1.0
 
 See also: `../SKILL.md` ("Complete a standard's minimum elements", steps
 a-g, which hold the rules) and `minimum-elements.md` (the checklists,
-field mappings; `minimum-elements-datasets.md` has the G7 Dataset Properties
-cluster, `minimum-elements-questions.md` the question bank).
+field mappings; `minimum-elements-g7.md` has the G7 SBOM for AI checklist,
+`minimum-elements-questions.md` the question bank).
 
 ## Steps a-c: scope of the workflow
 
@@ -123,8 +123,9 @@ element the package does not give) and `out-of-scope` (the checker does not
 check it: report it from `minimum-elements.md` instead, never as passed). A
 `permission` rule (BSI COMP-015 and -017; COMP-016 is not checked) is optional.
 
-Per `missing` rule, look the element up in `minimum-elements.md` and do the
-first that fits:
+Per `missing` rule, look the element up in `minimum-elements.md` (G7:
+`minimum-elements-g7.md`; BSI: `minimum-elements-bsi.md`) and do the first
+that fits:
 
 1. **Pitloom can fill it from the project**: say which setting or input
    (`[[tool.pitloom.creator]]`, an e-mail in `[project].authors`, a `LICENSE`

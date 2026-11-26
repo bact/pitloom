@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-17
-Last-Modified: 2026-11-22
+Last-Modified: 2026-11-26
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -9,7 +9,7 @@ SPDX-License-Identifier: CC0-1.0
 # G7 SBOM for AI field coverage (1.0 headline)
 
 See also: [roadmap.md](roadmap.md) (1.0 target -- this is 1.0's headline
-item), [minimum-elements.md](../../skills/sbom-enrich/references/minimum-elements.md)
+item), [minimum-elements-g7.md](../../skills/sbom-enrich/references/minimum-elements-g7.md)
 (the G7 checklist this file works against), [loom-sdk-and-notebooks.md](sbom-fragments/loom-sdk-and-notebooks.md)
 (the SDK expansion this depends on),
 [g7-honesty-and-non-recordable.md](g7-honesty-and-non-recordable.md) (what
@@ -55,7 +55,7 @@ disambiguation is explicitly left to the Skill, not listed as a core
 
 ## Checklist status (re-verified against code, 2026-09-17)
 
-[G7 SBOM for AI 2026](../../skills/sbom-enrich/references/minimum-elements.md#g7-sbom-for-ai-2026-additive----apply-only-when-an-ai_aipackage-is-present)
+[G7 SBOM for AI 2026](../../skills/sbom-enrich/references/minimum-elements-g7.md#g7-sbom-for-ai-2026-additive-apply-only-when-an-ai_aipackage-is-present)
 was built from one verified sample run and is now known to be **stale
 in places** -- re-checked against the current assembly code
 (`assemble/spdx3/_ai_package.py`, `assemble/spdx3/dataset.py`):
@@ -107,7 +107,7 @@ Model version, Model description, Model external references
   scoped: a *stable external
   ID* (e.g. a Hugging Face hub model/dataset id) is a **different,
   smaller** problem than the existing
-  [AI model id stability](roadmap.md#to-design)
+  [AI model id stability](roadmap-backlog.md#to-design)
   item -- that item is about Loom's own ID-registry auto-harvest
   reliability; this is just "surface an already-known hub id as an
   `ExternalIdentifier`" when the model/dataset came from a hub source

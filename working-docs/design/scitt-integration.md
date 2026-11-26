@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-30
-Last-Modified: 2026-08-30
+Last-Modified: 2026-11-26
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -8,7 +8,7 @@ SPDX-License-Identifier: CC0-1.0
 
 # IETF SCITT integration
 
-See also: [roadmap.md](roadmap.md) (Long-term -- "IETF SCITT
+See also: [roadmap-backlog.md](roadmap-backlog.md) (Long-term -- "IETF SCITT
 integration").
 
 Submit a generated SBOM as a signed SCITT statement to a transparency

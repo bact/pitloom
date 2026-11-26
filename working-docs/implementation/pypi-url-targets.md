@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-07
-Last-Modified: 2026-11-21
+Last-Modified: 2026-11-26
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -150,7 +150,7 @@ Where the build differs from the design below:
     not a URL. All three skills know the route (`sbom-generate`'s
     `references/pypi-url.md`, `sbom-enrich`'s `references/pypi-url-base.md`,
     a section in `sbom-validate`); see
-    [skills-trigger-coverage.md](skills-trigger-coverage.md).
+    [skills-trigger-coverage-sweeps.md](skills-trigger-coverage-sweeps.md).
 
 19. **A downloaded wheel's models are gated as remote input** (user
     decision, 2026-11-10, after the merge of #469/#470 gave the Git route

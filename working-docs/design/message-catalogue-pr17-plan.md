@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-23
-Last-Modified: 2026-11-23
+Last-Modified: 2026-11-26
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -15,6 +15,8 @@ plan follows; it handed over `_embed_overlay.py:117`, `_embed_wheel.py:438`
 and `utils.py:199`),
 [message-catalogue-pr12-18-plan.md](message-catalogue-pr12-18-plan.md)
 (section 1.3, `_author_warnings.py:168`; ruling 11, row 57),
+[message-catalogue-pr12-18-rulings.md](message-catalogue-pr12-18-rulings.md)
+(ruling 11),
 [message-catalogue-migration-plan.md](message-catalogue-migration-plan.md)
 (row 17), [message-frames-forward.md](message-frames-forward.md) ("PR 17",
 ruling 2: `loom SDK: `).

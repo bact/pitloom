@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-11
-Last-Modified: 2026-11-11
+Last-Modified: 2026-11-26
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -189,3 +189,18 @@ content is ruled not to be a contract during the alpha. The user asked for
    `docs/metadata-reading-back.md` and `known-limitations.md`. Ship in the
    same release as a separate PR so default output changes once; it does not
    block PRs 1 to 4.
+
+## Roadmap summary (moved 2026-11-26)
+
+The roadmap's "Provenance and source-metadata flags" item (decided
+2026-11-05), the sentences not already stated above:
+
+provenance annotations are off by default (they make the SBOM huge, and the
+taxonomy is not settled); `--provenance`/`--no-provenance` turns them on
+(name to settle). Today they are on (`format = "both"`, `detail =
+"minimal"`). The verbatim source metadata (`preserve-source-metadata`) gets
+its own flag, `--preserve-source-metadata auto|always|never`, beside
+`--max-source-metadata-bytes`; default `never` (today `auto`). Each flag
+needs a `[tool.pitloom]` key, an Action input, an API parameter, the
+Hatchling hook, skills, a `_matrix_plan.py` entry and a CHANGELOG "Changed"
+note.

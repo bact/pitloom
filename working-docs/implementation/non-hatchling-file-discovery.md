@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-11-06
+Last-Modified: 2026-11-26
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -14,7 +14,7 @@ follow-ups moved to
 [non-hatchling-file-discovery-followups.md](../design/non-hatchling-file-discovery-followups.md).
 
 See also: [roadmap-completed.md](roadmap-completed.md) ("Backend-agnostic
-file discovery"), [roadmap.md](../design/roadmap.md) (Open follow-ups by
+file discovery"), [roadmap-backlog.md](../design/roadmap-backlog.md) (Open follow-ups by
 area: "File discovery"), [sbom-lifecycle-stages.md](sbom-lifecycle-stages.md)
 (the mechanism and why this stays a static-config read for every backend,
 never a build), [backend-file-discovery-validation.md](backend-file-discovery-validation.md)

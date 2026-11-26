@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-05
-Last-Modified: 2026-10-08
+Last-Modified: 2026-11-26
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -8,7 +8,7 @@ SPDX-License-Identifier: CC0-1.0
 
 # PEP 770 / embed-wheel: open follow-ups
 
-See also: [roadmap.md](roadmap.md#open-follow-ups-by-area),
+See also: [roadmap-backlog.md](roadmap-backlog.md#open-follow-ups-by-area),
 [sbom-package-boundary.md](sbom-package-boundary.md),
 [archive-member-followups.md](archive-member-followups.md),
 [wheel-verification-commands.md](../implementation/wheel-verification-commands.md).

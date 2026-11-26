@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-29
-Last-Modified: 2026-11-24
+Last-Modified: 2026-11-26
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -11,7 +11,7 @@ SPDX-License-Identifier: CC0-1.0
 See also: `../SKILL.md` (step 3, which holds the rule: tell the user the cause
 before inferring from prose), `messages.md` (the index; its pages: what Pitloom did, what
 to tell the user), `deterministic-pass.md` (the stub case in step 2) and
-`minimum-elements.md` (G7 model elements for a stub).
+`minimum-elements-g7.md` (G7 model elements for a stub).
 
 ## Is the `ai_AIPackage` a stub?
 
