@@ -13,10 +13,12 @@ finding). Standard library only.
 
 What the detector reads: a URL-typed field (a namespace, an element id, a
 registry key, a project or dependency URL, a requirement string, a PURL) as
-one whole value. Prose (a description, a comment, a name, README text) is
-out of scope: a value that is not, as a whole, a URL, a requirement with a
-direct reference, an scp-style address or a PURL has no finding, whatever
-URL or token it mentions (``see https://u:pw@h/x``, ``key AKIA...``,
+one whole value, whose kind starts in its first word (a character before
+it that may not start it hides nothing: ``!https://u:pw@h/x``). Prose (a
+description, a comment, a name, README text) is out of scope: a value that
+is not, as a whole, a URL, a requirement with a direct reference, an
+scp-style address or a PURL has no finding, whatever URL or token it
+mentions after its first word (``see https://u:pw@h/x``, ``key AKIA...``,
 ``build:42@ci:linux now``); only an identifier Pitloom stores (*embedded*:
 an ID registry key, an id, a namespace) is read for a URL or a token
 anywhere in it. Finding secrets in prose is a secret scanner's
