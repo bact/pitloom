@@ -29,7 +29,7 @@ from pitloom.core.url_masking import (
     masked_given_path,
     without_format,
 )
-from pitloom.logging_config import DETAIL_KIND, KIND_ATTR, loggable
+from pitloom.logging_config import DETAIL_KIND, KIND_ATTR, escaped_literal
 
 log = logging.getLogger(__name__)
 
@@ -61,13 +61,14 @@ def _url_credentials_masked(text: str) -> str:
 
 
 def kv_line(**pairs: object) -> str:
-    """``KEY=VALUE`` pairs, space-separated, in the order given. Each value
-    goes through :func:`~pitloom.logging_config.loggable`, so a value with a
-    line break cannot forge a second line, and the credentials of a URL in it
-    are masked (:func:`_url_credentials_masked`); any other value, a path
-    included, is printed as given."""
+    """``KEY=VALUE`` pairs, space-separated, in the order given. A value
+    that holds a URL is masked whole (:func:`_url_credentials_masked`); any
+    other value, a path included, is printed as given, never masked (the
+    scp-style rule would rewrite a file name). Each value is then escaped
+    (:func:`~pitloom.logging_config.escaped_literal`, which masks nothing),
+    so a value with a line break cannot forge a second line."""
     return " ".join(
-        f"{key}={loggable(_url_credentials_masked(str(value)))}"
+        f"{key}={escaped_literal(_url_credentials_masked(str(value)))}"
         for key, value in pairs.items()
     )
 

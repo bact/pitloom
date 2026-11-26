@@ -44,6 +44,7 @@ from pitloom.core._models_wheel_build_kill import (
 )
 from pitloom.core.build_signals import TerminationGuard
 from pitloom.core.optional_libraries import BUILD, missing
+from pitloom.log_masking import masked_lines
 from pitloom.messages import BUILD_FRAME
 from pitloom.messages.build import (
     BUILD_EXIT_LINE,
@@ -303,7 +304,10 @@ def _start_process(
 
 
 def _read_log_tail(log_path: Path) -> list[str]:
-    """Return the lines of at most the last 8 KiB of *log_path*.
+    """Return the lines of at most the last 8 KiB of *log_path*, masked
+    whole before they are split (:func:`~pitloom.log_masking.masked_lines`),
+    so a password holding a line break is not left in pieces, whichever
+    line is logged or shown.
 
     Seeks from the end rather than reading the whole log. A partial first
     line (cut by the 8 KiB window) is dropped when more lines follow.
@@ -315,7 +319,7 @@ def _read_log_tail(log_path: Path) -> list[str]:
             data = log_file.read(_LOG_TAIL_BYTES)
     except OSError:
         return []
-    lines = data.decode("utf-8", errors="replace").splitlines()
+    lines = masked_lines(data.decode("utf-8", errors="replace"))
     if size > _LOG_TAIL_BYTES and len(lines) > 1:
         lines = lines[1:]
     return lines

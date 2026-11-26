@@ -146,6 +146,8 @@ PROBES: tuple[tuple[str, str, bool, bool], ...] = (
     ("scp-dotless", "alice:S3CRET@host:repo", False, True),
     ("scp-build", "build:42@ci:linux", False, True),
     ("scp-image", "python:3.11@sha256:abc", False, False),
+    # The host follows the last ``@``: the password holds the others.
+    ("scp-pw-at", "foo:S3CRET@T0KEN@qux:path", False, True),
     # PURL qualifiers, plain and percent-encoded.
     ("purl-plain", f"pkg:generic/x?download_url={_URL}", True, True),
     ("purl-enc1", f"pkg:generic/x?download_url={encoded(_URL, 1)}", True, True),

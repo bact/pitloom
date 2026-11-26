@@ -17,14 +17,11 @@ import pytest
 
 from pitloom import logging_config
 from pitloom.logging_config import (
-    EXCERPT_CHARS,
     PITLOOM_DEBUG_ENV_VAR,
     apply_debug_override,
     configure_logging,
     escape_controls,
-    excerpt,
     line_formatter,
-    one_line,
     print_error,
 )
 
@@ -248,73 +245,6 @@ def test_configure_logging_concurrent_reconfigure_never_drops_a_record(
     captured = capsys.readouterr()
     seen = captured.err.count("WARNING: record ")
     assert seen == emitted, f"expected {emitted} records, saw {seen} (some dropped)"
-
-
-@pytest.mark.parametrize(
-    ("value", "expected"),
-    [
-        pytest.param("a\n\n  b\r\nc", "a b c", id="multi_line_str"),
-        pytest.param(ValueError("x\ny"), "x y", id="multi_line_exception"),
-        pytest.param(ValueError(), "ValueError", id="empty_exception"),
-        pytest.param("", "", id="empty_str"),
-    ],
-)
-def test_one_line(value: object, expected: str) -> None:
-    assert one_line(value) == expected
-
-
-@pytest.mark.parametrize(
-    ("value", "expected"),
-    [
-        ("six>=1", "'six>=1'"),
-        ("a" * 120, repr("a" * 120)),
-        ("a" * 121, repr("a" * 120) + "..."),
-        ("a\n  b", "'a b'"),
-        ("\x1b[31m", "'\\x1b[31m'"),
-        ("\x1b" * 200, ascii("\x1b" * 120) + "..."),
-        (5, "5"),
-    ],
-    ids=["short", "at-cap", "over-cap", "multi-line", "escaped", "escaped-cut", "int"],
-)
-def test_excerpt(value: object, expected: str) -> None:
-    """One literal, escaped once, cut after :data:`EXCERPT_CHARS`."""
-    assert excerpt(value) == expected
-
-
-def test_excerpt_masks_a_url_before_it_cuts() -> None:
-    """A cut inside a URL's user information would leave its start unmasked."""
-    # The cut lands inside the user information, whatever the cap is.
-    shown = excerpt(
-        "x" * (EXCERPT_CHARS - 15) + " https://user:secretpassword@host/path"
-    )
-    assert "secret" not in shown and "user:" not in shown
-
-
-@pytest.mark.parametrize("space", ["\n", "\t", "\r\n"], ids=["lf", "tab", "crlf"])
-def test_excerpt_masks_a_password_before_it_collapses_white_space(space: str) -> None:
-    """A line break or a tab inside a URL's password is masked with the
-    rest of it, not turned into a space first, which ends the user
-    information and shows both halves."""
-    shown = excerpt(f"see https://u:pa{space}ss99@h/x")
-    assert "pa" not in shown and "ss99" not in shown
-    assert shown == "'see https://***:***@h/x'"
-
-
-@pytest.mark.parametrize(
-    "raw",
-    ["Bearer\ns3cr3tvalue99", "Bearer \n s3cr3tvalue99", "Bearer\r\n\ts3cr3tvalue99"],
-    ids=["lf", "spaced", "crlf-tab"],
-)
-def test_excerpt_masks_a_scheme_credential_split_by_a_line_break(raw: str) -> None:
-    """A scheme word and its credential on two lines read as one run only
-    once the white space is collapsed: masked again after it."""
-    assert excerpt(raw) == "'Bearer ***'"
-
-
-def test_excerpt_masks_a_header_value_moved_up_by_the_collapse() -> None:
-    """A header's own separators hold no line break: the value reads as one
-    only once the line break is a space, so it is masked after collapsing."""
-    assert excerpt("Authorization: Bearer\nabc") == "'Authorization: Bearer ***'"
 
 
 @pytest.mark.parametrize(

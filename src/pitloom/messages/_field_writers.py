@@ -22,7 +22,12 @@ from pitloom.core.internal_error import InternalError
 from pitloom.core.quote_source import given_path_text, quote_source
 from pitloom.core.url_masking import mask_checkout, sanitize_url
 from pitloom.log_masking import masked_text
-from pitloom.logging_config import failure_reason, loggable, one_line
+from pitloom.logging_config import (
+    escaped_literal,
+    failure_reason,
+    loggable,
+    one_line,
+)
 
 #: The most characters of an exception's text a ``failure`` field shows.
 FAILURE_CHARACTERS: Final = 500
@@ -106,7 +111,8 @@ def _path_text(value: object) -> str:
 
 
 def file_text(value: object) -> str:
-    """A ``FILE=`` value: the path as it is when printable, else escaped."""
+    """A ``FILE=`` value: the path as it is when printable, else masked and
+    escaped (:func:`~pitloom.logging_config.loggable`)."""
     return loggable(_path_text(value))
 
 
@@ -186,10 +192,10 @@ def cut_name(text: str) -> str:
 def escaped_name(text: str) -> str:
     """*text*, a name a caller writes into a free field (a file or folder
     name), masked and cut (:func:`cut_name`), then escaped
-    (:func:`~pitloom.logging_config.loggable`): masked before it is escaped,
-    so an escape (``\\t``, ``\\x1b``) cannot stand between a credential and
-    what the masker reads before it."""
-    return loggable(cut_name(text))
+    (:func:`~pitloom.logging_config.escaped_literal`): masked before it is
+    escaped, so an escape (``\\t``, ``\\x1b``) cannot stand between a
+    credential and what the masker reads before it."""
+    return escaped_literal(cut_name(text))
 
 
 def url_text(url: str) -> str:
@@ -198,16 +204,17 @@ def url_text(url: str) -> str:
     (:func:`~pitloom.core.url_masking.sanitize_url`: the user information
     whole) and as a line's (:func:`masked`: an access token, an scp-style
     password, a ``Bearer`` credential), then escaped
-    (:func:`~pitloom.logging_config.loggable`), as :func:`escaped_name`
-    orders them; not cut."""
-    return loggable(masked(sanitize_url(url)))
+    (:func:`~pitloom.logging_config.escaped_literal`), as
+    :func:`escaped_name` orders them; not cut."""
+    return escaped_literal(masked(sanitize_url(url)))
 
 
 def cut_and_escaped(masked_name: str) -> str:
     """*masked_name*, already :func:`masked`, cut to :data:`NAME_CHARACTERS`
     characters (:func:`cut_masked`), then escaped when it holds a control
-    character: the last two steps every cut name writer shares."""
-    return loggable(cut_masked(masked_name, NAME_CHARACTERS))
+    character (:func:`~pitloom.logging_config.escaped_literal`, which masks
+    nothing): the last two steps every cut name writer shares."""
+    return escaped_literal(cut_masked(masked_name, NAME_CHARACTERS))
 
 
 def quoted_name_text(value: object) -> str:
@@ -217,7 +224,8 @@ def quoted_name_text(value: object) -> str:
 
 
 def free_text(value: object) -> str:
-    """A free text value: as it is when printable, else escaped."""
+    """A free text value: as it is when printable, else masked and escaped
+    (:func:`~pitloom.logging_config.loggable`)."""
     return loggable(plain_text(value))
 
 
@@ -242,10 +250,12 @@ def failure_text(value: object) -> str:
     ``strerror``, any other exception) and for the head of an
     :class:`http.client.InvalidURL`; an ``OSError`` with a ``strerror`` is
     shown as the OS wrote it (masked and cut, nothing dropped). Its class
-    name when nothing is left; the credentials of a URL in what is left
-    masked; then cut to :data:`FAILURE_CHARACTERS` characters (then ``...``): a
-    server's error page can be as long as it likes. Dropped before the cut,
-    so the cut is decided on the text shown. The text also reaches a
+    name when nothing is left. The credentials in it are masked before and
+    after the drop (:func:`~pitloom.logging_config.collapsed`): a drop can
+    glue a token to the word before it, or join two pieces of a URL's user
+    information. Then cut to :data:`FAILURE_CHARACTERS` characters (then
+    ``...``): a server's error page can be as long as it likes. Dropped
+    before the cut, so the cut is decided on the text shown. The text also reaches a
     library caller in an exception, past the log sink.
 
     Raises:
@@ -274,8 +284,9 @@ def joined(value: object) -> str:
 
 def entity_text(value: object) -> str:
     """An element's name or registry key as given: the credentials of a URL
-    in it masked (a dataset may be named by its URL), escaped when it holds
-    a control character.
+    in it masked (a dataset may be named by its URL), masked again as a
+    line and escaped when it holds a control character
+    (:func:`~pitloom.logging_config.loggable`).
 
     Raises:
         pitloom.core.internal_error.InternalError: It is not a ``str``.

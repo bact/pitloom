@@ -7,8 +7,9 @@
 or ``Basic`` scheme word (:mod:`pitloom.core.url_masking._auth_schemes`),
 masked in a log line, and the prose after such a word, kept.
 
-See also: test_url_masking_boundary.py (where a scheme word may start) in
-this folder.
+See also: test_url_masking_auth_schemes_breaks.py (a line break or a quote
+before the credential) and test_url_masking_boundary.py (where a scheme word
+may start) in this folder.
 """
 
 from __future__ import annotations
@@ -17,7 +18,6 @@ import pytest
 
 from pitloom.core.url_masking import _auth_schemes, masked_given_path
 from pitloom.log_masking import masked_text
-from pitloom.logging_config import loggable
 from pitloom.messages import escaped_name
 
 _JWT = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.sIg_-x9"
@@ -115,8 +115,8 @@ def test_the_credential_after_a_scheme_word_is_masked(text: str, shown: str) -> 
 def test_an_escaped_separator_once_or_doubled_is_a_separator(raw: str) -> None:
     """A tab, a no-break space or a line break after the scheme, escaped once
     or twice, still separates the credential, which is masked."""
-    # loggable() leaves printable text as it is: ascii() escapes it again.
-    for escaped in (loggable(raw), ascii(loggable(raw))):
+    # ascii(), the escaper, not loggable(), which may mask before it escapes.
+    for escaped in (ascii(raw), ascii(ascii(raw))):
         assert raw not in escaped
         shown = masked_text(escaped)
         secret = raw.split()[-1].rpartition("\xa0")[2].rpartition("\t")[2]

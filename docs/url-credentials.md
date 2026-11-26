@@ -52,7 +52,9 @@ A value of a [field read](#fields-read) holds a credential when it holds:
 - an access token's shape anywhere in it (GitHub, GitLab, Slack, Hugging Face,
   AWS key id, PyPI, npm, OpenAI, Anthropic and Google API key prefixes);
 - an scp-style address with a password (`alice:password@host:o/r`; a dotless
-  host such as `build:42@ci:linux` counts);
+  host such as `build:42@ci:linux` counts; the host starts after the last `@`,
+  as `git` reads it, so a password may hold, start or end with `@`:
+  `alice:pw@x@host:o/r`);
 - a query nested too deeply to read (more than 16 `?`), or a PURL qualifier
   still encoded after five decodes.
 
@@ -97,7 +99,13 @@ HTTP credential, keeping the scheme:
 - after an `Authorization` or `Proxy-Authorization` header name and `:` or `=`
   (quoted or not), the credential after `Bearer`, `Basic` or `token`, whatever
   its shape, and the `response=` (`Digest`) or `Signature=` (`AWS4-HMAC-SHA256`)
-  value on that line, also in escaped JSON. After another scheme (`Negotiate`,
+  value on that line, also in escaped JSON (escaped up to three times) and as
+  a `("Authorization", "...")` pair. The scheme and the credential may be
+  split by a line break of any kind or a terminal colour sequence
+  (`Authorization: Bearer` on one line, the credential on the next), unless
+  the next line starts with a header name, indented or not (`X-Other: 1` is
+  kept), and the credential may be quoted (`Bearer "***"`).
+  After another scheme (`Negotiate`,
   `NTLM`, `ApiKey`), or none (`Authorization: sk-live-abcdefgh12345678`), a
   value that looks random, as in the next point; `Authorization: denied for user
   x` is kept. A placeholder (`<token>`, `$GITHUB_TOKEN`) is kept; a word after
@@ -111,19 +119,53 @@ HTTP credential, keeping the scheme:
   `basic types/values`, `Basic tutorial2024`, `see Bearer RFC-6750-style`,
   `Basic Latin1Supplement`, `bearer requests.auth.HTTPBearer`, a file named
   `Bearer Token.txt`. A credential in a file name is masked with the extension
-  after it (`Bearer s3cr3tvalue99.gguf` prints `Bearer ***`).
+  after it (`Bearer s3cr3tvalue99.gguf` prints `Bearer ***`). A quoted
+  credential is masked inside its quotes (`Bearer "***"`); a quoted word is
+  prose (`Bearer "token"`).
+- after one of the header names `X-Api-Key`, `Api-Key`, `Private-Token`,
+  `Job-Token`, `X-Auth-Token`, `X-Access-Token`, `Access-Token`,
+  `X-Goog-Api-Key`, `X-Amz-Security-Token`, `X-Vault-Token`,
+  `Ocp-Apim-Subscription-Key`, `X-JFrog-Art-Api` or `X-Registry-Auth` (any
+  case; also as a JSON or Python dictionary key, escaped up to three times, or
+  a `("X-Api-Key", "...")` pair), the value up to white space, a quote, `,` or
+  `;`. Another name holding `Key` or `Token` (`Cache-Key`,
+  `Public-Key`, `Session-Id`) is kept. A placeholder (`<your key>`,
+  `${API_KEY}`) is kept.
+- after `Cookie:` or `Set-Cookie:`, the value of each `name=value` pair
+  (`Cookie: session=***; theme=***`), a quoted value whole; the cookie names
+  and the `Set-Cookie`
+  attributes (`Path=/`, `Max-Age=3600`, `HttpOnly`) are kept.
+
+A text is masked whole before it is put on one line, split into lines, cut
+or escaped, so a password split by a line break, a tab or another space character (a
+no-break space), or a token glued to a word once a request id is dropped, is
+masked too.
 
 They also mask a token, an scp-style password or a PURL qualifier right after
 an escape sequence Pitloom writes for a control character (`\t`, `\n`, `\r`,
-`\x1b`, `\u202e`, `\U000e0001`), as after white space. A token glued to plain
-letters (`abghp_...`) is not masked.
+`\x1b`, `\u202e`, `\U000e0001`), or right after a terminal colour sequence
+(`\x1b[33m`, `\x1b[1;33m`, `\x1b[38:5:196m`, `\x1b[K`, raw or escaped), as
+after white space.
+A token glued to plain letters (`abghp_...`, `2mghp_...`) is not masked.
 
 Over-masked, as a credential shown costs more than a word hidden: a backslash
 typed before a letter (a Windows folder `C:\tghp_...`) reads as an escape, so
 the name after it may be masked; after `Bearer` or `Basic`, a word that mixes
 letters and digits as a key does (`Bearer x86_64-linux`, `Bearer
 iPhone15Pro`, `Bearer t5-small`, `Bearer eCommerceSite`: one lower-case letter
-before capitals or digits) is masked.
+before capitals or digits) is masked. A word after a listed header name is
+masked as after `Authorization:` (`the X-Api-Key: header must be set` prints
+`X-Api-Key: *** must be set`). After `Authorization: Bearer` and a line break,
+the first word of the next line is masked even after a blank line, or when it
+is a quoted JSON key (`"next": 1`). A multi-line text is read whole before it
+is put on one line, so a URL on one line and an `@` on the next can read as
+one address (`https://example.org` then `admin@example.org` prints
+`https://***:***@example.org`; so do words joined only by no-break spaces),
+and a secret-named parameter with an empty value at a line end takes the next
+line as its value (`?token=` then `fatal: repository not found` prints
+`?token=***`), since that line may be the secret wrapped. Prose quoting a
+listed header name before another quoted word loses that word (`the
+"X-Api-Key", "Accept" headers` prints `"X-Api-Key", "***"`).
 
 ## What you see
 
@@ -321,8 +363,12 @@ credentials out of URLs:
   (`abcdefghij`, `Abcdefghijklmnop`), of one case or of words (`passw0rd`,
   `mySecretPassword`, `qwertyUIOP`), or with fewer digits at its end than
   letters; a `Basic` value that is not base64; a `Digest` or `AWS4-HMAC-SHA256`
-  header spread over lines; a quoted credential (`Bearer 'x'`); a `Cookie:` or
-  `X-Api-Key:` value. A known token shape is masked anywhere.
+  header spread over lines; a header name not in the list above
+  (`X-Custom-Token:`), a second word of a listed header's value, or its value
+  on the next line; a credential after a terminal colour sequence of more than
+  16 parameter characters, or after another kind of terminal sequence; a
+  credential after a control character that is no white space or line break
+  (`Authorization: Bearer\x00...`). A known token shape is masked anywhere.
 - Logs that are not Pitloom's own: a third-party library's warning or log line
   and a Hatchling traceback are not masked (`urllib3` and `requests` log lines
   are, once Pitloom has set up its logging), and a line break in a password can

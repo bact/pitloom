@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-11-25
+Last-Modified: 2026-11-26
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -182,10 +182,6 @@ counts are in [message-catalogue-migration-plan.md](message-catalogue-migration-
   [message-catalogue-review-rounds.md](../implementation/message-catalogue-review-rounds.md);
   also a NUL byte in a library registry path raises `InternalError`, and
   `test_each_view_is_linear` flaked twice on CI runners (bound now 64, retried).
-- [ ] **Log masker leftovers** (#526): ~50 `loggable(x)` log sites escape
-  first (zero-width-split token); a token after an ANSI colour (`\x1b[33m`);
-  non-ASCII/`@` scp passwords; `Cookie:`, `X-Api-Key:`; `Bearer 'x'`. See
-  [log-masker-escaped-tokens.md](../implementation/log-masker-escaped-tokens.md).
 - [ ] **PR 14a follow-ups** (round 5): the PDM
   discoverer's `pitloom-unused-<uuid>` directory, made by pdm-backend, is
   never removed (`_models_wheel_pdm.py:181`, `extract/project/pdm.py:160`);

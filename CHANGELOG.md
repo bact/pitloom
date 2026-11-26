@@ -158,6 +158,8 @@ and this project adheres to
   a non-method `content_type_method` or non-string `Creator.type` is `option-invalid` ([#536])
 - An `InternalError` in one wheel's check stops `verify-wheel`, `validate-wheel` and
   `embed-wheel --verify/--validate`, not said as that wheel's failure ([#542])
+- An scp-style address whose password holds `@` (`a:b@c@host:o/r`) is found as a
+  credential: refused or warned of in an SBOM ([#544])
 - An empty input path is `input-not-found` and an empty `-o`, `--project-dir` or
   `--id-registry` `option-invalid`: `merge ""`, `project ""` no longer read the cwd ([#545])
 - loom SDK calls check argument types (`TypeError`, `option-invalid`); an unknown
@@ -219,9 +221,11 @@ and this project adheres to
 - Rotate any credential an SBOM, wheel, registry file or log held (warn mode
   writes it); remove it from git credential stores (`git credential reject`)
   ([#487])
-- Log lines mask a token, scp password or PURL after an escape (`\t`, `\x1b`),
-  an `Authorization`, `Bearer` or `Basic` credential, in linear time ([#503],
-  [#526], [#543])
+- Log lines mask a token, scp password or PURL after an escape (`\t`, `\x1b`)
+  or colour code, an `Authorization`, `Bearer` or `Basic` credential, in linear
+  time ([#503], [#526], [#543], [#544])
+- Log lines mask listed API-key headers, cookie values, a quoted credential, and
+  a text before it is put on one line, split or escaped ([#544])
 
 [#481]: https://github.com/bact/pitloom/pull/481
 [#482]: https://github.com/bact/pitloom/pull/482
@@ -258,6 +262,7 @@ and this project adheres to
 [#540]: https://github.com/bact/pitloom/pull/540
 [#542]: https://github.com/bact/pitloom/pull/542
 [#543]: https://github.com/bact/pitloom/pull/543
+[#544]: https://github.com/bact/pitloom/pull/544
 [#545]: https://github.com/bact/pitloom/pull/545
 
 ## [0.24.0] - 2026-11-11

@@ -226,6 +226,29 @@ def test_a_long_marker_failure_is_cut_and_masked(
     assert line.endswith("; kept, its marker read as true [lock-entry-malformed]")
 
 
+@pytest.mark.parametrize("brk", ["\n", "\r\n", "\t"], ids=["lf", "crlf", "tab"])
+def test_cut_failure_masks_before_collapse(
+    brk: str, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A long failure's password holding a line break is masked whole; the
+    white space collapsed first, both halves would be shown."""
+    caplog.set_level(logging.WARNING)
+    text = f"see https://u:S3cr{brk}3tPw99x@h/x " + "y" * (2 * EXCERPT_CHARS)
+    say_lock_entry(
+        _LOG,
+        MARKER_LINE,
+        file="pylock.toml",
+        package="a",
+        lock_value="python_version > '3'",
+        failure=ValueError(text),
+    )
+    (line,) = _printed(caplog)
+    (record,) = caplog.records
+    for piece in ("S3cr", "3tPw99x"):
+        assert piece not in line and piece not in str(record.args)
+    assert "see https://***:***@h/x yyy" in line
+
+
 def test_the_memo_tells_two_locks_apart(caplog: pytest.LogCaptureFixture) -> None:
     caplog.set_level(logging.WARNING)
     memo: set[tuple[str, ...]] = set()
