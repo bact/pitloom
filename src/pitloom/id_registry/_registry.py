@@ -65,6 +65,7 @@ from pitloom.id_registry._types import (
 )
 from pitloom.id_registry.import_keys import import_keys, report_imported
 from pitloom.messages import CodedValueError, emit
+from pitloom.messages.config import Parameter, invalid_value
 from pitloom.messages.id_registry import MINT_LINE, REGISTRY_MALFORMED
 from pitloom.messages.id_registry_ids import (
     HASH_CHANGED_LINE,
@@ -77,7 +78,12 @@ from pitloom.messages.options import (
     PROJECT_ROOT_CONFLICT_LINE,
     namespace_conflict_line,
 )
-from pitloom.messages.targets import SBOM_INVALID, SBOM_NAMESPACE_LINE
+from pitloom.messages.targets import (
+    SBOM_INVALID,
+    SBOM_NAMESPACE_LINE,
+    is_empty_input,
+    refuse_empty_input,
+)
 from pitloom.messages.text import registry_name_error
 
 log = logging.getLogger("pitloom.id_registry")
@@ -190,7 +196,8 @@ class IdRegistry:
     ) -> IdRegistry:
         """Load a registry from *path*.
 
-        A file that is not there (or not a file) raises
+        A file that is not there (or not a file), or *path* given as
+        empty, raises
         :class:`~pitloom.messages.CodedFileNotFoundError`
         (``input-not-found``); every other failure raises a ``ValueError``
         carrying its code (:func:`~pitloom.id_registry._format.read_registry_file`);
@@ -217,6 +224,7 @@ class IdRegistry:
                 "ID registry file path must be a str or os.PathLike, "
                 f"not {type(path).__name__}"
             )
+        refuse_empty_input(path, "ID registry file")  # Path("") reads "."
         path = keep_spelling(Path(path), path)
         contents = read_registry_file(path)
         check_entries_credentials(contents.elements, path, refuse=refuse_credentials)
@@ -613,10 +621,17 @@ class IdRegistry:
         With no :attr:`project_root` yet, the registry file's directory
         becomes the project root. Raises ``ValueError`` when there is no
         path, or when the project root cannot be stored relative to it.
+
+        Raises:
+            pitloom.messages.CodedValueError: *path* (else :attr:`path`) is
+                given as empty (``option-invalid``, ``non-empty``), which
+                :class:`pathlib.Path` would read as the current directory.
         """
-        target = path or self.path
+        target = self.path if path is None else path
         if target is None:
             raise ValueError("No path given and registry has no default path")
+        if is_empty_input(target):
+            raise invalid_value(Parameter("path"), "non-empty", got="")
         root = (
             self.project_root if self.project_root is not None else registry_dir(target)
         )

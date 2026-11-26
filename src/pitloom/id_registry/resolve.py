@@ -17,7 +17,7 @@ import itertools
 import os
 from pathlib import Path, PurePath
 
-from pitloom.core.current_dir import current_dir
+from pitloom.core.current_dir import absolute_path, current_dir
 from pitloom.core.given_path import GivenPath, TypedPath, given_spelling
 from pitloom.core.path_confine import is_inside
 from pitloom.core.walk_rules import PROJECT_FILES, RegistryCopy
@@ -64,7 +64,7 @@ def _project_dir_of(registry: Path, stored_root: Path) -> Path:
     *stored_root*. A monorepo registry stores the repository as its root,
     while each archive is built from one project below it."""
     root = PurePath(stored_root)
-    parents = PurePath(os.path.abspath(registry)).parents
+    parents = PurePath(os.path.normpath(absolute_path(registry))).parents
     inside = itertools.takewhile(lambda parent: is_inside(parent, root), parents)
     return next(
         (
@@ -158,7 +158,8 @@ def resolve_registry(
     if path.is_absolute():
         resolved = path
     else:
-        resolved = (current_dir() if base_dir is None else base_dir).resolve() / path
+        resolved = current_dir() if base_dir is None else absolute_path(base_dir)
+        resolved = resolved.resolve() / path
     if not is_input_file(resolved, shown=given_spelling(source)):
         # Named as given, never as resolved: no absolute or temporary path.
         raise input_not_found("ID registry file", given_spelling(source), at=resolved)

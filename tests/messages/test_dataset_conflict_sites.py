@@ -16,6 +16,7 @@ See also: :mod:`tests.messages.test_datasets` (the entry) and
 from __future__ import annotations
 
 import logging
+import re
 import struct
 from pathlib import Path
 from typing import Any
@@ -24,7 +25,12 @@ import pytest
 
 from pitloom.assemble.spdx3.dataset import dataset_model
 from pitloom.assemble.spdx3.document import build_model
-from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
+from pitloom.core.ai_metadata import (
+    MAX_MODEL_NAME_CHARS,
+    AiModelFormat,
+    AiModelFormatInfo,
+    AiModelMetadata,
+)
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.dataset_metadata import DatasetMetadata, DatasetReference
 from pitloom.logging_config import CODE_ATTR
@@ -38,6 +44,8 @@ pytestmark = pytest.mark.platform
 
 _CREATED = CreationMetadata(creation_datetime="2026-01-01T00:00:00Z")
 _TAIL = "references differ; kept the first"
+#: The ``FILE=`` value of a conflict line or a model's over-cap line.
+_FILE_FIELD = r"FILE=(.*?)(?: DATASET=|: larger)"
 
 
 def _text(key: str, value: str) -> bytes:
@@ -149,3 +157,37 @@ def test_the_model_is_named_by_its_first_stated_path(
     """An empty path is no path: the next one names the model."""
     info = AiModelFormatInfo(model_format=AiModelFormat.GGUF, **paths)
     assert dataset_model(AiModelMetadata(format_info=info)) == expected
+
+
+@pytest.mark.parametrize(
+    "paths",
+    [
+        {"physical_path": "p/m.gguf", "file_name": "m.gguf"},
+        {"file_path_relative": "r/m.gguf", "file_name": "m.gguf"},
+        {"file_name": "m.gguf"},
+        {"physical_path": "p q/m\n.gguf", "url": "https://x.org/m"},
+    ],
+    ids=["physical", "relative", "file-name", "hostile"],
+)
+def test_a_conflict_names_the_model_as_its_own_warnings_do(
+    caplog: pytest.LogCaptureFixture, paths: dict[str, Any]
+) -> None:
+    """Drift guard: the ``dataset-conflict`` line and the model's own
+    ``over-cap`` line (``_model_where``) give one ``FILE=`` value."""
+    url = paths.pop("url", None)
+    info = AiModelFormatInfo(model_format=AiModelFormat.GGUF, **paths)
+    model = _two_releases(format_info=info, url=url)
+    long_name = "d" * (MAX_MODEL_NAME_CHARS + 1)
+    model.datasets = [
+        DatasetReference(ref.role, DatasetMetadata(name=long_name, version=v))
+        for ref, v in zip(model.datasets, ("1", "2"))
+    ]
+    with caplog.at_level(logging.WARNING):
+        build_model(model, _CREATED)
+    files = {
+        getattr(r, CODE_ATTR): re.search(_FILE_FIELD, r.getMessage())
+        for r in caplog.records
+        if getattr(r, CODE_ATTR, None) in ("dataset-conflict", "over-cap")
+    }
+    conflict, cap = files["dataset-conflict"], files["over-cap"]
+    assert conflict and cap and conflict[1] == cap[1]

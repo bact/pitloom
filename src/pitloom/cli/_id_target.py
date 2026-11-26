@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import NamedTuple
 
 from pitloom.core.config import PitloomConfig
+from pitloom.core.current_dir import absolute_path
 from pitloom.core.given_path import GivenPath, TypedPath, keep_spelling
 from pitloom.core.walk_rules import PROJECT_FILES
 from pitloom.extract.project import read_project
@@ -132,11 +133,13 @@ def resolve_dataset_hash_ceiling(
 
 
 def _normalized_absolute(path: Path) -> Path:
-    """``path.absolute()``, then ``os.path.normpath()`` to collapse
-    lexical ``..``/``.`` segments for display -- never ``.resolve()``,
+    """*path* made absolute
+    (:func:`~pitloom.core.current_dir.absolute_path`), then
+    ``os.path.normpath()`` to collapse lexical ``..``/``.`` segments for
+    display -- never ``.resolve()``,
     which would also follow a symlink (see the dangling-symlink note in
     :func:`_resolve_id_registry_target`)."""
-    return Path(os.path.normpath(path.absolute()))
+    return Path(os.path.normpath(absolute_path(path)))
 
 
 def _no_id_registry_declared_error(table: str) -> ValueError:

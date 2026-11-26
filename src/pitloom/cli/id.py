@@ -31,7 +31,7 @@ from pitloom.cli._path_args import non_empty_path
 from pitloom.cli.commands.utils import cli_error_handler
 from pitloom.cli.kv_output import print_kv
 from pitloom.cli.options import positive_byte_ceiling
-from pitloom.core.current_dir import current_dir
+from pitloom.core.current_dir import absolute_path, current_dir
 from pitloom.core.given_path import TypedPath, keep_spelling
 from pitloom.id_registry import (
     IdRegistry,
@@ -249,7 +249,7 @@ def _run_id_generate(args: argparse.Namespace) -> int:
     """Run `loom id generate`."""
     if args.namespace is not None:
         require_registry_namespace(args.namespace)  # before any file is read
-    project_dir: Path = (args.project_dir or current_dir()).resolve()
+    project_dir: Path = absolute_path(args.project_dir or current_dir()).resolve()
     if not is_input_dir(project_dir, shown=args.project_dir or project_dir):
         say_input_not_found("project directory", args.project_dir or project_dir)
         return 1
@@ -278,12 +278,12 @@ def _run_id_generate(args: argparse.Namespace) -> int:
 def _run_id_import(args: argparse.Namespace) -> int:
     """Run `loom id import`."""
     refuse_empty_input(args.sbom, "SBOM file")
-    sbom_path: Path = args.sbom.resolve()
+    sbom_path: Path = absolute_path(args.sbom).resolve()
     if not is_input_file(sbom_path, shown=args.sbom):
         say_input_not_found("SBOM file", args.sbom)
         return 1
 
-    project_dir: Path = (args.project_dir or current_dir()).resolve()
+    project_dir: Path = absolute_path(args.project_dir or current_dir()).resolve()
     if not is_input_dir(project_dir, shown=args.project_dir or project_dir):
         say_input_not_found("project directory", args.project_dir or project_dir)
         return 1

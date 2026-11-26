@@ -30,6 +30,7 @@ from collections.abc import Mapping
 from types import MappingProxyType
 from typing import Final
 
+from pitloom.core.current_dir import current_dir
 from pitloom.core.given_path import given_spelling
 from pitloom.core.internal_error import InternalError
 from pitloom.core.path_probe import stat_if_present
@@ -111,17 +112,23 @@ def _input_stat(
     Raises:
         pitloom.messages.CodedValueError: The system will not let Pitloom
             look (a directory above *path* without search permission, an
-            I/O error): ``file-unreadable``, naming *shown*, else *path*.
+            I/O error): ``file-unreadable``, naming *shown*, else *path*;
+            or a relative *path* is not there because the current directory
+            is gone or not readable (``file-unreadable``, ``DIR=.``).
     """
     if is_empty_input(path if shown is None else shown):
         return None
     try:
-        return stat_if_present(path)
+        found = stat_if_present(path)
     except ValueError:
         return None
     except OSError as exc:
         named = path if shown is None else shown
         raise file_unreadable_error(exc, file=named, use=INPUT_USE) from exc
+    if found is None and not os.path.isabs(path):
+        # Not there may mean no current directory to look in: say that.
+        current_dir()
+    return found
 
 
 def input_exists(
