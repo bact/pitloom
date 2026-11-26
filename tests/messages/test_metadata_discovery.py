@@ -33,7 +33,12 @@ from pitloom.core._models_wheel_types import IncludedFile, warn_discovery_failed
 from pitloom.core.build_options import BuildOptions
 from pitloom.core.models import get_wheel_files
 from pitloom.logging_config import CODE_ATTR
-from pitloom.messages import trusted_message
+from pitloom.messages import (
+    SURFACE_CLI,
+    SURFACE_LIBRARY,
+    advice_surface,
+    trusted_message,
+)
 from pitloom.messages.file_discovery import warn_discovery
 from tests._code_records import coded
 from tests.build_and_read_shared import make_backend_project
@@ -274,6 +279,26 @@ def test_a_backend_without_a_discoverer_says_so_with_its_hint_and_build_failure(
     assert all(m.startswith("Build: ") for m in invoked)
     assert all("BuildOptions.allow runs a PEP 517 build" in m for m in invoked)
     assert bool(invoked) is allow_build
+
+
+@pytest.mark.parametrize(
+    ("surface", "ask"),
+    [
+        (SURFACE_CLI, "pass --allow-build"),
+        (SURFACE_LIBRARY, "pass BuildOptions(allow=True)"),
+    ],
+    ids=["cli", "library"],
+)
+def test_the_uv_hint_asks_for_a_build_as_the_surface_spells_it(
+    surface: str, ask: str, tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    _uv_project(tmp_path, project=True, overrides='wheel-exclude = ["a/**"]')
+    with caplog.at_level(logging.WARNING, logger="pitloom"), advice_surface(surface):
+        get_wheel_files(tmp_path)
+    (hint,) = [m for _, m in _discovery(caplog) if _UV_HINT in m]
+    assert hint == (
+        f"DIR={tmp_path}: {_UV_HINT}; {ask} for an exact file list from a real build"
+    )
 
 
 @pytest.mark.parametrize("backend", ["mesonpy", "maturin", "my_backend"])

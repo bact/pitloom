@@ -47,9 +47,7 @@ from pitloom.messages._model_stub import (
     MODEL_WRONG_FORMAT,
     NOT_A_MODEL_LINE,
     READER_UNSAFE,
-    READER_UNSAFE_PYPI_LINE,
     READER_UNSAFE_REMOTE,
-    READER_UNSAFE_REMOTE_LINE,
     READER_UNSAFE_TWINS,
 )
 from pitloom.messages._usage_unparseable import (
@@ -91,9 +89,7 @@ __all__ = [
     "MODEL_WRONG_FORMAT",
     "NOT_A_MODEL_LINE",
     "READER_UNSAFE",
-    "READER_UNSAFE_PYPI_LINE",
     "READER_UNSAFE_REMOTE",
-    "READER_UNSAFE_REMOTE_LINE",
     "READER_UNSAFE_TWINS",
     "USAGE_HINTS",
     "USAGE_TARGET_PROJECT",

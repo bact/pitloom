@@ -50,9 +50,8 @@ _WHEEL_HINT_ONE = {
     "cli": "Found 1 AI model file(s); pass --scan-model-usage (or set "
     "scan-model-usage = true in a --config file) to also record which Python "
     "files reference them.",
-    "lib": "Found 1 AI model file(s); pass scan_model_usage=True (or set "
-    "scan-model-usage = true in pitloom_config) to also record which Python "
-    "files reference them.",
+    "lib": "Found 1 AI model file(s); set scan_model_usage=True (or set it "
+    "in pitloom_config) to also record which Python files reference them.",
 }
 _MEMBERS = {
     f"demo/{_MODEL}": safetensors_bytes(),

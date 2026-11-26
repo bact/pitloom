@@ -37,6 +37,7 @@ from pitloom.messages import (
     SURFACES,
     CodedValueError,
     Line,
+    Summary,
     Twins,
     advice_surface,
     current_surface,
@@ -105,6 +106,18 @@ def test_twins_of_another_level_or_fields_are_refused(other: Line) -> None:
         Twins(cli=_A, library=other, hook=_A)
 
 
+def test_summary_twins_naming_other_fields_are_refused() -> None:
+    """A summary has no level: its fields alone tell the shapes apart."""
+
+    def summary(template: str) -> Summary:
+        return Summary(template=template, meaning="A test.", topic="models")
+
+    one = summary("Found %(number)s things.")
+    with pytest.raises(ValueError, match="different levels or fields"):
+        Twins.no_hook(cli=one, library=summary("Found %(count)s things."))
+    assert Twins.no_hook(cli=one, library=summary("%(number)s found.")).members
+
+
 def test_a_line_the_hook_cannot_reach_raises_only_when_strict() -> None:
     twins = Twins.no_hook(cli=_A, library=_B)
     assert twins.hook is _B and not twins.hook_reachable
@@ -118,6 +131,14 @@ def test_a_line_the_hook_cannot_reach_raises_only_when_strict() -> None:
         with strict_surfaces():
             with pytest.raises(InternalError):
                 twins.for_surface(SURFACE_HOOK)
+
+        def after_a_strict_block() -> Line:
+            """A strict block ends: the library's wording again."""
+            with strict_surfaces():
+                pass
+            return twins.for_surface(SURFACE_HOOK)
+
+        assert contextvars.Context().run(after_a_strict_block) is _B
 
 
 @pytest.mark.parametrize(

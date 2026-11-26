@@ -159,7 +159,7 @@ Where the build differs from the design below:
     Now the same formats are gated by the same `reader_gate` and lifted by
     the same `--trust-model-files`, but the line is
     `reader-unsafe/remote`'s second one, naming the file
-    (`READER_UNSAFE_PYPI_LINE`: `FILE=<file>: AI models in these formats are
+    (`READER_UNSAFE_PYPI_LINES`, its CLI wording: `FILE=<file>: AI models in these formats are
     listed without metadata, their reader not being run on a downloaded
     file: ...; pass --trust-model-files for a release you trust`). The Git
     line keeps its bytes (no `file` value selects it). The switch is

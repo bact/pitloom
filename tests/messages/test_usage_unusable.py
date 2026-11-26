@@ -44,7 +44,7 @@ _END = " to also record which Python files reference them."
         (
             USAGE_TARGET_PROJECT,
             SURFACE_LIBRARY,
-            "pass scan_model_usage=True (or set scan-model-usage = true)",
+            "set scan_model_usage=True (or set scan-model-usage = true)",
         ),
         (
             USAGE_TARGET_PROJECT,
@@ -60,8 +60,7 @@ _END = " to also record which Python files reference them."
         (
             USAGE_TARGET_WHEEL,
             SURFACE_LIBRARY,
-            "pass scan_model_usage=True (or set scan-model-usage = true in "
-            "pitloom_config)",
+            "set scan_model_usage=True (or set it in pitloom_config)",
         ),
     ],
     ids=[

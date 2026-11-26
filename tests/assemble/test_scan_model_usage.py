@@ -49,7 +49,7 @@ _HINT_TAIL = " to also record which Python files reference them."
 _HINT_ONE = {
     "cli": "Found 1 AI model file(s); pass --scan-model-usage "
     f"(or set scan-model-usage = true){_HINT_TAIL}",
-    "lib": "Found 1 AI model file(s); pass scan_model_usage=True "
+    "lib": "Found 1 AI model file(s); set scan_model_usage=True "
     f"(or set scan-model-usage = true){_HINT_TAIL}",
     "hatch": "Found 1 AI model file(s); set scan-model-usage = true in "
     f"[tool.pitloom]{_HINT_TAIL}",
@@ -358,7 +358,7 @@ def test_multi_wheel_embed_hints_at_most_once_per_run(
 
 
 @pytest.mark.parametrize(
-    "said", ["pass --scan-model-usage", "pass scan_model_usage=True"]
+    "said", ["pass --scan-model-usage", "set scan_model_usage=True"]
 )
 def test_hint_text_has_one_source(said: str) -> None:
     root = Path(pitloom_file).parent

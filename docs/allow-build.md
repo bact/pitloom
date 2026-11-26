@@ -271,11 +271,10 @@ or a non-`int` `timeout` raises `TypeError`; a `timeout` outside 1 to
 target other than a project directory, or `no_isolation`/`timeout`
 without `allow` -- logs one `WARNING: Build: ...` line per field
 (`[option-no-effect]`),
-naming the field by its CLI flag spelling (e.g. `--build-timeout`)
-followed by "has no effect" and the reason -- even when `BuildOptions`
-was constructed directly and no CLI flag was ever typed. Intentional:
-the same warning stays recognisable and grep-able regardless of which
-surface (CLI, library API, ...) triggered it. Logged as early as
+naming the field as the caller gave it (`BuildOptions.timeout has no
+effect without BuildOptions.allow`); the command line names its flags
+instead (`--build-timeout`, `--allow-build`). The code is the same on
+both. Logged as early as
 possible on every surface -- before any project-metadata or lock-file
 `WARNING:` a project directory target might also trigger -- so it's
 never buried later in a run's output.

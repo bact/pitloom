@@ -12,6 +12,7 @@ tests/core/test_inert_options.py (which options a target cannot use).
 
 from __future__ import annotations
 
+import contextvars
 import re
 import string
 
@@ -26,6 +27,12 @@ from pitloom.core.option_names import (
     option_name,
 )
 from pitloom.messages import SURFACE_CLI, SURFACE_HOOK, SURFACE_LIBRARY, advice_surface
+
+
+def _on_the_hook(param: str) -> str:
+    """*param* as the hook names it."""
+    with advice_surface(SURFACE_HOOK):
+        return option_name(param)
 
 
 @pytest.mark.parametrize(
@@ -58,10 +65,13 @@ def test_an_option_is_named_as_the_surface_spells_it(
         assert option_name(param) == cli
     with advice_surface(SURFACE_LIBRARY):
         assert option_name(param) == library
-    # The hook settles configured keys only; a call names the library's.
-    with advice_surface(SURFACE_HOOK):
-        assert option_name(param) == library
     assert option_name(param) == library  # the default surface
+    # The hook settles configured keys only: a parameter there is a
+    # programming error the suite refuses (strict); a build says the
+    # library's name rather than fail.
+    with pytest.raises(InternalError, match="cannot reach"):
+        _on_the_hook(param)
+    assert contextvars.Context().run(_on_the_hook, param) == library
 
 
 @pytest.mark.parametrize("surface", [SURFACE_CLI, SURFACE_LIBRARY, SURFACE_HOOK])
@@ -86,11 +96,33 @@ def test_an_unknown_option_is_a_programming_error() -> None:
         named_reason("without {no_such_option}")
 
 
-def test_a_reason_names_its_option_when_said() -> None:
-    reason = build_options.EXTERNAL_SBOM_REASON
+@pytest.mark.parametrize(
+    ("reason", "cli", "library"),
+    [
+        (
+            build_options.EXTERNAL_SBOM_REASON,
+            "for an externally-supplied --sbom (",
+            "for an externally-supplied sbom_path (",
+        ),
+        (
+            inert_options.INERT[inert_options.EMBED_PROJECT]["trust_model_files"],
+            "with --project-dir (AI models are read from the project, not the wheel)",
+            "with project_dir (AI models are read from the project, not the wheel)",
+        ),
+        (
+            inert_options.INERT[inert_options.ENRICH_STANDALONE]["use_lockfile"],
+            "without --project-dir ",
+            "without project_target ",
+        ),
+    ],
+    ids=["sbom", "embed-project", "enrich-standalone"],
+)
+def test_a_reason_names_its_option_when_said(
+    reason: str, cli: str, library: str
+) -> None:
     with advice_surface(SURFACE_CLI):
-        assert named_reason(reason).startswith("for an externally-supplied --sbom (")
-    assert named_reason(reason).startswith("for an externally-supplied sbom_path (")
+        assert named_reason(reason).startswith(cli)
+    assert named_reason(reason).startswith(library)
 
 
 def _reasons() -> list[str]:

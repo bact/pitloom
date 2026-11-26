@@ -7,10 +7,11 @@
 line's action names what the user can change where they ran Pitloom (a
 command-line flag, a library parameter, a ``[tool.pitloom]`` key).
 
-Each entry point opens :func:`advice_surface` once: ``__main__.main()``
-(:data:`SURFACE_CLI`; the GitHub Action runs the command line) and the
-Hatchling build hook (:data:`SURFACE_HOOK`); a library call, ``loom.run()``
-included, keeps the default, :data:`SURFACE_LIBRARY`. A line said on
+The entry points open :func:`advice_surface`: ``__main__.main()`` and
+``cli_error_handler`` (:data:`SURFACE_CLI`; the GitHub Action runs the
+command line) and the Hatchling build hook (:data:`SURFACE_HOOK`); a
+library call, ``loom.run()`` included, keeps the default,
+:data:`SURFACE_LIBRARY`. A line said on
 several surfaces is a :class:`Twins`, resolved where it is said
 (:func:`pitloom.messages.emit`, :class:`pitloom.messages.CodedValueError`,
 :func:`pitloom.messages.say_summary`), never picked by a call site.
@@ -20,8 +21,8 @@ The surface is a :class:`contextvars.ContextVar`: a thread started with
 ``thread_inherit_context`` flag is set), so a twinned line is said on the
 thread that entered the surface.
 
-See also: :mod:`pitloom.core.inert_options` (:func:`option_name`, an
-option as each surface spells it).
+See also: :mod:`pitloom.core.option_names` (an option as each surface
+spells it).
 """
 
 from __future__ import annotations
@@ -33,6 +34,7 @@ from dataclasses import dataclass
 from typing import Final, Generic, TypeVar
 
 from pitloom.core.internal_error import InternalError
+from pitloom.messages._templates import template_names
 
 #: The command line (each ``loom`` command, the GitHub Action).
 SURFACE_CLI: Final = "cli"
@@ -87,6 +89,19 @@ def strict_surfaces() -> Iterator[None]:
         _STRICT.reset(token)
 
 
+def unreachable_on_hook(what: str) -> None:
+    """Under :func:`strict_surfaces`, refuse *what*, which the hook was
+    ruled unable to say (the caller checked the surface is the hook);
+    otherwise return, and the caller says the library's wording.
+
+    Raises:
+        pitloom.core.internal_error.InternalError: :func:`strict_surfaces`
+            is open.
+    """
+    if _STRICT.get():
+        raise InternalError(f"the hook said a line it cannot reach: {what}")
+
+
 _T = TypeVar("_T")
 
 
@@ -113,7 +128,10 @@ class Twins(Generic[_T]):
     def __post_init__(self) -> None:
         """Check that one call can say any member."""
         shapes = {
-            (getattr(member, "level", None), getattr(member, "fields", None))
+            (
+                getattr(member, "level", None),
+                frozenset(template_names(getattr(member, "template", ""))),
+            )
             for member in self.members
         }
         if len(shapes) != 1:
@@ -150,10 +168,8 @@ class Twins(Generic[_T]):
         if surface == SURFACE_CLI:
             return self.cli
         if surface == SURFACE_HOOK:
-            if not self.hook_reachable and _STRICT.get():
-                raise InternalError(
-                    f"the hook said a line it cannot reach: {self.hook!r}"
-                )
+            if not self.hook_reachable:
+                unreachable_on_hook(repr(self.hook))
             return self.hook
         if surface == SURFACE_LIBRARY:
             return self.library
@@ -169,4 +185,5 @@ __all__ = [
     "advice_surface",
     "current_surface",
     "strict_surfaces",
+    "unreachable_on_hook",
 ]

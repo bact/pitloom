@@ -113,11 +113,11 @@ _UV_OVERRIDES: Final = (
 )
 _REAL_BUILD: Final = " for an exact file list from a real build"
 #: uv_build overrides the heuristic does not read, without --allow-build.
-UV_OVERRIDES_LINE: Final = _line(f"{_UV_OVERRIDES}--allow-build{_REAL_BUILD}")
+_UV_OVERRIDES_LINE: Final = _line(f"{_UV_OVERRIDES}--allow-build{_REAL_BUILD}")
 #: The same, as each surface asks for a build (the hook never builds; it
 #: reads a Hatchling project).
 UV_OVERRIDES_LINES: Final = Twins.no_hook(
-    cli=UV_OVERRIDES_LINE,
+    cli=_UV_OVERRIDES_LINE,
     library=Line(
         level="WARNING",
         template=f"DIR=%(dir)s: {_UV_OVERRIDES}BuildOptions(allow=True){_REAL_BUILD}",

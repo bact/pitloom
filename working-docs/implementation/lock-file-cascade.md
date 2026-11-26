@@ -60,9 +60,7 @@ class _LockSource(NamedTuple):
 _LOCK_SOURCES: list[_LockSource] = [
     _LockSource("pylock.toml", ..., extract_pylock_hashes, "resolved_lockfile"),
     _LockSource("uv.lock", ..., extract_uv_lock_hashes, "resolved_lockfile", ...),
-    _LockSource(
-        "poetry.lock", ..., extract_poetry_lock_hashes, "resolved_lockfile", ...
-    ),
+    _LockSource("poetry.lock", ..., extract_poetry_lock_hashes, "resolved_lockfile", ...),
     _LockSource("pdm.lock", ..., extract_pdm_lock_hashes, "resolved_lockfile", ...),
     _LockSource("Pipfile.lock", ..., extract_pipfile_lock_hashes, "resolved_lockfile"),
     _LockSource("requirements.txt", ..., None, "pinned_requirements"),

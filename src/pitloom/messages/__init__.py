@@ -113,6 +113,7 @@ from pitloom.messages._surface import (
     advice_surface,
     current_surface,
     strict_surfaces,
+    unreachable_on_hook,
 )
 from pitloom.messages._topics import FAMILY_TOPICS, TOPIC_TITLES, topic_of
 from pitloom.messages._types import (
@@ -199,6 +200,7 @@ __all__ = [
     "says",
     "size_text",
     "strict_surfaces",
+    "unreachable_on_hook",
     "topic_of",
     "trusted_message",
     "url_text",

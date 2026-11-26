@@ -28,7 +28,13 @@ from types import MappingProxyType
 from typing import Final
 
 from pitloom.core.internal_error import InternalError
-from pitloom.messages import SURFACE_CLI, SURFACE_LIBRARY, current_surface
+from pitloom.messages import (
+    SURFACE_CLI,
+    SURFACE_HOOK,
+    SURFACE_LIBRARY,
+    current_surface,
+    unreachable_on_hook,
+)
 from pitloom.messages.build import (
     ALLOW_BUILD_NAMES,
     BUILD_TIMEOUT_NAMES,
@@ -83,14 +89,16 @@ REASON_NAMES: Final[Mapping[str, tuple[str, str]]] = MappingProxyType(
 def option_name(param: str, *, configured: bool = False) -> str:
     """*param* (a key of :data:`PARAM_TO_FLAG` or :data:`REASON_NAMES`) as
     the surface that runs spells it: its flag on the command line, else its
-    library name. *configured*: a setting read from ``[tool.pitloom]``,
-    named by its dotted TOML key on every surface
-    (``tool.pitloom.describe-relationship``), one token as the line's
-    ``option`` field takes it.
+    library name; the hook, which settles configured keys only, says the
+    library name outside :func:`pitloom.messages.strict_surfaces`.
+    *configured*: a setting read from ``[tool.pitloom]``, named by its
+    dotted TOML key on every surface (``tool.pitloom.describe-relationship``),
+    one token as the line's ``option`` field takes it.
 
     Raises:
         pitloom.core.internal_error.InternalError: *param* is in neither
-            table.
+            table, or the hook names a parameter under
+            :func:`pitloom.messages.strict_surfaces`.
     """
     if param in REASON_NAMES:
         flag, library = REASON_NAMES[param]
@@ -100,7 +108,14 @@ def option_name(param: str, *, configured: bool = False) -> str:
         raise InternalError(f"no option name for {param!r}")
     if configured:
         return f"tool.pitloom.{param.replace('_', '-')}"
-    return flag if current_surface() == SURFACE_CLI else library
+    surface = current_surface()
+    if surface == SURFACE_CLI:
+        return flag
+    if surface == SURFACE_HOOK:
+        # The hook settles configured keys only: a parameter is no hook
+        # setting.
+        unreachable_on_hook(f"the option {param!r}")
+    return library
 
 
 class _Names(dict[str, str]):

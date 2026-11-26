@@ -177,6 +177,8 @@ and this project adheres to
   `ELEMENT=`, a quoted `MODEL=`, an sdist member as `FILE=` ([#553])
 - A licence file holding several licence texts (numpy's `LICENSE.txt`) gives no
   detected licence, stated or not, and no later licence file is read ([#554])
+- A message's advice names the flag, library parameter (`BuildOptions.timeout`)
+  or `[tool.pitloom]` key of the surface that ran ([#556])
 
 ### Fixed
 
@@ -287,6 +289,7 @@ and this project adheres to
 [#553]: https://github.com/bact/pitloom/pull/553
 [#554]: https://github.com/bact/pitloom/pull/554
 [#555]: https://github.com/bact/pitloom/pull/555
+[#556]: https://github.com/bact/pitloom/pull/556
 
 ## [0.24.0] - 2026-11-11
 

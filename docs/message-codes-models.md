@@ -376,21 +376,21 @@ there is nothing to do.
   library parameter or the [tool.pitloom] key of the surface that runs.
 
   ```text
-  INFO: Found <number> AI model file(s); pass scan_model_usage=True (or set scan-model-usage = true in pitloom_config) to also record which Python files reference them.
-  ```
-
-- Models were found and the usage scan is off: it reads every Python file for
-  references to them only on request. Said once per run, naming the flag, the
-  library parameter or the [tool.pitloom] key of the surface that runs.
-
-  ```text
-  INFO: Found <number> AI model file(s); pass scan_model_usage=True (or set scan-model-usage = true) to also record which Python files reference them.
-  ```
-
-- Models were found and the usage scan is off: it reads every Python file for
-  references to them only on request. Said once per run, naming the flag, the
-  library parameter or the [tool.pitloom] key of the surface that runs.
-
-  ```text
   INFO: Found <number> AI model file(s); set scan-model-usage = true in [tool.pitloom] to also record which Python files reference them.
+  ```
+
+- Models were found and the usage scan is off: it reads every Python file for
+  references to them only on request. Said once per run, naming the flag, the
+  library parameter or the [tool.pitloom] key of the surface that runs.
+
+  ```text
+  INFO: Found <number> AI model file(s); set scan_model_usage=True (or set it in pitloom_config) to also record which Python files reference them.
+  ```
+
+- Models were found and the usage scan is off: it reads every Python file for
+  references to them only on request. Said once per run, naming the flag, the
+  library parameter or the [tool.pitloom] key of the surface that runs.
+
+  ```text
+  INFO: Found <number> AI model file(s); set scan_model_usage=True (or set scan-model-usage = true) to also record which Python files reference them.
   ```

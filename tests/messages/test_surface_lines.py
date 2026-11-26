@@ -23,12 +23,13 @@ import pytest
 
 from pitloom import __main__
 from pitloom.assemble import generate_project_sbom
-from pitloom.core.ai_metadata import AiModelFormat
 from pitloom.core.build_options import BuildOptions
 from pitloom.logging_config import configure_logging
+from tests._wheel_models import safetensors_bytes
 from tests.extract.conftest import make_hook, write_pyproject_with_pitloom_config
 
-_GGUF = (AiModelFormat.GGUF.magic or b"") + b"\0" * 16
+# Projects on disk, paths in the lines and the real hook: every OS runs it.
+pytestmark = pytest.mark.platform
 
 
 @pytest.fixture(autouse=True)
@@ -151,7 +152,7 @@ def test_the_hook_names_a_setting_it_never_acts_on_by_its_key(
     ("surface", "how"),
     [
         ("cli", "pass --scan-model-usage (or set scan-model-usage = true)"),
-        ("library", "pass scan_model_usage=True (or set scan-model-usage = true)"),
+        ("library", "set scan_model_usage=True (or set scan-model-usage = true)"),
         ("hook", "set scan-model-usage = true in [tool.pitloom]"),
     ],
     ids=["cli", "library", "hook"],
@@ -164,7 +165,7 @@ def test_the_usage_hint_names_each_surface_s_way_to_scan(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     project = _project(tmp_path / "p")
-    (project / "testpkg" / "m.gguf").write_bytes(_GGUF)
+    (project / "testpkg" / "m.safetensors").write_bytes(safetensors_bytes())
     if surface == "cli":
         out = str(tmp_path / "a.json")
         lines = _cli(monkeypatch, capsys, "project", str(project), "-o", out)

@@ -358,7 +358,8 @@ def scan_wheel_for_ai_models(
 
     A model in a :data:`WHEEL_GATED_FORMATS` format is not read unless
     *trust*: it stays in the result without metadata, and one ``INFO:``
-    line per scan names the flag and lists the gated formats met that
+    line per scan names the switch as the surface spells it and lists the
+    gated formats met that
     *gate_hint* accepts (called once per format; a batch makes it claim a
     once-per-run slot for that format, so each format is named once). The
     line is ``reader-unsafe``'s, or for a wheel downloaded from a PyPI URL

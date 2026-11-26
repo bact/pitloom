@@ -69,7 +69,7 @@ _HINT_MEANING: Final = (
 )
 #: How each surface turns the scan on.
 _PASS_FLAG: Final = "pass --scan-model-usage"
-_PASS_PARAMETER: Final = "pass scan_model_usage=True"
+_SET_PARAMETER: Final = "set scan_model_usage=True"
 _SETTING: Final = "scan-model-usage = true"
 
 #: A project's hint (a sdist or an installed environment too) on each
@@ -80,7 +80,7 @@ USAGE_HINT_PROJECT_CLI: Final = Summary(
     topic="models",
 )
 USAGE_HINT_PROJECT_LIBRARY: Final = Summary(
-    template=f"{_HINT_START}{_PASS_PARAMETER} (or set {_SETTING}){_HINT_END}",
+    template=f"{_HINT_START}{_SET_PARAMETER} (or set {_SETTING}){_HINT_END}",
     meaning=_HINT_MEANING,
     topic="models",
 )
@@ -97,8 +97,7 @@ USAGE_HINT_WHEEL_CLI: Final = Summary(
     topic="models",
 )
 USAGE_HINT_WHEEL_LIBRARY: Final = Summary(
-    template=f"{_HINT_START}{_PASS_PARAMETER} (or set {_SETTING} in "
-    f"pitloom_config){_HINT_END}",
+    template=f"{_HINT_START}{_SET_PARAMETER} (or set it in pitloom_config){_HINT_END}",
     meaning=_HINT_MEANING,
     topic="models",
 )

@@ -184,17 +184,17 @@ _PYPI_GATED: Final = (
 )
 #: The Git URL's line: a model file of its temporary clone, named on its own
 #: or found in a project's build file list. One line per SBOM.
-READER_UNSAFE_REMOTE_LINE: Final = Line(
+_READER_UNSAFE_REMOTE_LINE: Final = Line(
     level="INFO", template=f"{_GIT_GATED}{_TRUST_CLI} for a repository you trust"
 )
 #: The same for the models of a wheel downloaded from a PyPI URL, named by
 #: its file (so a call naming no file says the Git URL's line).
-READER_UNSAFE_PYPI_LINE: Final = Line(
+_READER_UNSAFE_PYPI_LINE: Final = Line(
     level="INFO", template=f"{_PYPI_GATED}{_TRUST_CLI} for a release you trust"
 )
 #: The Git URL's line, as each surface lifts the gate.
 READER_UNSAFE_REMOTE_LINES: Final = Twins.no_hook(
-    cli=READER_UNSAFE_REMOTE_LINE,
+    cli=_READER_UNSAFE_REMOTE_LINE,
     library=Line(
         level="INFO",
         template=f"{_GIT_GATED}{_TRUST_LIBRARY} for a repository you trust",
@@ -203,7 +203,7 @@ READER_UNSAFE_REMOTE_LINES: Final = Twins.no_hook(
 )
 #: The PyPI URL's line, as each surface lifts the gate.
 READER_UNSAFE_PYPI_LINES: Final = Twins.no_hook(
-    cli=READER_UNSAFE_PYPI_LINE,
+    cli=_READER_UNSAFE_PYPI_LINE,
     library=Line(
         level="INFO",
         template=f"{_PYPI_GATED}{_TRUST_LIBRARY} for a release you trust",

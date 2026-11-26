@@ -177,7 +177,13 @@ wording through one mechanism; no call site chooses.
 - Library wording rule: a condition names the attribute or parameter as
   given (`BuildOptions.timeout ... without BuildOptions.allow`); an action
   names a form to copy that fits any carrier (`pass BuildOptions(allow=True)`,
-  `set trust_model_files=True`).
+  `set trust_model_files=True`, `set scan_model_usage=True`), never `pass
+  name=` for a name `embed_wheel_sbom()` takes in `ConfigOverrides`. A bare
+  option name (`pretty`, `enrich`) names the keyword and the
+  `ConfigOverrides` field alike, as both spell it; `BuildOptions` fields
+  keep their class, `timeout` alone being ambiguous. Qualifying the embed
+  route's names (`ConfigOverrides.pretty`) is left open: it needs the
+  carrier passed to `option_name()`.
 - The credentials triple keeps its branch (its lines take other fields per
   surface: `option=`, `setting=`, none); it reads `current_surface()`.
 - A `ContextVar` does not reach a `threading.Thread` (unless
@@ -214,8 +220,8 @@ and a Hatchling build.
 | `option-conflict` (namespace) | `--namespace` | - (`IdRegistry.require_namespace()` moved to the CLI: no library caller gives a second namespace) | - |
 | `build-code-unsafe` (4 lines) | `--allow-build runs ... (--build-timeout)` | `BuildOptions.allow runs ... (BuildOptions.timeout)` | - |
 | `build-timeout` (2 lines) | `(--build-timeout)` | `(BuildOptions.timeout)` | - |
-| usage hint, project (summary) | `pass --scan-model-usage (or set scan-model-usage = true)` | `pass scan_model_usage=True (or set ...)` | `set scan-model-usage = true in [tool.pitloom]` |
-| usage hint, wheel (summary) | `... in a --config file` | `... in pitloom_config` | - |
+| usage hint, project (summary) | `pass --scan-model-usage (or set scan-model-usage = true)` | `set scan_model_usage=True (or set ...)` | `set scan-model-usage = true in [tool.pitloom]` |
+| usage hint, wheel (summary) | `... (or set scan-model-usage = true in a --config file)` | `set scan_model_usage=True (or set it in pitloom_config)` | - |
 | `pypi-url-unusable` (Git line, library only) | - | `generate_pypi_sbom() reads it` (was `generate_pypi_sbom(), 'loom wheel' or 'loom project' reads it`) | - |
 | `file-ambiguous` (generate line), existing twin | `loom generate reads the wheel` | `generate() reads the wheel` | - |
 | `credentials-unsafe/refused`, `/written`, existing triple | flag | `CredentialPolicy` | `pyproject.toml` list |
@@ -227,7 +233,10 @@ Found while building it, recorded (not fixed here): for a Git URL's
 `uv_build` project with overrides, the uv-overrides line says `pass
 --allow-build` (or `BuildOptions(allow=True)`), but a build never runs for
 a remote repository (`REMOTE_REPOSITORY_REASON`); the hint should be left
-out in a remote clone. `checked_embed_basename(where=)` is another
+out in a remote clone. Likewise the project usage hint's `(or set
+scan-model-usage = true)` cannot work for a Git URL's project or a PyPI
+sdist, whose `[tool.pitloom]` is ignored as untrusted (it was so before).
+`checked_embed_basename(where=)` is another
 per-call-site choice of a surface's spelling (argument validation, section
 7).
 
