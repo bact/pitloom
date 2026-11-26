@@ -27,6 +27,7 @@ import pytest
 from pyproject_metadata import StandardMetadata
 
 from pitloom.core._config_types import PitloomConfig
+from pitloom.extract._license_text_match import LicenseTextReading
 from pitloom.extract.project._poetry_fields import _FIELD_SHAPES
 from pitloom.extract.project._pyproject_fields import (
     build_provenance,
@@ -55,8 +56,8 @@ def test_read_pyproject_no_project_no_poetry_detects_license_from_dir() -> None:
         (tmp_path / "pyproject.toml").write_text("[build-system]\n")
         (tmp_path / "LICENSE").write_text("MIT License", encoding="utf-8")
         with patch(
-            "pitloom.extract._license.detect_license_from_text",
-            return_value="MIT",
+            "pitloom.extract._license.read_license_text",
+            return_value=LicenseTextReading("MIT"),
         ):
             metadata, _config = read_pyproject(tmp_path / "pyproject.toml")
     assert metadata.name == ""

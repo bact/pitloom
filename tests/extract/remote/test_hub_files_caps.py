@@ -29,6 +29,7 @@ from pitloom.core.fetch_policy import RemoteFetchPolicy
 from pitloom.core.internal_error import InternalError
 from pitloom.enrich.readme import MODEL_CARD_MAX_BYTES
 from pitloom.extract._license_detect import LICENSE_FILE_MAX_BYTES
+from pitloom.extract._license_text_match import LicenseTextReading
 from pitloom.extract.remote import _hub_files
 from pitloom.extract.remote._http_fetch import JSON_DEADLINE_SECONDS
 from pitloom.extract.remote._hub_files import (
@@ -87,8 +88,8 @@ def _read_model_card(hub: HubFiles) -> object:
 
 def _read_licence(hub: HubFiles) -> object:
     with patch(
-        "pitloom.extract._license_text_match.detect_license_from_text",
-        side_effect=lambda text: "MIT" if text else None,
+        "pitloom.extract._license_text_match.read_license_text",
+        side_effect=lambda text: LicenseTextReading("MIT" if text else None),
     ):
         return _detect_license_from_hf_files(
             hub, "o/m", revision=_SHA, license_files=["LICENSE"]

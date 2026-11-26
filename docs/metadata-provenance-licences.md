@@ -93,9 +93,10 @@ directory. When the project's metadata states no licence, the detected
 one is its declared licence instead. A licence file that holds the texts of
 several licences (the project's own, then a bundled library's) gives no
 detected licence, stated or not: its closest match is only one of them, and
-the texts do not say whether they combine with `AND` or `OR`. An SBOM of a
-wheel records only the licence the wheel's metadata states, with no
-`hasConcludedLicense` second opinion.
+the texts do not say whether they combine with `AND` or `OR`. A licence
+file after it (a `COPYING`) is not read either: it would give one of those
+licences as the project's. An SBOM of a wheel records only the licence the
+wheel's metadata states, with no `hasConcludedLicense` second opinion.
 
 ## How a licence value is recorded
 

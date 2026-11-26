@@ -25,7 +25,10 @@ from pitloom.extract._license import (
     tag_license_normalization,
 )
 from pitloom.extract._license_detect import _looks_like_spdx_license_id
-from pitloom.extract._license_text_match import detect_license_from_text
+from pitloom.extract._license_text_match import (
+    LicenseTextReading,
+    detect_license_from_text,
+)
 
 _VERSION = version("licenseid")
 
@@ -134,8 +137,8 @@ def test_detect_independent_license_tags_licenseid_tool_version() -> None:
         p = Path(d)
         (p / "LICENSE").write_text(_MIT_TEXT)
         with patch(
-            "pitloom.extract._license.detect_license_from_text",
-            return_value="MIT",
+            "pitloom.extract._license.read_license_text",
+            return_value=LicenseTextReading("MIT"),
         ):
             result_id, prov = detect_independent_license(p)
     assert result_id == "MIT"
@@ -151,8 +154,8 @@ def test_detect_license_for_project_delegates_directory_scan() -> None:
         p = Path(d)
         (p / "LICENSE").write_text(_MIT_TEXT)
         with patch(
-            "pitloom.extract._license.detect_license_from_text",
-            return_value="MIT",
+            "pitloom.extract._license.read_license_text",
+            return_value=LicenseTextReading("MIT"),
         ):
             via_project, prov_project = detect_license_for_project(p)
             via_independent, prov_independent = detect_independent_license(p)

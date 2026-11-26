@@ -28,6 +28,7 @@ import pytest
 from huggingface_hub.hf_api import ModelInfo
 
 from pitloom.enrich.readme import MODEL_CARD_CAP
+from pitloom.extract._license_text_match import LicenseTextReading
 from pitloom.extract.remote._card_description import card_description
 from pitloom.extract.remote._hub_files import HUB_JSON_CAP, FileKind, HubFiles
 from pitloom.extract.remote.huggingface_fetch import (
@@ -326,8 +327,8 @@ def test_detect_license_from_hf_files_pinned_revision_detects_license(
     license_file.write_text("MIT License text...", encoding="utf-8")
 
     with patch(
-        "pitloom.extract._license_text_match.detect_license_from_text",
-        return_value="MIT",
+        "pitloom.extract._license_text_match.read_license_text",
+        return_value=LicenseTextReading("MIT"),
     ):
         with caplog.at_level(logging.WARNING, logger=_LOGGER_NAME):
             detected_id, provenance = _detect_license_from_hf_files(
@@ -355,8 +356,8 @@ def test_detect_license_from_hf_files_undetected_continues_to_next_file(
     license_file.write_text("Some unrecognizable legal text.", encoding="utf-8")
 
     with patch(
-        "pitloom.extract._license_text_match.detect_license_from_text",
-        return_value=None,
+        "pitloom.extract._license_text_match.read_license_text",
+        return_value=LicenseTextReading(None),
     ):
         hub = _hub(license_file)
         detected_id, provenance = _detect_license_from_hf_files(
@@ -366,6 +367,39 @@ def test_detect_license_from_hf_files_undetected_continues_to_next_file(
 
     assert detected_id is None
     assert provenance is None
+
+
+_SEVERAL = LicenseTextReading(None, several_texts=True)
+
+
+@pytest.mark.parametrize(
+    ("readings", "expected", "reads"),
+    [
+        ([_SEVERAL, LicenseTextReading("MIT")], None, 1),  # stops at it
+        ([LicenseTextReading(None), LicenseTextReading("MIT")], "MIT", 2),
+        ([LicenseTextReading("MIT"), _SEVERAL], "MIT", 1),
+    ],
+    ids=["several-first", "none-first", "several-second"],
+)
+def test_a_licence_file_of_several_texts_ends_the_search(
+    tmp_path: Path,
+    readings: list[LicenseTextReading],
+    expected: str | None,
+    reads: int,
+) -> None:
+    """A file holding several licences' texts has no one licence; a later
+    file would name only one of them, so it is not read."""
+    license_file = tmp_path / "LICENSE"
+    license_file.write_text("Licence text.", encoding="utf-8")
+    with patch(
+        "pitloom.extract._license_text_match.read_license_text",
+        side_effect=readings,
+    ):
+        hub = _hub(license_file)
+        detected_id, _ = _detect_license_from_hf_files(
+            hub, "org/model", license_files=["LICENSE", "COPYING"]
+        )
+    assert (detected_id, hub.read.call_count) == (expected, reads)
 
 
 @pytest.mark.parametrize("files", [None, []], ids=["unknown", "none-held"])
@@ -477,8 +511,8 @@ def test_the_licence_file_is_read_at_the_revision_model_info_listed_it_in(
         patch("huggingface_hub.model_info", return_value=info) as request,
         patch("pitloom.extract.remote.huggingface_fetch._load_model_card") as card,
         patch(
-            "pitloom.extract._license_text_match.detect_license_from_text",
-            return_value="MIT",
+            "pitloom.extract._license_text_match.read_license_text",
+            return_value=LicenseTextReading("MIT"),
         ),
     ):
         card.return_value = (None, {})

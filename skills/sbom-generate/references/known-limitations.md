@@ -399,8 +399,8 @@ deprecated id in a tag stays as written, no guess): report it with the licence
 it concerns. LicenseID's `input: too few words for
 text` (a licence file too short to match) is not shown: nothing to report.
 A `LICENSE` file holding the texts of several licences (the project's, then
-a bundled library's) gives no detected licence, silently: no single id is its
-licence. Not a failure.
+a bundled library's) gives no detected licence, silently, and no later licence
+file is read: no single id is its licence. Not a failure.
 
 If the preflight failed, generate anyway and report the line. Do not run a
 network `licenseid update` or regenerate unasked: ask; non-interactive: report

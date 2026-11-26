@@ -19,6 +19,7 @@ from unittest.mock import patch
 import pytest
 
 from pitloom.core.creation import Creator
+from pitloom.extract._license_text_match import LicenseTextReading
 from pitloom.extract.project.setuptools import (
     detect_build_backend,
     read_setup_cfg,
@@ -115,8 +116,8 @@ def test_read_setuptools_license_conflict_cfg_only() -> None:
         (tmp_path / "setup.cfg").write_text(cfg)
         (tmp_path / "LICENSE").write_text("Apache License", encoding="utf-8")
         with patch(
-            "pitloom.extract._license.detect_license_from_text",
-            return_value="Apache-2.0",
+            "pitloom.extract._license.read_license_text",
+            return_value=LicenseTextReading("Apache-2.0"),
         ):
             metadata, _ = read_setuptools(tmp_path)
     assert metadata.license_name == "MIT"
@@ -135,8 +136,8 @@ def test_read_setuptools_license_conflict_py_only() -> None:
         (tmp_path / "setup.py").write_text(py)
         (tmp_path / "LICENSE").write_text("Apache License", encoding="utf-8")
         with patch(
-            "pitloom.extract._license.detect_license_from_text",
-            return_value="Apache-2.0",
+            "pitloom.extract._license.read_license_text",
+            return_value=LicenseTextReading("Apache-2.0"),
         ):
             metadata, _ = read_setuptools(tmp_path)
     assert metadata.license_name == "MIT"
@@ -153,8 +154,8 @@ def test_read_setuptools_license_resolution_runs_once_when_both_files_present() 
         (tmp_path / "setup.py").write_text(py)
         (tmp_path / "LICENSE").write_text("MIT License", encoding="utf-8")
         with patch(
-            "pitloom.extract._license.detect_license_from_text",
-            return_value="MIT",
+            "pitloom.extract._license.read_license_text",
+            return_value=LicenseTextReading("MIT"),
         ) as mock_detect:
             metadata, _ = read_setuptools(tmp_path)
     assert metadata.license_concluded == "MIT"
@@ -241,8 +242,8 @@ def test_read_setuptools_detects_project_license_when_unspecified() -> None:
         (p / "setup.cfg").write_text(cfg)
         (p / "LICENSE").write_text("Apache-2.0 License", encoding="utf-8")
         with patch(
-            "pitloom.extract._license.detect_license_from_text",
-            return_value="Apache-2.0",
+            "pitloom.extract._license.read_license_text",
+            return_value=LicenseTextReading("Apache-2.0"),
         ):
             metadata, _ = read_setuptools(p)
             assert metadata.license_name == "Apache-2.0"

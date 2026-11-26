@@ -16,12 +16,13 @@ Real `LICENSE` files, byte for byte as installed (`.dist-info/licenses/`),
 each one a case LicenseID alone ranks wrong or misses (a near-variant
 licence scored above the verbatim one, a licence hidden behind its
 copyright notice), or a near-tie the rules must not drop (a GPL text
-scores `-only` and `-or-later` alike). Each file is the package's own
-licence, kept with its notice. `.gitattributes` marks
+scores `-only` and `-or-later` alike). Each file in `expected.json` is the
+package's own licence, kept with its notice; the two files of several
+licence texts at the end are not in it. `.gitattributes` marks
 the `*-LICENSE` files `-text`, so a Windows checkout keeps the bytes, and
 `.editorconfig` exempts them, so an editor keeps them too.
 
-`expected.json`, one entry per file:
+`expected.json`, one entry per file of one licence:
 
 | Key | Meaning |
 | --- | --- |
@@ -38,7 +39,8 @@ A newer LicenseID may score them differently: a changed `unstated` from
 
 Two files hold the texts of several licences, and no licence is detected
 from either, stated or not (`test_a_file_of_several_licence_texts_gives_no_licence`;
-LicenseID 0.9.3 lists their texts in `Detection.texts`):
+LicenseID 0.9.3 lists their texts in `Detection.texts`), nor from a licence
+file after one (`test_a_file_of_several_licence_texts_ends_the_search`):
 
 | File | Copied from | Texts it holds |
 | --- | --- | --- |

@@ -24,6 +24,7 @@ from unittest.mock import patch
 
 from pitloom.assemble import generate_project_sbom
 from pitloom.core.creation import CreationMetadata
+from pitloom.extract._license_text_match import LicenseTextReading
 from tests._license_graph import license_elements, license_value
 
 from ..conftest import _AI_MODEL_ROOT, _license_relationships
@@ -154,8 +155,8 @@ license = "MIT"
         (tmppath / "LICENSE").write_text("Apache License\nVersion 2.0" + "x" * 200)
 
         with patch(
-            "pitloom.extract._license.detect_license_from_text",
-            return_value="Apache-2.0",
+            "pitloom.extract._license.read_license_text",
+            return_value=LicenseTextReading("Apache-2.0"),
         ):
             sbom_json = generate_project_sbom(tmppath)
 
@@ -208,8 +209,8 @@ license = "mit"
         (tmppath / "LICENSE").write_text("Apache License\nVersion 2.0" + "x" * 200)
 
         with patch(
-            "pitloom.extract._license.detect_license_from_text",
-            return_value="Apache-2.0",
+            "pitloom.extract._license.read_license_text",
+            return_value=LicenseTextReading("Apache-2.0"),
         ):
             sbom_json = generate_project_sbom(tmppath)
 
@@ -251,8 +252,8 @@ license = "MIT"
         (tmppath / "LICENSE").write_text("MIT License\n\nPermission" + "x" * 200)
 
         with patch(
-            "pitloom.extract._license.detect_license_from_text",
-            return_value="MIT",
+            "pitloom.extract._license.read_license_text",
+            return_value=LicenseTextReading("MIT"),
         ):
             sbom_json = generate_project_sbom(tmppath)
 
@@ -285,8 +286,8 @@ license = "mit"
         (tmppath / "LICENSE").write_text("MIT License\n\nPermission" + "x" * 200)
 
         with patch(
-            "pitloom.extract._license.detect_license_from_text",
-            return_value="MIT",
+            "pitloom.extract._license.read_license_text",
+            return_value=LicenseTextReading("MIT"),
         ):
             sbom_json = generate_project_sbom(tmppath)
 
@@ -363,8 +364,8 @@ license = "MIT"
         (tmppath / "LICENSE").write_text("Apache License\nVersion 2.0" + "x" * 200)
 
         with patch(
-            "pitloom.extract._license.detect_license_from_text",
-            return_value="Apache-2.0",
+            "pitloom.extract._license.read_license_text",
+            return_value=LicenseTextReading("Apache-2.0"),
         ):
             creation_metadata = CreationMetadata(
                 creation_datetime="2026-01-01T00:00:00Z"

@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-02
-Last-Modified: 2026-11-08
+Last-Modified: 2026-11-26
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -32,6 +32,16 @@ entries come first; fixed entries stay in the last section for history.
   (S).** A file tag that reuses the package's element records no provenance
   of its own unless it was normalised. Folded into the licence rules
   ([license-pr276-followups.md](../license-pr276-followups.md), group B).
+
+- [ ] **A near-tie in the first licence file lets a later file decide alone
+  (S).** `license_from_candidates` (`extract/_license.py`) and the Hugging
+  Face loop (`_detect_license_from_hf_files`) read a `None` from detection
+  as "nothing here" and move on, so a near-tie in `LICENSE` (another licence
+  family within the margin) is skipped and a `COPYING` concludes alone. A
+  file of several licence texts already ends the search (#554, through
+  `LicenseTextReading.several_texts`); a near-tie could carry the same
+  "found, undecided" signal. Same on `main` before #554.
+  *Found 2026-11-26, #554 review.*
 
 ### P3: after 0.20.0
 

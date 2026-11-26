@@ -176,7 +176,7 @@ and this project adheres to
 - Messages reworded for one shape: lower-case conditions, `directory` not `folder`,
   `ELEMENT=`, a quoted `MODEL=`, an sdist member as `FILE=` ([#553])
 - A licence file holding several licence texts (numpy's `LICENSE.txt`) gives no
-  detected licence, stated or not ([#554])
+  detected licence, stated or not, and no later licence file is read ([#554])
 
 ### Fixed
 
