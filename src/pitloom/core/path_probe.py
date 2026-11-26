@@ -23,23 +23,27 @@ from __future__ import annotations
 import errno
 import os
 import stat
-from pathlib import Path
+from pathlib import Path, PurePath
 
 __all__ = [
+    "NAME_MAX_BYTES",
     "STAT_MISSING_ERRNOS",
     "STAT_MISSING_WINERRORS",
     "is_missing_errno",
     "is_regular_file",
+    "names_too_long_component",
     "stat_if_present",
 ]
 
 #: errno values that mean "nothing is at this path" rather than a real
-#: failure (POSIX): those Path.exists()/is_file() themselves treat so, plus
-#: ENAMETOOLONG, a name the file system cannot hold (Python 3.14's
-#: Path.exists() and Windows, whose WinError 206 is ENOENT, say so too).
-STAT_MISSING_ERRNOS = frozenset(
-    {errno.ENOENT, errno.ENOTDIR, errno.EBADF, errno.ELOOP, errno.ENAMETOOLONG}
-)
+#: failure (POSIX), those Path.exists()/is_file() themselves treat so.
+#: ENAMETOOLONG is not here: it counts as missing only for a component no
+#: file system can hold (:func:`is_missing_errno`).
+STAT_MISSING_ERRNOS = frozenset({errno.ENOENT, errno.ENOTDIR, errno.EBADF, errno.ELOOP})
+#: Longest name (one path component) a file system holds, in bytes: the
+#: common NAME_MAX (Linux, the BSDs, macOS APFS/HFS+ in practice), fixed
+#: rather than asked of ``os.pathconf`` per directory.
+NAME_MAX_BYTES = 255
 #: Windows counterparts of the same errno set, per CPython's
 #: pathlib._ignore_error().
 STAT_MISSING_WINERRORS = frozenset({21, 123, 1921})
@@ -50,9 +54,10 @@ def is_missing_errno(exc: OSError) -> bool:
     represents a genuinely missing path, using the same errno (POSIX) or
     ``winerror`` (Windows) classification ``Path.exists()`` uses
     internally on Python 3.10-3.13, plus a name too long to exist
-    (:data:`STAT_MISSING_ERRNOS`) -- any other ``OSError`` (e.g.
-    permission denied) means the path is present but inaccessible, not
-    missing.
+    (:func:`names_too_long_component`) -- any other ``OSError`` (e.g.
+    permission denied, or ``ENAMETOOLONG`` for a whole path past
+    PATH_MAX whose every name may exist) means the path is present but
+    inaccessible, not missing.
 
     Checks both unconditionally (``or``, not "prefer winerror when set"):
     a real Windows ``FileNotFoundError`` carries *both* ``errno=ENOENT``
@@ -65,7 +70,19 @@ def is_missing_errno(exc: OSError) -> bool:
     return (
         exc.errno in STAT_MISSING_ERRNOS
         or getattr(exc, "winerror", None) in STAT_MISSING_WINERRORS
+        or (exc.errno == errno.ENAMETOOLONG and names_too_long_component(exc))
     )
+
+
+def names_too_long_component(exc: OSError) -> bool:
+    """Whether a component of *exc*'s ``filename`` is longer than
+    :data:`NAME_MAX_BYTES` once encoded: a name no file system holds, so
+    nothing is there. ``False`` without a filename to read."""
+    name = exc.filename
+    if not isinstance(name, (str, bytes, os.PathLike)):
+        return False
+    parts = PurePath(os.fsdecode(name)).parts
+    return any(len(os.fsencode(part)) > NAME_MAX_BYTES for part in parts)
 
 
 def is_directory_error(exc: OSError, path: str | os.PathLike[str]) -> bool:

@@ -178,8 +178,12 @@ def _read_provenance_settings(
 
 
 def _read_id_registry(pitloom_data: dict[str, Any]) -> str | None:
-    """Read ``[tool.pitloom] id-registry``."""
-    return _optional_str(pitloom_data, "id-registry", _PITLOOM)
+    """Read ``[tool.pitloom] id-registry``: a path, never empty (``""``
+    would name the configuration's own directory)."""
+    value = _optional_str(pitloom_data, "id-registry", _PITLOOM)
+    if value == "":
+        raise config_invalid(_PITLOOM.at("id-registry"), "non-empty", got=value)
+    return value
 
 
 def _read_enrich_settings(pitloom_data: dict[str, Any]) -> bool:

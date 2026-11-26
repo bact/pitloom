@@ -8,7 +8,6 @@
 from __future__ import annotations
 
 import argparse
-from pathlib import Path
 from typing import Any
 
 from pitloom.assemble import (
@@ -18,6 +17,7 @@ from pitloom.cli.commands.utils import _print_sbom_output_path, cli_error_handle
 from pitloom.cli.kv_output import log_verbose
 from pitloom.cli.options import add_offline_argument
 from pitloom.cli.options_config import explicit_config_and_options
+from pitloom.core.current_dir import current_dir
 from pitloom.core.inert_options import ENV, forward_options
 from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
 
@@ -27,7 +27,7 @@ def _run_env_command(args: argparse.Namespace) -> int:
     """Generate a Deployed SBOM for the active installed environment."""
     pitloom_config, options = explicit_config_and_options(args)
     output_path = args.output or (
-        Path.cwd() / f"deployed-environment{SPDX3_JSONLD_EXTENSION}"
+        current_dir() / f"deployed-environment{SPDX3_JSONLD_EXTENSION}"
     )
 
     if args.verbose:

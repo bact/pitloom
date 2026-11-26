@@ -84,6 +84,8 @@ _CASES = [
     (f"INFO: {UNSHOWN_MESSAGE} [input-not-found]", "uncoded"),  # no INFO line
     (f"ERROR: loom generate: x {UNSHOWN_MESSAGE} [input-not-found]", "uncoded"),
     (f"ERROR: loom: loom generate: {UNSHOWN_MESSAGE} [input-not-found]", "uncoded"),
+    # A frame that does not allow the code at that level.
+    (f"ERROR: Git source: {UNSHOWN_MESSAGE} [input-not-found]", "uncoded"),
 ]
 
 

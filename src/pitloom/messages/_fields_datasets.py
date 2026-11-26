@@ -33,13 +33,14 @@ from pitloom.messages._field_writers import (
     quoted_name_text,
 )
 
-#: How a dataset name is shown.
-_SHOWN_NAME: Final = (
+#: How a dataset name given as text is shown.
+_SHOWN_TEXT: Final = (
     f"in quotes, a URL's credentials masked, cut to {NAME_CHARACTERS} "
     f"characters with `{NAME_CUT_MARK}` before the closing quote, escaped when "
-    "it holds a control character; `None` for a dataset declared without "
-    "a name"
+    "it holds a control character"
 )
+#: How a dataset name is shown.
+_SHOWN_NAME: Final = f"{_SHOWN_TEXT}; `None` for a dataset declared without a name"
 
 
 def _dataset_name_text(value: object) -> str:
@@ -119,10 +120,10 @@ DATASET_FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
             f"a dataset by the name it was declared under, {_SHOWN_NAME}",
         ),
         "dataset_input": Field(
-            _NAME_OR_NONE,
-            _dataset_name_text,
+            QUOTED,
+            quoted_name_text,
             "'<dataset-input>'",
-            f"a name given in add_output_dataset's input_datasets, {_SHOWN_NAME}",
+            f"a name given in add_output_dataset's input_datasets, {_SHOWN_TEXT}",
         ),
         "dataset_spelling": Field(
             QUOTED,

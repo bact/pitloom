@@ -153,7 +153,8 @@ def _save(registry: IdRegistry, registry_path: Path) -> bool:
 
 def _generate_paths(args: argparse.Namespace, project_dir: Path) -> list[Path]:
     """The `id generate` PATHs, each rooted at *project_dir*; ``ValueError``
-    for one outside it, or when there is none to index.
+    for one outside it, or when there is none to index;
+    ``input-not-found`` for an empty one.
 
     A relative PATH resolves against the current directory, like every
     other command, and is made absolute before ``IdRegistry.generate()``
@@ -166,6 +167,9 @@ def _generate_paths(args: argparse.Namespace, project_dir: Path) -> list[Path]:
         lexical_project_dir = _normalized_absolute(args.project_dir or current_dir())
         paths: list[Path] = []
         for path in args.paths:
+            # Where a missing PATH is said (after the registry is settled):
+            # an empty one reads as the current directory.
+            refuse_empty_input(path, "PATH")
             resolved = _resolve_id_generate_path(path, project_dir, lexical_project_dir)
             if resolved is None:
                 raise CodedValueError(
@@ -245,8 +249,6 @@ def _run_id_generate(args: argparse.Namespace) -> int:
     """Run `loom id generate`."""
     if args.namespace is not None:
         require_registry_namespace(args.namespace)  # before any file is read
-    for path in args.paths or ():
-        refuse_empty_input(path, "PATH")
     project_dir: Path = (args.project_dir or current_dir()).resolve()
     if not is_input_dir(project_dir, shown=args.project_dir or project_dir):
         say_input_not_found("project directory", args.project_dir or project_dir)

@@ -18,6 +18,8 @@ from __future__ import annotations
 
 import json
 import logging
+import os
+import sys
 import uuid
 from pathlib import Path
 from unittest.mock import patch
@@ -228,6 +230,12 @@ def test_a_later_declaration_adds_its_sources(project: Path) -> None:
             "^Croissant document not found: 'missing.json'$",
             "input-not-found",
         ),
+        pytest.param(
+            "a\x00b.json",
+            r"^Croissant document not found: 'a\\x00b.json'$",
+            "input-not-found",
+            marks=pytest.mark.platform,
+        ),
         (
             "bad.json",
             "^FILE=bad.json: not valid JSON for the Croissant document; ",
@@ -274,6 +282,7 @@ def test_a_later_declaration_adds_its_sources(project: Path) -> None:
     ids=[
         "url",
         "missing",
+        "nul",
         "malformed",
         "no-name",
         "name-not-text",
@@ -303,6 +312,33 @@ def test_unreadable_croissant_raises(
     assert code_of(raised.value) == code
     assert "SECRET" not in str(raised.value)
     assert not (project / "out.json").exists()
+
+
+#: A directory mode refusing a look inside: POSIX only.
+_POSIX = sys.platform != "win32"
+
+
+@pytest.mark.platform
+@pytest.mark.skipif(not _POSIX, reason="a directory mode: POSIX only")
+def test_a_croissant_the_system_hides_names_its_use(project: Path) -> None:
+    """A directory above the file refusing a look is ``file-unreadable``
+    for the Croissant document, as any read of it is."""
+    locked = project / "locked"
+    locked.mkdir()
+    croissant_file(locked / "c.json", license="MIT")
+    locked.chmod(0)
+    try:
+        if os.access(locked, os.X_OK):
+            pytest.skip("the user may search a mode-000 directory (root)")
+        with pytest.raises(ValueError) as raised:
+            with loom.run(project / "out.json"):
+                loom.add_dataset("t.txt", croissant="locked/c.json")
+    finally:
+        locked.chmod(0o755)
+    assert code_of(raised.value) == "file-unreadable"
+    assert str(raised.value).startswith(
+        "FILE=locked/c.json: could not read for the Croissant document; "
+    )
 
 
 def test_display_controls_are_escaped_with_one_warning(

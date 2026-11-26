@@ -91,10 +91,19 @@ def existing_model_path(given: Path) -> Path | None:
     Raises:
         pitloom.messages.CodedValueError: *given* cannot be looked at
             (``file-unreadable``).
+        OSError: Resolving *given* failed for a cause other than a missing
+            path (:func:`~pitloom.core.path_probe.is_missing_errno`).
     """
     if input_exists(given):
         return given
-    resolved = given.resolve()
+    try:
+        # Python 3.10's Windows resolve() lets an invalid name (WinError
+        # 123) escape: missing all the same.
+        resolved = given.resolve()
+    except OSError as exc:
+        if is_missing_errno(exc):
+            return None
+        raise
     return resolved if input_exists(resolved, shown=given) else None
 
 

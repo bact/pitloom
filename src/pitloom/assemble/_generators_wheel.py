@@ -22,7 +22,7 @@ from pathlib import Path
 
 from spdx_python_model.bindings import v3_0_1 as spdx3_bindings
 
-from pitloom._sbom_io import write_sbom_output
+from pitloom._sbom_io import refuse_empty_output, write_sbom_output
 from pitloom.assemble._generators_pypi import generate_pypi_sbom
 from pitloom.assemble._generators_shared import _sync_registry, archive_project_dir
 from pitloom.assemble.spdx3.document import build
@@ -249,6 +249,7 @@ def generate_wheel_sbom_with_metadata(
             given).
     """
     configure_logging()
+    refuse_empty_output(output_path)
     del check_url  # nothing is fetched for a local wheel
     if max_download_bytes is not None:
         require_download_override(max_download_bytes)  # even if inert
@@ -276,7 +277,7 @@ def generate_wheel_sbom_with_metadata(
     resolved_registry = resolve_registry(
         id_registry,
         cfg.id_registry,
-        Path.cwd(),
+        None,
         refuse_credentials=cfg.credential_policy.refuse,
     )
     origin_dir = archive_project_dir(project_dir, resolved_registry, wheel_path)

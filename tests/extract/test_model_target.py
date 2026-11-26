@@ -16,7 +16,6 @@ tests/core/test_project_markers.py (what makes a project).
 from __future__ import annotations
 
 import logging
-import os
 import shutil
 from pathlib import Path
 
@@ -388,15 +387,13 @@ def test_a_missing_model_file_is_said_by_the_catalogue(tmp_path: Path) -> None:
     assert str(shown.value) == "Model file not found: 'repo/gone.gguf'"
 
 
-def test_a_path_that_cannot_be_looked_at_is_no_missing_file(tmp_path: Path) -> None:
-    """A name too long to look up is there or not: its own error stands,
-    not ``input-not-found``."""
-    if os.name == "nt":
-        pytest.skip("Windows reports a long name differently")
-    with pytest.raises(OSError) as caught:
+@pytest.mark.platform
+def test_a_name_too_long_to_exist_is_a_missing_file(tmp_path: Path) -> None:
+    """A name the file system cannot hold names nothing: ``input-not-found``
+    on every OS and Python (``ENAMETOOLONG``, ``WinError 206``)."""
+    with pytest.raises(FileNotFoundError) as caught:
         require_model_file(tmp_path / ("a" * 300), "long")
-    assert not isinstance(caught.value, FileNotFoundError)
-    assert code_of(caught.value) is None
+    assert code_of(caught.value) == "input-not-found"
 
 
 @pytest.mark.skipif(not CAN_SYMLINK, reason="needs a file symlink")

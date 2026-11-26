@@ -65,6 +65,17 @@ def is_plain_file_name(name: str) -> bool:
     )
 
 
+def bare_sbom_base(value: str) -> str:
+    """*value* trimmed of surrounding whitespace and of one trailing
+    ``.spdx3.json`` (any case): what :func:`sbom_base_name` returns, without
+    its check or its ``WARNING:`` (a caller asking whether it will warn
+    compares the result with *value*)."""
+    clean = value.strip()
+    if clean.lower().endswith(SPDX3_JSONLD_EXTENSION):
+        return clean[: -len(SPDX3_JSONLD_EXTENSION)].strip()
+    return clean
+
+
 def sbom_base_name(value: str, where: ConfigPlace | Parameter) -> str:
     """*value*, a base name (``sbom-basename``/``--sbom-basename``), without
     one trailing ``.spdx3.json`` (any case), which every writer appends
@@ -83,11 +94,7 @@ def sbom_base_name(value: str, where: ConfigPlace | Parameter) -> str:
             ``..``, a path): the extension was all that named the file
             (a :class:`~pitloom.messages.CodedValueError`).
     """
-    clean = value.strip()
-    if clean.lower().endswith(SPDX3_JSONLD_EXTENSION):
-        base = clean[: -len(SPDX3_JSONLD_EXTENSION)].strip()
-    else:
-        base = clean
+    base = bare_sbom_base(value)
     if base == value:
         return value
     if not is_plain_file_name(base):
@@ -161,6 +168,7 @@ def default_sbom_basename(name: str | None, version: str | None) -> str:
 
 __all__ = [
     "CONFIG_BASENAME_PLACE",
+    "bare_sbom_base",
     "default_sbom_basename",
     "escape_file_name_part",
     "is_plain_file_name",

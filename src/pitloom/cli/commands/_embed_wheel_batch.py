@@ -201,7 +201,7 @@ def resolve_batch_id_registry(
     return resolve_registry(
         options["id_registry"],
         pitloom_config.id_registry if pitloom_config is not None else None,
-        registry_base_dir(project_dir) if project_dir is not None else Path.cwd(),
+        registry_base_dir(project_dir) if project_dir is not None else None,
         refuse_credentials=policy.refuse,
     )
 

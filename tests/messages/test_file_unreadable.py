@@ -25,6 +25,7 @@ from pitloom.core.internal_error import InternalError
 from pitloom.core.path_confine import NotRegularFileError, OutsideRootError
 from pitloom.logging_config import CODE_ATTR
 from pitloom.messages import (
+    FRAGMENT_USE,
     READ_USES,
     Message,
     code_of,
@@ -294,6 +295,7 @@ def _texts(tree: ast.Module) -> dict[str, str]:
 #: imported, not defined.
 _SHARED_USES = {
     "CONFIG_USE": CONFIG_USE,
+    "FRAGMENT_USE": FRAGMENT_USE,
     "INPUT_USE": INPUT_USE,
     "METADATA_USE": METADATA_USE,
     "REGISTRY_USE": REGISTRY_USE,
@@ -305,6 +307,7 @@ _SHARED_USES = {
 _USE_TAKERS = frozenset(
     {
         "CardKind",
+        "coded_write",
         "decode_member_text",
         "dir_unlistable_error",
         "fetch_json",

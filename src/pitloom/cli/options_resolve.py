@@ -97,12 +97,14 @@ class _ResolvedCreationMetadata:
 
 def _resolve_project_paths(args: argparse.Namespace) -> tuple[Path | None, Path | None]:
     """Resolve and validate project directory or sdist archive path."""
-    project_dir = args.project_dir.resolve()
-    if not input_exists(project_dir, shown=args.project_dir):
+    # Probed before resolve(): Python 3.10's Windows resolve() lets an
+    # invalid name (WinError 123, a name too long) escape.
+    if not input_exists(args.project_dir):
         # A URL Pitloom does not read (user information in a Hugging Face
         # one) reaches here as a path: the line masks it.
         say_input_not_found("project directory", args.project_dir)
         return None, None
+    project_dir = args.project_dir.resolve()
 
     if project_dir.is_file():
         return project_dir, project_dir

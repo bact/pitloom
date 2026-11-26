@@ -133,9 +133,7 @@ def _resolve_embed_registry(
     instead of loading the file a second time.
     """
     base_dir = (
-        Path.cwd()
-        if project_dir is None
-        else registry_base_dir(Path(project_dir).resolve())
+        None if project_dir is None else registry_base_dir(Path(project_dir).resolve())
     )
     flags = credentials or CredentialPolicy()
     if id_registry is not None:
@@ -345,7 +343,7 @@ def _generate_embed_sbom_json(
             resolve_registry(
                 id_registry,
                 cfg.id_registry,
-                Path.cwd(),
+                None,
                 refuse_credentials=cfg.credential_policy.refuse,
             ),
             (file_cache, overrides.trust_model_files is True),

@@ -114,7 +114,7 @@ def _dataset_kind(dataset_type: str) -> str:
     """
     if dataset_type not in DATASET_TYPES:
         raise InternalError(f"not a dataset type: {dataset_type!r}")
-    return cast(str, spdx3.dataset_DatasetType.NAMED_INDIVIDUALS[dataset_type])
+    return spdx3.dataset_DatasetType.NAMED_INDIVIDUALS[dataset_type]
 
 
 @dataclass

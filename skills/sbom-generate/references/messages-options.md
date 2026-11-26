@@ -20,7 +20,7 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
 | Code | Level | Means | Since |
 | --- | --- | --- | --- |
 | [`option-conflict`](#option-conflict) | ERROR | The command line holds an option the command cannot take in this case (-o/--output with several wheels), or one an existing ID registry contradicts: 'loom id generate --namespace' for a registry made with another namespace, or 'loom id generate' with a --project-dir (the current directory when not given), or 'loom id import' with an explicit one, other than the one the registry was made for. The 'not allowed with' line is reserved for options of a mutually exclusive group; no command has one yet. | 0.25.0 |
-| [`option-invalid`](#option-invalid) | ERROR | The command line holds an option or a value the command does not take: an unknown option, a value of the wrong form or out of range, an unknown subcommand, an option out of order (a creator's type or email before its name), or a 'loom id generate' PATH outside --project-dir (the library: a path outside the project root given to IdRegistry.generate). Or a library caller gave a value of the wrong type or shape (the must-be line, as config-invalid says it of a setting: a byte cap of 0, a creation_datetime that is no ISO 8601 date, an empty SBOM given to embed_sbom_in_wheel). Or a document namespace given as --namespace or to IdRegistry is not an absolute IRI without a '#' (the namespace lines, also the detail of 'argument --namespace:'). Or a URL credential fingerprint given to the library is not one; the line never shows the value, which may be a credential pasted by mistake. Or PitloomConfig.url_credentials is neither warn nor refuse, or CredentialPolicy(refuse=...) is no bool. The same faults in [tool.pitloom] are config-invalid. An option given without its value is option-missing; two options argparse refuses together are option-conflict. | 0.25.0 |
+| [`option-invalid`](#option-invalid) | ERROR | The command line holds an option or a value the command does not take: an unknown option, a value of the wrong form or out of range, an unknown subcommand, an option out of order (a creator's type or email before its name), or a 'loom id generate' PATH outside --project-dir (the library: a path outside the project root given to IdRegistry.generate). Or a library caller gave a value of the wrong type or shape (the must-be line, as config-invalid says it of a setting: a byte cap of 0, a creation_datetime that is no ISO 8601 date, an empty SBOM given to embed_sbom_in_wheel). Or a document namespace given as --namespace or to IdRegistry is not an absolute IRI without a '#' (the namespace lines, also the detail of 'argument --namespace:'); one holding a credential is credentials-unsafe/registry on both. Or a URL credential fingerprint given to the library is not one; the line never shows the value, which may be a credential pasted by mistake. Or PitloomConfig.url_credentials is neither warn nor refuse, or CredentialPolicy(refuse=...) is no bool. The same faults in [tool.pitloom] are config-invalid. An option given without its value is option-missing; two options argparse refuses together are option-conflict. | 0.25.0 |
 | [`option-missing`](#option-missing) | ERROR | The command line lacks an argument or option the command needs (a subcommand, -o/--output for 'loom generate', an ID registry for 'loom id'), or the value of an option given (-o with nothing after it). The loom SDK line is a call that needs one made before it in the run. | 0.25.0 |
 | [`option-missing/project-dir`](#option-missingproject-dir) | INFO | 'loom embed-wheel' ran without --project-dir in a directory holding a pyproject.toml: it never reads a project it is not given, so the SBOM it embeds is built from the wheel's own files and METADATA. | 0.25.0 |
 | [`option-no-effect`](#option-no-effect) | WARNING, INFO | An option or setting was given that the target or command cannot act on (a build flag without --allow-build, --use-lockfile for a wheel given to 'loom generate', a library parameter a URL target ignores); the line says why. The INFO: line is a [tool.pitloom] setting the build hook or 'embed-wheel' never acts on, named by its flag. The FINGERPRINT= line is a fingerprint accepted (--accept-url-credential, accept-url-credentials in [tool.pitloom]) that no URL value of the SBOM it names (its document id) has: a value since removed, or a fingerprint mistyped. The DIR= line is 'loom id generate' or 'loom id import' given -o and --project-dir, whose project config could not be read (a bare setup(), an invalid setting): its url-credentials is not applied. The FILE= line is a --config file (loom.run's pitloom_config) with no [tool.pitloom] table: a wrong file, most often. | 0.25.0 |
@@ -69,13 +69,14 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
   says it of a setting: a byte cap of 0, a creation_datetime that is no ISO 8601
   date, an empty SBOM given to embed_sbom_in_wheel). Or a document namespace
   given as --namespace or to IdRegistry is not an absolute IRI without a '#'
-  (the namespace lines, also the detail of 'argument --namespace:'). Or a URL
-  credential fingerprint given to the library is not one; the line never shows
-  the value, which may be a credential pasted by mistake. Or
-  PitloomConfig.url_credentials is neither warn nor refuse, or
-  CredentialPolicy(refuse=...) is no bool. The same faults in [tool.pitloom] are
-  config-invalid. An option given without its value is option-missing; two
-  options argparse refuses together are option-conflict.
+  (the namespace lines, also the detail of 'argument --namespace:'); one holding
+  a credential is credentials-unsafe/registry on both. Or a URL credential
+  fingerprint given to the library is not one; the line never shows the value,
+  which may be a credential pasted by mistake. Or PitloomConfig.url_credentials
+  is neither warn nor refuse, or CredentialPolicy(refuse=...) is no bool. The
+  same faults in [tool.pitloom] are config-invalid. An option given without its
+  value is option-missing; two options argparse refuses together are
+  option-conflict.
 - **SBOM effect**: not-written: no SBOM is written for the input.
 - **Pitloom did**: Ran nothing: the command exits 2 (the Action step fails), 1
   for a PATH outside --project-dir; the library raises ValueError carrying the
@@ -83,7 +84,9 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
   project root (IdRegistry.generate), a value of the wrong type or shape
   (ProvenanceConfig and PitloomConfig refuse a bad provenance format, schema or
   detail when built), a namespace that is none (IdRegistry), a fingerprint that
-  is none (CredentialPolicy) or a url-credentials that is no mode.
+  is none (CredentialPolicy) or a url-credentials that is no mode; a loom SDK
+  call raises TypeError carrying the code for an argument of the wrong type,
+  ValueError for an unknown dataset_type.
 - **The caller may fix**: The caller may fix the option or value the line names
   ('loom <command> --help' lists them) and run again. Tell the user only when
   the value came from them. For a fingerprint, the user copies it from the

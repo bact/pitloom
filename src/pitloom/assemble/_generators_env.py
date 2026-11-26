@@ -17,7 +17,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from pitloom._sbom_io import write_sbom_output
+from pitloom._sbom_io import refuse_empty_output, write_sbom_output
 from pitloom.assemble._generators_shared import _sync_registry
 from pitloom.assemble.spdx3.document import build_deployed
 from pitloom.core.config import PitloomConfig
@@ -68,6 +68,7 @@ def generate_env_sbom(
             given).
     """
     configure_logging()
+    refuse_empty_output(output_path)
     cfg = resolve_standalone_config(
         pitloom_config,
         ConfigOverrides(
@@ -87,7 +88,7 @@ def generate_env_sbom(
     resolved_registry = resolve_registry(
         id_registry,
         cfg.id_registry,
-        Path.cwd(),
+        None,
         refuse_credentials=cfg.credential_policy.refuse,
     )
     project_metadata, env_tree = read_environment()

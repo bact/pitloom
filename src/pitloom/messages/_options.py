@@ -215,7 +215,9 @@ OPTION_INVALID: Final = Message(
     "shape (ProvenanceConfig and PitloomConfig refuse a bad provenance "
     "format, schema or detail when built), a namespace that is none "
     "(IdRegistry), a fingerprint that is none (CredentialPolicy) or a "
-    "url-credentials that is no mode.",
+    "url-credentials that is no mode; a loom SDK call raises TypeError "
+    "carrying the code for an argument of the wrong type, ValueError for "
+    "an unknown dataset_type.",
     effect="not-written",
     actor="caller",
     advice="The caller may fix the option or value the line names ('loom "

@@ -101,7 +101,8 @@ def test_pyproject_spellings_must_agree(pyproject: str) -> None:
     """A second requirement (another dependency group) with other bounds."""
     with pytest.raises(AssertionError, match="states several"):
         _declared(pyproject)
-    assert _declared('"licenseid>=0.9.2,<0.10",\n"licenseid>=0.9.2,<0.10"')
+    agreeing = '"licenseid>=0.9.2,<0.10",\n"licenseid>=0.9.2,<0.10"'
+    assert _declared(agreeing) == ("0.9.2", "0.10")
 
 
 def test_a_source_docstring_floor_is_checked(tmp_path: Path) -> None:

@@ -1,5 +1,5 @@
 ---
-Last-Modified: 2026-11-24
+Last-Modified: 2026-11-26
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -158,6 +158,12 @@ and this project adheres to
   a non-method `content_type_method` or non-string `Creator.type` is `option-invalid` ([#536])
 - An `InternalError` in one wheel's check stops `verify-wheel`, `validate-wheel` and
   `embed-wheel --verify/--validate`, not said as that wheel's failure ([#542])
+- An empty input path is `input-not-found` and an empty `-o`, `--project-dir` or
+  `--id-registry` `option-invalid`: `merge ""`, `project ""` no longer read the cwd ([#545])
+- loom SDK calls check argument types (`TypeError`, `option-invalid`); an unknown
+  `dataset_type` is refused, not `text`; a symlinked script keeps its own name ([#545])
+- `loom id generate --namespace` holding a credential is `credentials-unsafe/registry`,
+  exit 1, as in the library ([#545])
 
 ### Fixed
 
@@ -200,6 +206,10 @@ and this project adheres to
   or profile hook (Python 3.10 and 3.11, concurrent parses) ([#539])
 - A GGUF in a wheel names its archive member's file name, not a temporary
   copy, in the provenance of its datasets ([#540])
+- A too-long file name is `input-not-found`; a removed cwd, a refused loom fragment
+  write and a NUL in `croissant=` are coded errors, not tracebacks ([#545])
+- A missing `input_datasets` name is warned once; `PitloomConfig(sbom_basename=)`
+  is checked when built ([#545])
 
 ### Security
 
@@ -248,6 +258,7 @@ and this project adheres to
 [#540]: https://github.com/bact/pitloom/pull/540
 [#542]: https://github.com/bact/pitloom/pull/542
 [#543]: https://github.com/bact/pitloom/pull/543
+[#545]: https://github.com/bact/pitloom/pull/545
 
 ## [0.24.0] - 2026-11-11
 

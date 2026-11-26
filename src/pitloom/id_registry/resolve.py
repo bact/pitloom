@@ -17,11 +17,13 @@ import itertools
 import os
 from pathlib import Path, PurePath
 
+from pitloom.core.current_dir import current_dir
 from pitloom.core.given_path import GivenPath, TypedPath, given_spelling
 from pitloom.core.path_confine import is_inside
 from pitloom.core.walk_rules import PROJECT_FILES, RegistryCopy
 from pitloom.id_registry._registry import IdRegistry
 from pitloom.id_registry.keys import path_key
+from pitloom.messages.config import Parameter, invalid_value
 from pitloom.messages.targets import input_not_found, is_input_file
 
 __all__ = [
@@ -33,18 +35,19 @@ __all__ = [
 ]
 
 
-def registry_base_dir(target: Path) -> Path:
+def registry_base_dir(target: Path) -> Path | None:
     """The base directory a relative declared ``id-registry`` path
     resolves against, for a *target* that may be either a project
     directory or a single file (e.g. an sdist archive).
 
     A file target has no directory to resolve a relative registry path
-    against (a registry path is not read from inside an archive), so the
-    current directory is used, as with no ``project_dir``. For every
-    ``resolve_registry()`` call site whose *target* might be an sdist (or,
-    in :mod:`pitloom.embed`, any single-file ``project_dir``).
+    against (a registry path is not read from inside an archive), so
+    ``None``: the current directory, as with no ``project_dir``
+    (:func:`resolve_registry`). For every ``resolve_registry()`` call site
+    whose *target* might be an sdist (or, in :mod:`pitloom.embed`, any
+    single-file ``project_dir``).
     """
-    return Path.cwd() if os.path.isfile(target) else target
+    return None if os.path.isfile(target) else target
 
 
 def registry_file_path(registry: IdRegistry | None) -> Path | None:
@@ -101,7 +104,7 @@ def registry_copy(
 def resolve_registry(
     id_registry: str | Path | IdRegistry | None,
     configured: str | None,
-    base_dir: Path,
+    base_dir: Path | None,
     *,
     refuse_credentials: bool = False,
 ) -> IdRegistry | None:
@@ -114,13 +117,17 @@ def resolve_registry(
     ``--config``, which replaces it). Neither given: ``None``, silently --
     no ``loom-id-registry.json`` is searched for, near the target or
     anywhere else. A relative path resolves against *base_dir* (the
-    project directory, or the current directory for a target with none of
-    its own), itself resolved first, so the loaded registry's path is
-    absolute even for a relative *base_dir*; an already-absolute path (e.g.
-    a config's own key, made absolute by
+    project directory; ``None`` for the current directory, read only then,
+    through :func:`pitloom.core.current_dir.current_dir`, for a target
+    with no directory of its own), itself resolved first, so the loaded
+    registry's path is absolute even for a relative *base_dir*; an
+    already-absolute path (e.g. a config's own key, made absolute by
     :func:`~pitloom.core.config_cascade.load_config_file`, or a CLI flag
     made absolute against cwd) is used as it is.
 
+    An empty *id_registry* (``""``, which :class:`pathlib.Path` reads as
+    the current directory) raises the ``option-invalid`` ``ValueError``
+    (``non-empty``), as the CLI flag and the loom SDK say it.
     A resolved path that is not a file raises the ``input-not-found``
     ``FileNotFoundError``, naming the path as given: *id_registry* or
     *configured* as passed, or the spelling a
@@ -138,6 +145,8 @@ def resolve_registry(
     again here and raises ``credentials-unsafe/registry`` for that entry;
     a registry passed in the ``refuse`` mode stays so in a ``warn`` run.
     """
+    if isinstance(id_registry, (str, os.PathLike)) and os.fspath(id_registry) == "":
+        raise invalid_value(Parameter("id_registry"), "non-empty", got=id_registry)
     source = id_registry if id_registry is not None else configured
     if source is None:
         return None
@@ -146,7 +155,10 @@ def resolve_registry(
             source.refuse_mode()
         return source
     path = Path(source)
-    resolved = path if path.is_absolute() else base_dir.resolve() / path
+    if path.is_absolute():
+        resolved = path
+    else:
+        resolved = (current_dir() if base_dir is None else base_dir).resolve() / path
     if not is_input_file(resolved, shown=given_spelling(source)):
         # Named as given, never as resolved: no absolute or temporary path.
         raise input_not_found("ID registry file", given_spelling(source), at=resolved)

@@ -25,7 +25,10 @@ A module-, class- or session-scoped fixture is set up before and torn down
 after that function-scoped fixture, so ``pytest_fixture_setup`` in
 ``tests/conftest.py`` holds its setup and teardown to the same two legs
 (:class:`FixtureWatch`); a finding errors the test that set the fixture up
-or tore it down, and no marker allows it.
+or tore it down, and no marker allows it. Its hooks go in once, when
+``tests/conftest.py`` is imported, under every per-test patch; a fixture a
+test body sets up (``request.getfixturevalue``) is reported by the watch
+alone (:attr:`FixtureWatch.watching`).
 
 A test that says such a line on purpose names it with
 ``@pytest.mark.uncoded_output(*patterns)`` on the test or on its
@@ -264,8 +267,16 @@ class FixtureWatch:
         self._open: list[list[str]] = []
         self._installed = False
 
-    def _install(self) -> None:
-        """Hook ``Logger.handle`` and ``_write_error_line`` for the session."""
+    @property
+    def watching(self) -> bool:
+        """Whether a window is open: a finding now is this watch's to report."""
+        return bool(self._open)
+
+    def install(self) -> None:
+        """Hook ``Logger.handle`` and ``_write_error_line`` for the session,
+        once. Call it before any test patches either (at conftest import):
+        installed under a per-test patch, the hook would take that patch for
+        the original and go when the patch is undone."""
         if self._installed:
             return
         self._installed = True
@@ -290,8 +301,13 @@ class FixtureWatch:
             self._open[-1].append(f"{finding.problem}: {finding.line!r}")
 
     def enter(self) -> None:
-        """Open a window: what is said until :meth:`leave` is checked."""
-        self._install()
+        """Open a window: what is said until :meth:`leave` is checked.
+
+        Raises:
+            RuntimeError: :meth:`install` was not called.
+        """
+        if not self._installed:
+            raise RuntimeError("FixtureWatch.install() not called")
         self._open.append([])
 
     def leave(self, fixture: str, when: str) -> None:

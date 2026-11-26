@@ -58,6 +58,12 @@ _RECORD_FACTORY = logging.getLogRecordFactory()
 #: characters: a long parametrize value needs a short explicit ``ids=``.
 MAX_NODEID_LENGTH = 1000
 
+#: The strict check over wider fixtures (``pytest_fixture_setup``), hooked
+#: here, before any test patches ``Logger.handle``, so a per-test patch
+#: always wraps it and its undoing never drops it.
+_FIXTURE_WATCH = FixtureWatch()
+_FIXTURE_WATCH.install()
+
 
 @pytest.fixture(autouse=True)
 def _short_nodeid(request: pytest.FixtureRequest) -> None:
@@ -220,7 +226,10 @@ def _catalogued_records_are_valid(request: pytest.FixtureRequest) -> Iterator[No
     whatever the handlers, and on ``print_error``'s one seam
     ``_write_error_line``; the hooks are their own patch, undone at the end
     without touching the test's ``monkeypatch``. A logger named
-    ``pitloom.test_*`` is a test's own and is not checked."""
+    ``pitloom.test_*`` is a test's own and is not checked. An uncoded line
+    said while a wider fixture's window is open (one the test sets up with
+    ``request.getfixturevalue``) is that window's to report, not this
+    check's."""
     problems: list[str] = []
     findings: list[Finding] = []
     handle = logging.Logger.handle
@@ -233,13 +242,13 @@ def _catalogued_records_are_valid(request: pytest.FixtureRequest) -> Iterator[No
             finding = strict_finding(record)
             if finding is None:
                 problems.append(problem)
-            else:
+            elif not _FIXTURE_WATCH.watching:
                 findings.append(finding)
         handle(self, record)
 
     def watching_lines(line: str) -> None:
         finding = line_finding(line)
-        if finding is not None:
+        if finding is not None and not _FIXTURE_WATCH.watching:
             findings.append(finding)
         write(line)
 
@@ -362,9 +371,6 @@ def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
     for item in items:
         if is_platform_file(item.path, root):
             item.add_marker(pytest.mark.platform)
-
-
-_FIXTURE_WATCH = FixtureWatch()
 
 
 @pytest.hookimpl(wrapper=True)

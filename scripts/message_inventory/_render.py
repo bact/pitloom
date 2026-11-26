@@ -42,6 +42,9 @@ class Renderer(Index):
         super().__init__(root)
         self._memo: dict[tuple[str, str], list[str] | None] = {}
         self._busy: set[tuple[str, str]] = set()
+        #: Parameters being rendered through their bound argument: a
+        #: recursive call binds one to itself, a mutual one in a ring.
+        self._binding: set[tuple[int, str]] = set()
         self._depth = 0
 
     def render_call(
@@ -259,9 +262,14 @@ class Renderer(Index):
     ) -> list[str] | None:
         bound = self.bind.get(id(func), {}).get(node.id) if func is not None else None
         if func is not None and bound is not None:
-            if not local_assigns(func, node.id):
+            key = (id(func), node.id)
+            if not local_assigns(func, node.id) and key not in self._binding:
                 arg, cmod, cfunc, ccls = bound
-                found = self.render(arg, cmod, cfunc, ccls)
+                self._binding.add(key)
+                try:
+                    found = self.render(arg, cmod, cfunc, ccls)
+                finally:
+                    self._binding.discard(key)
                 return found if found is not None else [placeholder(arg)]
         if func is not None and not strict:
             outs: list[str] = []

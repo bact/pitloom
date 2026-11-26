@@ -27,6 +27,7 @@ from pitloom.cli.options import _resolve_output_path, build_options_from_args
 from pitloom.cli.options_config import explicit_config_and_options
 from pitloom.core.build_options import BuildOptions
 from pitloom.core.config import PitloomConfig
+from pitloom.core.current_dir import current_dir
 from pitloom.core.internal_error import InternalError
 from pitloom.core.url_masking import sanitize_url
 from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
@@ -62,7 +63,7 @@ def _default_output(
     ``sbom-basename``, else ``<name>-<version>.spdx3.json`` (``<name>``
     without a version) from the metadata read from the sdist."""
     if explicit is None and result.download.kind == WHEEL:
-        return Path.cwd() / f"{result.download.filename}{SPDX3_JSONLD_EXTENSION}"
+        return current_dir() / f"{result.download.filename}{SPDX3_JSONLD_EXTENSION}"
     return _resolve_output_path(
         explicit, result.metadata, pitloom_config or PitloomConfig()
     )

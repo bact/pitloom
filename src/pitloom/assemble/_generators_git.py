@@ -21,6 +21,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+from pitloom._sbom_io import refuse_empty_output
 from pitloom.assemble._generators import generate_project_sbom
 from pitloom.assemble._model_generator import generate_model_sbom
 from pitloom.core.build_options import REMOTE_REPOSITORY_REASON, BuildOptions
@@ -134,6 +135,7 @@ def generate_git_sbom(
             (``model-ambiguous``), or a Git LFS pointer (``lfs-pointer``).
     """
     configure_logging()
+    refuse_empty_output(output_path)
     if sbom_kind not in _SBOM_KINDS:
         raise InternalError(
             f"sbom_kind must be one of {_SBOM_KINDS}, got {sbom_kind!r}"

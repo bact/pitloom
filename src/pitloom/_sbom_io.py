@@ -27,6 +27,7 @@ from pathlib import Path
 from typing import TextIO
 
 from pitloom.messages import code_of
+from pitloom.messages.config import Parameter, invalid_value
 from pitloom.messages.files import SBOM_USE, file_unwritable_error
 
 #: The ``-o`` value that means "write to standard output".
@@ -127,6 +128,18 @@ def coded_write(file: str | os.PathLike[str], *, use: str = SBOM_USE) -> Iterato
         raise file_unwritable_error(exc, file=file, use=use) from exc
 
 
+def refuse_empty_output(output_path: Path | str | None) -> None:
+    """Refuse an *output_path* spelt as nothing (``""``): ``option-invalid``
+    (``non-empty``) naming ``output_path``, as the CLI's ``-o ""`` is. Each
+    library entry calls it first, before anything is read or written.
+
+    Raises:
+        pitloom.messages.CodedValueError: *output_path* is ``""``.
+    """
+    if isinstance(output_path, str) and not output_path:
+        raise invalid_value(Parameter("output_path"), "non-empty", got="")
+
+
 def write_sbom_output(sbom_json: str, output_path: Path | str | None) -> None:
     """Write an SBOM to *output_path*, to standard output for ``-``, or
     nowhere for ``None``: the one ``-o`` write of every surface. A write
@@ -136,9 +149,12 @@ def write_sbom_output(sbom_json: str, output_path: Path | str | None) -> None:
 
     Raises:
         pitloom.messages.CodedOSError: The system refused the write.
+        pitloom.messages.CodedValueError: *output_path* is ``""``
+            (:func:`refuse_empty_output`).
     """
     if output_path is None:
         return
+    refuse_empty_output(output_path)
     if is_stdout(output_path):
         write_stdout_lf(sbom_json)
         return
@@ -151,6 +167,7 @@ __all__ = [
     "coded_write",
     "is_stdout",
     "open_text_lf",
+    "refuse_empty_output",
     "replace_text_lf",
     "write_sbom_output",
     "write_stdout_lf",

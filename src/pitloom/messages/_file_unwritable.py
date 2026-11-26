@@ -43,7 +43,8 @@ FILE_UNWRITABLE: Final = Message(
     "be). The ID registry file, written 'for the ID registry'; a wheel an "
     "embed rewrites with its SBOM, the SBOM a command writes to '-o' (a "
     "library call's output_path), or the SBOM the Hatchling build hook "
-    "stages, written 'for the SBOM'.",
+    "stages, written 'for the SBOM'; the fragment a loom SDK run writes at "
+    "its end, written 'for the SBOM fragment'.",
     did="Tried to write an ID registry file through a temporary file "
     "beside it, so a "
     "failed write leaves its old content; where the directory refuses a "
@@ -52,9 +53,11 @@ FILE_UNWRITABLE: Final = Message(
     "beside it, put in its place once complete: a refused write leaves the "
     "wheel as it was; an SBOM's '-o' file is written in place (an embed's "
     "after the wheel), the hook's in a new temporary directory. "
+    "A loom run's fragment is written in place. "
     "As an ERROR ('loom id generate', 'loom id import', a command writing "
-    "its SBOM to '-o', the build hook), the command exits 1 or the build "
-    "fails (an embed-wheel batch goes on with its other wheels). As a "
+    "its SBOM to '-o', the build hook, a loom run), the command exits 1, "
+    "the build fails or the loom run raises OSError carrying the code (an "
+    "embed-wheel batch goes on with its other wheels). As a "
     "WARNING "
     f"({SAVE_SURFACES}, saving the ids a run added after its SBOM is "
     "built), the SBOM stands and the ids are not saved: the next run mints "

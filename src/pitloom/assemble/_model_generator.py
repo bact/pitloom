@@ -13,7 +13,7 @@ import logging
 from collections.abc import Callable
 from pathlib import Path
 
-from pitloom._sbom_io import write_sbom_output
+from pitloom._sbom_io import refuse_empty_output, write_sbom_output
 from pitloom.assemble.spdx3.ai import lookup_model_id
 from pitloom.assemble.spdx3.document import build_enrichment_fragment, build_model
 from pitloom.core.ai_metadata import AiModelMetadata
@@ -290,6 +290,7 @@ def generate_model_sbom(
             given).
     """
     configure_logging()
+    refuse_empty_output(output_path)
     _refuse_pypi_url(source)
     refuse_empty_input(source, MODEL_FILE_KIND)
     if max_download_bytes is not None:
@@ -340,7 +341,7 @@ def generate_model_sbom(
         resolved_registry = resolve_registry(
             id_registry,
             cfg.id_registry,
-            Path.cwd(),
+            None,
             refuse_credentials=cfg.credential_policy.refuse,
         )
         model = _read_local_model(model_path, shown)
@@ -407,6 +408,7 @@ def enrich_model(
             given).
     """
     configure_logging()
+    refuse_empty_output(output_path)
     refuse_empty_input(source, MODEL_FILE_KIND)
     source_str = str(source)
     if is_huggingface_source(source_str):
@@ -431,7 +433,7 @@ def enrich_model(
         resolved_registry = resolve_registry(
             id_registry,
             cfg.id_registry,
-            Path.cwd(),
+            None,
             refuse_credentials=accepted.refuse,
         )
     else:

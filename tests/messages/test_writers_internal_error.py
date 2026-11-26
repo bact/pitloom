@@ -19,7 +19,13 @@ from collections.abc import Callable
 import pytest
 
 from pitloom.core.internal_error import InternalError
-from pitloom.messages._field_writers import failure_text, plain_text, whole
+from pitloom.messages._field_writers import (
+    entities_text,
+    failure_text,
+    joined,
+    plain_text,
+    whole,
+)
 from pitloom.messages._input_not_found import INPUT_LINE, INPUT_NOT_FOUND
 from pitloom.messages._templates import render, written
 from pitloom.messages.options import namespace_invalid
@@ -38,6 +44,8 @@ from pitloom.messages.options import namespace_invalid
         lambda: plain_text(5),
         lambda: whole(True),
         lambda: failure_text("text"),
+        lambda: joined("ab"),
+        lambda: entities_text("ab"),
         lambda: namespace_invalid("urn:x", "no such problem"),
     ],
     ids=[
@@ -51,6 +59,8 @@ from pitloom.messages.options import namespace_invalid
         "plain-text",
         "whole-bool",
         "failure-text",
+        "joined-str",
+        "entities-str",
         "namespace",
     ],
 )

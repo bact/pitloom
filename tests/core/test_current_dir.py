@@ -17,19 +17,26 @@ import ast
 import errno
 import sys
 from pathlib import Path
+from subprocess import CompletedProcess
 
 import pytest
 
 from pitloom.core.current_dir import current_dir
 from pitloom.messages import CodedValueError, code_of
 from tests._loom_child import coded_lines, run_loom
+from tests._wheel_fixtures import make_wheel
 
 pytestmark = pytest.mark.platform
 
 #: Windows cannot remove a process's current directory.
 _CANNOT_REMOVE_CWD = sys.platform == "win32"
 _SAID = "DIR=.: could not read for resolving relative paths; "
-_CLI = Path(__file__).resolve().parents[2] / "src" / "pitloom" / "cli"
+_ROOT = Path(__file__).resolve().parents[2]
+_CLI = _ROOT / "src" / "pitloom" / "cli"
+#: The smallest model fixture, absolute.
+_MODEL = str(
+    _ROOT / "tests" / "fixtures" / "aimodels" / "numpy" / "example-model-v1.npy"
+)
 #: Run first in the child: its current directory is removed before ``loom``
 #: builds its parser.
 _REMOVE_CWD = "import os\nos.rmdir(os.getcwd())\n"
@@ -68,6 +75,21 @@ def test_current_dir_gone(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
     assert str(caught.value).startswith(_SAID)
 
 
+def _run_with_cwd_gone(argv: list[str], tmp_path: Path) -> CompletedProcess[bytes]:
+    """``loom`` *argv* (``{abs}`` an absolute directory) in a child whose
+    current directory is removed before its parser is built."""
+    shim = tmp_path / "shim"
+    shim.mkdir()
+    (shim / "sitecustomize.py").write_text(_REMOVE_CWD, encoding="utf-8")
+    cwd = tmp_path / "cwd"
+    cwd.mkdir()
+    args = [a.replace("{abs}", str(tmp_path / "abs")) for a in argv]
+    done = run_loom(args, cwd, path=[shim])
+    assert not cwd.exists()  # the shim ran
+    assert b"Traceback" not in done.stderr
+    return done
+
+
 @pytest.mark.skipif(_CANNOT_REMOVE_CWD, reason="Windows cannot remove the cwd")
 @pytest.mark.parametrize(
     ("argv", "code"),
@@ -76,22 +98,39 @@ def test_current_dir_gone(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
         (["wheel", "{abs}/x-1-py3-none-any.whl"], "input-not-found"),
         # The default target is the current directory.
         (["project"], "file-unreadable"),
+        # The default output is in the current directory.
+        (["env"], "file-unreadable"),
     ],
-    ids=["wheel", "project"],
+    ids=["wheel", "project", "env"],
 )
 def test_cli_with_cwd_gone(argv: list[str], code: str, tmp_path: Path) -> None:
     """The parser builds (no traceback); each line is coded."""
-    shim = tmp_path / "shim"
-    shim.mkdir()
-    (shim / "sitecustomize.py").write_text(_REMOVE_CWD, encoding="utf-8")
-    cwd = tmp_path / "cwd"
-    cwd.mkdir()
-    args = [a.replace("{abs}", str(tmp_path / "nowhere")) for a in argv]
-    done = run_loom(args, cwd, path=[shim])
+    done = _run_with_cwd_gone(argv, tmp_path)
     assert done.returncode == 1
-    assert not cwd.exists()  # the shim ran
     assert list(coded_lines(done.stderr).values()) == [code]
-    assert b"Traceback" not in done.stderr
+
+
+@pytest.mark.skipif(_CANNOT_REMOVE_CWD, reason="Windows cannot remove the cwd")
+@pytest.mark.parametrize(
+    "argv",
+    [
+        ["env", "-o", "{abs}/out.json"],
+        ["model", _MODEL, "-o", "{abs}/out.json"],
+        ["enrich", _MODEL, "-o", "{abs}/out.json"],
+        ["generate", "-o", "{abs}/out.json", _MODEL],
+        ["wheel", "{abs}/demo-1.0-py3-none-any.whl", "-o", "{abs}/out.json"],
+        ["embed-wheel", "{abs}/demo-1.0-py3-none-any.whl", "-o", "{abs}/out.whl"],
+    ],
+    ids=["env", "model", "enrich", "generate", "wheel", "embed-wheel"],
+)
+def test_cli_absolute_paths_with_cwd_gone(argv: list[str], tmp_path: Path) -> None:
+    """Every path absolute: no current directory is needed, so none is
+    read (an ID registry is resolved against it only when one is given)."""
+    make_wheel(tmp_path / "abs")
+    done = _run_with_cwd_gone(argv, tmp_path)
+    assert done.returncode == 0, done.stderr
+    assert "file-unreadable" not in coded_lines(done.stderr).values()
+    assert (tmp_path / "abs" / Path(argv[argv.index("-o") + 1]).name).is_file()
 
 
 def _cwd_calls(node: ast.AST) -> list[str]:

@@ -23,6 +23,7 @@ import pytest
 
 from pitloom.core.quote_source import quote_source
 from pitloom.extract._extract_utils import (
+    _read_local,
     close_http_error,
     fetch_json,
     filename_from_url,
@@ -116,6 +117,12 @@ def test_fetch_json_local_file_cap(tmp_path: Path, size: int, ok: bool) -> None:
         reason = f"larger than the 10-byte JSON-document cap {_USE}; not read"
         assert str(raised.value) == f"FILE={path}: {reason}"
         assert raised_as(raised.value, OVER_CAP)
+
+
+def test_read_local_reads_no_more_than_asked(tmp_path: Path) -> None:
+    path = tmp_path / "data.json"
+    path.write_bytes(b"0123456789")
+    assert _read_local(path, 4, "Croissant document") == b"0123"
 
 
 def test_fetch_json_invalid_json(tmp_path: Path) -> None:

@@ -36,6 +36,7 @@ from pitloom.messages.config import (
     loom_sdk_invalid_value,
     loom_sdk_type_error,
 )
+from pitloom.messages.targets import refuse_empty_input
 
 __all__ = ["DATASET_TYPES", "check_sdk_arguments", "loom_config"]
 
@@ -70,11 +71,13 @@ def _is_string_mapping(value: object) -> bool:
 
 class _Rule(NamedTuple):
     """What a parameter takes: its ``EXPECTED`` id, the test of its type
-    and, for a value of that type, of its value (``None``: any)."""
+    and, for a value of that type, of its value (``None``: any) with the
+    ``EXPECTED`` id a refused value is told (``None``: *expected*)."""
 
     expected: str
     type_ok: Callable[[object], bool]
     value_ok: Callable[[object], bool] | None = None
+    value_expected: str | None = None
 
 
 def _of(kind: type | tuple[type, ...]) -> Callable[[object], bool]:
@@ -87,13 +90,22 @@ def _is_str(value: object) -> bool:
     return isinstance(value, str)
 
 
+def _is_named(value: object) -> bool:
+    """A path (:func:`_is_path`) not spelt as nothing (``""``), which
+    :class:`pathlib.Path` would read as the current directory."""
+    return isinstance(value, (str, os.PathLike)) and os.fspath(value) != ""
+
+
 #: Each SDK parameter by name.
 _RULES: Final[Mapping[str, _Rule]] = {
-    "output_file": _Rule("path", _is_path),
+    "output_file": _Rule("path", _is_path, _is_named, "non-empty"),
     "pretty": _Rule("boolean", _of(bool)),
     "creation_metadata": _Rule("creation-metadata", _of(CreationMetadata)),
     "id_registry": _Rule(
-        "registry-source", lambda v: _is_path(v) or isinstance(v, IdRegistry)
+        "registry-source",
+        lambda v: _is_path(v) or isinstance(v, IdRegistry),
+        lambda v: isinstance(v, IdRegistry) or _is_named(v),
+        "non-empty",
     ),
     "credentials": _Rule("credential-policy", _of(CredentialPolicy)),
     "name": _Rule("string", _is_str),
@@ -118,7 +130,8 @@ def check_sdk_arguments(required: Collection[str], /, **values: object) -> None:
         pitloom.messages.CodedTypeError: A value of the wrong type
             (``option-invalid``).
         pitloom.messages.CodedValueError: A value of the right type that
-            the parameter does not take (an unknown ``dataset_type``).
+            the parameter does not take (an unknown ``dataset_type``, an
+            empty ``output_file``).
         pitloom.core.internal_error.InternalError: A name has no rule.
     """
     for name, value in values.items():
@@ -130,7 +143,9 @@ def check_sdk_arguments(required: Collection[str], /, **values: object) -> None:
         if not rule.type_ok(value):
             raise loom_sdk_type_error(Parameter(name), rule.expected, got=value)
         if rule.value_ok is not None and not rule.value_ok(value):
-            raise loom_sdk_invalid_value(Parameter(name), rule.expected, got=value)
+            raise loom_sdk_invalid_value(
+                Parameter(name), rule.value_expected or rule.expected, got=value
+            )
 
 
 def loom_config(pitloom_config: PitloomConfig | str | Path | None) -> PitloomConfig:
@@ -139,7 +154,8 @@ def loom_config(pitloom_config: PitloomConfig | str | Path | None) -> PitloomCon
     else the defaults. Never an implicit ``[tool.pitloom]``.
 
     Raises:
-        ValueError: the named file is missing (``input-not-found``),
+        ValueError: the named file is missing or the path empty
+            (``input-not-found``),
             unreadable (``file-unreadable``) or invalid (``config-invalid``,
             ``config-malformed``): a :class:`~pitloom.messages.CodedValueError`
             naming it.
@@ -152,8 +168,9 @@ def loom_config(pitloom_config: PitloomConfig | str | Path | None) -> PitloomCon
         raise invalid_value(
             Parameter("pitloom_config"), "config-source", pitloom_config
         )
-    path = Path(pitloom_config)
     try:
-        return load_config_file(path, source="pitloom_config")
+        # Path("") is the current directory: name the empty path as given.
+        refuse_empty_input(pitloom_config, "config file")
+        return load_config_file(Path(pitloom_config), source="pitloom_config")
     except FileNotFoundError as exc:
         raise recoded(CodedValueError, exc) from None

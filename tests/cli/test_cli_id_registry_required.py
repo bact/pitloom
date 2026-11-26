@@ -223,3 +223,28 @@ def test_id_import_declared_key_used_no_error(
 
     assert exit_code == 0
     assert (tmp_path / "registry.json").is_file()
+
+
+@pytest.mark.parametrize(
+    "registry", [[], ["--id-registry", "r.json"]], ids=["none", "flag"]
+)
+def test_id_generate_empty_path_said_as_a_missing_one(
+    registry: list[str],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """An empty PATH is a missing one: the same line, in the same order
+    against the registry check (``option-missing`` first without one)."""
+    (tmp_path / "pyproject.toml").write_text(
+        '[project]\nname = "demo"\nversion = "0.1.0"\n', encoding="utf-8"
+    )
+    monkeypatch.chdir(tmp_path)
+    said = []
+    for path in ("", "missing"):
+        assert _run(["id", "generate", path, *registry]) == 1
+        (line,) = capsys.readouterr().err.splitlines()
+        said.append(line.rsplit(" [", 1)[1])
+    assert said[0] == said[1]
+    assert said[0] == ("input-not-found]" if registry else "option-missing]")
+    assert not (tmp_path / "r.json").exists()

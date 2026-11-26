@@ -17,7 +17,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from pathlib import Path
 
-from pitloom._sbom_io import write_sbom_output
+from pitloom._sbom_io import refuse_empty_output, write_sbom_output
 from pitloom.assemble.spdx3._fragments_envelope import (
     finish_merge_document,
     new_merge_document,
@@ -84,6 +84,7 @@ def generate_merged_sbom(
             given).
     """
     configure_logging()
+    refuse_empty_output(output_path)
     # A Path as given (a TypedPath keeps the user's spelling for the lines).
     # A str too: an empty one names nothing (the input probe), not ".".
     fragments_dir = (
