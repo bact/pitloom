@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-02
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-26
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -41,6 +41,14 @@ entries stay in the last section for history.
 
 ### Found in review rounds, not yet prioritised
 
+- [ ] **A registry file name of 234-255 characters cannot be saved (S).**
+  `_sbom_io.replace_text_lf` (the registry's only writer) writes
+  `.{name}.{16 hex}.tmp` beside the target, 22 characters longer than the
+  name, so a name the file system accepts fails with `ENAMETOOLONG`
+  (errno 63 on macOS, reproduced). Fix: a temporary name that does not
+  hold the whole name (cut, or a fixed prefix plus the random part).
+  *Found 2026-11-26, mutation backfill
+  ([mutation-backfill.md](../../implementation/mutation-backfill.md)).*
 - [ ] **A loom fragment's pointer does not unify with the hook's or an
   `--allow-build` run's (S-M).** The fragment's element states the `oid`,
   the archive's the text's digest: the merge keeps two `software_File`

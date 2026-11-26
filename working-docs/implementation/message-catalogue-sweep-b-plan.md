@@ -3,7 +3,7 @@ SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
 Created: 2026-11-25
-Last-Modified: 2026-11-25
+Last-Modified: 2026-11-26
 ---
 
 # Message catalogue sweep B ("strict"): plan and rulings
@@ -99,7 +99,7 @@ sweep C or the rescan" at the end.
 | `os.path.abspath(script_path)` with the cwd gone (`_loom_active_run.py:153`) | Sweep C (same file as the line above) |
 | Floor-docs test reads only the first `licenseid>=` | Sweep C |
 | Inventory does not follow tuple unpacking or returned values | Consistency rescan |
-| Mutation survivors (`_loom_dataset_meta` merge helpers, `_sbom_io` stdout/replace) | Mutation-backfill PR after the rescan |
+| Mutation survivors (`_loom_dataset_meta` merge helpers, `_sbom_io` stdout/replace) | Mutation-backfill PR after the rescan (done: [mutation-backfill.md](mutation-backfill.md)) |
 
 ## Size and fences
 

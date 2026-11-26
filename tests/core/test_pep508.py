@@ -29,9 +29,12 @@ from packaging.requirements import InvalidRequirement
 
 from pitloom.core import extra_gate, pep508
 from pitloom.core.extra_gate import MarkerShapeError, parse_gate
+from pitloom.core.pep440 import MAX_VERSION_NUMBER_DIGITS
 from pitloom.core.pep508 import (
     MAX_MARKER_NESTING,
     is_direct_reference,
+    is_over_nesting_cap,
+    is_over_number_cap,
     marker_nesting,
     parse_marker,
     parse_requirement,
@@ -57,12 +60,42 @@ _SRC = Path(__file__).resolve().parents[2] / "src" / "pitloom"
         ('a; os_name == "@" and (b)', False, 1),
         ("a; ) ((x", False, 2),
         ("a; 'open ((", False, 0),
+        ('a; ((os_name == "x") or ((os_name == "y")))', False, 3),
     ],
     ids=["none", "one", "quoted-open", "quoted-close", "other-quote", "url",
-         "url-only", "marker-no-url", "at-in-marker", "stray-close", "unclosed"],
+         "url-only", "marker-no-url", "at-in-marker", "stray-close", "unclosed",
+         "sibling-then-deeper"],
 )  # fmt: skip
 def test_marker_nesting(text: str, marker: bool, depth: int) -> None:
     assert marker_nesting(text, marker=marker) == depth
+
+
+def test_cap_checks_return_a_bool() -> None:
+    """Under every cap the checks say ``False``, not a falsy ``None``; by
+    default a text is a requirement, so a URL's parentheses are no nesting."""
+    assert is_over_nesting_cap("a") is False
+    assert is_over_number_cap("a") is False
+    assert marker_nesting("a @ ((y") == 0
+
+
+@pytest.mark.parametrize(
+    ("check", "over"),
+    [
+        (is_over_nesting_cap, "defaults; " + nested_marker(MAX_MARKER_NESTING + 1)),
+        (is_over_number_cap, "defaults==" + "1" * (MAX_VERSION_NUMBER_DIGITS + 1)),
+    ],
+    ids=["nesting", "digits"],
+)
+def test_a_cap_check_by_default_reads_a_requirement_and_warns(
+    caplog: pytest.LogCaptureFixture, check: Callable[[str], bool], over: str
+) -> None:
+    """Called with the text only, a check names it ``REQUIREMENT=`` in its
+    one ``over-cap`` ``WARNING:``."""
+    with caplog.at_level(logging.WARNING, logger="pitloom.core.pep508"):
+        assert check(over) is True
+    (record,) = caplog.records
+    assert getattr(record, "pitloom_code", None) == "over-cap"
+    assert record.getMessage().startswith("REQUIREMENT=")
 
 
 def test_nesting_counts_at_least_what_packaging_nests() -> None:

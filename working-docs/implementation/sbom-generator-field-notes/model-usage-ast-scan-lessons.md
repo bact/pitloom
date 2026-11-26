@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-03
-Last-Modified: 2026-11-06
+Last-Modified: 2026-11-26
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -105,7 +105,11 @@ interpreter or the cited commit on 2026-11-02 to 2026-11-06.
 - Two mutants of the worklist (the line that skips names already reached, and
   the line that queues new ones) loop forever on a cycle
   (`A = Path('m.pkl', x=B)`, `B = Path('m.pkl', x=A)`). No test was kept: a
-  test that hangs CI is worse than the mutant surviving.
+  test that hangs CI is worse than the mutant surviving. Later (2026-11-26) a
+  bounded test killed both: the walk runs in a daemon thread joined with a
+  timeout (`tests/_bounded.py` `run_bounded`), so a walk that does not end
+  fails the test after 5 s instead of hanging it. The trade-off was a
+  false choice once such a helper existed.
 
 ## 6. Mutation testing found a behaviour bug, not only a missing test
 

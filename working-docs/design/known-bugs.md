@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-03
-Last-Modified: 2026-11-09
+Last-Modified: 2026-11-26
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -57,13 +57,13 @@ lists its open entries first, ranked as described under
 | - | -: | -: | -: | -: | -: | -: | -: | -: |
 | [AI model readers and metadata](known-bugs/ai-models-readers-and-metadata.md) | - | - | - | 38 | 4 | - | 42 | 13 |
 | [Licences and LicenseID](known-bugs/licences-and-licenseid.md) | - | - | 2 | 3 | 9 | - | 14 | 14 |
-| [ID registry and identity](known-bugs/id-registry-and-identity.md) | - | 3 | - | - | 10 | 1 | 14 | 11 |
-| [Messages, catalogue and provenance](known-bugs/messages-and-provenance.md) | - | - | - | 2 | 18 | - | 20 | 15 |
+| [ID registry and identity](known-bugs/id-registry-and-identity.md) | - | 3 | - | - | 11 | 1 | 15 | 11 |
+| [Messages, catalogue and provenance](known-bugs/messages-and-provenance.md) | - | - | - | 2 | 18 | - | 20 | 16 |
 | [Remote sources, Git LFS and datasets](known-bugs/remote-sources-lfs-and-datasets.md) | - | - | - | - | 12 | - | 12 | 8 |
-| [Extraction, fragments and merge](known-bugs/extraction-and-fragments.md) | 1 | - | 3 | 8 | 9 | - | 21 | 11 |
+| [Extraction, fragments and merge](known-bugs/extraction-and-fragments.md) | 1 | - | 3 | 8 | 13 | - | 25 | 11 |
 | [CLI, Action, hook and wheel](known-bugs/surfaces-hook-and-wheel.md) | - | - | - | 7 | 2 | 2 | 11 | 5 |
-| [Process, tooling and release checks](known-bugs/process-tooling-and-release-checks.md) | - | - | - | 2 | 10 | - | 12 | 9 |
-| **Total** | **1** | **3** | **5** | **60** | **74** | **3** | **146** | **86** |
+| [Process, tooling and release checks](known-bugs/process-tooling-and-release-checks.md) | - | - | - | 2 | 11 | - | 13 | 9 |
+| **Total** | **1** | **3** | **5** | **60** | **80** | **3** | **152** | **87** |
 
 Open = the `- [ ]` entries plus the Leads, which are plain bullets with no box;
 Fixed = the `- [x]` entries. The P and Found columns count `- [ ]` entries only.

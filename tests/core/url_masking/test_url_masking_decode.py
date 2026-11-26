@@ -137,3 +137,14 @@ def test_an_id_minted_from_an_ssh_account_name_is_weak_only(name: str) -> None:
         for value in _ids(name.replace("git@", secret)):
             found = find_url_credentials(value, account=True, embedded=True)
             assert any(not f.weak for f in found), value
+
+
+def test_an_id_is_read_at_each_depth_its_values_not_again() -> None:
+    """Each decode depth of an id is read whole; a query value in it is not
+    decoded again on its own, so a credential encoded deeper than the
+    rounds is ``nesting`` only."""
+    value = "urn:x:https://h/?n=" + encoded(
+        "https://u:S3CRET@h/x", PURL_DECODE_ROUNDS + 1
+    )
+    found = find_url_credentials(value, embedded=True)
+    assert [f.kind for f in found] == ["nesting"]

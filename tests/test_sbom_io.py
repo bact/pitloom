@@ -231,6 +231,20 @@ def test_stdout_without_a_byte_buffer_still_writes(
     assert stream.getvalue() == "x\n"
 
 
+def test_stdout_bytes_follow_earlier_text_and_reach_the_stream(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Text written before (still in the text layer's buffer) comes first,
+    and the bytes are flushed through: nothing waits in either buffer."""
+    raw = io.BytesIO()
+    stream = io.TextIOWrapper(io.BufferedWriter(raw), encoding="utf-8")
+    monkeypatch.setattr(sys, "stdout", stream)
+    stream.write("before ")
+    assert not raw.getvalue()  # the earlier text is still buffered
+    write_stdout_lf("x")
+    assert raw.getvalue() == b"before x\n"
+
+
 def test_no_output_path_writes_nothing(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

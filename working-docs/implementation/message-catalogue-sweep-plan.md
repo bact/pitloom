@@ -3,7 +3,7 @@ SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
 Created: 2026-11-24
-Last-Modified: 2026-11-25
+Last-Modified: 2026-11-26
 ---
 
 # Message catalogue sweep: plan
@@ -238,5 +238,6 @@ rounds; mutation of the inventory rules (12 mutants, all killed).
 - Mutation pass on the PR (about 300 mutants): the survivors in code this PR
   changed have tests (new files under `tests/`); survivors in older code
   (`_loom_dataset_meta` merge helpers, `_sbom_io` stdout/replace helpers) were
-  left. `test_reader_log_interrupt.py` now undoes every captured logger: it had
+  left, then killed by the mutation backfill
+  ([mutation-backfill.md](mutation-backfill.md)). `test_reader_log_interrupt.py` now undoes every captured logger: it had
   left a dispatcher on the second one and leaked into later scanner tests.

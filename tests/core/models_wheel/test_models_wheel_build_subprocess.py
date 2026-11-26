@@ -16,7 +16,9 @@ tests/core/models_wheel/test_models_wheel_build_kill.py (the
 kill path), tests/core/test_build_signals.py
 (SIGTERM/SIGHUP handling) and
 tests/core/models_wheel/test_models_wheel_types_build_timeout.py (the
-timeout value itself).
+timeout value itself),
+tests/core/models_wheel/test_models_wheel_build_subprocess_wait.py (the
+wait's deadline).
 """
 
 # The private helpers are the unit under test here.

@@ -132,6 +132,8 @@ def test_a_token_of_a_fixed_length_is_none_when_longer(token: str) -> None:
         *("glrt-ServiceAnthropicAnthropicApi",),
         *("gldt-TOKEN_ACCESS_RELEASE_PYPI_NOTES_DOCS269",),
         *("AIzaGitlabInstallAppRefreshDeployGuides",),
+        # The digit is the 21st character: past the 20 that must hold one.
+        *("glpat-ApiProjectPypiInstal1",),
     ],
     ids=[
         *("pat-slug", "glpat-slug", "xoxb-slug", "xapp-slug", "pypi-slug"),
@@ -141,7 +143,7 @@ def test_a_token_of_a_fixed_length_is_none_when_longer(token: str) -> None:
         *("xoxr-word", "xoxa-word", "xoxa-uuid", "xapp-words", "glptt-camel"),
         *("gloas-camel", "xoxb-legacy-words", "xapp-long-words", "glcbt-camel"),
         *("glpat-camel", "glpat-shouting", "glrt-camel", "gldt-shouting"),
-        *("aiza-camel",),
+        *("aiza-camel", "glpat-digit-past-20"),
     ],
 )
 def test_a_slug_in_a_url_is_no_token(text: str) -> None:

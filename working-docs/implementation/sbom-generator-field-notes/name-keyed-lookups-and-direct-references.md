@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-30
-Last-Modified: 2026-10-30
+Last-Modified: 2026-11-26
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -144,4 +144,6 @@ decided in #398). Commits 287930f5, 97441278, 3c7259f8, 980a16dc.
 - Mutation testing: seven mutants of the fix were prepared in session
   scratch (the predicate's two returns, each of the three call sites);
   their results were not preserved in the repository, so the kill rate is
-  *unverified*.
+  *unverified*. Re-measured 2026-11-26 on `main`: all 5 mutants of
+  `is_direct_reference` and all 15 that ran on its caller
+  (`assemble/spdx3/_dep_groups.py`) are killed.

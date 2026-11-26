@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-02
-Last-Modified: 2026-11-23
+Last-Modified: 2026-11-26
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -34,6 +34,18 @@ entries stay in the last section for history.
 
 ### Found in review rounds, not yet prioritised
 
+- [ ] **A credential URL after a leading `!` is neither warned nor refused
+  (S).** `[project.urls] Homepage = "!https://u:S3CRET@h/x"` (or a
+  dependency `x @ !https://u:S3CRET@h/x.whl`) is written to the SBOM as is,
+  with no `credentials-unsafe` line, and `--refuse-url-credentials` does not
+  refuse it: `find_url_credentials` reads a value as a URL only after what
+  `urllib` strips (C0 controls, space), so it finds nothing. The log masker
+  and `masked_given_path` do mask it (`!https://***:***@h/x`), so the finder
+  and the maskers disagree. Decide whether the finder leans to over-reporting
+  (as the maskers do) before pinning either reading in a test; the surviving
+  mutant (`_hits.py`, the `0x21` bound) is left until then.
+  *Found 2026-11-26, mutation backfill
+  ([mutation-backfill.md](../../implementation/mutation-backfill.md)).*
 - [ ] **`file-unreadable` is not in the generated model table (S), decided
   2026-10-30: later (not done in 0.22.x or 0.23.0).** The model header line
   drops the model, and the model hash leaves no `verifiedUsing`; add the code
@@ -103,9 +115,6 @@ entries stay in the last section for history.
   `JSON-document` and the 64-level `Croissant-nesting` caps; no page lists
   the dataset readers' caps.
   *Found 2026-11-05, review of #444.*
-- [ ] **The export-site test survives `repr(min(changed))` (S).** The mutant
-  is equivalent for ASCII names; a non-ASCII case would kill it. Low.
-  *Found 2026-11-05, review of #444.*
 - [ ] **An import failure's text is printed unmasked (S).** The
   `library-unusable` line quotes what the import raised, through
   `one_line`/`loggable` only: an `OSError` naming a URL with credentials
@@ -140,6 +149,13 @@ release ships.
 
 ### Fixed, Found in review rounds, not yet prioritised
 
+- [x] **The export-site test survived `repr(min(changed))` (S), fixed
+  (mutation-backfill PR, 2026-11-26).** The mutant is equivalent only for a
+  name that holds the lone surrogate and is otherwise ASCII (`ascii()` then
+  equals `repr()`); a printable name (the surrogate in another field) or a
+  non-ASCII one kills it, and
+  `tests/export/test_spdx3_json_graph.py` now has both. *Found 2026-11-05,
+  review of #444.*
 - [x] **An import that is found but fails was reported as "not installed"
   (S), fixed (#446).** It says `library-unusable`, naming what
   the import raised (`optional_libraries.import_failed`), at every optional

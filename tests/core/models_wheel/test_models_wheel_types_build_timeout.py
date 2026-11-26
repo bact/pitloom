@@ -84,6 +84,8 @@ def test_resolve_build_timeout_validates(value: int) -> None:
         ("1h0m0s", 3600),
         ("1h90m", 9000),
         ("168h", 604_800),
+        ("604800", 604_800),
+        ("100000s", 100_000),
     ],
     ids=str,
 )
@@ -120,6 +122,21 @@ def test_parse_build_timeout_accepts(text: str, expected: int) -> None:
 def test_parse_build_timeout_rejects(text: str) -> None:
     with pytest.raises(ValueError):
         parse_build_timeout(text)
+
+
+@pytest.mark.parametrize(
+    ("text", "shown"),
+    [("", ""), ("a" * 40, "a" * 40), ("a" * 40 + "b", "a" * 40 + "...")],
+    ids=["empty", "40-whole", "41-cut"],
+)
+def test_parse_build_timeout_error_shows_the_value_cut_at_40(
+    text: str, shown: str
+) -> None:
+    """An empty value is no duration (not a total of 0 seconds); a value is
+    shown whole up to 40 characters, then cut."""
+    with pytest.raises(ValueError) as excinfo:
+        parse_build_timeout(text)
+    assert f"invalid duration {shown!r} " in str(excinfo.value)
 
 
 def test_parse_build_timeout_error_names_accepted_forms() -> None:
