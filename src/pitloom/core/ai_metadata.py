@@ -308,6 +308,12 @@ class AiModelFormatInfo:
     writing_tool: str | None = None
     writing_tool_version: str | None = None
 
+    @property
+    def shown_path(self) -> str | None:
+        """The model file as a warning names it: its physical path, else
+        its path in the package, else its file name; ``None`` with none."""
+        return self.physical_path or self.file_path_relative or self.file_name or None
+
 
 @dataclass
 class AiModelUsage:

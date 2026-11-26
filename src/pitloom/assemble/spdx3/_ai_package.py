@@ -195,11 +195,9 @@ class _LineageContext:
 def _model_where(ai_model: AiModelMetadata) -> tuple[str, str]:
     """The ``FORMAT=``/``FILE=`` values naming *ai_model* in a warning, as
     read: the ``file`` field masks, then escapes."""
-    info = ai_model.format_info
-    where = info.physical_path or info.file_path_relative or info.file_name
     return (
         _source_metadata_blob(ai_model)[0],  # "huggingface" for a Hub model
-        where or ai_model.url or ai_model.resolve_name()[0],
+        ai_model.format_info.shown_path or ai_model.url or ai_model.resolve_name()[0],
     )
 
 

@@ -397,7 +397,9 @@ Branch `catalogue-sweep-c2b-wording`, cut from main 4bb8d266 (#544, #545,
 - **A3.** `author_pairs(..., package=)` carries the package in `_Report`
   to `warn_field_cap`, whose once-memo key is `repr((package, key,
   digest))`: the project and each dependency holding one field text are
-  each said once.
+  each said once. `author_pairs`' `address_warnings` flag went (pylint
+  argument cap): a `package` set now implies no address warnings, which
+  only the dependency route asked for.
 - **A3 line.** `over-cap` gains `PACKAGE=%(package)s %(key)s=%(name)s:
   larger than ...; %(outcome)s` (since 0.25.0); `warn_over_cap(...,
   package=)` picks it and refuses a model cap with a package
@@ -411,7 +413,12 @@ Branch `catalogue-sweep-c2b-wording`, cut from main 4bb8d266 (#544, #545,
   references through, the loom SDK builds no `DatasetReference`.
   A reader conflict for `d@1` (url a vs b) also covers the assembler's
   `d@1` vs `d@2` fold of that field: "once per dataset and field" is per
-  field, not per pair of values.
+  field, not per pair of values. The reader's own memo is keyed by
+  `dataset_key` (the assembler's key), not (name, version): the line names no release, so `d@1` url a/b
+  and `d@2` url c/e said `download_url` twice until review round 1.
+- **Model file, one rule.** `AiModelFormatInfo.shown_path` (physical path,
+  else path in the package, else file name) names the model in the
+  `FORMAT=`/`FILE=` warnings and in `dataset-conflict`.
 - **D1, logger.** The reader now says the conflict on its own logger
   (`merge_dataset_into(..., say_on=)`), under `pitloom.extract.ai_model`, so
   a wheel scan relays it and `named_stably` rewrites the temporary copy's
@@ -431,3 +438,18 @@ Branch `catalogue-sweep-c2b-wording`, cut from main 4bb8d266 (#544, #545,
   and a `FILE=` form; one helper `warn_metadata_budget(log, cap, where,
   keys)`. The `over-cap` `did` text reads "the line says which" (a
   `key(s)` line has no semicolon).
+- **Gates.** Gate A: full suite, every CI linter with CI's commands, 100%
+  branch coverage of the changed source files, manual checks
+  `--only 5,7,17,20,22,25,B1,B6,B7`. Gate B: two fresh Opus review rounds
+  (round 1: the reader's double line and the copied path rule, both fixed;
+  round 2: docs only), 45 mutants (44 killed, the survivor `shown_path`'s
+  `or None` then pinned by a test), the full manual run `-j 8` (620 pass,
+  0 fail), a Windows dry run (the `file` field keeps backslashes; the relay
+  replaces by callable; new tests that build archives are `platform`). No
+  `SKILL.md` changed; the skills' generated references did.
+- **Left open.** A Hub model's `dataset-conflict` says `MODEL=<name>`
+  while its other model lines fall back to the URL (ruling 6 as written;
+  revisit at the rescan if one subject per model is wanted). A direct
+  library `read_gguf()` call names the model by its file name in the
+  conflict line and by its path in the reader's other warnings (every
+  production route relays and rewrites both to the stable path).

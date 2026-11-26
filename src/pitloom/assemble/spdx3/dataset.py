@@ -262,10 +262,10 @@ def _dataset_relationship(
 
 def dataset_model(ai_model: AiModelMetadata) -> DatasetModel:
     """*ai_model* as a dataset conflict names it: by its file, as its other
-    warnings name it (its physical path, else its path in the package, else
-    its file name), else by the name it is shown under."""
-    info = ai_model.format_info
-    file = info.physical_path or info.file_path_relative or info.file_name
+    warnings name it
+    (:attr:`~pitloom.core.ai_metadata.AiModelFormatInfo.shown_path`), else
+    by the name it is shown under (not its URL, as other warnings do)."""
+    file = ai_model.format_info.shown_path
     if file:
         return DatasetModel(file=file)
     return DatasetModel(name=ai_model.resolve_name()[0])

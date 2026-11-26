@@ -285,7 +285,6 @@ def author_pairs(
     *,
     splits: list[AuthorSplit],
     quiet: bool,
-    address_warnings: bool = True,
     keys: tuple[str, str] = AUTHOR_KEYS,
     package: str | None = None,
 ) -> list[NameEmail]:
@@ -317,9 +316,11 @@ def author_pairs(
     cannot be recovered from these headers; the one fixed rule keeps the
     result stable.
 
-    An address entry holding no address of the form ``local@domain`` is not
-    recorded, its stated display name kept, with one ``WARNING:`` per field
-    (unless *quiet* or not *address_warnings*). An address field cut where
+    An address entry that is not one valid email address
+    (``local@domain``) is not recorded, its stated display name kept, with
+    one ``WARNING:`` per field (unless *quiet*, or for a dependency's
+    record, *package* set: another project's, one line each would flood a
+    large environment). An address field cut where
     a separator could be inside a name, and a name field cut at all, are
     appended to *splits*, for the caller's warning, as is a name field
     recorded as one author though it holds ``,``, ``;`` or ``and`` (one
@@ -331,7 +332,8 @@ def author_pairs(
     ``WARNING:`` names a field by its key in *keys* (name field, address
     field), after ``PACKAGE=`` *package* for a dependency's record.
     """
-    noted: list[tuple[str, str]] | None = [] if address_warnings and not quiet else None
+    warn_addresses = package is None and not quiet
+    noted: list[tuple[str, str]] | None = [] if warn_addresses else None
     report = _Report(caps=not quiet, addresses=noted, package=package)
     names_text = stated_text(names)
     address_field = _Field(keys[1], named=False)

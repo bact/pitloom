@@ -320,7 +320,9 @@ def read_gguf_datasets(
     # The field each dataset came from, so the provenance names only the
     # fields of the datasets kept.
     origin: dict[DatasetIdentity, str] = {}
-    warned: dict[DatasetIdentity, set[str]] = {}
+    # The fields said to conflict, per dataset name: the line names no
+    # version, so two releases share one memo.
+    warned: dict[str, set[str]] = {}
     model = DatasetModel(file=file_name)
     # The version of the first numbered entry of each name: an array
     # element, which states none, is another spelling of that entry.
@@ -332,7 +334,7 @@ def read_gguf_datasets(
             merge_dataset_into(
                 found[identity],
                 meta,
-                warned.setdefault(identity, set()),
+                warned.setdefault(identity[0], set()),
                 model,
                 say_on=log,
             )
@@ -363,6 +365,6 @@ def read_gguf_datasets(
     ]
     if not kept:
         return [], None
-    datasets = [_trained_on(found[i], warned.get(i)) for i in kept]
+    datasets = [_trained_on(found[i], warned.get(i[0])) for i in kept]
     used = dict.fromkeys(origin[i] for i in kept)
     return datasets, provenance_segment(source, "Field", ", ".join(used))

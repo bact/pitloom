@@ -77,11 +77,27 @@ def test_the_reader_records_the_fields_it_said(
 ) -> None:
     with caplog.at_level(logging.WARNING):
         meta = read_gguf(_gguf(tmp_path / "m.gguf", *_THREE))
+    # the memo is per dataset name: the line names no release
     assert [ref.said_conflicts for ref in meta.datasets] == [
-        frozenset({"download_url"}),
-        frozenset(),
-    ]
+        frozenset({"download_url"})
+    ] * 2
     assert _logged(caplog) == [f"FILE=m.gguf DATASET='d' FIELD=download_url: {_TAIL}"]
+
+
+def test_two_releases_each_with_a_conflict_say_the_field_once(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """d@1 url a/b and d@2 url c/e: the reader folds each release, the
+    line names only ``DATASET='d'``, so ``download_url`` is said once,
+    then ``version`` by the assembler."""
+    entries = (("1", "a"), ("1", "b"), ("2", "c"), ("2", "e"))
+    with caplog.at_level(logging.WARNING):
+        meta = read_gguf(_gguf(tmp_path / "m.gguf", *entries))
+        build_model(meta, CreationMetadata(creation_datetime=_CREATED))
+    assert _logged(caplog) == [
+        f"FILE=m.gguf DATASET='d' FIELD=download_url: {_TAIL}",
+        f"FILE=m.gguf DATASET='d' FIELD=version: {_TAIL}",
+    ]
 
 
 def test_read_then_built_says_each_field_once(
