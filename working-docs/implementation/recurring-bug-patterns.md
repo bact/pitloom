@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-17
-Last-Modified: 2026-11-24
+Last-Modified: 2026-11-26
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -15,7 +15,9 @@ short summary list; this doc holds the full detail),
 [recurring-bug-patterns-test-harness.md](recurring-bug-patterns-test-harness.md)
 (test-harness traps; this file keeps the data-and-semantics ones),
 [recurring-bug-patterns-review-rounds.md](recurring-bug-patterns-review-rounds.md)
-(the patterns found in PR #300 and PR #305's review rounds).
+(the patterns found in PR #300 and PR #305's review rounds),
+[recurring-bug-patterns-review-rounds-pr359-378.md](recurring-bug-patterns-review-rounds-pr359-378.md)
+(PR #359 to #378 review rounds).
 
 General-purpose failure modes that have recurred across more than one
 subsystem -- worth checking for by name in any code that resembles the

@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-15
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-26
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -8,7 +8,7 @@ SPDX-License-Identifier: CC0-1.0
 
 # AI model id stability
 
-See also: [roadmap.md](roadmap.md) (To design: "AI model id stability",
+See also: [roadmap-backlog.md](roadmap-backlog.md) (To design: "AI model id stability",
 follow-up to [PR #178](https://github.com/bact/pitloom/pull/178)),
 [id-registry-v3.md](../implementation/id-registry-v3.md) (decides the first question below),
 [id-registry-followups.md](id-registry-followups.md).

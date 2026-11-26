@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-15
-Last-Modified: 2026-11-24
+Last-Modified: 2026-11-26
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -137,7 +137,7 @@ metadata (e.g. a GGUF model's key/value header) into a single
 template alone can be several KiB. `max-source-metadata-bytes` caps the
 serialised `Annotation.statement`'s size in UTF-8 bytes; `0` (the default)
 means unlimited. Valid values and its flag, Action input and API parameter:
-[Configuration](configuration.md#toolpitloomprovenance).
+[Configuration](configuration-subtables.md#toolpitloomprovenance).
 
 When the budget is exceeded, whole metadata entries are dropped --
 largest first, to keep as many entries as possible -- never a value
@@ -167,7 +167,7 @@ it. A budget that forces every key to be dropped, but still fits the
 marker overhead, is emitted with `metadata: {}` and a `WARNING` `[over-cap]`.
 
 A model file with more than 1000 metadata keys keeps its first 1000 (the
-[entry cap](ai-model-scan-limits.md#size-and-count-caps)). The keys left
+[entry cap](ai-model-scan-limits-caps.md#size-and-count-caps)). The keys left
 out are counted, not named -- listing them would cost what the cap saves
 -- and `maxEntries` names the cap. For a Safetensors model of 1500
 `__metadata__` keys (its 1000 kept keys left out here):

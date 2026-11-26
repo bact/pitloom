@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-17
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-26
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -76,7 +76,7 @@ who then had CLAUDE.md's own wording clarified so the same
 misreading doesn't recur.
 
 Known, deliberately deferred gaps (not bugs, tracked in
-[roadmap.md](../design/roadmap.md#to-design)): the two
+[roadmap-backlog.md](../design/roadmap-backlog.md#to-design)): the two
 per-fragment read/parse paths (`fragment list`'s own vs.
 `merge_fragments()`'s own) are independently written and could drift;
 `merge_fragments()`'s required-fragment check intentionally short-circuits

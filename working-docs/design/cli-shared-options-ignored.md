@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-20
-Last-Modified: 2026-10-21
+Last-Modified: 2026-11-26
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -41,6 +41,6 @@ or superseded, with one exception carried forward:
   `load_config_file()` (`--config`'s own reader); this one gates the
   target's own `pyproject.toml` read instead and is unchanged. Unverified
   on 3.14 -- only 3.10 was to hand.
-- **`file-map.md` lists every source file by hand**, so it drifts as modules
+- **`file-map-src.md` lists every source file by hand**, so it drifts as modules
   are added or split; it carries no test counts. Re-check it against
   `src/pitloom/` before trusting it.

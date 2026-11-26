@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-23
-Last-Modified: 2026-10-23
+Last-Modified: 2026-11-26
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -15,7 +15,7 @@ format; Flax msgpack is there),
 [model-metadata-readers.md](model-metadata-readers.md) (the stdlib-only
 bounded-reader plan a new reader should follow),
 [implementation/model-metadata-extraction.md](../implementation/model-metadata-extraction.md)
-(the shipped readers), [roadmap.md](roadmap.md#backlog-designed-not-scheduled).
+(the shipped readers), [roadmap-backlog.md](roadmap-backlog.md#backlog-designed-not-scheduled).
 
 Status: nothing is built. What follows is what was checked on 2026-10-23
 and what is still open. A claim not marked "verified" comes from the format's

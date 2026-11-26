@@ -200,7 +200,7 @@ bounded by the per-operation timeout. On Windows a read stalled on a
 connection ends at that timeout, not at the deadline.
 
 The same setting caps a Git URL's checkout ([SBOM from a Git
-URL](git-urls.md#what-it-does-and-does-not-do)). On any other target `--max-download-bytes` has no
+URL](git-urls-behaviour.md#what-it-does-and-does-not-do)). On any other target `--max-download-bytes` has no
 effect and says so once; see [Options with no
 effect](cli.md#options-with-no-effect).
 

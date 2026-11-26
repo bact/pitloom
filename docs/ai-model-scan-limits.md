@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-01
-Last-Modified: 2026-11-23
+Last-Modified: 2026-11-26
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -9,7 +9,8 @@ SPDX-License-Identifier: CC0-1.0
 # AI model scan limits
 
 See also: [AI model formats](ai-model-formats.md) for what each reader
-extracts, [Known limitations](ai-model-scan-limits-known-limitations.md)
+extracts, [Size and count caps](ai-model-scan-limits-caps.md) for every
+cap and its value, [Known limitations](ai-model-scan-limits-known-limitations.md)
 for what the caps leave open, and [Configuration](configuration.md) for the
 one setting here that can be changed.
 
@@ -29,12 +30,12 @@ the project or wheel. A cap reads as every cap Pitloom applies does:
 | What you see | Cause | Section |
 | :----------- | :---- | :------ |
 | An `ai_AIPackage` named after its file (`weights` for `weights.gguf`) and nothing else, plus one `INFO:` | Wheel scan, format not read without `--trust-model-files` | [Formats gated in wheels](#formats-gated-in-wheels) |
-| Same, plus `WARNING: ... max-model-extract-bytes cap; metadata not read` | File larger than `max-model-extract-bytes` | [Size and count caps](#size-and-count-caps) |
-| Same, plus `WARNING: FILE=<wheel>: larger than the N-byte per-wheel model-scan budget cap; ...` | The wheel's total budget is spent | [Size and count caps](#size-and-count-caps) |
-| Same, plus another `...; metadata not read` line | A bound inside the file was exceeded | [Size and count caps](#size-and-count-caps) |
+| Same, plus `WARNING: ... max-model-extract-bytes cap; metadata not read` | File larger than `max-model-extract-bytes` | [Size and count caps](ai-model-scan-limits-caps.md#size-and-count-caps) |
+| Same, plus `WARNING: FILE=<wheel>: larger than the N-byte per-wheel model-scan budget cap; ...` | The wheel's total budget is spent | [Size and count caps](ai-model-scan-limits-caps.md#size-and-count-caps) |
+| Same, plus another `...; metadata not read` line | A bound inside the file was exceeded | [Size and count caps](ai-model-scan-limits-caps.md#size-and-count-caps) |
 | A model, or a model listed in a project's build file list, from a Git URL, or a model in a wheel from a PyPI URL: an `ai_AIPackage` with name, format and hash only, plus one `INFO: ... listed without metadata ... [reader-unsafe/remote]` | fastText, GGUF, HDF5, ONNX or PyTorch reader not run on a download | [Formats gated for a download](#formats-gated-for-a-download) |
-| Only the first 1000 inputs, hyperparameters, ... | Entry cap | [Size and count caps](#size-and-count-caps) |
-| No `parameters` hyperparameter, plus `WARNING: ... parameter count not recorded` | A tensor dimension or the count is malformed or over the parameter-count cap | [Size and count caps](#size-and-count-caps) (Parameter count) |
+| Only the first 1000 inputs, hyperparameters, ... | Entry cap | [Size and count caps](ai-model-scan-limits-caps.md#size-and-count-caps) |
+| No `parameters` hyperparameter, plus `WARNING: ... parameter count not recorded` | A tensor dimension or the count is malformed or over the parameter-count cap | [Size and count caps](ai-model-scan-limits-caps.md#size-and-count-caps) (Parameter count) |
 | A format-only stub, plus `WARNING: ... failed to extract metadata; <error>` | The reader could not parse a file whose header is that of a model (truncated, corrupt) | [What cannot be recorded](#what-cannot-be-recorded) |
 | A field a format cannot carry (no model name in a `.npy`) | Not a limit: the format has no such field | [What cannot be recorded](#what-cannot-be-recorded) |
 | No `ai_AIPackage`, only the file entry, plus `WARNING: FORMAT=<fmt> FILE=<path>: header is not <fmt>; not listed as an AI model` | The header contradicts the model suffix, as text named `.gguf` does; a Git LFS pointer is no model under any suffix (see below) | [What is a model](#what-is-a-model) |
@@ -114,55 +115,7 @@ for `loom model`.
 
 ## Size and count caps
 
-Values are exact; "stub" is the format-only entry described above.
-
-| Cap | Value | Applies to | Configurable | When it is hit |
-| :-- | :---- | :--------- | :----------- | :------------- |
-| Per-model size ceiling | 512 MiB (536870912 bytes) | Wheel scans, every format | `--max-model-extract-bytes BYTES` or `max_model_extract_bytes=`, else `[tool.pitloom] max-model-extract-bytes` from `--config` or `pitloom_config=` (positive integer; zero is an error, not "unlimited") | Stub, per model. Declared size over the ceiling, checked before copying, and the bytes the copy really reads, so an archive that understates its size is stopped too: `WARNING: FORMAT=<fmt> FILE=<path>: larger than the <limit>-byte max-model-extract-bytes cap; metadata not read` |
-| Per-wheel budget | 4 times the ceiling (2 GiB by default) | Wheel scans: bytes copied plus bytes read from inside models | Derived from the ceiling; no key of its own | Models in path order are read until it is spent; later ones are stubs. One `WARNING: FILE=<wheel>: larger than the <N>-byte per-wheel model-scan budget cap; the model that would pass it and the models not yet read are listed without metadata` per wheel |
-| Inner archive member | 8 MiB | Every scan. Keras v3 `metadata.json` and `config.json`; PyTorch `.pt`/`.pth` `data.pkl` (a raw pickle `.pt` is read to the same cap; its stub names `the 8388608-byte first-pickle cap`); PT2 `version`, `archive_version`, `METADATA.json`, `models/model.json` and `extra/` files | No | Stub: `WARNING: FORMAT=<fmt> FILE=<path>:<member>: larger than the 8388608-byte archive-member cap; metadata not read`. Read bounded, so a few KiB that inflate to gigabytes are refused |
-| ZIP entries | 100,000 entries, counted by walking the central directory as Python's `zipfile` does (the counts in the end record are not trusted), and a central directory of at most 25,600,000 bytes (256 bytes per entry at the cap), both checked before the archive is opened | Keras v3, PyTorch `.pt`/`.pth`, PT2, `.npz` | No | Stub: `WARNING: FORMAT=<fmt> FILE=<path>: larger than the 100000-entry ZIP-archive cap; metadata not read` (or `the 25600000-byte ZIP-central-directory cap`). If Python's internal ZIP code cannot be asked, the archive is refused too: `ZIP archive not checkable: zipfile internals changed`. A real checkpoint has a file per tensor, a few thousand at most; without the check 3 million empty entries in 16 MiB peaked at 1.8 GB |
-| Pickle opcodes | 250,000; only the first pickle is read | PyTorch `.pt`/`.pth` | No | Stub: `... larger than the 250000-opcode pickle cap; metadata not read` |
-| Pickle decimal number | 4300 digits (sign, `L` and whitespace not counted), CPython's default `int()` limit; the text is never converted, so the outcome is the same with the limit at its default or off (`PYTHONINTMAXSTRDIGITS=0`). A decimal argument of more than 4302 bytes with fewer digits is refused too | PyTorch `.pt`/`.pth` | No | Stub: `... larger than the 4300-digit pickle-decimal cap; metadata not read` (or `the 4302-byte pickle-decimal cap`) |
-| GGUF header budget | 1,000,000 units of what the header read parses: key/value pairs and tensor infos weigh 4 each, a tensor dimension 1. Array elements are not parsed (only `general.datasets` strings, 1 each): an array is recorded as its length and type | GGUF | No | Read in part: the fields before the bound are kept, no tensor shape and no parameter count; when pairs are left unread, the artifact-metadata annotation is `truncated`, its `truncatedKeyCount` the pairs not reached: `WARNING: FORMAT=gguf FILE=<path>: larger than the 1000000-unit GGUF-header cap; fields from <key> on and the tensor shapes not read` (`<key> length as declared; later fields ...` when the bound fell inside the array `<key>`, whose length is then `Evidence: declared`; `fields from pair <N> on ...`, counted from 1, when the key itself is over a bound or empty, `pair <N> length as declared; ...` for an array of an empty key; `tensor shapes not read; ...` in the tensor infos). A count that cannot fit in the file is refused: `GGUF header declares <N> tensors` (or `key/value pairs`), `GGUF array of <N> elements, more than the file holds`. A tensor of more than 4 dimensions is a read failure, as in llama.cpp |
-| GGUF skipped elements | 4,194,304 strings and nested arrays passed over unparsed (a Gemma-4 tokeniser has 777,050); fixed-size elements are passed in one step and not counted | GGUF | No | Read in part, as above: `... larger than the 4194304-element GGUF-skipped-element cap; ...` |
-| GGUF array nesting | 4 levels | GGUF | No | Read in part: `... larger than the 4-level GGUF-array-nesting cap; ...` |
-| GGUF strings | 8 MiB per key, tensor name or string value; 64 MiB of them all together | GGUF | No | Read in part: `... larger than the 8388608-byte GGUF-string cap; ...` (or `the 67108864-byte GGUF-strings cap`). A string that runs past the end of the file is a read failure, whatever its declared length |
-| GGUF version | 2 and 3 are read; a version the `gguf` package reads but Pitloom's header reader does not know is refused | GGUF | No | Stub: `... GGUF version <N>, not bounded; metadata not read` |
-| CRFsuite and fastText labels | 1000 labels (fastText: of a supervised model); CRFsuite also a labels chunk (its hash tables and every label string, read whole) of at most 1 MiB (1048576 bytes), and never reads the feature weights and attribute strings | CRFsuite, fastText | No | Model kept with its counts and type but no label, as for a long label (fastText's `outputs` keeps the label count): `WARNING: FORMAT=crfsuite FILE=<path>: larger than the 1000-label label-count cap; no label recorded` (or `FORMAT=fasttext`; for CRFsuite also `the 1048576-byte labels-chunk cap`). Real models hold a few to a few dozen labels |
-| Label length | 4 KiB (4096 bytes) of UTF-8 per label | CRFsuite, fastText | No | Model kept with its counts (`num_labels`, the fastText `outputs` shape) but no label: no `labels` property or annotation key, no description generated from them. `WARNING: FORMAT=<fmt> FILE=<path>: larger than the 4096-byte label cap; no label recorded`. The generated CRFsuite description also shows at most 64 characters of each of its first 20 labels |
-| Model name | 1024 characters (code points), including the trailing `...~<digest>` when cut | The name shown for every model (its own name, or its file name stem), and the names a model brings in: its base model, its datasets and their creators, and its originators and supplier (the producer names); on every surface. A name also seeds the `spdxId` (the base model's and creator's too), the registry key of a package or a model with no file, and an enrichment's target; a generic `Agent` (originator, supplier, dataset creator) has an id that carries its name, `Agent-<name>-1` (`--update-id-registry` records it by name, but nothing looks it up) | No | Name cut to its first 1012 characters, `...`, `~` and the first 8 hex digits of the SHA-256 of the whole name, so two long names that share a start stay apart; a model's own name gets `Note: cut to 1024 characters` in its provenance; the artifact-metadata annotation keeps the name as read. `WARNING: FORMAT=<fmt> FILE=<path>: larger than the 1024-character name cap; model name cut` (or `base model name`, `dataset name`, `dataset creator name`, `model originator name`, `model supplier name`; one warning per model for its originator and supplier names, however many are cut) |
-| Safetensors header | 16 MiB | Safetensors | No | Stub: `... larger than the 16777216-byte Safetensors-header cap; metadata not read` |
-| `.npy` header | 10000 bytes (NumPy's own limit) | `.npy`, and each array in an `.npz` | No | Stub: `... larger than the 10000-byte .npy-header cap; metadata not read` |
-| `.npz` members | Headers are read for the first 1001 arrays; every array is counted in `array_count` | `.npz` | No | No log line: the arrays are not listed, so nothing is cut |
-| Entries per list or map | 1000, the first ones: in file order, except Safetensors `__metadata__`, which has none and keeps its first 1000 keys in sorted order. Safetensors' well-known keys (`modelspec.title`, `name`, `format`, ...) are read from the whole `__metadata__`, so they set the model's name, version and so on even when they sort past the cut | `inputs`, `outputs`, `originators`, `hyperparameters`, `properties`, `raw_metadata` of every format; project and wheel scans, `loom model FILE` and `loom enrich FILE`. Not a Hugging Face model (`loom model <ID>` reads the Hub API, uncut) | No | Model kept, lists trimmed, provenance of dropped keys removed, the artifact-metadata annotation's `truncatedKeyCount` counting the `raw_metadata` keys left out ([marker](metadata-provenance-artifact-metadata.md#size-bounded-preservation)): `WARNING: FORMAT=<fmt> FILE=<path>: larger than the 1000-entry per-field cap; the first 1000 kept in <fields>` |
-| Parameter count | 10**15 (1000000000000000) elements: a tensor, the sum over a model's tensors, or a count the Hugging Face Hub states. | GGUF, Safetensors, ONNX, PT2 (summed) and Hugging Face (stated) | No | No count recorded, never a partial sum: `WARNING: FORMAT=<fmt> FILE=<path>: larger than the 1000000000000000-element parameter-count cap; parameter count not recorded`. A malformed dimension (negative, not an integer) or stated count gets the same outcome with its own reason, e.g. `tensor dimension -1 is not a non-negative integer; parameter count not recorded`. A sum of 0 or no tensor is no count, silently |
-| GGUF datasets | 1000 datasets, the first ones: the numbered `general.dataset.<id>.*` entries, then `general.datasets` | GGUF | No | Model kept with the first 1000 datasets: `WARNING: FORMAT=gguf FILE=<path>: larger than the 1000-dataset GGUF-datasets cap; the first 1000 kept` |
-| Model-author parts | 16016 non-empty comma-separated parts (16 x (1000 + 1)) of one `model_author`; a whitespace-only part counts, an empty piece between commas does not | ONNX | No | Model kept with the names read before the bound, none of those after it: `WARNING: FORMAT=onnx FILE=<path>: larger than the 16016-part model-author cap; rest of model_author not read`. A bound met exactly at the end of the value is no cut |
-| Archive listing | First 20 names (`properties.archive_contents`, ending `, ... (<N> total)` when cut; an array of the same 20 names in the artifact-metadata annotation), with the member count in `archive_member_count` | PyTorch classic, PT2 | No | No log line, since nearly every checkpoint has a file per tensor; the count and the text say it is cut |
-| Artifact-metadata nesting | 32 levels of a collection; a deeper part is kept as its JSON text | The artifact-metadata annotation of every format (HDF5 `metrics`, PT2 `tags`) | No | No log line; the deeper part is text, `<nested over 32 levels>` where its JSON text nests too deeply to write |
-| Unparsed Keras config | First 500 characters (`properties.model_config_raw`) | HDF5, only when neither the class nor the name could be read | No | One `WARNING: FORMAT=<fmt> FILE=<path>: model_config is not valid JSON (<error>); kept as properties.model_config_raw, the first 500 of <N> characters ... [model-field-unreadable]` (the cut is part of the same line; `is not a JSON object` for a JSON that is not an object, `is not valid JSON (nested too deeply)` for a nesting the parser cannot take, `model_config.class_name is not a string` for a class that is not text); the fields not read are named after it, `Field(s) affected (skipped)`. A valid config without a class or name longer than 500 characters: `WARNING: FORMAT=<fmt> FILE=<path>: larger than the 500-character raw-model-config cap; the first 500 of <N> characters kept in properties.model_config_raw [over-cap]` |
-| Unreadable Keras v3 member | The other member is still read | Keras v3 `metadata.json`, `config.json` | No | One `WARNING: FORMAT=keras FILE=<path>: config.json is not valid JSON (<error>); the other archive members are read \| Field(s) affected (skipped): <fields> [model-field-unreadable]` (also a member whose top level is no object, or that nests too deeply); a value of the wrong type is dropped with one `WARNING:` per part (metadata, model config, `compile_config`). An absent, `null` or `{}` `compile_config` is silent; `[]` warns, as it does for an HDF5 `training_config` |
-| Keras config part of the wrong type | The parts read before it are kept | HDF5 `model_config` | No | One `WARNING: FORMAT=<fmt> FILE=<path>: model_config.config is not an object; the fields read before it are kept \| Field(s) affected (skipped): <fields> [model-field-unreadable]` (also `layers is not a list`, `layers[<i>] is not an object`, a `class_name` or `name` that is not a string); the fields are those not read. A part, or the whole attribute, set to JSON `null` counts as absent: no warning |
-| Unreadable Keras training config | Not read, or the optimiser not read | HDF5 | No | One `WARNING: FORMAT=<fmt> FILE=<path>: training_config is not valid JSON (<error>); reading stopped there ... [model-field-unreadable]`, or `training_config.optimizer_config is not an object` / `... class_name is not a string` with the loss and metrics kept |
-| fickling messages | fickling's stderr output is held back (first 4096 characters kept) and relayed as fickling's own words on one line, cut to 200, a URL's credentials masked | PyTorch `.pt`/`.pth` | No | `WARNING: fickling: <text>` |
-| Model card | 1 MiB (1048576 bytes) of the `README.md`/`MODEL_CARD.md` next to a model; only its YAML frontmatter is used, and a card is read by its path, a symlink into a Hugging Face cache's `blobs/` too | `--enrich`, `loom enrich` | No | A frontmatter closed within the cap is used as from the whole card, and a card starting with none has none: no log line. One not closed within it is skipped, once per card: `WARNING: FILE=<path>: larger than the 1048576-byte model-card cap; frontmatter not closed within it; skipped \| Field(s) affected (skipped): license, datasets` |
-| Usage-scan source size | 1 MiB per `.py` file | `--scan-model-usage`, project and wheel scans | No | File skipped: `WARNING: FILE=<path>: larger than the 1048576-byte usage-scan cap; skipped` |
-| Usage-scan encoding | Strict UTF-8 | The same | No | File skipped: `WARNING: FILE=<path>: could not read for usage scanning; not UTF-8: <failure> [file-unreadable/not-utf8]` |
-| Usage-scan syntax | Valid Python of the running interpreter's version (only checked when the file's text mentions a model file name); Python 3.11 or later also refuses an expression chained too deeply (a few thousand `.name`, `()` or `+` in a row on Python 3.11, tens of thousands on 3.14), as `nested too deeply`; so does Python 3.10 for a file of more than 65,536 characters when no thread with a stack of 8 MiB or more can be started for its parse | The same | No | No relationship recorded: `WARNING: FILE=<path>: could not parse as Python <x.y> for usage scanning; <failure> [usage-unparseable]` and `INFO: FILE=<path> MODEL=<name>: model file name found; no usage relationship recorded [usage-unparseable/mention]` |
-| Usage-scan file name | A lower-case `.py` extension (the only one Python imports); `.PY` is not read | The same | No | Not read, said once per file when a model was found: `WARNING: FILE=<path>: not scanned for usage; only a .py extension is read as Python [usage-unusable]` |
-| Usage-scan path expression | Depth 64 and 4096 characters of one path expression (nested calls, concatenations, f-strings, `.format`, `%`, constants built from constants) | `--scan-model-usage`, project and wheel scans | No | The expression is not followed: no relationship from it, no log line (a path that deep or long is no model path) |
-| Artifact-metadata size | Unlimited by default | The verbatim metadata annotation of any model | `max-source-metadata-bytes`, `--max-source-metadata-bytes` | Largest entries dropped first and marked truncated; see [Metadata provenance](metadata-provenance-artifact-metadata.md#size-bounded-preservation) |
-
-There is no limit on the number of model files in a project or wheel. In a
-wheel, the one directory not scanned is the `.dist-info` its file name names
-(`my_pkg-1.0.dist-info` for `My.Pkg-1.0.0-...whl`, names and versions compared
-as Python packaging does), when exactly one does; any other `*.dist-info`,
-whatever it holds, is scanned like any other directory. Where several name it
-(`demo-1.0.dist-info` and `Demo-1.0.0.dist-info`), or the path is not a wheel
-file name (from the Python API), none is skipped.
-The ceiling and budget are checked against file sizes, so a gated format
-(next section) is never copied and spends none of the budget.
+Moved to [AI model scan limits, size and count caps](ai-model-scan-limits-caps.md#size-and-count-caps).
 
 ## Settings that change the SBOM
 
@@ -224,7 +177,7 @@ untrusted tree, so it must not be able to switch the protection off. On any
 other target the option warns that it has no effect. Keras v3, NumPy, PT2
 and CRFsuite readers do not pass the file to a native library, and the
 Safetensors reader's Rust library is read in full on purpose: these are not
-gated; the caps above still apply to them.
+gated; the [caps](ai-model-scan-limits-caps.md#size-and-count-caps) still apply to them.
 
 ## Formats gated for a download
 
@@ -255,7 +208,7 @@ lifts only this gate: the repository's own `[tool.pitloom]` is still ignored
 and its build backend is still not run. Cloning the repository and running `loom model <file>` or `loom
 project <dir>` on the copy reads them too, but also trusts the repository's
 configuration and build file list. Keras v3, Safetensors, NumPy, PT2 and
-CRFsuite files are read in full, with the caps above.
+CRFsuite files are read in full, with the [caps](ai-model-scan-limits-caps.md#size-and-count-caps).
 
 ## What is a model
 
@@ -302,11 +255,11 @@ filter, then the header), so it matches the files a scan lists.
 **Whatever the cause.** Which field each value lands in, which fields have
 no SPDX property of their own (framework, format version), and when a licence
 is declared or concluded: [Where each field
-goes](ai-model-formats.md#where-each-field-goes). Properties that fit no field
+goes](ai-model-formats-fields.md#where-each-field-goes). Properties that fit no field
 are kept only in the verbatim artifact-metadata annotation.
 
 **Fields a format never carries**, even when fully read: see
-[What each format holds](ai-model-formats.md#what-each-format-holds). Beyond
+[What each format holds](ai-model-formats-fields.md#what-each-format-holds). Beyond
 that table:
 
 - A PT2 archive gives description, licence, author and tags only
@@ -352,7 +305,7 @@ that table:
   `--scan-model-usage` has no effect. A model in a wheel is not enriched
   from a README or model card: no README is read from an archive.
 - Remote models: `loom model` with a Hugging Face ID or URL reads the Hub
-  API, not a file; see [Hugging Face Hub models](ai-model-formats.md#hugging-face-hub-models).
+  API, not a file; see [Hugging Face Hub models](ai-model-formats-hugging-face.md#hugging-face-hub-models).
 - A file whose header is that of a model but which the reader cannot parse
   (truncated, corrupt) gives `WARNING: FORMAT=<fmt> FILE=<path>: failed to
   extract metadata; <error>` and a stub. A missing optional library gives
@@ -373,6 +326,8 @@ that are only gated, no Ctrl-C inside one, disk use) is on
 
 - [AI model formats](ai-model-formats.md) -- formats, extensions, install
   extras.
+- [AI model scan limits, size and count caps](ai-model-scan-limits-caps.md)
+  -- every cap, its value and what happens when it is hit.
 - [Reading values back](metadata-reading-back.md) -- how caps, scalar text
   and the display escape combine, and how to read a value back.
 - [Configuration](configuration.md) -- `max-model-extract-bytes`,

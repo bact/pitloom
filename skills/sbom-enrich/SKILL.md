@@ -1,6 +1,6 @@
 ---
 # Created: 2026-07-05
-# Last-Modified: 2026-11-23
+# Last-Modified: 2026-11-26
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -246,7 +246,9 @@ a. **Identify the standard(s):** NTIA 2021; FSCT 2024; CISA 2026 (current
    `ai_AIPackage`); BSI TR-03183-2 v2.1. Unnamed: interactive, ask;
    non-interactive, use CISA 2026, plus G7 SBOM for AI 2026 when the SBOM has an
    `ai_AIPackage`, and say in the report these were the default. Checklists:
-   read `references/minimum-elements.md`.
+   read `references/minimum-elements.md` (NTIA, FSCT, CISA),
+   `references/minimum-elements-g7.md` (G7) or
+   `references/minimum-elements-bsi.md` (BSI).
 b. **Gap analysis:** per element, report present / missing /
    `NOASSERTION`-or-empty (a licence with no relationship is missing); the
    reference's "covered"/"conditional" calls were checked against one real SBOM,
@@ -280,9 +282,7 @@ g. **Final report:** elements now satisfied; those unknown by the user's choice
    Name the standards applied.
 
 Read `references/minimum-elements-workflow.md` for step d's ranking, step g's
-licence-`NOASSERTION` recipe and its no-automatable-path list;
-`references/minimum-elements-datasets.md` for G7 Dataset Properties;
-`references/minimum-elements-bsi.md` for BSI.
+licence-`NOASSERTION` recipe and its no-automatable-path list.
 
 ## Check stderr for INFO:/WARNING:/ERROR: lines
 

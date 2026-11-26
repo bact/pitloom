@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-23
-Last-Modified: 2026-11-24
+Last-Modified: 2026-11-26
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -12,6 +12,7 @@ See also: [recurring-bug-patterns.md](recurring-bug-patterns.md),
 [recurring-bug-patterns-platform.md](recurring-bug-patterns-platform.md),
 [recurring-bug-patterns-test-harness.md](recurring-bug-patterns-test-harness.md),
 [recurring-bug-patterns-review-rounds.md](recurring-bug-patterns-review-rounds.md),
+[recurring-bug-patterns-review-rounds-pr359-378.md](recurring-bug-patterns-review-rounds-pr359-378.md),
 [agents-md-rationale.md](agents-md-rationale.md).
 
 `AGENTS.md` keeps each rule to what an agent needs to apply it. Where an entry
@@ -62,8 +63,9 @@ Failure modes that recurred across subsystems; check for them by name.
 Detail (war stories, PRs, code shapes) is in
 [recurring-bug-patterns.md](recurring-bug-patterns.md) (data and semantics),
 [recurring-bug-patterns-platform.md](recurring-bug-patterns-platform.md) (platform, concurrency, CI),
-[recurring-bug-patterns-test-harness.md](recurring-bug-patterns-test-harness.md) (test harness) and
-[recurring-bug-patterns-review-rounds.md](recurring-bug-patterns-review-rounds.md) (PR #300, #305, #306, #311 to #315 and path-key rounds): read them before extending or citing a one-liner.
+[recurring-bug-patterns-test-harness.md](recurring-bug-patterns-test-harness.md) (test harness),
+[recurring-bug-patterns-review-rounds.md](recurring-bug-patterns-review-rounds.md) (PR #300, #305, #306, #311 to #315 and path-key rounds) and
+[recurring-bug-patterns-review-rounds-pr359-378.md](recurring-bug-patterns-review-rounds-pr359-378.md) (PR #359 to #378): read them before extending or citing a one-liner.
 - **A presence-only check misfires when a key is genuinely boolean** (`Pipfile.lock` `"editable": false`).
 - **`dict.get(key, default)` guards absence, not a wrong type**: `isinstance`-check values from external files (`@graph` present but not a list).
 - **A parse helper catching only the format's exception (`TOMLDecodeError`, `JSONDecodeError`) can still crash on a bare `UnicodeDecodeError`.**
@@ -98,6 +100,21 @@ Detail (war stories, PRs, code shapes) is in
 - **GitHub Actions substitutes `${{ }}` even in `run:` shell comments**: put such examples above `env:`, not inside `run: |`.
 - **pip's `--no-build-isolation` is invocation-global**: do not mix a self-referential local install with unrelated packages in one `pip install`.
 - **A Markdown line starting with `<tag>` is an HTML block, even inside a code span that continues from the previous line** (the page vanished): never start a wrapped code-span line with `<`.
+
+Merged into one AGENTS.md line on 2026-11-26:
+
+- **A hardcoded POSIX path in a test skips the "absolute" branch on Windows**: build it from `tempfile.gettempdir()`.
+- **A test making case-variant paths probes the file system first** (`mkdir Probe`, test `probe`, skip, then create).
+- **A bit-for-bit POSIX permission assertion is unwinnable on Windows**: spy `os.chmod` arguments; assert the real mode on POSIX.
+- **`Path.write_text("x\n")` writes CRLF on Windows**: `write_bytes` when a digest is asserted.
+- **`Path.exists()`/`is_file()` swallow only some errnos** (`PermissionError` propagates on 3.10-3.13, `False` on 3.14): use `os.path.isfile`/`isdir` for "never raises"; gate a test by version, plus a version-independent probe.
+- **A textual "under the project" check misses on a case-insensitive file system**: fall back to a `(st_dev, st_ino)` ancestor match (`st_ino == 0` = no identity).
+- **Compare a linter's error count to HEAD with the same interpreter** (`pyrefly --python-interpreter`).
+- **`# type: ignore` against a library that changed its types** is unused on one version and needed on another: an `Any` view plus `cast`; check the lowest supported version in a second environment (`mypy --python-executable`).
+- **Read a linter's messages and exit code, not its score**; run CI's exact command. Build the licence database first (`licenseid update --source packaged`, `licenseid` >= 0.9.2; rebuild after an upgrade): without it, or stale, tests fail on `main`. In another degraded sandbox compare failing test-id sets against a baseline.
+- **GitHub Actions substitutes `${{ }}` even in `run:` shell comments**: put such examples above `env:`.
+- **pip's `--no-build-isolation` is invocation-global**: never mix a self-referential local install with unrelated packages in one `pip install`.
+- **A Markdown line starting with `<tag>` is an HTML block, even inside a code span that continues from the previous line**: never start a wrapped code-span line with `<`.
 
 ## CLI output
 
