@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-02
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-26
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -30,6 +30,13 @@ the last section for history.
 
 ### Found in review rounds, not yet prioritised
 
+- [ ] **A test's message-length bound counts the temporary directory (S).**
+  `test_a_long_unread_value_is_cut_in_the_warning`
+  (`tests/extract/project/test_setuptools_hostile.py`) asserts the whole
+  `WARNING:` line is under 500 characters, but the line names the project
+  under `tmp_path`: with a long `TMPDIR` (a session scratch directory) it
+  fails at 523. Bound the cut value, not the path.
+  *Found 2026-11-26, mutation backfill baseline run.*
 - [ ] **`test.yml` keeps workflow-level `permissions: read-all` (S).** The
   `test` job inherits read on every scope; `contents: read` would do.
   *Found 2026-11-02, cold review of #415 (noticed, not examined further).*

@@ -3,7 +3,7 @@ SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
 Created: 2026-11-25
-Last-Modified: 2026-11-25
+Last-Modified: 2026-11-26
 ---
 
 # Message catalogue sweep B: evidence, design and proof table
@@ -148,7 +148,7 @@ reading or running; (G) = guess. Status: built as B1 (#541, merged) and B2
 | Floor-docs test reads only the first `licenseid>=` | **C** | (V) `pyproject.toml` has one match and `src/` none, so it is a docs-coverage tweak. |
 | GGUF dataset provenance naming the temp copy | **Own small PR before 0.25.0** (or C) | Changes SBOM output; B should stay SBOM-neutral so its "SBOM diff vs main is empty" check is strong. |
 | Inventory not following tuple unpacking or returned values | **Rescan** | (V per sweep-a) no site differs today; D5 covers the paths tests exercise. |
-| Mutation survivors (`_loom_dataset_meta` merge helpers, `_sbom_io` stdout/replace) | **Separate mutation-backfill PR** after the rescan | Unrelated to B. |
+| Mutation survivors (`_loom_dataset_meta` merge helpers, `_sbom_io` stdout/replace) | **Separate mutation-backfill PR** after the rescan (done: [mutation-backfill.md](mutation-backfill.md)) | Unrelated to B. |
 
 ### Rulings to confirm (my recommendation first in each)
 1. **R1.** Prune `DETAIL_EXC` to the 21 proven names and rename `_usage_ast._OverCap`. Alternative: prove all 27.

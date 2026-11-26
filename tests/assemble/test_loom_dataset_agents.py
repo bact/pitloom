@@ -114,14 +114,14 @@ def test_a_padded_creator_name_is_stripped(
 
 @pytest.mark.parametrize(
     ("creator", "agents"),
-    [("  Eve  ", ["Eve"]), ("   ", []), ("\t", [])],
-    ids=["padded", "spaces", "tab"],
+    [("  Eve  ", ["Eve"]), ("   ", []), ("\t", []), (None, [])],
+    ids=["padded", "spaces", "tab", "absent"],
 )
 def test_write_metadata_strips_a_creator_and_skips_a_blank_one(
-    creator: str, agents: list[str]
+    creator: str | None, agents: list[str]
 ) -> None:
     """A source that did not strip its creator (a card, a declaration): the
-    Agent is the stripped name; a blank creator names no one."""
+    Agent is the stripped name; a blank or absent creator names no one."""
     ci = spdx3.CreationInfo(
         specVersion="3.0.1",
         created=datetime(2026, 1, 1, tzinfo=timezone.utc),

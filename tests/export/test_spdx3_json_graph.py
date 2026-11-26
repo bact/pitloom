@@ -148,3 +148,34 @@ def test_a_lone_surrogate_is_written_as_text_with_one_warning(
     (rel,) = [n for n in nodes if n["type"] == "Relationship"]
     assert rel["description"] == f"{shown[0]} dependsOn: {shown[1]}"
     assert [r.getMessage().split(":")[0] for r in caplog.records] == warned
+
+
+@pytest.mark.parametrize(
+    ("name", "comment", "warned"),
+    [
+        ("zeta", "a\udcffb", "FILE=zeta"),
+        ("caf\xe9\udcff", None, "FILE='caf\\xe9\\udcff'"),
+    ],
+    ids=["printable-name", "non-ascii-name"],
+)
+def test_the_lone_surrogate_warning_names_the_element_as_a_file_field(
+    name: str, comment: str | None, warned: str, caplog: pytest.LogCaptureFixture
+) -> None:
+    """The element's name, as it was, goes through the ``FILE=`` field
+    writer: a printable name as is, an unprintable one escaped once (never
+    quoted twice)."""
+    info = _creation_info()
+    agent = spdx3.SoftwareAgent(spdxId=_BASE + "A", name="x", creationInfo=info)
+    info.createdBy = [agent]
+    package = spdx3.software_Package(spdxId=_BASE + "P", name=name, creationInfo=info)
+    if comment is not None:
+        package.comment = comment
+    exporter = Spdx3JsonExporter()
+    exporter.add_creation_info(info)
+    for element in (agent, package):
+        exporter.object_set.add(element)
+    with caplog.at_level(logging.WARNING, logger="pitloom"):
+        _graph(exporter)
+    (record,) = caplog.records
+    assert getattr(record, "pitloom_code", None) == "text-malformed"
+    assert record.getMessage().startswith(f"{warned}: ")

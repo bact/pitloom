@@ -121,3 +121,17 @@ def test_a_call_naming_the_model_in_every_argument_ends_in_time() -> None:
     source = "load(" + '"model.onnx",' * 60_000 + ")\n"
     found = run_bounded(lambda: find_usages(parse_python(source), [_MODEL]))
     assert found == [frozenset({UsageAccess.READ})]
+
+
+def test_constants_built_from_each_other_end() -> None:
+    """A cycle of constants (each built from the other) is reached once:
+    the worklist skips a name already reached, so the walk ends; bounded, so
+    a walk that does not end fails instead of hanging."""
+    source = (
+        "from pathlib import Path\n"
+        "A = Path('model.onnx', x=B)\n"
+        "B = Path('model.onnx', x=A)\n"
+        "open(A)\n"
+    )
+    found = run_bounded(lambda: find_usages(parse_python(source), [_MODEL]))
+    assert found == [frozenset({UsageAccess.READ})]

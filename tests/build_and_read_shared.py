@@ -17,7 +17,8 @@ tests/core/models_wheel/test_models_wheel_dispatch.py,
 tests/core/models_wheel/test_models_wheel_dispatch_lock.py,
 tests/core/models_wheel/test_models_wheel_build_kill.py,
 tests/core/models_wheel/test_models_wheel_build_subprocess_e2e.py,
-tests/core/test_build_signals.py and
+tests/core/test_build_signals.py,
+tests/core/test_build_signals_arming.py and
 tests/assemble/test_build_termination.py (the users).
 """
 
