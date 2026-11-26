@@ -165,8 +165,8 @@ text says it once at `WARNING:`, as it is kept as written, and so does a
 database warns `licenseid database cannot be used` (`license-db-unusable`)
 whenever a lookup is needed (a `LICENSE` file, a long text, or no declared
 licence). A warning of LicenseID itself is
-said once, after `licenseid: ` (`WARNING: licenseid: database: build v4
-outdated: current v5; run 'licenseid update'`; `INFO:` for `variant not
+said once, after `licenseid: ` (`WARNING: licenseid: database: build v5
+outdated: current v6; run 'licenseid update'`; `INFO:` for `variant not
 stated`, a guess it records on a detection). `too few words for text`
 (a text too short to match has no licence) is `DEBUG` only.
 
