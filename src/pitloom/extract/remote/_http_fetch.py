@@ -53,7 +53,7 @@ from pathlib import Path
 from typing import Any, Final, cast
 from urllib.parse import urljoin, urlsplit
 
-from pitloom.core.internal_error import InternalError
+from pitloom.core.internal_error import InternalError, reraise_internal
 from pitloom.core.model_extract_limit import MAX_DOWNLOAD_BYTES_KEY
 from pitloom.extract._extract_utils import json_nests_over
 from pitloom.extract.remote._http_credential import DEFAULT_PORTS, Credential
@@ -177,7 +177,8 @@ def url_refusal(
     try:
         parts = urlsplit(url)
         port = parts.port
-    except ValueError:
+    except ValueError as exc:
+        reraise_internal(exc)
         return "it is not a valid URL"
     scheme = parts.scheme.lower()
     if scheme not in ALLOWED_SCHEMES:
@@ -242,6 +243,7 @@ def _request_once(
         OSError,
         ValueError,
     ) as exc:
+        reraise_internal(exc)
         raise failed_error(url, exc, watch, route) from exc
     return cast(http.client.HTTPResponse, response)
 
@@ -343,6 +345,7 @@ def _chunks(
         try:
             chunk = response.read1(CHUNK_BYTES)
         except (http.client.HTTPException, OSError, ValueError) as exc:
+            reraise_internal(exc)
             raise failed_error(url, exc, watch, route) from exc
         # A socket shut at the deadline reads as the end of the body on POSIX;
         # on Windows the read waits for its timeout, which failed_error names.
@@ -399,6 +402,7 @@ def fetch_json(url: str, policy: Policy) -> dict[str, Any]:
         # Bytes, not text: a UTF-8 BOM is accepted, as the format allows.
         data = json.loads(raw)
     except (ValueError, RecursionError) as exc:
+        reraise_internal(exc)
         raise remote_error(
             "pypi.response-invalid",
             JSON_MALFORMED,

@@ -34,6 +34,7 @@ from pitloom.core._models_wheel_types import (
     warn_discovery_failed,
 )
 from pitloom.core.clone_mark import in_remote_clone
+from pitloom.core.internal_error import reraise_internal
 
 if TYPE_CHECKING:
     from pdm.backend.hooks import BuildHookInterface
@@ -196,5 +197,6 @@ def discover(
         ]
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
+        reraise_internal(exc)
         warn_discovery_failed(log, "PDM", project_dir, exc)
         return None

@@ -35,6 +35,7 @@ from pitloom.core.ai_metadata import (
     source_metadata,
 )
 from pitloom.core.canonical_json import canonical_json
+from pitloom.core.internal_error import reraise_internal
 from pitloom.core.model_originators import (
     ORIGINATORS_PROVENANCE_KEY,
     originator_names,
@@ -103,6 +104,7 @@ def _read_pt2_meta_entry(
         raise
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
+        reraise_internal(exc)
         _warn_unread(PT2_META_LINE, exc, ("name",), entry=meta_entry)
     return None, None
 
@@ -137,6 +139,7 @@ def _read_pt2_text(zf: ZipFile, full: str, field: str) -> str | None:
         raise
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
+        reraise_internal(exc)
         _warn_unread(PT2_EXTRA_LINE, exc, (field,), entry=full)
         return None
 
@@ -255,7 +258,8 @@ def _tag_text(tag: object) -> str:
         return source_element_text(tag)
     try:
         return canonical_json(tag)
-    except ValueError:
+    except ValueError as exc:
+        reraise_internal(exc)
         return canonical_json(escape_lone_surrogates_in(copy.deepcopy(tag))[0])
 
 
@@ -267,6 +271,7 @@ def _parse_pt2_tags(tags_raw: str) -> tuple[str, list[object] | None]:
         tags = json.loads(tags_raw)
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
+        reraise_internal(exc)
         emit(
             log,
             MODEL_FIELD_UNREADABLE,
@@ -300,6 +305,7 @@ def _read_pt2_format_version(
             raise
         # pylint: disable-next=broad-exception-caught
         except Exception as exc:
+            reraise_internal(exc)
             _warn_unread(
                 PT2_VERSION_LINE,
                 exc,

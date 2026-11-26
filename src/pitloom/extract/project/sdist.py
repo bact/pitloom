@@ -31,7 +31,7 @@ from pitloom.core.config import (
     pyproject_config_applies,
     select_project_config,
 )
-from pitloom.core.internal_error import InternalError
+from pitloom.core.internal_error import InternalError, reraise_internal
 from pitloom.core.project import ProjectFile, ProjectMetadata
 from pitloom.core.provenance import provenance_source
 from pitloom.core.quote_source import quote_source
@@ -174,6 +174,7 @@ def _metadata_pyproject(raw: bytes | Cap, sdist_name: str) -> Any:
     try:
         return _load_pyproject(raw, sdist_name)
     except ValueError as exc:  # config-malformed or file-unreadable/not-utf8
+        reraise_internal(exc)
         # The fields left unset are the entry's `did`.
         relay_coded_warning(log, exc, quiet=False)
         return None
@@ -268,6 +269,7 @@ def _optional_pyproject(raw: bytes | Cap, sdist_name: str) -> Any:
     try:
         return _load_pyproject(raw, sdist_name)
     except ValueError as exc:  # config-malformed or file-unreadable/not-utf8
+        reraise_internal(exc)
         relay_coded_warning(log, exc, quiet=False)
         return None
 

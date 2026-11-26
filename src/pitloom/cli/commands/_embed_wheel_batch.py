@@ -32,6 +32,7 @@ from pitloom.cli.options_config import (
 from pitloom.core.config import PitloomConfig
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.credential_policy import CredentialPolicy
+from pitloom.core.current_dir import absolute_path
 from pitloom.core.inert_options import (
     EMBED_PROJECT,
     EMBED_SBOM,
@@ -99,7 +100,7 @@ def resolve_project_dir_and_config(
     if project_dir is None:
         return None, None
 
-    proj_path = Path(project_dir).resolve()
+    proj_path = absolute_path(project_dir).resolve()
     if not input_exists(proj_path, shown=project_dir):
         say_input_not_found("project directory", project_dir)
         return None

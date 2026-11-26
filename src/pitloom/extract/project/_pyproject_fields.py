@@ -19,6 +19,7 @@ from typing import Any
 
 from pyproject_metadata import StandardMetadata
 
+from pitloom.core.internal_error import reraise_internal
 from pitloom.core.path_confine import OutsideRootError, open_inside
 from pitloom.extract._extract_utils import field_declared
 from pitloom.extract.authors import collapse_whitespace
@@ -123,7 +124,8 @@ def drop_outside_file(
                 field=field,
                 once=f"outside:{field}:{project_dir / name}",
             )
-    except (OSError, ValueError):
+    except (OSError, ValueError) as error:
+        reraise_internal(error)
         return data
     kept = {k: v for k, v in data["project"].items() if k != key}
     return {**data, "project": kept}

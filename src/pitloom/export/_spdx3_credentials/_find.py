@@ -20,6 +20,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 from pitloom.core.credential_policy import fingerprint
+from pitloom.core.internal_error import reraise_internal
 from pitloom.core.provenance import parse_provenance_value
 from pitloom.core.untrusted_text import unescape_display_controls
 from pitloom.core.url_masking import find_url_credentials, masked_given_path
@@ -128,7 +129,8 @@ def _statement_values(statement: str) -> Iterator[tuple[str, str]]:
     statement has none."""
     try:
         data = json.loads(statement)
-    except (ValueError, RecursionError):
+    except (ValueError, RecursionError) as exc:
+        reraise_internal(exc)
         return
     if not isinstance(data, dict):
         return

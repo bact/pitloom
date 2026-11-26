@@ -18,6 +18,7 @@ from typing import Any
 
 from packaging.utils import canonicalize_name
 
+from pitloom.core.internal_error import reraise_internal
 from pitloom.core.requirements import flatten_optional_dependencies
 from pitloom.extract.project._poetry_extras import (
     extras_requirements,
@@ -116,7 +117,8 @@ def _convert_caret(ver: str) -> str:
             minor = int(parts[1])
             return f">={ver},<0.{minor + 1}.0"
         return f">={ver}"
-    except (ValueError, IndexError):
+    except (ValueError, IndexError) as exc:
+        reraise_internal(exc)
         return f">={ver}"
 
 
@@ -129,7 +131,8 @@ def _convert_tilde(ver: str) -> str:
             minor = int(parts[1])
             return f">={ver},<{major}.{minor + 1}.0"
         return f">={ver}"
-    except (ValueError, IndexError):
+    except (ValueError, IndexError) as exc:
+        reraise_internal(exc)
         return f">={ver}"
 
 

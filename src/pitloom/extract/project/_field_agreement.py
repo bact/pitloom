@@ -20,6 +20,7 @@ from typing import Any
 
 from packaging.utils import canonicalize_name
 
+from pitloom.core.internal_error import reraise_internal
 from pitloom.core.pep440 import parse_specifier_set
 from pitloom.core.project import ConflictCandidate, ProjectMetadata
 from pitloom.extract._license import classify_license, is_weak_licence, same_licence
@@ -35,7 +36,8 @@ def shown_value(raw: Any) -> str:
     :data:`_SHOWN_CHARS`."""
     try:
         text = repr(raw)
-    except ValueError:  # an int over sys.get_int_max_str_digits()
+    except ValueError as exc:  # an int over sys.get_int_max_str_digits()
+        reraise_internal(exc)
         text = f"<{type(raw).__name__}>"
     return one_line(text, limit=_SHOWN_CHARS)
 
@@ -66,7 +68,8 @@ def _requires_python_equal(a: str, b: str) -> bool:
     too)."""
     try:
         return parse_specifier_set(a) == parse_specifier_set(b)
-    except ValueError:
+    except ValueError as exc:
+        reraise_internal(exc)
         return a.strip() == b.strip()
 
 

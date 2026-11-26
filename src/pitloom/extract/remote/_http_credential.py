@@ -20,6 +20,8 @@ from types import MappingProxyType
 from typing import Final
 from urllib.parse import urlsplit
 
+from pitloom.core.internal_error import reraise_internal
+
 __all__ = ["DEFAULT_PORTS", "Credential", "origin_of"]
 
 #: The port of each scheme when a URL writes none.
@@ -33,7 +35,8 @@ def origin_of(url: str) -> tuple[str, str, int] | None:
     try:
         parts = urlsplit(url)
         port = parts.port
-    except ValueError:
+    except ValueError as exc:
+        reraise_internal(exc)
         return None
     scheme = parts.scheme.lower()
     host = (parts.hostname or "").lower()

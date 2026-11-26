@@ -12,6 +12,7 @@ import subprocess  # nosec B404
 import sys
 from typing import Any
 
+from pitloom.core.internal_error import reraise_internal
 from pitloom.core.project import ProjectMetadata
 from pitloom.log_masking import masked_lines
 from pitloom.messages.dependencies import (
@@ -116,6 +117,7 @@ def read_environment() -> tuple[ProjectMetadata, list[dict[str, Any]]]:
         # Bytes in: json.loads detects the encoding and skips a UTF-8 BOM.
         raw = json.loads(result.stdout)
     except ValueError as e:  # JSONDecodeError, UnicodeDecodeError
+        reraise_internal(e)
         raise pipdeptree_not_json(e) from e
     tree = _canonical_order(_validated_node_list(raw))
 

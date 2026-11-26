@@ -40,6 +40,7 @@ from packaging.utils import (
 )
 from packaging.version import Version
 
+from pitloom.core.internal_error import reraise_internal
 from pitloom.core.pep440 import parse_version
 from pitloom.extract.lock._hash import (
     index_packages_by_name_and_version,
@@ -77,7 +78,8 @@ def _parse_wheel(filename: str) -> Version | None:
     try:
         _name, ver, _build, _tags = parse_wheel_filename(filename)
         return ver
-    except (InvalidWheelFilename, ValueError):
+    except (InvalidWheelFilename, ValueError) as exc:
+        reraise_internal(exc)
         return None
 
 
@@ -85,16 +87,16 @@ def _parse_sdist(filename: str) -> Version | None:
     try:
         _name, ver = parse_sdist_filename(filename)
         return ver
-    except (InvalidSdistFilename, ValueError):
-        pass
+    except (InvalidSdistFilename, ValueError) as exc:
+        reraise_internal(exc)
     for ext in (".tar.bz2", ".tgz", ".tar.xz"):
         if filename.endswith(ext):
             normalized = filename[: -len(ext)] + ".tar.gz"
             try:
                 _name, ver = parse_sdist_filename(normalized)
                 return ver
-            except (InvalidSdistFilename, ValueError):
-                pass
+            except (InvalidSdistFilename, ValueError) as exc:
+                reraise_internal(exc)
     return None
 
 

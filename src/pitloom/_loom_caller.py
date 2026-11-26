@@ -26,6 +26,7 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 from pitloom.__about__ import __version__
 from pitloom.core.evidence import VERIFIED_USING_FIELD
 from pitloom.core.file_hash import HexDigests
+from pitloom.core.internal_error import reraise_internal
 from pitloom.core.lfs_pointer import LFS_POINTER_METHOD, LfsPointer
 from pitloom.core.provenance import (
     ProvenanceConfig,
@@ -101,7 +102,8 @@ def cwd_relative_label(location: str | os.PathLike[str]) -> str:
         return Path(text).name
     try:
         return Path(absolute).relative_to(base).as_posix()
-    except ValueError:
+    except ValueError as exc:
+        reraise_internal(exc)
         return Path(absolute).name
 
 
@@ -120,6 +122,7 @@ def _get_caller_info() -> str:
                 )
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
+        reraise_internal(exc)
         # WARNING once per process, DEBUG after -- inspect.stack() failing
         # is a per-process environment condition (sandboxed/frozen
         # interpreter), not a one-off, so it would otherwise repeat on
@@ -153,6 +156,7 @@ def _get_caller_script_path() -> str | None:
             return filename if Path(filename).is_file() else None
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
+        reraise_internal(exc)
         emit(
             log,
             CALLER_INFO_UNREADABLE,

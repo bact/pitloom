@@ -27,6 +27,7 @@ from pitloom.core._models_wheel_types import (
     to_posix_distribution_path,
     warn_discovery_failed,
 )
+from pitloom.core.internal_error import reraise_internal
 from pitloom.messages.file_discovery import FLIT_EXTERNAL_DATA_LINE, warn_discovery
 
 log = logging.getLogger(__name__)
@@ -134,5 +135,6 @@ def discover(
             return _flit_files(project_dir)
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
+        reraise_internal(exc)
         warn_discovery_failed(log, "Flit", project_dir, exc)
         return None

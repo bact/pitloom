@@ -26,7 +26,6 @@ happens to an option the target cannot use).
 from __future__ import annotations
 
 import argparse
-from pathlib import Path
 from typing import Any
 
 from pitloom.cli._parser_credentials import credential_policy_from_args
@@ -38,6 +37,7 @@ from pitloom.cli.options_resolve import (
 from pitloom.core.build_options import BuildOptions
 from pitloom.core.config import PitloomConfig
 from pitloom.core.config_cascade import ConfigOverrides
+from pitloom.core.current_dir import absolute_path
 from pitloom.core.given_path import GivenPath, TypedPath
 from pitloom.core.no_effect import warn_no_effect
 
@@ -106,7 +106,7 @@ def run_options(args: argparse.Namespace, config: PitloomConfig) -> dict[str, An
     }
     if options["id_registry"] is not None:
         given = options["id_registry"]
-        options["id_registry"] = GivenPath(Path(given).absolute(), given)
+        options["id_registry"] = GivenPath(absolute_path(given), given)
     if hasattr(args, ARCHIVE_PROJECT_DIR_DEST):
         options["project_dir"] = getattr(args, ARCHIVE_PROJECT_DIR_DEST)
     options["credentials"] = credential_policy_from_args(args)

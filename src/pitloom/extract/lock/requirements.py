@@ -57,6 +57,7 @@ from pathlib import Path
 
 from packaging.requirements import InvalidRequirement
 
+from pitloom.core.internal_error import reraise_internal
 from pitloom.core.pep508 import parse_requirement
 from pitloom.extract.lock.common import (
     read_lock_bytes,
@@ -120,6 +121,7 @@ def extract_pinned_requirements_dependencies(project_dir: Path) -> list[str] | N
     except FileNotFoundError:
         return None
     except (OSError, ValueError) as exc:
+        reraise_internal(exc)
         warn_unreadable_lock_file(lock_path, exc)
         return None
 

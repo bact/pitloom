@@ -39,6 +39,7 @@ from packaging.utils import (
 )
 from packaging.version import InvalidVersion, Version
 
+from pitloom.core.internal_error import reraise_internal
 from pitloom.core.pep440 import parse_version
 from pitloom.core.untrusted_text import DISPLAY_CONTROLS
 
@@ -175,7 +176,8 @@ def _wheel_mismatch(filename: str, canonical: str, version: Version) -> str | No
     *canonical*, or ``None``."""
     try:
         name, found, _build, _tags = parse_wheel_filename(filename)
-    except (ValueError, InvalidVersion):
+    except (ValueError, InvalidVersion) as exc:
+        reraise_internal(exc)
         return "not a valid wheel file name"
     if name != canonical or found != version:
         return "the file is not of this project and release"
@@ -187,7 +189,8 @@ def _sdist_mismatch(filename: str, canonical: str, version: Version) -> str | No
     *canonical*, or ``None``."""
     try:
         name, found = parse_sdist_filename(filename)
-    except (ValueError, InvalidVersion):
+    except (ValueError, InvalidVersion) as exc:
+        reraise_internal(exc)
         return "not a valid sdist file name (.tar.gz or .zip)"
     if name != canonical or found != version:
         return "the file is not of this project and release"

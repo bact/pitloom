@@ -22,9 +22,9 @@ with Pitloom's own settings.
 
 The clone's path reads setuptools' private pieces (``pyprojecttoml._apply``,
 ``Distribution._finalize_license_files``, ``_finalize_requires``): a later
-setuptools without one fails the discovery with an
-:class:`~pitloom.core.internal_error.InternalError` that the ``WARNING:``
-names, and the file list falls back.
+setuptools without one fails the discovery with a
+:class:`~pitloom.core._models_wheel_types.BackendPieceMissingError` that the
+``WARNING:`` names, and the file list falls back.
 
 See also: :mod:`pitloom.core._models_wheel_setuptools` (the caller),
 :mod:`pitloom.core._models_wheel_clone` (the warnings).
@@ -36,8 +36,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from pitloom.core._models_wheel_clone import LeftOut
+from pitloom.core._models_wheel_types import BackendPieceMissingError
 from pitloom.core.clone_mark import in_remote_clone
-from pitloom.core.internal_error import InternalError
 
 if TYPE_CHECKING:
     from setuptools.dist import Distribution
@@ -98,12 +98,13 @@ def _private(owner: object, name: str, shown: str) -> Any:
     the clone's path calls.
 
     Raises:
-        InternalError: This setuptools has no such function (the discovery
-            fails, and says so).
+        pitloom.core._models_wheel_types.BackendPieceMissingError: This
+            setuptools has no such function (the discovery fails, and says
+            so).
     """
     found = getattr(owner, name, None)
     if not callable(found):
-        raise InternalError(f"setuptools has no {shown}.{name}()")
+        raise BackendPieceMissingError(f"setuptools has no {shown}.{name}()")
     return found
 
 

@@ -11,6 +11,7 @@ import os
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
+from pitloom.core.internal_error import reraise_internal
 from pitloom.messages import CodedValueError
 from pitloom.messages.config import (
     EPOCH_NOT_INTEGER_LINE,
@@ -66,7 +67,8 @@ def iso_datetime_or_none(value: str) -> datetime | None:
     normalized = value[:-1] + "+00:00" if value.endswith("Z") else value
     try:
         parsed = datetime.fromisoformat(normalized)
-    except ValueError:
+    except ValueError as exc:
+        reraise_internal(exc)
         return None
     if parsed.tzinfo is None:
         return parsed.replace(tzinfo=timezone.utc)
@@ -214,13 +216,15 @@ def resolve_source_date_epoch() -> datetime | None:
         return None
     try:
         seconds = int(raw)
-    except ValueError:
+    except ValueError as exc:
+        reraise_internal(exc)
         raise CodedValueError(
             SOURCE_DATE_EPOCH_INVALID, line=EPOCH_NOT_INTEGER_LINE, value=raw
         ) from None
     try:
         return datetime.fromtimestamp(seconds, tz=timezone.utc)
-    except (ValueError, OverflowError, OSError):
+    except (ValueError, OverflowError, OSError) as exc:
+        reraise_internal(exc)
         raise CodedValueError(
             SOURCE_DATE_EPOCH_INVALID, line=EPOCH_OUT_OF_RANGE_LINE, value=raw
         ) from None

@@ -21,6 +21,7 @@ from typing import Any, TypedDict
 
 from pitloom.core.canonical_json import canonical_json
 from pitloom.core.dataset_metadata import DatasetReference
+from pitloom.core.internal_error import reraise_internal
 from pitloom.core.model_usage import ModelUsage
 from pitloom.core.scalar_text import key_text, scalar_text, scalar_type, text_type
 from pitloom.messages.files import Cap
@@ -177,7 +178,8 @@ def _collection_text(value: Any) -> str:
     """*value*, a collection nested too deeply to keep, as its JSON text."""
     try:
         return canonical_json(value)
-    except (RecursionError, TypeError, ValueError):
+    except (RecursionError, TypeError, ValueError) as exc:
+        reraise_internal(exc)
         return f"<nested over {SOURCE_METADATA_MAX_DEPTH} levels>"
 
 

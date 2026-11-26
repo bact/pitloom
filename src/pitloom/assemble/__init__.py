@@ -88,7 +88,7 @@ from pitloom.extract.remote.pypi import sdist_hint
 from pitloom.extract.remote.pypi_url import is_pypi_url
 from pitloom.id_registry import IdRegistry
 from pitloom.logging_config import configure_logging
-from pitloom.messages.targets import refuse_empty_input
+from pitloom.messages.targets import input_not_found, refuse_empty_input
 
 __all__ = [
     "BuildOptions",
@@ -318,8 +318,8 @@ def generate(
 
     Raises:
         pitloom.messages.CodedFileNotFoundError: *target* is given as empty
-            (``input-not-found``), which :class:`pathlib.Path` would read as
-            the current directory.
+            or blank (``input-not-found``), which :class:`pathlib.Path` or
+            the stripping of a URL would read as the current directory.
     """
     # Before the no-effect warnings below, which precede any delegate's own
     # configure_logging() call.
@@ -331,6 +331,8 @@ def generate(
     if max_download_bytes is not None:
         require_download_override(max_download_bytes)  # even if inert
     target_str = str(target).strip()
+    if not target_str:  # blank: stripping must not turn it into "."
+        raise input_not_found("project path", target)
     classification = _classify_target(target_str)
 
     if classification not in ("project", "git", "pypi"):

@@ -22,6 +22,7 @@ from urllib.error import HTTPError
 from urllib.parse import urlparse
 
 from pitloom.core.given_file import FETCH_MAX_BYTES
+from pitloom.core.internal_error import reraise_internal
 from pitloom.core.path_confine import NotRegularFileError
 from pitloom.core.path_probe import is_missing_errno
 from pitloom.core.provenance import provenance_segment
@@ -224,7 +225,8 @@ def _read_local(source: str | Path, size: int, input_kind: str) -> bytes:
     """
     try:
         mode = os.stat(source).st_mode
-    except ValueError:
+    except ValueError as exc:
+        reraise_internal(exc)
         raise recoded(CodedValueError, input_not_found(input_kind, source)) from None
     if not stat.S_ISREG(mode):
         raise NotRegularFileError
@@ -312,6 +314,7 @@ def fetch_json(
     # -16/-32), an integer over Python's digit limit; a RecursionError:
     # nesting too deep to parse.
     except (ValueError, RecursionError) as exc:
+        reraise_internal(exc)
         raise CodedValueError(
             JSON_MALFORMED, line=NOT_JSON_LINE, file=source, use=use, failure=exc
         ) from exc

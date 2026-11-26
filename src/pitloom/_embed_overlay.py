@@ -19,6 +19,7 @@ from pathlib import Path
 
 from packaging.utils import canonicalize_name
 
+from pitloom.core.internal_error import reraise_internal
 from pitloom.core.project import ProjectFile, ProjectMetadata
 from pitloom.extract._license import resolve_license_concluded
 from pitloom.extract.authors import warn_project_authors_unread
@@ -109,6 +110,7 @@ def adopt_project_authors(
             read_config=False,
         )
     except (OSError, ValueError) as exc:
+        reraise_internal(exc)
         warn_project_authors_unread(project_dir, exc)
         return False
     source = project.provenance.get("authors")

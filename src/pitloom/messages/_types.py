@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from types import MappingProxyType
 from typing import Final
 
-from pitloom.core.internal_error import InternalError
+from pitloom.core.internal_error import InternalError, reraise_internal
 from pitloom.logging_config import CODE_LIKE_END, CODE_PATTERN
 from pitloom.messages._fields import FIELDS
 from pitloom.messages._templates import (
@@ -134,6 +134,7 @@ def template_problem(template: str) -> str | None:
     try:
         template_names(template)
     except ValueError as exc:
+        reraise_internal(exc)
         return str(exc)
     if not template.strip() or template != template.lstrip():
         return f"{template!r}: empty, or white space at its start"

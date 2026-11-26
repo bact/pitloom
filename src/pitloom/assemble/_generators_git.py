@@ -29,6 +29,7 @@ from pitloom.core.config import PitloomConfig
 from pitloom.core.config_cascade import resolve_fetch_policy
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.credential_policy import CredentialPolicy
+from pitloom.core.current_dir import absolute_path
 from pitloom.core.given_path import GivenPath, given_spelling
 from pitloom.core.inert_options import GIT_MODEL, forward_options
 from pitloom.core.internal_error import InternalError
@@ -150,9 +151,7 @@ def generate_git_sbom(
     if isinstance(id_registry, (str, Path)):
         # A relative path means the caller's directory, not the checkout's;
         # a message still names it as given.
-        id_registry = GivenPath(
-            Path(id_registry).absolute(), given_spelling(id_registry)
-        )
+        id_registry = GivenPath(absolute_path(id_registry), given_spelling(id_registry))
     with fetch_git_project(
         url, policy=policy, trust_model_files=trust_model_files is True
     ) as checkout:

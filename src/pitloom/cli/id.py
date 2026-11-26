@@ -31,8 +31,9 @@ from pitloom.cli._path_args import non_empty_path
 from pitloom.cli.commands.utils import cli_error_handler
 from pitloom.cli.kv_output import print_kv
 from pitloom.cli.options import positive_byte_ceiling
-from pitloom.core.current_dir import current_dir
+from pitloom.core.current_dir import absolute_path, current_dir
 from pitloom.core.given_path import TypedPath, keep_spelling
+from pitloom.core.internal_error import reraise_internal
 from pitloom.id_registry import (
     IdRegistry,
     check_key_credentials,
@@ -118,13 +119,15 @@ def _resolve_id_generate_path(
     for base in (lexical_project_dir, project_dir):
         try:
             rel = lexical.relative_to(base)
-        except ValueError:
+        except ValueError as exc:
+            reraise_internal(exc)
             continue
         return project_dir / rel
     real = Path(os.path.realpath(lexical))
     try:
         rel = real.relative_to(project_dir)
-    except ValueError:
+    except ValueError as exc:
+        reraise_internal(exc)
         return None
     return project_dir / rel
 
@@ -146,6 +149,7 @@ def _save(registry: IdRegistry, registry_path: Path) -> bool:
     try:
         save_registry(registry)
     except (ValueError, OSError) as exc:
+        reraise_internal(exc)
         say_save_failure(log, exc, file=registry_path, fatal=True)
         return False
     return True
@@ -249,7 +253,7 @@ def _run_id_generate(args: argparse.Namespace) -> int:
     """Run `loom id generate`."""
     if args.namespace is not None:
         require_registry_namespace(args.namespace)  # before any file is read
-    project_dir: Path = (args.project_dir or current_dir()).resolve()
+    project_dir: Path = absolute_path(args.project_dir or current_dir()).resolve()
     if not is_input_dir(project_dir, shown=args.project_dir or project_dir):
         say_input_not_found("project directory", args.project_dir or project_dir)
         return 1
@@ -278,12 +282,12 @@ def _run_id_generate(args: argparse.Namespace) -> int:
 def _run_id_import(args: argparse.Namespace) -> int:
     """Run `loom id import`."""
     refuse_empty_input(args.sbom, "SBOM file")
-    sbom_path: Path = args.sbom.resolve()
+    sbom_path: Path = absolute_path(args.sbom).resolve()
     if not is_input_file(sbom_path, shown=args.sbom):
         say_input_not_found("SBOM file", args.sbom)
         return 1
 
-    project_dir: Path = (args.project_dir or current_dir()).resolve()
+    project_dir: Path = absolute_path(args.project_dir or current_dir()).resolve()
     if not is_input_dir(project_dir, shown=args.project_dir or project_dir):
         say_input_not_found("project directory", args.project_dir or project_dir)
         return 1

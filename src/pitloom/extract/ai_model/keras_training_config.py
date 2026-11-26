@@ -23,6 +23,7 @@ from typing import Any, NamedTuple
 
 from pitloom.core.ai_metadata import record_scalar_property
 from pitloom.core.canonical_json import canonical_json
+from pitloom.core.internal_error import reraise_internal
 from pitloom.core.provenance import provenance_segment
 from pitloom.core.untrusted_text import escape_lone_surrogates_in
 from pitloom.extract.ai_model.hdf5_config import (
@@ -106,7 +107,8 @@ def _collection_text(value: list[Any] | dict[str, Any]) -> str:
     """
     try:
         return canonical_json(value)
-    except ValueError:
+    except ValueError as exc:
+        reraise_internal(exc)
         return canonical_json(escape_lone_surrogates_in(copy.deepcopy(value))[0])
 
 

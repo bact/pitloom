@@ -19,7 +19,9 @@ from pathlib import Path
 from typing import NamedTuple
 
 from pitloom.core.config import PitloomConfig
+from pitloom.core.current_dir import absolute_path
 from pitloom.core.given_path import GivenPath, TypedPath, keep_spelling
+from pitloom.core.internal_error import reraise_internal
 from pitloom.core.walk_rules import PROJECT_FILES
 from pitloom.extract.project import read_project
 from pitloom.id_registry import DATASET_PACKAGE_TYPE
@@ -102,6 +104,7 @@ def resolve_id_refuse(
     try:
         return _read_project_config(project_dir)[0].credential_policy.refuse
     except (ValueError, OSError) as exc:
+        reraise_internal(exc)
         if not best_effort:
             raise
         say_mode_unread(project_dir, exc)
@@ -132,11 +135,13 @@ def resolve_dataset_hash_ceiling(
 
 
 def _normalized_absolute(path: Path) -> Path:
-    """``path.absolute()``, then ``os.path.normpath()`` to collapse
-    lexical ``..``/``.`` segments for display -- never ``.resolve()``,
+    """*path* made absolute
+    (:func:`~pitloom.core.current_dir.absolute_path`), then
+    ``os.path.normpath()`` to collapse lexical ``..``/``.`` segments for
+    display -- never ``.resolve()``,
     which would also follow a symlink (see the dangling-symlink note in
     :func:`_resolve_id_registry_target`)."""
-    return Path(os.path.normpath(path.absolute()))
+    return Path(os.path.normpath(absolute_path(path)))
 
 
 def _no_id_registry_declared_error(table: str) -> ValueError:
@@ -181,7 +186,8 @@ def _resolve_id_registry_target(
         # *flag* happens to name the project's own declared file.
         try:
             configured, table = _project_configured_id_registry(project_dir)
-        except (ValueError, OSError):
+        except (ValueError, OSError) as exc:
+            reraise_internal(exc)
             configured, table = None, _PYPROJECT_TABLE
         configured_path = (
             _normalized_absolute(project_dir / configured)
@@ -222,7 +228,8 @@ def _log_config_hint(registry_path: Path, project_dir: Path, slot: _ConfigSlot) 
     """
     try:
         rel = registry_path.relative_to(project_dir).as_posix()
-    except ValueError:
+    except ValueError as exc:
+        reraise_internal(exc)
         rel = registry_path.as_posix()
     value = json.dumps(rel) if slot.table == _PYPROJECT_TABLE else rel
     if slot.has_key:

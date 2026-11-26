@@ -27,6 +27,7 @@ from dataclasses import dataclass, field
 from typing import Any, NamedTuple
 
 from pitloom.core.ai_metadata import record_scalar_property
+from pitloom.core.internal_error import reraise_internal
 from pitloom.core.provenance import provenance_segment
 from pitloom.extract._extract_utils import record_dict_field_provenance
 from pitloom.logging_config import one_line
@@ -156,6 +157,7 @@ def json_object(raw: str | bytes, what: str) -> dict[str, Any]:
         raise ConfigShapeError(what, "is not valid JSON (nested too deeply)") from exc
     # JSONDecodeError, UnicodeDecodeError, or an over-long integer
     except ValueError as exc:
+        reraise_internal(exc)
         raise ConfigShapeError(what, f"is not valid JSON ({exc})") from exc
     if parsed is None:
         return {}

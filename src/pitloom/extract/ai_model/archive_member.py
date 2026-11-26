@@ -27,6 +27,7 @@ from pathlib import Path
 from typing import IO, Any, NamedTuple
 
 from pitloom.core.ai_metadata import record_scalar_property
+from pitloom.core.internal_error import reraise_internal
 from pitloom.extract.ai_model.limits import (
     ModelLimitExceeded,
     ModelOverCap,
@@ -179,6 +180,7 @@ def _zip64_start_shift(api: _ZipfileApi) -> int:
         )
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
+        reraise_internal(exc)
         raise ModelLimitExceeded(LIMIT_ZIP_UNCHECKABLE) from exc
     signature, size, location = values
     if (signature, size) == (api.zip64_signature, 0) and location in (0, both):
@@ -216,6 +218,7 @@ def _directory_start_and_size(fh: IO[bytes]) -> tuple[int, int] | None:
         return None  # ZipFile turns both into BadZipFile
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
+        reraise_internal(exc)
         raise ModelLimitExceeded(LIMIT_ZIP_UNCHECKABLE) from exc
     if not endrec:
         return None
@@ -223,6 +226,7 @@ def _directory_start_and_size(fh: IO[bytes]) -> tuple[int, int] | None:
         size, location = int(endrec[api.size_at]), int(endrec[api.location_at])
         is_zip64 = endrec[api.signature_at] == api.zip64_signature
     except (IndexError, KeyError, TypeError, ValueError) as exc:
+        reraise_internal(exc)
         raise ModelLimitExceeded(LIMIT_ZIP_UNCHECKABLE) from exc
     start = location - size - (shift if is_zip64 else 0)
     if start < 0:

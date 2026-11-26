@@ -23,6 +23,7 @@ import os
 from pathlib import Path
 
 from pitloom._toml_io import TOMLDecodeError, load_toml_bytes, load_toml_file
+from pitloom.core.internal_error import reraise_internal
 from pitloom.messages import CodedValueError
 from pitloom.messages.config import CONFIG_MALFORMED, TOML_LINE
 from pitloom.messages.files import file_unreadable_error
@@ -59,6 +60,7 @@ def load_project_toml(
     except (UnicodeDecodeError, OSError) as exc:
         raise file_unreadable_error(exc, file=path, use=use) from None
     except (ValueError, RecursionError) as exc:
+        reraise_internal(exc)
         # Not a TOMLDecodeError: an integer over Python's digit limit, or
         # arrays nested past the parser's depth limit.
         raise _malformed(path, exc) from None
@@ -81,6 +83,7 @@ def load_project_toml_bytes(raw: bytes, *, file: str, use: str) -> dict[str, obj
     except UnicodeDecodeError as exc:
         raise file_unreadable_error(exc, file=file, use=use) from None
     except (ValueError, RecursionError) as exc:
+        reraise_internal(exc)
         raise _malformed(file, exc) from None
 
 

@@ -20,6 +20,7 @@ from pitloom.core.ai_metadata import (
     AiModelMetadata,
     source_metadata,
 )
+from pitloom.core.internal_error import reraise_internal
 from pitloom.core.model_originators import ORIGINATORS_PROVENANCE_KEY, originator_names
 from pitloom.core.provenance import provenance_source
 from pitloom.core.quote_source import quote_source
@@ -131,6 +132,7 @@ def _read_header(
         raise
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
+        reraise_internal(exc)
         log.debug(
             "Failed to read Safetensors file %s: %s",
             loggable(str(model_path)),
@@ -230,6 +232,7 @@ def read_safetensors(model_path: Path) -> AiModelMetadata:
         from safetensors import safe_open
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:  # a broken install raises more than ImportError
+        reraise_internal(exc)
         raise missing_library(AiModelFormat.SAFETENSORS, exc) from exc
 
     source = provenance_source(model_path.name)

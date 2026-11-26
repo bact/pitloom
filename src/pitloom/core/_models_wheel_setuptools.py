@@ -49,6 +49,7 @@ from pitloom.core._models_wheel_types import (
     to_posix_distribution_path,
     warn_discovery_failed,
 )
+from pitloom.core.internal_error import reraise_internal
 from pitloom.core.path_confine import is_inside
 from pitloom.messages.file_discovery import (
     IMPERATIVE_LINE,
@@ -431,5 +432,6 @@ def discover(
         return None
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
+        reraise_internal(exc)
         warn_discovery_failed(log, "Setuptools", project_dir, exc)
         return None

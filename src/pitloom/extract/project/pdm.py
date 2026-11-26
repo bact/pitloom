@@ -50,6 +50,7 @@ import uuid
 from pathlib import Path
 from typing import Any
 
+from pitloom.core.internal_error import reraise_internal
 from pitloom.core.provenance import provenance_segment, provenance_source
 from pitloom.extract.project._setup_cfg_directives import listed_file_readable
 from pitloom.messages import emit
@@ -179,6 +180,7 @@ def resolve_pdm_dynamic_version(
         version = str(method(context, **options))
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
+        reraise_internal(exc)
         if not quiet:
             emit(
                 log,

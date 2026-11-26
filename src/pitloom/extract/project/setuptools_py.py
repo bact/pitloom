@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any
 
 from pitloom.core.config import PitloomConfig
+from pitloom.core.internal_error import reraise_internal
 from pitloom.core.project import ProjectMetadata
 from pitloom.core.provenance import provenance_segment, provenance_source
 from pitloom.extract.project._field_agreement import shown_value
@@ -183,7 +184,8 @@ def _parse_version(raw: Any) -> Any:
     if isinstance(raw, (int, float)) and not isinstance(raw, bool):
         try:
             return str(raw)
-        except ValueError:  # over sys.get_int_max_str_digits()
+        except ValueError as exc:  # over sys.get_int_max_str_digits()
+            reraise_internal(exc)
             return _UNREADABLE
     return _parse_str(raw)
 
@@ -314,6 +316,7 @@ def read_setup_py_options(project_dir: Path, *, quiet: bool = False) -> SetupOpt
     # ValueError: a null byte before Python 3.12; RecursionError and
     # MemoryError: a too deeply nested expression.
     except (SyntaxError, ValueError, RecursionError, MemoryError) as exc:
+        reraise_internal(exc)
         raise CodedValueError(
             METADATA_MALFORMED, line=PYTHON_LINE, file=setup_py_path, failure=exc
         ) from exc

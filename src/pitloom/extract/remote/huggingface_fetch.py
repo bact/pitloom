@@ -31,6 +31,7 @@ import logging
 from collections.abc import Iterable, Mapping, Sequence
 from typing import Any
 
+from pitloom.core.internal_error import reraise_internal
 from pitloom.core.provenance import provenance_segment, provenance_source
 from pitloom.core.quote_source import quote_source
 from pitloom.enrich.readme import MODEL_CARD_CAP, CardKind, read_card
@@ -116,6 +117,7 @@ def _safe_load_json(
         data = json.loads(local_path.read_bytes())
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
+        reraise_internal(exc)
         log.debug(
             "Failed to load %s for %s: %s",
             quote_source(filename),
@@ -226,6 +228,7 @@ def _load_model_info(model_id: str) -> dict[str, Any]:
         return result
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
+        reraise_internal(exc)
         say_hub_failure(
             log,
             exc,

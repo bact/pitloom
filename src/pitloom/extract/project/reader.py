@@ -24,6 +24,7 @@ from pitloom.core.config import (
     pyproject_config_applies,
     select_project_config,
 )
+from pitloom.core.current_dir import current_dir
 from pitloom.core.project import (
     ProjectMetadata,
     is_sdist_archive,
@@ -239,6 +240,10 @@ def read_project(
         )
         config_path = setup_cfg if setup_cfg.exists() else setup_py
     else:
+        if not project_path.is_absolute():
+            # A removed current directory still stats as "." but lists
+            # nothing: say it is gone, not that it holds no project.
+            current_dir()
         raise CodedFileNotFoundError(
             PROJECT_NOT_FOUND, line=PROJECT_NOT_FOUND_LINE, path=project_path
         )

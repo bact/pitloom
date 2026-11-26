@@ -13,7 +13,6 @@ wheel and an sdist share).
 from __future__ import annotations
 
 from collections.abc import Callable, Iterable
-from contextlib import suppress
 from pathlib import Path
 from typing import Any
 
@@ -83,9 +82,7 @@ def _resolve_license_hint(
 def _as_written(path: Path, project_dir: Path) -> Path:
     """*path*, which ``pyproject-metadata`` joined onto *project_dir*,
     relative to it again; unchanged when it is not below it as spelled."""
-    with suppress(ValueError):
-        return path.relative_to(project_dir)
-    return path
+    return path.relative_to(project_dir) if path.is_relative_to(project_dir) else path
 
 
 def stated_pyproject_license(

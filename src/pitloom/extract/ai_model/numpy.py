@@ -28,6 +28,7 @@ from pitloom.core.ai_metadata import (
     AiModelMetadata,
     source_metadata,
 )
+from pitloom.core.internal_error import reraise_internal
 from pitloom.core.provenance import provenance_source
 from pitloom.core.quote_source import quote_source
 from pitloom.extract.ai_model.archive_member import open_model_binary
@@ -265,6 +266,7 @@ def read_numpy(model_path: Path) -> AiModelMetadata:
         __import__(REQUIREMENTS[AiModelFormat.NUMPY].module)
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:  # a broken install raises more than ImportError
+        reraise_internal(exc)
         raise missing_library(AiModelFormat.NUMPY, exc) from exc
 
     source = provenance_source(model_path.name)
@@ -284,6 +286,7 @@ def read_numpy(model_path: Path) -> AiModelMetadata:
         raise
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
+        reraise_internal(exc)
         log.debug(
             "Failed to read NumPy file %s: %s",
             loggable(str(model_path)),

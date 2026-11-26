@@ -17,6 +17,7 @@ from typing import Any
 
 from packaging.utils import canonicalize_name
 
+from pitloom.core.internal_error import reraise_internal
 from pitloom.extract._core_metadata import classifier_provenance, license_cascade
 from pitloom.extract._extract_utils import fetch_json
 from pitloom.extract._license import warn_unless_expression
@@ -106,7 +107,8 @@ def _fetch_pypi_release_info(name: str, version: str | None) -> dict[str, Any] |
         return fetch_json(
             url, timeout=_PYPI_TIMEOUT_SECONDS, use="for the PyPI release metadata"
         )
-    except ValueError:
+    except ValueError as exc:
+        reraise_internal(exc)
         return None
 
 
@@ -189,6 +191,7 @@ def _prefetch_pypi_release_infos(
             try:
                 results[k] = future.result()
             # pylint: disable-next=broad-exception-caught
-            except Exception:
+            except Exception as exc:
+                reraise_internal(exc)
                 results[k] = None
     return results

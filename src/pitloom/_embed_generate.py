@@ -44,6 +44,7 @@ from pitloom.core.config_cascade import (
 )
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.credential_policy import CredentialPolicy
+from pitloom.core.current_dir import absolute_path
 from pitloom.core.document import DocumentModel
 from pitloom.core.inert_options import (
     EMBED_PROJECT,
@@ -132,9 +133,8 @@ def _resolve_embed_registry(
     short-circuiting :func:`_generate_embed_sbom_json`'s own resolve
     instead of loading the file a second time.
     """
-    base_dir = (
-        None if project_dir is None else registry_base_dir(Path(project_dir).resolve())
-    )
+    project = None if project_dir is None else absolute_path(project_dir).resolve()
+    base_dir = None if project is None else registry_base_dir(project)
     flags = credentials or CredentialPolicy()
     if id_registry is not None:
         policy = (pitloom_config or PitloomConfig()).credential_policy.union(flags)
@@ -143,14 +143,14 @@ def _resolve_embed_registry(
         )
     if pitloom_config is not None:
         cfg = pitloom_config
-    elif project_dir is None:
+    elif project is None:
         cfg = PitloomConfig()
     else:
         # quiet=True: a discarded peek (only cfg.id_registry is used); the
         # project's metadata warnings come from the read that adopts its
         # authors (_adopt_project_authors).
         _, cfg, _ = read_project(
-            Path(project_dir).resolve(),
+            project,
             include_locked_dependencies=False,
             include_installed_metadata=False,
             quiet=True,
@@ -350,7 +350,7 @@ def _generate_embed_sbom_json(
         )
         return sbom_json, sbom_basename or cfg.sbom_basename
 
-    proj_root = Path(project_dir).resolve()
+    proj_root = absolute_path(project_dir).resolve()
     # This is the one branch that reaches file discovery, so settle a
     # stray no_isolation/timeout (and warn about it) before the
     # project-config read below, so a direct embed_wheel_sbom() caller

@@ -30,6 +30,7 @@ from typing import Any, NamedTuple
 from packaging.utils import canonicalize_name
 
 from pitloom.core.given_file import read_given_bytes
+from pitloom.core.internal_error import reraise_internal
 from pitloom.core.pep440 import parse_version
 from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
 from pitloom.messages import CodedValueError
@@ -70,7 +71,8 @@ def _looks_like_spdx3_jsonld(data: bytes) -> bool:
     """
     try:
         doc = json.loads(data)
-    except (ValueError, UnicodeDecodeError):
+    except (ValueError, UnicodeDecodeError) as exc:
+        reraise_internal(exc)
         return False
     return (
         isinstance(doc, dict)
@@ -124,7 +126,8 @@ def _parse_jsonld_graph(data: bytes) -> list[Any] | None:
     *data* isn't recognisable JSON-LD (bad JSON, or no list ``@graph``)."""
     try:
         doc = json.loads(data)
-    except (ValueError, UnicodeDecodeError):
+    except (ValueError, UnicodeDecodeError) as exc:
+        reraise_internal(exc)
         return None
     graph = doc.get("@graph") if isinstance(doc, dict) else None
     return graph if isinstance(graph, list) else None
@@ -367,6 +370,7 @@ def refuse_unusable_given_sbom(sbom_path: Path | str, text: str) -> dict[str, An
             SBOM_INVALID, line=SBOM_DUPLICATE_KEY_LINE, file=sbom_path
         ) from None
     except (ValueError, RecursionError) as exc:
+        reraise_internal(exc)
         raise CodedValueError(
             JSON_MALFORMED, file=sbom_path, use=SBOM_USE, failure=exc
         ) from exc

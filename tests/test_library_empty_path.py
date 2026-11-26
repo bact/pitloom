@@ -33,6 +33,7 @@ from pitloom.assemble import (
 )
 from pitloom.core.given_path import TypedPath
 from pitloom.embed import embed_wheel_sbom
+from pitloom.id_registry import IdRegistry
 from pitloom.messages import CodedFileNotFoundError, CodedValueError, code_of
 from pitloom.messages.targets import (
     MODEL_FILE_KIND,
@@ -89,6 +90,21 @@ def test_library_empty_path(
         entry(given, output_path=tmp_path / "out.json")
     assert code_of(caught.value) == "input-not-found"
     assert str(caught.value) == said
+    assert not (tmp_path / "out.json").exists()
+
+
+@pytest.mark.parametrize("given", ["   ", " \t"], ids=["spaces", "tab"])
+def test_generate_blank_target_is_not_found(
+    given: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A blank target is named as given, as the CLI names it, though
+    stripping it (for a URL or ``env``) leaves the empty spelling."""
+    (tmp_path / "pyproject.toml").write_bytes(b'[project]\nname = "p"\nversion = "1"\n')
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(CodedFileNotFoundError) as caught:
+        generate(given, output_path=tmp_path / "out.json")
+    assert code_of(caught.value) == "input-not-found"
+    assert str(caught.value) == f"project path not found: {given!r}"
     assert not (tmp_path / "out.json").exists()
 
 
@@ -194,3 +210,36 @@ def test_config_empty_id_registry(
     assert code_of(caught.value) == "config-invalid"
     assert "id-registry" in str(caught.value)
     assert "non-empty" in str(caught.value)
+
+
+@pytest.mark.parametrize("given", ["", TypedPath("")], ids=["str", "typed"])
+def test_id_registry_load_empty_is_not_found(
+    given: str | Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``IdRegistry.load("")`` names the empty spelling, not ``.``."""
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(CodedFileNotFoundError) as caught:
+        IdRegistry.load(given)
+    assert code_of(caught.value) == "input-not-found"
+    assert str(caught.value) == "ID registry file not found: ''"
+
+
+@pytest.mark.parametrize("default", [None, "r.json"], ids=["no-default", "default"])
+@pytest.mark.parametrize("given", ["", TypedPath("")], ids=["str", "typed"])
+def test_id_registry_save_empty_is_option_invalid(
+    given: str | Path,
+    default: str | None,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """``IdRegistry.save("")`` writes nothing, not even to its own
+    :attr:`~pitloom.id_registry.IdRegistry.path`: an empty path is never
+    "the default"."""
+    monkeypatch.chdir(tmp_path)
+    path = None if default is None else tmp_path / default
+    registry = IdRegistry(namespace="https://example.org/ns/", path=path)
+    with pytest.raises(CodedValueError) as caught:
+        registry.save(given)  # type: ignore[arg-type]
+    assert code_of(caught.value) == "option-invalid"
+    assert str(caught.value) == ("path: must be a non-empty string, got a string ''")
+    assert not list(tmp_path.iterdir())

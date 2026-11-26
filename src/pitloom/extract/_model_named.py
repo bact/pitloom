@@ -22,6 +22,7 @@ from typing import NoReturn
 
 from pitloom.core.ai_metadata import AiModelFormat, AiModelMetadata, model_file_suffixes
 from pitloom.core.clone_mark import in_remote_clone
+from pitloom.core.internal_error import reraise_internal
 from pitloom.core.lfs_pointer import refuse_named_pointer
 from pitloom.core.path_confine import regular_file_inside
 from pitloom.core.path_probe import is_missing_errno
@@ -159,7 +160,8 @@ def _outside_clone_folder(path: Path, root: Path | None) -> bool:
         return False
     try:
         relative = path.relative_to(root).as_posix()
-    except ValueError:  # an absolute name replaced the folder
+    except ValueError as exc:  # an absolute name replaced the folder
+        reraise_internal(exc)
         return True
     return not regular_file_inside(root, relative)
 

@@ -46,6 +46,7 @@ from functools import lru_cache
 from typing import Any
 
 from pitloom.core.content_type_config import ContentTypeOverride
+from pitloom.core.internal_error import reraise_internal
 from pitloom.core.optional_libraries import MAGIKA, import_failed, not_installed
 from pitloom.core.quote_source import quote_source
 from pitloom.logging_config import one_line
@@ -222,6 +223,7 @@ def _get_magika() -> Any:
         from magika import Magika
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:  # a broken install raises more than ImportError
+        reraise_internal(exc)
         return exc
     return Magika()
 
@@ -292,6 +294,7 @@ def guess_content_type(
                     return magika_mime_type, "magika"
             # pylint: disable-next=broad-exception-caught
             except Exception as exc:
+                reraise_internal(exc)
                 log.debug(
                     "magika content-type detection failed for %s: %s",
                     quote_source(filename),

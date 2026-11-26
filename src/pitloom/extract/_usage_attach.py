@@ -20,6 +20,7 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 from pitloom.core.ai_metadata import AiModelMetadata
+from pitloom.core.internal_error import reraise_internal
 from pitloom.core.model_usage import ModelUsage, combine_access
 from pitloom.core.project import project_relative_or_fallback
 from pitloom.extract._usage_ast import find_usages
@@ -86,6 +87,7 @@ def attach_from_source(
     try:
         tree = parse_python(content)
     except PARSE_ERRORS as exc:
+        reraise_internal(exc)
         emit(
             log,
             USAGE_UNPARSEABLE,

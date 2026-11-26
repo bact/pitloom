@@ -34,7 +34,7 @@ from pitloom.cli.options_config import (
     add_archive_project_dir_argument,
     explicit_config_and_options,
 )
-from pitloom.core.current_dir import current_dir
+from pitloom.core.current_dir import absolute_path, current_dir
 from pitloom.core.inert_options import (
     EMBED_STANDALONE,
     EMBEDDED_SBOM_PARAMS,
@@ -84,7 +84,7 @@ def _run_wheel_command(args: argparse.Namespace) -> int:
     if refuse_non_wheel(target):
         return 1
     # Absolute, not resolved: the file name is judged as given.
-    wheel_path: Path = Path(target).absolute()
+    wheel_path: Path = absolute_path(target)
     # A regular file only: a directory named .whl is not a wheel.
     if not input_file_or_say(wheel_path, "wheel file", shown=target):
         return 1

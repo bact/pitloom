@@ -72,6 +72,7 @@ from pitloom.core.ai_metadata import (
     AiModelUsage,
 )
 from pitloom.core.fetch_policy import RemoteFetchPolicy
+from pitloom.core.internal_error import reraise_internal
 from pitloom.core.optional_libraries import HUB, import_failed
 from pitloom.core.url_masking import sanitize_url
 from pitloom.extract.ai_model.limits import settle_read_text
@@ -284,6 +285,7 @@ def read_huggingface(
         __import__(HUB.module)
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:  # a broken install raises more than ImportError
+        reraise_internal(exc)
         raise import_failed(HUB, exc) from exc
 
     model_id = require_hf_model_id(source)

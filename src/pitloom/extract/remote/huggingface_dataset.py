@@ -42,6 +42,7 @@ from pitloom.core.dataset_metadata import (
     DatasetReference,
 )
 from pitloom.core.dataset_names import dataset_key, is_hub_dataset_id
+from pitloom.core.internal_error import reraise_internal
 from pitloom.core.model_originators import REPOSITORY_OWNER_METHOD, originator_names
 from pitloom.core.purl import commit_hash
 from pitloom.enrich.readme import MODEL_CARD_MAX_BYTES, CardKind, read_card
@@ -111,6 +112,7 @@ def _load_dataset_info(dataset_id: str) -> dict[str, Any] | None:
         info = dataset_info(dataset_id, timeout=SOCKET_TIMEOUT_SECONDS)
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
+        reraise_internal(exc)
         say_hub_failure(
             log,
             exc,

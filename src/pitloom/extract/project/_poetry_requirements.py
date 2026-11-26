@@ -35,6 +35,7 @@ import logging
 from collections.abc import Callable
 from typing import Any, NamedTuple
 
+from pitloom.core.internal_error import reraise_internal
 from pitloom.core.pep508 import parse_requirement
 from pitloom.core.requirements import (
     add_marker,
@@ -128,6 +129,7 @@ def poetry_requirement(
         for marker in _markers(core, constraint):
             add_marker(req, marker)
     except (ValueError, TypeError, AttributeError) as exc:
+        reraise_internal(exc)
         warn_skipped_dependency(
             "Poetry", name, "not-convertible", failure=exc, quiet=quiet
         )

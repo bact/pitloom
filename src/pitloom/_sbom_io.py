@@ -26,6 +26,7 @@ from collections.abc import Iterator
 from pathlib import Path
 from typing import TextIO
 
+from pitloom.core.current_dir import absolute_path
 from pitloom.messages import code_of
 from pitloom.messages.config import Parameter, invalid_value
 from pitloom.messages.files import SBOM_USE, file_unwritable_error
@@ -150,7 +151,8 @@ def write_sbom_output(sbom_json: str, output_path: Path | str | None) -> None:
     Raises:
         pitloom.messages.CodedOSError: The system refused the write.
         pitloom.messages.CodedValueError: *output_path* is ``""``
-            (:func:`refuse_empty_output`).
+            (:func:`refuse_empty_output`), or relative with the current
+            directory gone (``file-unreadable``, ``DIR=.``).
     """
     if output_path is None:
         return
@@ -158,6 +160,7 @@ def write_sbom_output(sbom_json: str, output_path: Path | str | None) -> None:
     if is_stdout(output_path):
         write_stdout_lf(sbom_json)
         return
+    absolute_path(output_path)  # a gone cwd is DIR=., not a failed write
     with coded_write(output_path):
         write_text_lf(output_path, sbom_json)
 

@@ -17,6 +17,7 @@ import zipfile
 
 from pitloom._sbom_format import check_spdx3_name_version, detect_sbom_format
 from pitloom._wheel_sbom_location import read_wheel_member, read_wheel_name_version
+from pitloom.core.internal_error import reraise_internal
 from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
 from pitloom.messages.wheel_sboms import say_held_sbom
 
@@ -27,7 +28,8 @@ def looks_like_pitloom_sbom(content: bytes) -> bool:
     """Check whether an SPDX 3 JSON-LD payload was created by Pitloom."""
     try:
         doc = json.loads(content)
-    except (ValueError, UnicodeDecodeError):
+    except (ValueError, UnicodeDecodeError) as exc:
+        reraise_internal(exc)
         return False
     graph = doc.get("@graph") if isinstance(doc, dict) else None
     if not isinstance(graph, list):

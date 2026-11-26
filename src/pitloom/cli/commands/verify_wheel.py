@@ -22,6 +22,7 @@ from pitloom.cli.commands.utils import (
     report_wheel_failure,
 )
 from pitloom.cli.kv_output import print_kv
+from pitloom.core.internal_error import reraise_internal
 from pitloom.messages import say_summary
 from pitloom.messages.wheel_sboms import (
     VERIFY_WHEEL_OK,
@@ -117,6 +118,7 @@ def _check_one_wheel(
             wheel_path, report=True
         )
     except (ValueError, OSError) as exc:
+        reraise_internal(exc)
         report_wheel_failure(exc, wheel_path)
         return False
 

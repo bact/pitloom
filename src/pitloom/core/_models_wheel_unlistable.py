@@ -50,6 +50,7 @@ from contextvars import ContextVar
 from pathlib import Path, PurePath
 
 from pitloom.core.file_identity import FileId, file_id
+from pitloom.core.internal_error import reraise_internal
 from pitloom.core.path_probe import is_missing_errno
 from pitloom.messages.files import warn_dir_unlistable
 
@@ -116,8 +117,8 @@ def _project_relative(
     candidate = PurePath(path)
     try:
         return candidate.relative_to(project_dir).as_posix()
-    except ValueError:
-        pass
+    except ValueError as exc:
+        reraise_internal(exc)
     root_id = _dir_id(PurePath(project_dir), cache)
     if root_id is None:
         return None

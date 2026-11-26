@@ -37,6 +37,7 @@ from pitloom.core.creation import (
 )
 from pitloom.core.current_dir import current_dir
 from pitloom.core.file_names import default_sbom_basename, sbom_file_name
+from pitloom.core.internal_error import reraise_internal
 from pitloom.core.project import ProjectMetadata, is_sdist_archive
 from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
 from pitloom.extract.project import (
@@ -291,7 +292,8 @@ def _load_pitloom_tool_section(config_path: Path | None) -> dict[str, Any]:
             return {}
         return {str(key): value for key, value in pitloom_tool.items()}
     # pylint: disable-next=broad-exception-caught
-    except Exception:
+    except Exception as exc:
+        reraise_internal(exc)
         return {}
 
 
