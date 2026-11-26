@@ -173,6 +173,8 @@ and this project adheres to
   reads a message that could not be shown but kept a catalogued code as `coded`
   ([#545], [#546])
 - Metadata-budget lines say the metadata, not the file, is over the cap ([#548])
+- Messages reworded for one shape: lower-case conditions, `directory` not `folder`,
+  `ELEMENT=`, a quoted `MODEL=`, an sdist member as `FILE=` ([#553])
 
 ### Fixed
 
@@ -278,6 +280,7 @@ and this project adheres to
 [#548]: https://github.com/bact/pitloom/pull/548
 [#550]: https://github.com/bact/pitloom/pull/550
 [#551]: https://github.com/bact/pitloom/pull/551
+[#553]: https://github.com/bact/pitloom/pull/553
 
 ## [0.24.0] - 2026-11-11
 
