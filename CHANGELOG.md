@@ -101,7 +101,7 @@ and this project adheres to
   when `--creation-datetime` overrides it ([#497])
 - Requires `licenseid>=0.9.3,<0.10`: a bare `GPL-2.0` tag stays as written, not
   `GPL-2.0-only`; a full GPL text without a variant is still `-only`; rebuild the
-  database with `licenseid update --source packaged` ([#502], [#536])
+  database with `licenseid update --source packaged` ([#502], [#536], [#551])
 - Git URL messages say `URL=` and a code after `Git source: `; a Git or PyPI
   refusal is no longer printed twice, and every `git.*` error has a
   `pitloom_code` ([#503])
@@ -277,6 +277,7 @@ and this project adheres to
 [#546]: https://github.com/bact/pitloom/pull/546
 [#548]: https://github.com/bact/pitloom/pull/548
 [#550]: https://github.com/bact/pitloom/pull/550
+[#551]: https://github.com/bact/pitloom/pull/551
 
 ## [0.24.0] - 2026-11-11
 
