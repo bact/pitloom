@@ -5,13 +5,15 @@
 
 """When LicenseID's matches decide a licence: a stated licence wins a
 near-tie; with none stated, a near-tie with another licence family is no
-detection, unless the runner-up fits the input measurably worse.
+detection, unless the runner-up fits the input measurably worse. A text
+holding several licence texts is no detection.
 
 See also: test_license_detection.py (detection, mocked),
 test_license_detection_corpus.py (real licence files).
 """
 
 from typing import cast
+from unittest.mock import patch
 
 import pytest
 from licenseid import Detection
@@ -19,8 +21,10 @@ from licenseid import Detection
 from pitloom.extract._license_text_match import (
     _best_reading_decides,
     _decisive,
+    _holds_several_texts,
     _stated_among,
     _stated_ids,
+    detect_license_from_text,
 )
 
 
@@ -177,3 +181,62 @@ def test_reading_order_alone_never_turns_an_answer_into_none(
         0.85,
     )
     assert found == expected
+
+
+_TWO = ["Apache-2.0", "MIT"]
+
+
+@pytest.mark.parametrize(
+    ("texts", "expected"),
+    [
+        ([None], False),
+        ([[]], False),
+        ([["MIT"]], False),  # one text: the answer stands
+        ([_TWO], True),
+        ([["MIT"], _TWO], True),  # either reading
+        ([_TWO, None], True),
+        (["MIT Apache-2.0"], False),  # not a list
+        ([], False),
+    ],
+    ids=["none", "empty", "one", "two", "second", "first", "str", "no-reading"],
+)
+def test_several_texts_are_two_or_more_in_any_reading(
+    texts: list[object], expected: bool
+) -> None:
+    readings = [[{"expression": "MIT", "score": 1.0, "texts": t}] for t in texts]
+    assert _holds_several_texts(cast("list[list[Detection]]", readings)) is expected
+
+
+def test_no_match_holds_no_texts() -> None:
+    assert _holds_several_texts([[]]) is False
+
+
+# pylint: disable-next=too-few-public-methods
+class _TextsDetector:
+    """Answers MIT at the cap, with the texts given, for any input."""
+
+    def __init__(self, texts: list[str] | None) -> None:
+        self._texts = texts
+
+    def detect(self, text: str = "") -> list[dict[str, object]]:
+        del text
+        return [{"expression": "MIT", "score": 1.0, "texts": self._texts}]
+
+
+@pytest.mark.parametrize(
+    ("texts", "stated", "expected"),
+    [
+        (["MIT"], None, "MIT"),
+        (["MIT"], "MIT", "MIT"),
+        (_TWO, None, None),
+        (_TWO, "MIT", None),  # stated or not
+    ],
+)
+def test_a_text_of_several_licences_is_no_detection(
+    texts: list[str], stated: str | None, expected: str | None
+) -> None:
+    with patch(
+        "pitloom.extract._license_text_match._get_detector",
+        return_value=_TextsDetector(texts),
+    ):
+        assert detect_license_from_text("x " * 100, stated=stated) == expected

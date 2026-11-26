@@ -133,3 +133,22 @@ def test_embed_wheel_concludes_the_stated_licence(tmp_path: Path) -> None:
     metadata.license_name = "Apache-2.0"
     add_concluded_license(metadata, tmp_path)
     assert metadata.license_concluded == "Apache-2.0"
+
+
+@pytest.mark.parametrize(
+    ("name", "stated"),
+    [
+        # BSD-3-Clause, BSD-3-Clause-Open-MPI and a bundled library's GPL-3.0
+        ("numpy-2.5.5-LICENSE", "BSD-3-Clause AND 0BSD AND MIT AND Zlib AND CC0-1.0"),
+        # typeshed's Apache-2.0, then the MIT text of some of its parts
+        ("types-setuptools-84.2.0.20261122-LICENSE", "Apache-2.0"),
+    ],
+)
+def test_a_file_of_several_licence_texts_gives_no_licence(
+    name: str, stated: str
+) -> None:
+    """Its top match is one of its texts (numpy's alone gives
+    ``GPL-3.0-only``), stated or not: no detection."""
+    text = (_CORPUS / name).read_bytes().decode("utf-8")
+    assert detect_license_from_text(text) is None
+    assert detect_license_from_text(text, stated=stated) is None

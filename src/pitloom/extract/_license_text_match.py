@@ -263,6 +263,21 @@ def _readings(detector: LicenseDetector, text: str) -> list[list[Detection]]:
     return readings
 
 
+def _holds_several_texts(readings: Sequence[Sequence[Detection]]) -> bool:
+    """Whether a reading's ``texts`` (the List texts LicenseID finds whole in
+    the input, the same list on each result of a call) names two or more
+    licences. Such a file has no one licence: its top match is only one of
+    them (numpy's ``LICENSE.txt`` holds BSD-3-Clause, BSD-3-Clause-Open-MPI
+    and the GPL-3.0 text of a bundled library, and answers ``GPL-3.0-only``),
+    and the texts alone cannot say whether they combine with ``AND`` or
+    ``OR`` (Highway's are a choice)."""
+    for results in readings:
+        held = results[0].get("texts") if results else None
+        if isinstance(held, list) and len(held) > 1:
+            return True
+    return False
+
+
 def _top_score(results: Sequence[Detection]) -> float:
     """The best score in *results*, or -1 for none."""
     return max((float(r["score"]) for r in results), default=-1.0)
@@ -291,6 +306,25 @@ def _best_reading_decides(
     return next((answer for answer in answers if answer), None)
 
 
+def _answer(
+    readings: Sequence[Sequence[Detection]], threshold: float, stated: str | None
+) -> str | None:
+    """The licence *readings* give (:func:`detect_license_from_text`): none
+    for a text of several licences (:func:`_holds_several_texts`); else an
+    id or expression *stated* names that the best reading matches at
+    *threshold* nearly as well as its top match (:func:`_stated_among`);
+    else what that reading decides (:func:`_best_reading_decides`)."""
+    if _holds_several_texts(readings):
+        return None
+    wanted = _stated_ids(stated)
+    for results in _best_readings(readings):
+        above = [r for r in results if r["score"] >= threshold]
+        chosen = _stated_among(above, wanted)
+        if chosen:
+            return chosen
+    return _best_reading_decides(readings, threshold)
+
+
 def detect_license_from_text(
     text: str, threshold: float = 0.85, *, stated: str | None = None
 ) -> str | None:
@@ -304,7 +338,9 @@ def detect_license_from_text(
     (:func:`_readings`); the better-scoring reading counts
     (:func:`_best_readings`). A licence *stated* (the manifest's declared
     licence) makes a missing database an ``INFO:`` line
-    (:func:`_database_unusable`). An id or expression it names that *text*
+    (:func:`_database_unusable`). A *text* that holds the texts of several
+    licences is no detection, stated or not (:func:`_holds_several_texts`).
+    An id or expression it names that *text*
     matches at *threshold* nearly as well as its top match, and fits the
     input as well, wins (:data:`_STATED_TIE_MARGIN`); else that reading
     decides (:func:`_best_reading_decides`), ``None`` when its top match is
@@ -319,14 +355,7 @@ def detect_license_from_text(
     if detector is None:
         return None
     try:
-        readings = _readings(detector, text)
-        wanted = _stated_ids(stated)
-        for results in _best_readings(readings):
-            above = [r for r in results if r["score"] >= threshold]
-            chosen = _stated_among(above, wanted)
-            if chosen:
-                return chosen
-        return _best_reading_decides(readings, threshold)
+        return _answer(_readings(detector, text), threshold, stated)
     # The database failed after the detector was built (deleted, truncated,
     # corrupted): LicenseID raises this for any failed read.
     except DatabaseNotReadyError as exc:
