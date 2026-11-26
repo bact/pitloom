@@ -18,6 +18,7 @@ from __future__ import annotations
 import pytest
 
 from pitloom.core.url_masking import (
+    find_url_credentials,
     holds_url_credentials,
     is_account_name,
     masked_given_path,
@@ -196,3 +197,37 @@ def test_sanitize_url_credentials_masks_scp_and_reads_the_rule(
 )
 def test_a_text_that_is_one_url_reads_the_rule(url: str, masked: str | None) -> None:
     assert sanitize_url(url) == (masked or url)
+
+
+@pytest.mark.parametrize(
+    ("text", "shown"),
+    [
+        ("alice:hunter2X@x@host:o/r", "***:***@host:o/r"),
+        ("a:b@c@d@host:o/r", "***:***@host:o/r"),
+        ("see alice:pw@x@host:/srv/r now", "see ***:***@host:/srv/r now"),
+        ("alice:pw99@@host:o/r", "***:***@host:o/r"),
+        ("alice:@pw99@host:o/r", "***:***@host:o/r"),
+        ("user@host:o/r", None),
+        ("git@github.com:o/r.git", None),
+        ("a@b:c@d", None),
+        ("python:3.11@sha256@x", None),
+        ("see a:b@cd://x", None),
+    ],
+    ids=[
+        *("one-at", "two-ats", "sentence", "at-end", "at-start"),
+        *("account", "git", "no-password", "no-host", "url-after-at"),
+    ],
+)
+def test_scp_password_with_an_at(text: str, shown: str | None) -> None:
+    """An ``@`` in an scp-style password, also at its start or end, is part
+    of it: the host follows the last ``@``, as git and OpenSSH split
+    ``user@host``, so the whole password is masked, in the masker's line
+    reading and the detector's (an ``scp`` hit); a text with no password is
+    neither."""
+    masked = masked_given_path(text, line=True)
+    assert masked == (shown or text)
+    if shown is not None:
+        for piece in text.partition(":")[2].rpartition("@")[0].split("@"):
+            assert not piece or piece not in masked
+    whole = text.removeprefix("see ").removesuffix(" now")
+    assert [f.kind for f in find_url_credentials(whole)] == (["scp"] if shown else [])

@@ -8,15 +8,13 @@ as a path (``Path`` collapses its ``//``), or named in a message line, is
 written without its credentials and otherwise as given.
 
 See also: test_url_masking_query.py (credentials in a URL),
-test_url_masking_given_path.py (a URL given as a path or in a line) and
-test_url_masking_checkout.py (the temporary directories), all in this
-folder.
+test_url_masking_linear_time.py (the masker's time on adversarial text)
+and test_url_masking_checkout.py (the temporary directories), all in
+this folder.
 """
 
 from __future__ import annotations
 
-import time
-from collections.abc import Callable
 from pathlib import Path, PureWindowsPath
 
 import pytest
@@ -24,6 +22,7 @@ import pytest
 from pitloom.core.url_masking import masked_given_path
 from pitloom.core.url_masking._hits import PURL_DECODE_ROUNDS
 from pitloom.core.url_masking._scan import masked_once
+from pitloom.log_masking import masked_text
 
 
 @pytest.mark.parametrize(
@@ -371,105 +370,6 @@ def test_a_url_through_a_path_is_masked(
     assert "SECRET" not in masked_given_path(given)
 
 
-#: Each adversarial text, of about *n* characters.
-_ADVERSARIAL: dict[str, Callable[[int], str]] = {
-    "long-query": lambda n: "https://" + "a" * n + "?" + "x=1&" * (n // 4),
-    "long-camel-name": lambda n: "https://h/?" + "aB" * (n // 2) + "=1",
-    "windows-ats": lambda n: "https:\\" + "@\\" * (n // 3),
-    "long-name": lambda n: "https:/" + "?" + "a" * n,
-    "many-urls": lambda n: "'ab:/=" * (n // 6),
-    "scheme-run": lambda n: "a1" * (n // 2),
-    "glued-urls": lambda n: "https://" * (n // 8),
-    "windows-no-at": lambda n: "ab:\\a " * (n // 6),
-    "windows-no-slash": lambda n: "ab:\\a" * (n // 5) + " @",
-    "url-in-values": lambda n: "https://h/?token=ab:/" * (n // 20),
-    "one-at-at-the-end": lambda n: "ab:/" * (n // 4) + "@",
-    "escaped-quotes": lambda n: "'ab:/\\'" * (n // 7),
-    "values-over-slashes": lambda n: "https:\\h" + "?token=a/b&c@d" * (n // 14),
-    "secret-slash-chain": lambda n: "'https:/" + "#sig=/'@" * (n // 8),
-    "secret-space-chain": lambda n: "'hx:/" + "&token= '@" * (n // 10),
-    "skipped-stops": lambda n: "ab:/?a=?token=" * (n // 14) + "&/x@",
-    "quote-tails": lambda n: "'ab:/" + "x'." * (n // 3),
-    "escape-runs": lambda n: "\\t" * (n // 2),
-    "escaped-near-tokens": lambda n: ("\\x1bglpat-" + "Ab1" * 6) * (n // 28),
-    "scheme-separators": lambda n: "Bearer" + "\\t" * (n // 2) + "!",
-    "scheme-short-runs": lambda n: "bearer abc\\t" * (n // 12),
-    "scheme-long-run": lambda n: "Bearer " + "aB3" * (n // 3),
-    "header-runs": lambda n: "Authorization: Bearer x " * (n // 24),
-    "header-gaps": lambda n: "authorization" + " " * n + "x",
-    "scheme-pct20-chain": lambda n: "Bearer%20x." * (n // 11),
-    "basic-pct20-chain": lambda n: "Basic%20QQ==." * (n // 13),
-    "header-pct20-chain": lambda n: "Authorization=x%20a." * (n // 20),
-    "word-pct20-chain": lambda n: "a.Bearer%20" * (n // 11),
-}
-
-
-def _best_time(text: str, line: bool) -> float:
-    """The shortest of three runs of the masker on *text*."""
-    times = []
-    for _ in range(3):
-        started = time.perf_counter()
-        masked_given_path(text, line=line)
-        times.append(time.perf_counter() - started)
-    return min(times)
-
-
-#: The ratio of five times the text that a linear masker stays under (about 5,
-#: up to 15 on a loaded runner; a quadratic one gives about 25, one with a
-#: linear part as large at 100k characters 15.3). Counting the characters
-#: the masker's patterns scan would be deterministic (roadmap follow-up).
-_RATIO_BOUND = 15
-
-
-def _settled_ratio(measure: Callable[[], float], tries: int = 3) -> float:
-    """The least of up to *tries* measured ratios, stopping at the first under
-    :data:`_RATIO_BOUND`: a loaded runner slows one measurement, and a quadratic
-    masker is over the bound on every try."""
-    ratio = float("inf")
-    for _ in range(tries):
-        ratio = min(ratio, measure())
-        if ratio < _RATIO_BOUND:
-            break
-    return ratio
-
-
-@pytest.mark.parametrize(
-    ("ratios", "passes"),
-    [
-        ([16.0, 5.0], True),
-        ([16.0, 17.0, 5.0], True),
-        ([25.0, 24.0, 26.0], False),
-        ([16.0, 17.0, 18.0, 5.0], False),
-    ],
-    ids=["noisy-once", "noisy-twice", "quadratic", "past-the-tries"],
-)
-def test_a_noisy_ratio_is_measured_again_but_a_quadratic_one_fails(
-    ratios: list[float], passes: bool
-) -> None:
-    """One slow run on a shared runner (16 against a bound of 15) must not
-    fail the linear-time test, and three tries over the bound still do."""
-    queue = iter(ratios)
-    assert (_settled_ratio(lambda: next(queue)) < _RATIO_BOUND) is passes
-
-
-@pytest.mark.parametrize("line", [False, True], ids=["path", "line"])
-@pytest.mark.parametrize("shape", sorted(_ADVERSARIAL))
-def test_a_given_path_is_masked_in_linear_time(shape: str, line: bool) -> None:
-    """Masking an adversarial text five times as long takes about five times
-    as long (a quadratic masker: twenty-five). The ratio, not a wall-clock
-    bound, so a slow or loaded runner, or coverage tracing, cancels out;
-    each time is the best of three, a run under 5 ms counts as 5 ms, and a
-    ratio over the bound is measured again (at most three tries)."""
-    make = _ADVERSARIAL[shape]
-
-    def measure() -> float:
-        short = max(_best_time(make(100_000), line), 0.005)
-        return _best_time(make(500_000), line) / short
-
-    ratio = _settled_ratio(measure)
-    assert ratio < _RATIO_BOUND, f"ratio {ratio:.1f}"
-
-
 def test_each_decode_round_masks_one_more_depth() -> None:
     """A credential at each of PURL_DECODE_ROUNDS encode depths: every round
     finds one more, so all the rounds run, and none is shown."""
@@ -490,3 +390,26 @@ def test_each_decode_round_masks_one_more_depth() -> None:
         f"https://***:***@h{depth}/x" for depth in range(PURL_DECODE_ROUNDS)
     )
     assert masked_given_path(shown) == shown
+
+
+#: A fake secret, built at run time.
+_SECRET = "S3cr" + "3tPw99x"
+
+
+@pytest.mark.parametrize(
+    "given",
+    [
+        f"https://h/x?token=\n{_SECRET}",
+        f"x https://h/x?token= \r\n{_SECRET}",
+        f"https://h/x?token=\u2028{_SECRET}",
+        f"https://h/x?token=ab\n{_SECRET}",
+    ],
+    ids=["lf", "spaces-crlf", "u2028", "value-over-break"],
+)
+def test_a_secret_wrapped_after_its_parameter_name_stays_masked(given: str) -> None:
+    """A secret value wrapped onto the next line right after its ``=`` (or
+    after its first characters) is masked in the whole-text reading: the
+    next line may be the value, so it is masked, at the cost of an ordinary
+    next line (``?token=`` then ``fatal: ...``)."""
+    assert _SECRET not in masked_given_path(given)
+    assert _SECRET not in masked_text(given)

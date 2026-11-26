@@ -26,7 +26,6 @@ from typing import IO, cast
 from pitloom.core.model_extract_limit import MAX_DOWNLOAD_BYTES_KEY
 from pitloom.core.url_masking import (
     mask_checkout,
-    masked_given_path,
     sanitize_url,
     sanitize_url_credentials,
 )
@@ -40,7 +39,8 @@ from pitloom.extract.remote._git_credentials import (
 from pitloom.extract.remote._git_size import SizeCap, tree_bytes
 from pitloom.extract.remote._http_errors import remote_error
 from pitloom.extract.remote.errors import RemoteSourceError
-from pitloom.logging_config import loggable
+from pitloom.log_masking import masked_lines
+from pitloom.logging_config import collapsed, escaped_literal
 from pitloom.messages import say_summary
 from pitloom.messages.files import (
     CLONE_LINE,
@@ -325,13 +325,18 @@ def is_network_failure(err: str) -> bool:
 def _failure(err: str, status: int) -> str:
     """What git said went wrong, as one line fit for ``ERROR:``: its
     ``fatal:``/``error:``/``remote:`` lines (a server writes the last kind
-    itself), without credentials, the temporary path or control characters."""
-    lines = [ln.strip() for ln in err.splitlines() if _ERROR_LINE.match(ln.strip())]
-    text = "; ".join(lines) or " ".join(err.split()) or f"git exited {status}"
-    # Masked before the control characters are escaped: an escaped tab
-    # (backslash and t) would hide the word boundary a bare token needs.
-    text = masked_given_path(mask_checkout(sanitize_url_credentials(text)), line=True)
-    return loggable(text)
+    itself), without credentials, the temporary path or control characters.
+
+    *err* is masked whole before its lines are picked
+    (:func:`~pitloom.log_masking.masked_lines`), so a password holding a
+    line break is not cut to the piece on a ``fatal:`` line; what is picked
+    is masked again once on one line
+    (:func:`~pitloom.logging_config.collapsed`), then escaped: an escaped tab
+    (backslash and t) would hide the word boundary a bare token needs."""
+    lines = masked_lines(mask_checkout(sanitize_url_credentials(err)))
+    picked = [ln.strip() for ln in lines if _ERROR_LINE.match(ln.strip())]
+    text = collapsed("; ".join(picked) or " ".join(lines))
+    return escaped_literal(text or f"git exited {status}")
 
 
 def _environment(

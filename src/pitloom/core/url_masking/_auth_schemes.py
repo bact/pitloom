@@ -17,7 +17,8 @@ prefix). Standard library only.
 The rule, in two passes:
 
 * **After a header name** (``Authorization`` or ``Proxy-Authorization``, any
-  case, an optional quote, ``:`` or ``=``, an optional quote): after the
+  case, an optional quote, ``:`` or ``=``, an optional quote; or a quote,
+  ``,`` and a quote, a ``(name, value)`` pair): after the
   scheme ``Bearer``, ``Basic`` or ``token`` and its separators, the
   credential whatever its length or shape: the run of RFC 6750 ``b64token``
   characters (letters, digits, ``-._~+/``, ``=`` and ``%XX`` escapes but
@@ -28,7 +29,9 @@ The rule, in two passes:
   After any other scheme (``Negotiate``, ``NTLM``, ``ApiKey``), the run is
   masked only when it looks random, as after a scheme word alone, so that
   ``Authorization: denied for user x`` stays; a value of one word and no
-  scheme (``sk-live-abcdefgh12345678``) is masked on the same test. A
+  scheme (``sk-live-abcdefgh12345678``) is masked on the same test, also
+  when the next line follows it (a word after a line break is not the
+  value's: ``Authorization: sk-live-...\\nHTTP 401`` prints ``***``). A
   ``response=`` or ``Signature=`` value (``Digest``, ``AWS4-HMAC-SHA256``)
   is masked, also in escaped JSON, up to the next header name or the end of
   the line. For ``Digest`` only that value is masked.
@@ -47,28 +50,42 @@ The rule, in two passes:
   ``%XX`` escapes are decoded.
 
 Both passes: the word starts not glued to a letter, digit, ``_`` or ``-``
-(``X-Authorization`` is no header name), or right after an escape sequence.
+(``X-Authorization`` is no header name), or right after an escape sequence
+or an ANSI colour sequence (:mod:`~pitloom.core.url_masking._boundary`).
 The separators after a header's scheme are spaces, tabs, no-break spaces,
-``%20`` and the escaped tab and no-break space, once or doubled (``\\t``,
-``\\\\t``, ``\\xa0``). After a scheme word alone they are any white space, a
-line break too (a line is collapsed after it is masked), and the escapes of
-those (``\\n``, ``\\r``, ``\\x0b``, ``\\u2028``). A ``.`` ending the run ends a
-sentence and is kept; a run is masked whole, so a credential in a file name
-loses the extension after it (``Bearer s3cr3tvalue99.gguf`` prints ``Bearer
-***``).
+``%20``, the escaped tab and no-break space, once or doubled (``\\t``,
+``\\\\t``, ``\\xa0``), an ANSI CSI sequence (``\\x1b[1m``), and a line
+break as :meth:`str.splitlines` reads one, raw or escaped (``\\n``,
+``\\r\\n``, ``\\r``, ``\\x0b``, ``\\u2028``), unless a header name and
+``:`` follow it, indented or not: the next header's name is never masked
+(``Authorization: Bearer\\nX-Other: 1`` stays), the
+credential on the next line is (``Authorization: Bearer\\nhunter2Xabc``
+prints ``Bearer\\n***``). After a scheme word alone they are any white
+space, a line break too (a line is collapsed after it is masked), the
+escapes of those (``\\n``, ``\\r``, ``\\x0b``, ``\\u2028``) and an ANSI CSI
+sequence. A quote may stand between the separators and the run, also
+escaped once or twice (``Bearer "s3cr3tvalue99"`` prints ``Bearer "***"``,
+``\\"`` and ``\\\\\\"`` too); the closing quote
+is kept. A ``.`` ending the run ends a sentence and is kept; a run is masked
+whole, so a credential in a file name loses the extension after it
+(``Bearer s3cr3tvalue99.gguf`` prints ``Bearer ***``).
 
 Missed: after a scheme word alone, a credential of letters only without a
 single lower-case letter between capitals (``abcdefghij``,
 ``Abcdefghijklmnop``), a lower-case word or a mixed-case word of letters
 (``passw0rd``, ``mySecretPassword``, ``qwertyUIOP``), or with few digits at
 its end; after a header name and a scheme other than the three, the same; a
-header's ``response=`` or ``Signature=`` value over several lines.
+header's ``response=`` or ``Signature=`` value over several lines; a
+credential after a control character that is neither white space nor a line
+break (``Authorization: Bearer\\x00<token>``: no separator).
 
 Linear: each run is read once in a lookahead after its scheme and
-separators, and runs never overlap, since no separator is a run character
+separators, and runs never overlap, since no separator starts with a run
+character
 (``%20`` ends a run: as part of it, ``"Bearer%20x." * n`` made each scheme's
-run reach the end of the text); a header's ``response=`` or ``Signature=`` is
-looked for only up to the next header name or line end.
+run reach the end of the text); the header name after a line break is
+read up to the first character no name holds; a header's ``response=`` or
+``Signature=`` is looked for only up to the next header name or line end.
 """
 
 from __future__ import annotations
@@ -79,51 +96,72 @@ import re
 from collections.abc import Iterator
 from urllib.parse import unquote
 
-from pitloom.core.url_masking._boundary import word_start
+from pitloom.core.url_masking._boundary import CSI, word_start
 
 __all__ = ["mask_auth_schemes"]
 
+#: An RFC 7230 ``tchar``, a character of a header name.
+_TCHAR = r"[A-Za-z0-9!#$%&'*+.^_`|~-]"
+#: A line break as :meth:`str.splitlines` reads one, raw or escaped once or
+#: doubled as ``ascii()`` writes it (``\\r\\n``, ``\\n``, ``\\r``,
+#: ``\\x0b``, ``\\u2028``).
+_BREAK = (
+    r"(?:\r\n|[\n\r\x0b\x0c\x1c-\x1e\x85\u2028\u2029]|\\{1,2}r\\{1,2}n"
+    r"|\\{1,2}(?:[nr]|x(?:0[bBcC]|1[c-eC-E]|85)|u202[89]))"
+)
+#: A line break (:data:`_BREAK`) not followed by a header name and ``:``,
+#: indented or not (spaces, tabs, escaped tabs): the next header's name is
+#: no credential.
+_LINE_BREAK = _BREAK + r"(?!(?:[ \t]|\\{1,2}t)*" + _TCHAR + r"+[ \t]*:)"
+#: A line break among a header's separators (:func:`_unmasked_scheme_spans`).
+_BREAK_RE = re.compile(_BREAK)
 #: The separators after a scheme in a header: spaces, tabs, no-break
-#: spaces, ``%20`` and the escaped tab and no-break space.
-_SEPARATORS = r"(?:[ \t\xa0]|\\{1,2}t|\\{1,2}xa0|%20)+"
+#: spaces, ``%20``, the escaped tab and no-break space, an ANSI CSI
+#: sequence (``\\x1b[1m``), and a line break not followed by a header name
+#: (:data:`_LINE_BREAK`).
+_SEPARATORS = r"(?:[ \t\xa0]|\\{1,2}t|\\{1,2}xa0|%20|" + CSI + "|" + _LINE_BREAK + ")+"
 #: The separators after a scheme word alone: any white space (a line break
-#: too: a log line is collapsed to one line only after it is masked), and
-#: the escapes ``ascii()`` writes for the same characters.
+#: too: a log line is collapsed to one line only after it is masked), the
+#: escapes ``ascii()`` writes for the same characters, and an ANSI CSI
+#: sequence.
 _WORD_SEPARATORS = (
     r"(?:\s|\\{1,2}(?:[tnr]|x(?:0[bBcC]|1[c-fC-F]|85|[aA]0)|u(?:2028|2029|3000))"
-    r"|%20)+"
+    r"|%20|" + CSI + ")+"
 )
 #: A run of ``b64token`` characters and ``%XX`` escapes, in a lookahead
 #: (group ``run``). ``%20`` is a separator, not part of a run: as both, the
 #: runs after ``"Bearer%20x." * n`` would overlap (quadratic).
 _RUN = r"(?=(?P<run>(?:[A-Za-z0-9._~+/=-]|%(?!20)[0-9A-Fa-f]{2})*))"
-#: A scheme word alone, its separators and its run.
+#: A quote, also escaped once or twice (``\\"``, ``\\\\\\"``).
+_QUOTED = r"\\{0,3}[\"']"
+#: An optional quote (:data:`_QUOTED`).
+_QUOTE = f"(?:{_QUOTED})?"
+#: A scheme word alone, its separators, an optional quote and its run.
 _SCHEME_RE = re.compile(
     "(?=[Bb])"
     + word_start("A-Za-z0-9_-")
     + r"(?P<scheme>(?i:bearer|basic))"
     + _WORD_SEPARATORS
+    + _QUOTE
     + _RUN
 )
-#: White space or an escaped tab around a header's ``:`` or ``=``.
+#: White space or an escaped tab around a header's ``:`` or ``=``, or the
+#: ``,`` of a ``(name, value)`` pair between quotes.
 _GAP = r"(?:\s|\\{1,2}t)*"
-#: An optional quote, also escaped (``\\"``).
-_QUOTE = r"(?:\\{0,2}[\"'])?"
 #: A header name, then the first word of its value (an RFC 7235 token
 #: without ``%``: a scheme, or a credential with no scheme), and when
-#: separators follow, the run after them.
+#: separators follow, an optional quote and the run after them.
 _HEADER_RE = re.compile(
     "(?=[APap])"
     + word_start("A-Za-z0-9_-")
     + r"(?i:(?:proxy-)?authorization)"
-    + _QUOTE
-    + _GAP
-    + "[:=]"
+    + f"(?:{_QUOTE}{_GAP}[:=]|{_QUOTED}{_GAP},(?={_GAP}{_QUOTED}))"
     + _GAP
     + _QUOTE
     + r"(?P<scheme>[A-Za-z0-9!#$&'*+.^_`|~-]+)"
     + "(?:"
     + _SEPARATORS
+    + _QUOTE
     + _RUN
     + ")?"
 )
@@ -196,9 +234,15 @@ def _unmasked_scheme_spans(
     prose word after ``Authorization:`` is kept); with nothing after the
     first word, that word, when it looks random."""
     core = "" if run is None else run.rstrip(".")
-    if core:
-        if _is_credential(kind, core):
-            yield header.end(), header.end() + len(core)
+    if core and _is_credential(kind, core):
+        yield header.end(), header.end() + len(core)
+        return
+    # A word on the next line is not the value's: the first word is judged
+    # alone (``Authorization: sk-live-...\nHTTP 401``).
+    if (
+        core
+        and _BREAK_RE.search(header.string, header.end("scheme"), header.end()) is None
+    ):
         return
     word = header.group("scheme").rstrip(".")
     if _is_credential("", word):
