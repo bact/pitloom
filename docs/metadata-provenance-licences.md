@@ -55,7 +55,7 @@ conflict.
   {
     "candidates": [
       {"ref": "...#License-1", "role": "declared", "source": "Source: pyproject.toml | Field: project.license", "value": "MIT"},
-      {"ref": "...#License-2", "role": "detected", "source": "Source: LICENSE | Method: licenseid_detection | Tool: licenseid==0.9.2", "value": "Apache-2.0"}
+      {"ref": "...#License-2", "role": "detected", "source": "Source: LICENSE | Method: licenseid_detection | Tool: licenseid==0.9.3", "value": "Apache-2.0"}
     ],
     "field": "license",
     "kind": "conflict",
@@ -109,7 +109,7 @@ came from:
 | A whole Git LFS pointer (a licence file not pulled, read as its text) | nothing, as for an absent value: a pointer is no licence text |
 | Absent or blank | nothing: no licence relationship at all |
 
-Every expression is read by LicenseID (`licenseid>=0.9.2,<0.10`), the one
+Every expression is read by LicenseID (`licenseid>=0.9.3,<0.10`), the one
 reader of a declared value. A deprecated id ending `+` becomes its
 `-or-later` successor (`GPL-2.0+` is `GPL-2.0-or-later`). A bare deprecated `GPL-2.0` stays as
 written, because whether `-only` or `-or-later` was meant is unknown; so does
@@ -165,8 +165,8 @@ text says it once at `WARNING:`, as it is kept as written, and so does a
 database warns `licenseid database cannot be used` (`license-db-unusable`)
 whenever a lookup is needed (a `LICENSE` file, a long text, or no declared
 licence). A warning of LicenseID itself is
-said once, after `licenseid: ` (`WARNING: licenseid: database: build v4
-outdated: current v5; run 'licenseid update'`; `INFO:` for `variant not
+said once, after `licenseid: ` (`WARNING: licenseid: database: build v5
+outdated: current v6; run 'licenseid update'`; `INFO:` for `variant not
 stated`, a guess it records on a detection). `too few words for text`
 (a text too short to match has no licence) is `DEBUG` only.
 
