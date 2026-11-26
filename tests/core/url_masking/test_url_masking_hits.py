@@ -26,9 +26,14 @@ from pitloom.core.url_masking._urls import find_urls
 from tests.core.url_masking._probe_corpus import PLANTED, encoded, marks
 
 
+@pytest.mark.parametrize(
+    "text",
+    ["alice:S3CRET@host.example:o/r", "pkg:pypi/x@1#alice:S3CRET@host.example:o/r"],
+    ids=["value", "purl-subpath"],
+)
 @pytest.mark.parametrize("scp", [True, False], ids=["scp", "no-scp"])
-def test_an_scp_address_is_looked_for_only_when_asked(scp: bool) -> None:
-    found = find_url_credentials("alice:S3CRET@host.example:o/r", scp=scp)
+def test_an_scp_address_is_looked_for_only_when_asked(text: str, scp: bool) -> None:
+    found = find_url_credentials(text, scp=scp)
     assert [(f.kind, f.shown) for f in found] == (
         [("scp", "***:***@host.example:o/r")] if scp else []
     )
@@ -53,8 +58,9 @@ def test_text_holding_scp_addresses_is_no_address(text: str) -> None:
         ("https://h/x?code=1" + "?q=1" * 16, ["weak"]),
         ("https://h/x?token=1" + "?q=1" * 16, ["secret"]),
         ("https://h/x?code=1" + "?q=1" * 17, ["nesting"]),
+        ("https://h/?n=" + encoded("/x?code=1" + "?q=1" * 16, 1), ["weak"]),
     ],
-    ids=["15", "16", "17", "weak-16", "secret-16", "weak-17"],
+    ids=["15", "16", "17", "weak-16", "secret-16", "weak-17", "decoded-weak-16"],
 )
 def test_a_value_nested_over_sixteen_marks_is_found(
     text: str, kinds: list[str]
@@ -162,6 +168,7 @@ def test_a_value_is_read_whole_whatever_surrounds_or_splits_it(
     address followed by words, or words before a URL, is prose."""
     found = find_url_credentials(text)
     assert [f.kind for f in found] == kinds
+    assert [f.weak for f in found] == [kind == "weak" for kind in kinds]
     assert not any("S3CRET" in f.shown for f in found)
 
 
@@ -204,6 +211,31 @@ def test_a_nested_value_is_read_in_every_container(text: str, kind: str) -> None
     assert "S3CRET" not in masked_given_path(text)
     assert _GHP[4:] not in masked_given_path(text)
     assert not any("S3CRET" in f.shown or _GHP[4:] in f.shown for f in found)
+
+
+@pytest.mark.parametrize(
+    ("text", "found"),
+    [
+        ("' pkg:g/x?password=S3CRET'", [("secret", "password=***")]),
+        (f"'pkg:x/y#{_GHP}'", [("token", "ghp_***")]),
+        (f" 'pkg:x/y#{_GHP}' ", [("token", "ghp_***")]),
+        ("'https://u:S3CRET@h/x'", [("secret", "https://***:***@h/x")]),
+        ("'alice:S3CRET@host:o/r '", [("scp", "***:***@host:o/r")]),
+        ("'alice:S3CRET@host:o/r x'", []),
+        # White space ``urllib`` keeps at the start, and nothing else.
+        ("\u00a0\u00a0", []),
+    ],
+    ids=[
+        *("space-inside-start", "no-space", "space-outside"),
+        *("url", "space-inside-end", "scp-then-word", "white-space-only"),
+    ],
+)
+def test_one_enclosing_pair_is_not_part_of_the_value(
+    text: str, found: list[tuple[str, str]]
+) -> None:
+    """One pair of quotes and the white space inside or outside it are not
+    part of a value: its first and last characters are read, no more."""
+    assert [(f.kind, f.shown) for f in find_url_credentials(text)] == found
 
 
 @pytest.mark.parametrize(

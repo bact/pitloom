@@ -12,7 +12,9 @@ a failing guard never kills the test process: ``signal.raise_signal`` is
 always a spy here. Returning, it behaves as for PID 1 in a container, so
 the guard ends in its ``SystemExit(128 + signum)`` fallback.
 
-See also: tests/core/models_wheel/test_models_wheel_build_subprocess.py
+See also: tests/core/test_build_signals_arming.py (when a held signal
+ends the process, which guard installs the handlers, the cleanups' order),
+tests/core/models_wheel/test_models_wheel_build_subprocess.py
 (the wait loop that polls the guard),
 tests/core/models_wheel/test_models_wheel_build_and_read_cleanup.py
 (signals during the build's own cleanup),
@@ -25,7 +27,6 @@ SIGTERM/SIGHUP to a process running a build).
 from __future__ import annotations
 
 import signal
-import threading
 from collections.abc import Callable, Iterator
 from types import FrameType
 from unittest import mock
@@ -236,16 +237,6 @@ def test_interrupt_in_a_termination_cleanup_is_finished_by_the_owner(
     raise_spy.assert_called_once_with(signal.SIGTERM)
 
 
-@pytest.mark.usefixtures("raise_spy")
-def test_cleanups_run_when_the_block_ends_by_an_exception() -> None:
-    cleanup = mock.Mock()
-    with pytest.raises(KeyboardInterrupt):
-        with TerminationGuard() as guard:
-            guard.add_cleanup(cleanup)
-            raise KeyboardInterrupt
-    cleanup.assert_called_once_with()
-
-
 def test_cleanups_dropped_on_normal_exit(raise_spy: mock.Mock) -> None:
     cleanup = mock.Mock()
     with TerminationGuard() as guard, guard.hold(BUILD_ACTIVITY):
@@ -440,34 +431,6 @@ def test_entering_an_entered_guard_raises() -> None:
     fresh = TerminationGuard()
     with fresh as owner:
         assert owner is fresh
-
-
-@pytest.mark.usefixtures("raise_spy")
-def test_handler_keeps_host_handler() -> None:
-    def host_handler(signum: int, frame: object) -> None:
-        del signum, frame
-
-    signal.signal(signal.SIGTERM, host_handler)
-    with TerminationGuard() as guard, guard.hold(BUILD_ACTIVITY):
-        assert signal.getsignal(signal.SIGTERM) is host_handler
-    assert signal.getsignal(signal.SIGTERM) is host_handler
-
-
-@pytest.mark.usefixtures("raise_spy")
-def test_other_threads_neither_install_nor_join_the_main_owner() -> None:
-    seen: list[object] = []
-
-    def worker() -> None:
-        with TerminationGuard() as guard, guard.hold(BUILD_ACTIVITY):
-            seen.append(guard)
-            seen.append(signal.getsignal(signal.SIGTERM))
-
-    with TerminationGuard() as owner:
-        thread = threading.Thread(target=worker)
-        thread.start()
-        thread.join()
-    assert seen[0] is not owner
-    assert seen[1] == signal.SIG_DFL
 
 
 @pytest.mark.usefixtures("raise_spy")

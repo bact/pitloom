@@ -13,7 +13,7 @@ import random
 from typing import Any
 
 import pytest
-from packaging.requirements import Requirement
+from packaging.requirements import InvalidRequirement, Requirement
 from packaging.utils import canonicalize_name
 
 from pitloom.core import requirements
@@ -351,13 +351,18 @@ def test_a_marker_joined_over_the_nesting_cap_is_not_joined(
     """A requirement at the nesting cap parses, but joined to another
     marker it nests over it: a required one is kept, an extra's skipped, a
     self-reference reaching it keeps every self-reference as declared, each
-    with one ``WARNING:``; *quiet* silences them."""
-    optional = {"all": ["demo[dev]; os_name == 'a'"], "dev": [_AT_CAP]}
+    with one ``WARNING:``, the extra's next entry kept; *quiet* silences
+    them."""
+    optional = {"all": ["demo[dev]; os_name == 'a'"], "dev": [_AT_CAP, "ok"]}
     with caplog.at_level(logging.WARNING):
         flat = flatten_optional_dependencies(
             [_AT_CAP], optional, "demo", source=_SRC, quiet=quiet
         )
-    assert flat == [_AT_CAP, 'demo[dev]; os_name == "a" and extra == "all"']
+    assert flat == [
+        _AT_CAP,
+        'demo[dev]; os_name == "a" and extra == "all"',
+        'ok; extra == "dev"',
+    ]
     if quiet:
         assert not caplog.records
         return
@@ -444,3 +449,27 @@ def test_a_joined_extra_entry_names_every_extra(
     ((code, message),) = coded(caplog)
     assert code == "extra-gate-ambiguous"
     assert has_parts(message, "needs extras 'x', 'y', 'z' together")
+
+
+def test_an_extra_entry_that_does_not_parse_again_is_skipped(
+    caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An entry whose re-serialised text does not parse when its extra's
+    marker is joined (packaging before 26.3 writes a marker value holding
+    ``"`` as ``"a"b"``; simulated here for every packaging version) is
+    skipped with one ``WARNING:``, and the extra's next entry kept."""
+    # pylint: disable-next=protected-access
+    real = requirements._with_marker
+
+    def with_marker(text: str, marker: str | None) -> str:
+        if text.startswith("bad"):
+            raise InvalidRequirement("does not parse again")
+        return real(text, marker)
+
+    monkeypatch.setattr(requirements, "_with_marker", with_marker)
+    with caplog.at_level(logging.WARNING):
+        flat = flatten_optional_dependencies([], {"dev": ["bad", "ok"]}, source=_SRC)
+    assert flat == ['ok; extra == "dev"']
+    ((code, message),) = coded(caplog)
+    assert code == "requirement-invalid"
+    assert has_parts(message, "extra 'dev'", "'bad'", f"({_SRC})")

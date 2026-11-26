@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-19
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-26
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -91,6 +91,7 @@ rest.
   proves nothing.
 - S1-S8 and the fixture builds run without the network guard.
 - An interrupted run leaves its `pitloom-mcc-*` scratch directory behind.
-- Surviving pytest mutants: `TerminationGuard`'s cleanup order and its
+- ~~Surviving pytest mutants: `TerminationGuard`'s cleanup order and its
   nested hold, the build wait's deadline slack, and
-  `parse_build_timeout`'s empty-match guard.
+  `parse_build_timeout`'s empty-match guard.~~ Killed by tests, 2026-11-26
+  ([mutation-backfill.md](../implementation/mutation-backfill.md)).

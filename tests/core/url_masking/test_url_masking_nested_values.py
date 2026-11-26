@@ -60,6 +60,11 @@ _DECODED = [
     ("fragment-query", "https://h/#" + encoded("access_token=S3CRET", 1), "secret"),
     ("query-amp", "https://h/?q=" + encoded("a&token=S3CRET", 1), "secret"),
     ("relative-twice", "https://h/?n=" + encoded("/cb?api_key=S3CRET", 2), "secret"),
+    ("relative-later", "https://h/?n=" + encoded("/cb?a=1&token=S3CRET", 1), "secret"),
+    # A secret nested in a weak name's value (the detector looks into it).
+    ("in-weak", "https://h/?n=" + encoded("/cb?code=x?token=S3CRET", 1), "secret"),
+    # The fragment's first character is part of it.
+    ("fragment-start", "https://h/#" + encoded("token=S3CRET", 1), "secret"),
     ("marks", "https://h/?n=" + encoded("/x?q=" + "1?" * 17 + "S3CRET", 1), "nesting"),
 ]
 
@@ -88,10 +93,12 @@ def test_a_decoded_query_value_or_fragment_is_read(text: str, kind: str) -> None
         "https://h/?q=a%26b%3Dc",
         # Deeper than read: a redirect chain may encode a plain URL so.
         f"https://h/?next={encoded(_INNER, 6)}",
+        # A decoded URL's own values are not decoded again.
+        "https://h/?n=" + encoded("https://h/?m=" + encoded(_INNER, 5), 1),
     ],
     ids=[
         *("url", "url-twice", "mail", "words", "fragment", "marks"),
-        *("relative", "query-amp", "too-deep"),
+        *("relative", "query-amp", "too-deep", "too-deep-nested"),
     ],
 )
 def test_an_ordinary_encoded_value_is_no_hit(text: str) -> None:

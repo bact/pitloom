@@ -18,6 +18,7 @@ test_url_masking_mask.py (the masker) and test_url_masking_credentials.py
 from __future__ import annotations
 
 import inspect
+from collections.abc import Callable
 
 import pytest
 
@@ -115,22 +116,40 @@ def test_a_finding_never_shows_its_view() -> None:
 
 
 @pytest.mark.parametrize(
+    "function", [find_url_credentials, holds_url_credentials], ids=["find", "holds"]
+)
+def test_the_defaults_read_an_account_name_and_no_id(
+    function: Callable[[str], object],
+) -> None:
+    """By default an ``ssh`` account name is a credential (not accepted),
+    an scp address is looked for, and a URL inside an id is not read."""
+    assert function("ssh://git@h.example/r")
+    assert function("alice:S3CRET@host.example:o/r")
+    assert not function("urn:x:https://u:S3CRET@h.example/x")
+
+
+@pytest.mark.parametrize(
     ("url", "account", "kind", "weak"),
     [
         ("ssh://git@h.example/r", True, "account", True),
         ("ssh://git@h.example/r", False, "account", False),
+        ("ssh://git@h.example/r", None, "account", False),
         ("https://git@h.example/r", True, "secret", False),
         ("ssh://npm_abc@h.example/r", True, "secret", False),
         ("ssh://hf_abc@h.example/r", True, "secret", False),
     ],
-    ids=["accepted", "not-accepted", "not-ssh", "npm-prefix", "hf-prefix"],
+    ids=["accepted", "not-accepted", "default", "not-ssh", "npm-prefix", "hf-prefix"],
 )
 def test_an_account_name_is_weak_only_when_accepted(
-    url: str, account: bool, kind: str, weak: bool
+    url: str, account: bool | None, kind: str, weak: bool
 ) -> None:
-    """An account name on an ``ssh`` URL, with *account*, is weak; each side
-    of that rule alone makes a credential, as does a token prefix."""
-    found = find_url_credentials(url, account=account)
+    """An account name on an ``ssh`` URL, with *account* (off by default),
+    is weak; each side of that rule alone makes a credential, as does a
+    token prefix."""
+    if account is None:
+        found = find_url_credentials(url)
+    else:
+        found = find_url_credentials(url, account=account)
     assert [(f.kind, f.weak) for f in found] == [(kind, weak)]
 
 

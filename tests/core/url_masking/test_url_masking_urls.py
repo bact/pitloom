@@ -42,6 +42,10 @@ def _found(text: str) -> list[_Found]:
 
 
 _DEEP_AT = "https://u:p#P@h" + "?token=a@h" * 9 + "&c=1"
+#: Seven secret values holding an ``@`` are stepped out of; at eight
+#: (``_SECRET_STEPS``) the user information runs to the last ``@``.
+_STEPS_7 = "https://a@" + "?token=b@" * 7 + "h"
+_STEPS_8 = "https://a@" + "?token=b@" * 8 + "h"
 
 
 @pytest.mark.parametrize(
@@ -117,6 +121,23 @@ _DEEP_AT = "https://u:p#P@h" + "?token=a@h" * 9 + "&c=1"
         ("s3:/u:p@h/x", [("s3:/u:p@h/x", "u:p", False, [])]),
         ("/x/T10:/a@b", [("T10:/a@b", None, False, [])]),
         ("ssh://git@h/r", [("ssh://git@h/r", "git", True, [])]),
+        (
+            "ssh://git@?token=T",
+            [("ssh://git@?token=T", "git", True, [("?token=T", True)])],
+        ),
+        (_STEPS_7, [(_STEPS_7, "a", False, [(_STEPS_7[10:], True)])]),
+        (_STEPS_8, [(_STEPS_8, _STEPS_8[8 : _STEPS_8.rindex("@")], False, [])]),
+        (
+            "https://h/x?q=1?token=T;code=1",
+            [
+                (
+                    "https://h/x?q=1?token=T;code=1",
+                    None,
+                    False,
+                    [("?token=T", True), (";code=1", False)],
+                )
+            ],
+        ),
         # Adversarial: an ``@`` in a secret value that starts the authority,
         # after an empty user, after ``;``, or after ``&`` in the value.
         ("https://&token=x@h.://", [("https://&token=x@h.://", "&token=x", False, [])]),
@@ -136,7 +157,8 @@ _DEEP_AT = "https://u:p#P@h" + "?token=a@h" * 9 + "&c=1"
         *("digit-before-scheme", "dot-before-scheme", "digit-scheme"),
         *("at-in-secret-value", "only-at-in-secret-value", "url-inside-secret-value"),
         *("wide-url-inside-secret-value", "many-secret-values-before-at"),
-        *("one-slash", "path-segment", "account"),
+        *("one-slash", "path-segment", "account", "account-then-query"),
+        *("seven-secret-steps", "eight-secret-steps", "nested-secret-then-path-param"),
         *("secret-first", "empty-user-at", "semicolon-value-end", "delimiter-in-value"),
     ],
 )

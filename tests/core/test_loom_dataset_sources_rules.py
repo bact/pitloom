@@ -25,8 +25,10 @@ from unittest.mock import patch
 import pytest
 
 from pitloom import loom
+from pitloom._loom_dataset_meta import merge_metadata, read_sources
 from pitloom.core.ai_metadata import MAX_MODEL_NAME_CHARS
 from pitloom.core.creation import CreationMetadata
+from pitloom.core.dataset_metadata import DatasetMetadata
 from pitloom.core.internal_error import InternalError
 from pitloom.extract.dataset.croissant import CROISSANT_MAX_NESTING, read_croissant
 from pitloom.messages import code_of
@@ -415,3 +417,44 @@ def test_any_croissant_failure_is_a_value_error_naming_it(project: Path) -> None
             )
     assert isinstance(raised.value, InternalError)
     assert "deep" not in str(raised.value)
+
+
+def test_a_card_reader_bug_is_not_skipped_as_unreadable(project: Path) -> None:
+    """An ``InternalError`` from the card reader is a programming error:
+    raised as it is, never skipped with the card's ``WARNING:``."""
+    dir_dataset(project / "corpus", "license: mit\n")
+    bug = InternalError("a reader bug")
+    with patch("pitloom._loom_dataset_meta.read_dataset_card", side_effect=bug):
+        with pytest.raises(InternalError) as raised:
+            read_sources(
+                "corpus", croissant=None, declared_license=None, caller_info="c"
+            )
+    assert raised.value is bug
+
+
+@pytest.mark.parametrize(
+    ("sources", "description"),
+    [
+        ([], None),
+        ([DatasetMetadata("d")], None),
+        (
+            [
+                DatasetMetadata("d", description=""),
+                DatasetMetadata("d", description="x"),
+            ],
+            "x",
+        ),
+    ],
+    ids=["no-source", "nothing-stated", "empty-then-stated"],
+)
+def test_merge_takes_what_a_source_states(
+    sources: list[DatasetMetadata], description: str | None
+) -> None:
+    """Nothing stated merges to ``None``; an empty string states nothing, so
+    a later source's value wins over it."""
+    merged = merge_metadata("d", sources)
+    if description is None:
+        assert merged is None
+    else:
+        assert merged is not None
+        assert merged.description == description

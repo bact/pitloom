@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-02
-Last-Modified: 2026-11-25
+Last-Modified: 2026-11-26
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -110,6 +110,20 @@ the one list.
 
 ### Found in review rounds, not yet prioritised
 
+- [ ] **packaging before 26.3 drops a valid extras entry whose marker value
+  holds `"` (S).** `flatten_optional_dependencies` re-parses `str(req)` to
+  join the `extra == "x"` marker; packaging 25.0-26.2 writes the value
+  `'a"b'` as `"a"b"`, which does not parse, so
+  `x; platform_release == 'a"b'` in extra `dev` is skipped with a
+  `requirement-invalid` "not a PEP 508 requirement" line quoting the
+  re-serialised text, not what was written. 26.3 keeps it, so one
+  `pyproject.toml` gives two SBOMs within the `packaging>=25.0` range.
+  Reproduced with packaging 26.0. Fix: join the marker onto the parsed
+  `Requirement` instead of the text round trip, or raise the floor to 26.3.
+  The branch is not dead code, as recorded before
+  ([review rounds](../../implementation/message-catalogue-review-rounds.md)).
+  *Found 2026-11-26, mutation backfill
+  ([mutation-backfill.md](../../implementation/mutation-backfill.md)).*
 - [ ] **A fragment whose `CreationInfo` lacks `created` crashes late (V).**
   It reads and merges, then the export raises `ERROR: loom merge: Property
   'created' in CreationInfo (<address>) is required (currently None)`, exit

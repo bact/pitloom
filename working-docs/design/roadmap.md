@@ -200,11 +200,14 @@ counts are in [message-catalogue-migration-plan.md](message-catalogue-migration-
   (found in PR 14c round 1): a `"` in `sbom-basename` passes
   `sbom_base_name`, then `write_text_lf` fails late with a bare `OSError` on
   Win32. Refuse it where the basename is read (`core/file_names.py`).
-- [ ] **The hook's `scan-model-usage` tri-state is unpinned** (found by PR 14c
-  mutation testing): `scan_model_usage is True` and the `usage_hint` condition
-  in `plugins/_hatch_document.py` (`build_document_model`) survive a change to
-  `is not False` or a negation; add a test per state (`True`, `False`, `None`
-  with the hint).
+- [x] **The hook's `scan-model-usage` tri-state is unpinned** (found by PR 14c
+  mutation testing): re-measured 2026-11-26, the `is not False` and negation
+  mutants are killed on `main` at all five call sites; see
+  [mutation-backfill.md](../implementation/mutation-backfill.md).
+- [ ] **Mutation backfill, second PR**: `export/_spdx3_credentials` (32
+  survivors untriaged), then the `id_registry` modules and the rest changed
+  since `v0.24.0` with no pass. See
+  [mutation-backfill.md](../implementation/mutation-backfill.md#backlog).
 - [ ] **Hub API calls bypass the fetch policy**: `model_info()` and
   `dataset_info()` carry a 30 s socket timeout (#507) but no total deadline,
   no response cap, and `huggingface_hub` follows redirects unchecked. Replace
