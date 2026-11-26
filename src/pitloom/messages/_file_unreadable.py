@@ -62,7 +62,9 @@ DIR_READ_LINE: Final = Line(
 )
 #: The current directory gone (or not readable) where a path is resolved
 #: against it: ``DIR=.``.
-DIR_READ_ERROR_LINE: Final = Line(level="ERROR", template=DIR_READ_LINE.template)
+DIR_READ_ERROR_LINE: Final = Line(
+    level="ERROR", template=DIR_READ_LINE.template, since="0.25.0"
+)
 
 FILE_UNREADABLE: Final = Message(
     code="file-unreadable",

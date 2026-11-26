@@ -117,7 +117,7 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
   ERROR: DIR=<dir>: could not read <use>; <failure> [file-unreadable]
   ```
 
-- **Since**: 0.22.0; line 4: 0.25.0
+- **Since**: 0.22.0; lines 4, 7: 0.25.0
 
 ### `file-unreadable/not-utf8`
 
