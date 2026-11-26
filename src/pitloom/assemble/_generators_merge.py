@@ -17,7 +17,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from pathlib import Path
 
-from pitloom._sbom_io import write_sbom_output
+from pitloom._sbom_io import refuse_empty_output, write_sbom_output
 from pitloom.assemble.spdx3._fragments_envelope import (
     finish_merge_document,
     new_merge_document,
@@ -29,6 +29,7 @@ from pitloom.assemble.spdx3.fragments import (
 )
 from pitloom.core.config import FragmentConfig
 from pitloom.core.credential_policy import CredentialPolicy
+from pitloom.core.given_path import TypedPath
 from pitloom.logging_config import configure_logging
 from pitloom.messages import CodedValueError
 from pitloom.messages.fragments import FRAGMENT_MISSING, NONE_MERGED_LINE
@@ -68,8 +69,9 @@ def generate_merged_sbom(
     merge`` says it).
 
     Raises:
-        FileNotFoundError: *fragments_dir* does not exist, or is not a
-            directory (``input-not-found``, carrying the code).
+        FileNotFoundError: *fragments_dir* does not exist, is given as
+            empty, or is not a directory (``input-not-found``, carrying the
+            code).
         ValueError: it has no ``*.json`` file (``input-not-found``).
         pitloom.assemble.FragmentMergeError: no fragment of it could be
             merged (``fragment-missing``; each one's ``WARNING:`` says why).
@@ -82,9 +84,11 @@ def generate_merged_sbom(
             given).
     """
     configure_logging()
+    refuse_empty_output(output_path)
     # A Path as given (a TypedPath keeps the user's spelling for the lines).
+    # A str too: an empty one names nothing (the input probe), not ".".
     fragments_dir = (
-        fragments_dir if isinstance(fragments_dir, Path) else Path(fragments_dir)
+        fragments_dir if isinstance(fragments_dir, Path) else TypedPath(fragments_dir)
     )
     if not is_input_dir(fragments_dir):
         raise input_not_found("fragments directory", fragments_dir)

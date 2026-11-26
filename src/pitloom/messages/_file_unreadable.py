@@ -58,6 +58,9 @@ HEADER_ERROR_LINE: Final = Line(level="ERROR", template=HEADER_LINE.template)
 DIR_READ_LINE: Final = Line(
     level="WARNING", template="DIR=%(dir)s: could not read %(use)s; %(failure)s"
 )
+#: The current directory gone (or not readable) where a path is resolved
+#: against it: ``DIR=.``.
+DIR_READ_ERROR_LINE: Final = Line(level="ERROR", template=DIR_READ_LINE.template)
 
 FILE_UNREADABLE: Final = Message(
     code="file-unreadable",
@@ -69,6 +72,7 @@ FILE_UNREADABLE: Final = Message(
         DIR_READ_LINE,
         FILE_ERROR_LINE,
         HEADER_ERROR_LINE,
+        DIR_READ_ERROR_LINE,
     ),
     summary="A file Pitloom found or was named could not be read: the "
     "operating system refused it (no read permission, a directory above it "
@@ -83,7 +87,9 @@ FILE_UNREADABLE: Final = Message(
     f"{_SINCE_SBOM}. A wheel given to verify-wheel, validate-wheel or "
     "embed-wheel that the system refuses is said 'for the SBOM'. The DIR= "
     "line is a loom dataset directory whose dataset card could not be read "
-    "for a reason that names no file of it.",
+    "for a reason that names no file of it; as an ERROR (since "
+    f"{_SINCE_SBOM}), DIR=. is the current directory, gone or not readable, "
+    "where Pitloom resolves a path against it.",
     did="Read nothing more of it and went on without what it holds, as the "
     "line says what it was read for: a file scan leaves the file out of the "
     "SBOM (loom embed-wheel keeps it, with the wheel's own hash); a hash "
@@ -108,7 +114,9 @@ FILE_UNREADABLE: Final = Message(
     "possible "
     "model file of a folder named for a model SBOM: no SBOM is written; the "
     "input check: the command writes nothing and exits 1, the library "
-    "raises ValueError carrying the code; a wheel of verify-wheel, "
+    "raises ValueError carrying the code; the current directory: the "
+    "command writes nothing and exits 1, the library and the loom SDK raise "
+    "ValueError carrying the code; a wheel of verify-wheel, "
     "validate-wheel or embed-wheel fails alone, the others go on).",
     effect="thinner",
     actor="user",

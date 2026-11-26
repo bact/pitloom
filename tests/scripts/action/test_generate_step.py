@@ -55,6 +55,16 @@ def test_project_mode_reports_the_printed_sbom_path(
     assert result.loom_args == ["project", "."]
 
 
+def test_empty_project_path_is_the_current_directory(
+    generate: Callable[..., _Result],
+) -> None:
+    """``project-path: ""`` keeps the input's default, ``.``: ``loom
+    project ""`` names nothing (``input-not-found``)."""
+    result = generate(PL_PROJECT_PATH="")
+    assert result.returncode == 0
+    assert result.loom_args == ["project", "."]
+
+
 @pytest.mark.parametrize(
     "value",
     ["30", "1h30m", "not-a-duration"],

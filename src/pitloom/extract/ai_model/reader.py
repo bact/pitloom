@@ -35,7 +35,6 @@ from pitloom.core.lfs_pointer import (
     opens_lfs_pointer,
     refuse_named_pointer,
 )
-from pitloom.core.quote_source import quote_source
 from pitloom.extract.ai_model.crfsuite import read_crfsuite
 from pitloom.extract.ai_model.fasttext import read_fasttext
 from pitloom.extract.ai_model.gguf import read_gguf
@@ -55,6 +54,7 @@ from pitloom.messages import (
 )
 from pitloom.messages.models import (
     EMPTY_LINE,
+    LFS_POINTER_MALFORMED,
     MODEL_WRONG_FORMAT,
     NOT_A_MODEL_LINE,
 )
@@ -354,21 +354,22 @@ def refusal_reason(header: bytes, name: str, *, is_file: bool) -> str | None:
 
 def refusal_error(
     path: str | os.PathLike[str], named: AiModelFormat | None, reason: str | None
-) -> ValueError:
+) -> CodedValueError:
     """The error a surface naming the file at *path* on its own raises when
     it is not a model, *reason* being :func:`refusal_reason`'s and *named*
     the format its suffix names (:func:`contradicted_format`): the
     ``model-wrong-format`` line saying the header is not *named*, the file
-    is empty, or it is no model of a supported format (no reason); else (a
-    Git LFS pointer :func:`~pitloom.core.lfs_pointer.refuse_named_pointer`
-    could not read again) a plain one stating *reason*."""
+    is empty, or it is no model of a supported format (any other reason);
+    ``lfs-pointer-malformed`` for a Git LFS pointer
+    :func:`~pitloom.core.lfs_pointer.refuse_named_pointer` could not read
+    again (it changed between the reads)."""
     if named is not None and reason == _header_is_not(named):
         return CodedValueError(MODEL_WRONG_FORMAT, path=path, format=named)
     if reason == EMPTY_REASON:
         return CodedValueError(MODEL_WRONG_FORMAT, line=EMPTY_LINE, path=path)
-    if reason in (None, NOT_A_MODEL_MESSAGE):
-        return CodedValueError(MODEL_WRONG_FORMAT, line=NOT_A_MODEL_LINE, path=path)
-    return ValueError(f"{quote_source(path)}: {reason}")
+    if reason == LFS_POINTER_REASON:
+        return CodedValueError(LFS_POINTER_MALFORMED, path=path)
+    return CodedValueError(MODEL_WRONG_FORMAT, line=NOT_A_MODEL_LINE, path=path)
 
 
 class NotAModel(Exception):
@@ -471,8 +472,7 @@ def _refuse_unsupported(model_path: Path) -> NoReturn:
     (:func:`~pitloom.core.lfs_pointer.refuse_named_pointer`).
 
     Raises:
-        pitloom.messages.CodedValueError: Always, but when *model_path* opens
-            like a pointer it cannot read again (a plain ValueError).
+        pitloom.messages.CodedValueError: Always.
     """
     try:
         header = read_ai_model_header(model_path)

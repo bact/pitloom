@@ -18,7 +18,9 @@ from pitloom.cli._parser_credentials import (
     add_credential_arguments,
     credential_policy_from_args,
 )
+from pitloom.cli._path_args import non_empty_path
 from pitloom.cli.commands.utils import _print_sbom_output_path, cli_error_handler
+from pitloom.core.current_dir import current_dir
 from pitloom.core.given_path import TypedPath
 from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
 from pitloom.logging_config import print_error
@@ -50,7 +52,7 @@ def _run_merge_command(args: argparse.Namespace) -> int:
         )
         return 1
 
-    output_path: Path = args.output
+    output_path: Path = args.output or current_dir() / f"merged{SPDX3_JSONLD_EXTENSION}"
     merged: list[int] = []
     # The directory as typed (not resolved): a fragment is named by it.
     generate_merged_sbom(
@@ -80,9 +82,10 @@ def add_parser(subparsers: Any, _parent_parser: argparse.ArgumentParser) -> None
     merge_parser.add_argument(
         "-o",
         "--output",
-        type=Path,
-        default=Path.cwd() / f"merged{SPDX3_JSONLD_EXTENSION}",
-        help="Output JSON-LD path.",
+        type=non_empty_path,
+        default=None,
+        help="Output JSON-LD path (default: merged.spdx3.json in the current "
+        "directory).",
     )
     merge_parser.add_argument(
         "--pretty",

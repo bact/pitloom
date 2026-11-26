@@ -45,7 +45,7 @@ from pitloom._sbom_format import (
     check_spdx3_name_version,
     detect_sbom_format,
 )
-from pitloom._sbom_io import write_sbom_output
+from pitloom._sbom_io import refuse_empty_output, write_sbom_output
 from pitloom._wheel_sbom_location import (
     EmbeddedSbomLocation,
     _find_dist_info_prefix,
@@ -249,7 +249,8 @@ def embed_wheel_sbom(
             mismatches (see above). The wheel is left as it was.
         FileNotFoundError: Nothing is at *wheel_path*, or not a regular
             file (``input-not-found``, carrying the code).
-        pitloom.messages.CodedValueError: *wheel_path* cannot be looked at
+        pitloom.messages.CodedValueError: *output_path* is ``""``
+            (``option-invalid``), refused first; *wheel_path* cannot be looked at
             (``file-unreadable``: a directory on its way refuses search), or
             a URL field of the SBOM holds a credential the run does not
             accept in the ``refuse`` mode (``credentials-unsafe/refused``;
@@ -266,6 +267,7 @@ def embed_wheel_sbom(
             transient I/O error).
     """
     configure_logging()
+    refuse_empty_output(output_path)
     sbom_basename = checked_embed_basename(sbom_basename, _LIBRARY_BASENAME)
     require_wheel_file(wheel_path)
     # Not resolved: a symlink's name is the one judged, and the one the

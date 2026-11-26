@@ -88,6 +88,7 @@ from pitloom.extract.remote.pypi import sdist_hint
 from pitloom.extract.remote.pypi_url import is_pypi_url
 from pitloom.id_registry import IdRegistry
 from pitloom.logging_config import configure_logging
+from pitloom.messages.targets import refuse_empty_input
 
 __all__ = [
     "BuildOptions",
@@ -314,10 +315,17 @@ def generate(
 
     *credentials* (:class:`~pitloom.core.credential_policy.CredentialPolicy`)
     adds to the URL credentials *pitloom_config* accepts, for every target.
+
+    Raises:
+        pitloom.messages.CodedFileNotFoundError: *target* is given as empty
+            (``input-not-found``), which :class:`pathlib.Path` would read as
+            the current directory.
     """
     # Before the no-effect warnings below, which precede any delegate's own
     # configure_logging() call.
     configure_logging()
+    # Here, not in a delegate: Path(target) has lost the empty spelling.
+    refuse_empty_input(target, "project path")
     if max_model_extract_bytes is not None:
         require_model_extract_override(max_model_extract_bytes)  # even if inert
     if max_download_bytes is not None:

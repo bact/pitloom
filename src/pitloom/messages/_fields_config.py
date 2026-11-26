@@ -19,6 +19,7 @@ from collections.abc import Mapping
 from types import MappingProxyType
 from typing import Final
 
+from pitloom.core.internal_error import InternalError
 from pitloom.messages._config_found import FOUND_PATTERN, SHOWN_CHARS, found_text
 from pitloom.messages._config_place import (
     DESTINATIONS,
@@ -45,11 +46,11 @@ def keys_text(value: object) -> str:
     field's shape refuses.
 
     Raises:
-        ValueError: It is none of these (a ``str`` included), or holds
-            anything but text.
+        pitloom.core.internal_error.InternalError: It is none of these (a
+            ``str`` included), or holds anything but text.
     """
     if not isinstance(value, (list, tuple, set, frozenset)):
-        raise ValueError(f"not a collection: {value!r}")
+        raise InternalError(f"not a collection: {value!r}")
     return ", ".join(free_text(key) for key in sorted(map(plain_text, value)))
 
 

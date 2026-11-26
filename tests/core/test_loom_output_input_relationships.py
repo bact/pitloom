@@ -17,7 +17,6 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
-from typing import Any
 
 import pytest
 
@@ -62,27 +61,16 @@ def test_an_explicit_empty_list_of_inputs_is_not_all_inputs(tmp_path: Path) -> N
     assert _has_input(out) == {"all.txt": ["raw.txt"]}
 
 
-@pytest.mark.parametrize(
-    ("given", "shown"),
-    [
-        ("gone.txt", "input_datasets='gone.txt',"),
-        (None, "input_datasets=None,"),
-        (5, "input_datasets='a value of type int',"),
-    ],
-    ids=["text", "none", "not-a-text"],
-)
-def test_an_entry_that_is_no_name_is_shown_as_what_it_is(
-    tmp_path: Path, caplog: pytest.LogCaptureFixture, given: Any, shown: str
+def test_each_missing_input_is_said_once_in_order(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """An untyped caller may pass any value: a text is shown as given,
-    ``None`` as Python shows it, any other value by its type, never by
-    ``str()`` of it."""
+    """A name no input answers to is said once per output, however often it
+    is named, in the order first named."""
     out = tmp_path / "frag.spdx3.json"
     with caplog.at_level(logging.WARNING, logger="pitloom.loom"):
         with loom.run(out) as run:
             run.add_input_dataset("raw.txt")
-            run.add_output_dataset("out.txt", input_datasets=[given])
+            run.add_output_dataset("o.txt", input_datasets=["y", "x", "y", "x"])
     lines = [r.getMessage() for r in caplog.records if _UNKNOWN in r.getMessage()]
-    assert len(lines) == 1
-    assert f"add_output_dataset('out.txt') names {shown}" in lines[0]
+    assert [line.split("input_datasets=")[1][:3] for line in lines] == ["'y'", "'x'"]
     assert not _has_input(out)

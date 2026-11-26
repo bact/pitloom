@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-11-24
+Last-Modified: 2026-11-26
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -321,6 +321,21 @@ def evaluate_model():
 - (A) and (C) set the relationship between the code and the model.
 - (B) sets the relationship between the code and the dataset.
 
+Each call checks its arguments first. An argument of the wrong type (`None`
+for a model name, a number for a path, a string for `input_datasets=`, a
+`bool` for a string) raises `TypeError`, and a `dataset_type` that is not an
+SPDX dataset type term spelt exactly (`text`, `image`, `noAssertion`, ...)
+raises `ValueError`; both carry the code `option-invalid` and name the
+argument and what it must be. An empty `loom.run("")` output path
+raises `ValueError` (`option-invalid`) at the call. `loom.run()`'s
+`pitloom_config=` and `max_dataset_hash_bytes=` keep their own checks: a
+value either does not take, of any type, raises `ValueError`
+(`option-invalid`) as the run begins. `data_preprocessing=` and
+`input_datasets=` take a list or a tuple of strings; a path takes a `str` or
+an `os.PathLike`, never `bytes`. A fragment the run cannot write raises
+`OSError` (`file-unwritable`), and a run started where the current directory
+no longer exists raises `ValueError` (`file-unreadable`).
+
 Pass `path=` (the model file, relative to the current directory at the call)
 to `set_model()` or `use_model()` to give the model a SHA-256 and a SHA-512
 (`verifiedUsing`). The file is hashed when the run ends without an
@@ -348,7 +363,9 @@ unreadable-model `WARNING:`. Leaving a block, by an exception too, restores
 the enclosing run, so a recursive `@loom.run` call is safe.
 
 The run also records *which script produced what*: the calling script becomes a
-`software_File` (with SHA-256 and SHA-512 hashes) with `generates` relationships
+`software_File` (with SHA-256 and SHA-512 hashes; named as invoked, so a script
+run through a symbolic link keeps the link's name, unless the path it was run
+by holds a `..`, which is resolved through the links) with `generates` relationships
 to the model it trained and/or the output datasets it wrote. A dataset that is a
 file gets SHA-256 and SHA-512 hashes and a `software_File` it `contains`; a
 directory gets a SHA-256 Merkle root over its files' paths and content, its
@@ -405,7 +422,7 @@ your statement: written as the `NoAssertionLicense` individual, and no source
 replaces it. Any other placeholder, yours or a source's (`unknown`, blank, a
 bare `other`), and a source's `NOASSERTION`, is no licence, written as nothing
 and logged as nothing, so the next source may state one. A `declared_license=`
-that is not a string raises `TypeError`. `other` with a `license_name` and/or
+that is not a string raises `TypeError` (`option-invalid`). `other` with a `license_name` and/or
 `license_link` (a Hugging Face card's fields) is written as that name followed
 by the link, unless the name reads as an SPDX licence and the link does not
 read as a different one: then the name alone is written. This is the rule for

@@ -19,6 +19,11 @@ from pitloom.core.credential_policy import (
     require_mode,
 )
 from pitloom.core.enrich_config import EnrichConfig
+from pitloom.core.file_names import (
+    bare_sbom_base,
+    is_plain_file_name,
+    sbom_base_name,
+)
 from pitloom.core.model_extract_limit import DEFAULT_MAX_DOWNLOAD_BYTES
 from pitloom.core.provenance import (
     DEFAULT_PROVENANCE_SCHEMA,
@@ -26,6 +31,7 @@ from pitloom.core.provenance import (
     require_max_source_metadata_bytes,
     require_provenance_choices,
 )
+from pitloom.logging_config import configure_logging
 from pitloom.messages.config import Parameter, invalid_value
 
 _DEFAULT_PROVENANCE_SCHEMA = DEFAULT_PROVENANCE_SCHEMA
@@ -210,15 +216,30 @@ class PitloomConfig:
     url_credentials: str = MODE_WARN
 
     def __post_init__(self) -> None:
-        """Refuse a bad ``accept_url_credentials`` entry or
-        ``url_credentials`` when the config is built, as ``loom.Run``
-        refuses one, not at its first use.
+        """Refuse a bad ``accept_url_credentials`` entry, ``url_credentials``
+        or ``sbom_basename`` when the config is built, as ``loom.Run``
+        refuses one, not at its first use. A ``sbom_basename`` with white
+        space or a trailing ``.spdx3.json`` keeps its base, with one
+        ``WARNING:`` naming ``PitloomConfig.sbom_basename``; an empty one is
+        no name (the default).
 
         Raises:
-            ValueError: an entry is not a fingerprint, or the mode is neither warn nor
-                refuse.
+            ValueError: an entry is not a fingerprint, the mode is neither
+                warn nor refuse, or ``sbom_basename`` is not a plain file
+                name (``option-invalid``).
         """
         _ = self.credential_policy
+        base = self.sbom_basename
+        if base is None or base == "":
+            return
+        where = Parameter("PitloomConfig.sbom_basename")
+        if not isinstance(base, str) or not is_plain_file_name(base):
+            raise invalid_value(where, "file-name", got=base)
+        if bare_sbom_base(base) != base:
+            # sbom_base_name warns: said here, before any entry point. Only
+            # then, so a library caller's own logger set-up is kept.
+            configure_logging()
+        self.sbom_basename = sbom_base_name(base, where)
 
     @property
     def credential_policy(self) -> CredentialPolicy:

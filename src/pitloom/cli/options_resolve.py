@@ -35,6 +35,7 @@ from pitloom.core.creation import (
     Creator,
     Tool,
 )
+from pitloom.core.current_dir import current_dir
 from pitloom.core.file_names import default_sbom_basename, sbom_file_name
 from pitloom.core.project import ProjectMetadata, is_sdist_archive
 from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
@@ -96,12 +97,14 @@ class _ResolvedCreationMetadata:
 
 def _resolve_project_paths(args: argparse.Namespace) -> tuple[Path | None, Path | None]:
     """Resolve and validate project directory or sdist archive path."""
-    project_dir = args.project_dir.resolve()
-    if not input_exists(project_dir, shown=args.project_dir):
+    # Probed before resolve(): Python 3.10's Windows resolve() lets an
+    # invalid name (WinError 123, a name too long) escape.
+    if not input_exists(args.project_dir):
         # A URL Pitloom does not read (user information in a Hugging Face
         # one) reaches here as a path: the line masks it.
         say_input_not_found("project directory", args.project_dir)
         return None, None
+    project_dir = args.project_dir.resolve()
 
     if project_dir.is_file():
         return project_dir, project_dir
@@ -355,11 +358,11 @@ def _resolve_output_path(
 def _resolve_model_output_path(explicit: Path | None, model_path: Path) -> Path:
     if explicit is not None:
         return explicit
-    return Path.cwd() / (model_path.name + SPDX3_JSONLD_EXTENSION)
+    return current_dir() / (model_path.name + SPDX3_JSONLD_EXTENSION)
 
 
 def _resolve_hf_output_path(explicit: Path | None, model_id: str) -> Path:
     if explicit is not None:
         return explicit
     stem = model_id.split("/")[-1]
-    return Path.cwd() / (stem + SPDX3_JSONLD_EXTENSION)
+    return current_dir() / (stem + SPDX3_JSONLD_EXTENSION)

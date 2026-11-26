@@ -355,7 +355,7 @@ runs:
         elif [ -n "${PL_MODEL}" ]; then
           loom_args+=("model" "${PL_MODEL}")
         else
-          loom_args+=("project" "${PL_PROJECT_PATH}")
+          loom_args+=("project" "${PL_PROJECT_PATH:-.}")
         fi
 
         # "loom embed-wheel" rejects --output when its pattern matches more

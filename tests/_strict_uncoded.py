@@ -21,6 +21,15 @@ Two legs, both applied to every test by the autouse
   through its one seam ``_write_error_line``: an ``uncoded`` or ``overlong``
   line is a finding (the validator's relay reads back as ``relay``).
 
+A module-, class- or session-scoped fixture is set up before and torn down
+after that function-scoped fixture, so ``pytest_fixture_setup`` in
+``tests/conftest.py`` holds its setup and teardown to the same two legs
+(:class:`FixtureWatch`); a finding errors the test that set the fixture up
+or tore it down, and no marker allows it. Its hooks go in once, when
+``tests/conftest.py`` is imported, under every per-test patch; a fixture a
+test body sets up (``request.getfixturevalue``) is reported by the watch
+alone (:attr:`FixtureWatch.watching`).
+
 A test that says such a line on purpose names it with
 ``@pytest.mark.uncoded_output(*patterns)`` on the test or on its
 ``pytest.param`` (never a module or a class: only the item's own markers
@@ -46,8 +55,6 @@ Silent gaps, by design or by cost:
 - a child process (``loom`` run as a script) and the GitHub Action are seen
   only through :func:`tests._loom_child.run_loom` and the manual CLI checks;
 - a record is rendered without the handler's masking;
-- a module-, class- or session-scoped fixture is set up before and torn down
-  after the check's function-scoped one, so its records are never seen;
 - a test that raises a logger's level or calls :func:`logging.disable`
   hides its ``WARNING``/``ERROR`` records from ``Logger.handle``;
 - a direct ``print(..., file=sys.stderr)`` is never seen (the message
@@ -77,6 +84,7 @@ from dataclasses import dataclass
 
 import pytest
 
+from pitloom import logging_config
 from pitloom.logging_config import (
     CODE_ATTR,
     DETAIL_KIND,
@@ -247,3 +255,68 @@ def failures(
     if ran:
         hard += [f"stale allowance, matches no line: {p!r}" for p in verdict.stale]
     return hard
+
+
+class FixtureWatch:
+    """The strict check over a module-, class- or session-scoped fixture's
+    setup and teardown, which the function-scoped check never sees:
+    :meth:`enter` opens a window, :meth:`leave` closes it and fails on any
+    finding in it. No marker allows one."""
+
+    def __init__(self) -> None:
+        self._open: list[list[str]] = []
+        self._installed = False
+
+    @property
+    def watching(self) -> bool:
+        """Whether a window is open: a finding now is this watch's to report."""
+        return bool(self._open)
+
+    def install(self) -> None:
+        """Hook ``Logger.handle`` and ``_write_error_line`` for the session,
+        once. Call it before any test patches either (at conftest import):
+        installed under a per-test patch, the hook would take that patch for
+        the original and go when the patch is undone."""
+        if self._installed:
+            return
+        self._installed = True
+        handle = logging.Logger.handle
+        # pylint: disable-next=protected-access
+        write = logging_config._write_error_line
+
+        def watching(logger: logging.Logger, record: logging.LogRecord) -> None:
+            self._note(strict_finding(record) if self._open else None)
+            handle(logger, record)
+
+        def watching_lines(line: str) -> None:
+            self._note(line_finding(line) if self._open else None)
+            write(line)
+
+        logging.Logger.handle = watching  # type: ignore[method-assign,assignment]
+        # pylint: disable-next=protected-access
+        logging_config._write_error_line = watching_lines
+
+    def _note(self, finding: Finding | None) -> None:
+        if finding is not None and self._open:
+            self._open[-1].append(f"{finding.problem}: {finding.line!r}")
+
+    def enter(self) -> None:
+        """Open a window: what is said until :meth:`leave` is checked.
+
+        Raises:
+            RuntimeError: :meth:`install` was not called.
+        """
+        if not self._installed:
+            raise RuntimeError("FixtureWatch.install() not called")
+        self._open.append([])
+
+    def leave(self, fixture: str, when: str) -> None:
+        """Close the last window, *when* (setup or teardown) of *fixture*;
+        fail on any finding in it."""
+        found = self._open.pop() if self._open else []
+        if found:
+            pytest.fail(
+                f"uncoded output in the {when} of fixture {fixture}: "
+                + "; ".join(found),
+                pytrace=False,
+            )

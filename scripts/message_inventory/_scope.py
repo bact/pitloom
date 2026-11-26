@@ -101,12 +101,6 @@ LIBRARY_EXC = frozenset({"_no_active_run"})
 LIBRARY_SITES = frozenset(
     {
         (
-            "src/pitloom/_loom_dataset_meta.py",
-            "_declared_licence",
-            "TypeError",
-            "loom SDK: declared_license must be a str, not %s",
-        ),
-        (
             "src/pitloom/core/_models_wheel_types.py",
             "validate_build_timeout",
             "TypeError",

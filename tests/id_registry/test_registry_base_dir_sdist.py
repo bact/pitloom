@@ -19,6 +19,7 @@ parity generally).
 
 from __future__ import annotations
 
+import errno
 from pathlib import Path
 from unittest.mock import Mock
 
@@ -27,6 +28,8 @@ import pytest
 from pitloom.assemble import generate_project_sbom
 from pitloom.embed import embed_wheel_sbom
 from pitloom.id_registry import IdRegistry
+from pitloom.id_registry.resolve import registry_base_dir, resolve_registry
+from pitloom.messages import CodedValueError, code_of
 from tests.assemble.conftest import _make_dummy_wheel, _make_sdist
 
 
@@ -73,3 +76,26 @@ def test_embed_wheel_sbom_and_generate_project_sbom_agree_on_sdist_registry(
 
     assert len(load_spy) == 2
     assert load_spy[0] == load_spy[1] == registry_path
+
+
+def test_a_file_target_has_no_base_dir(tmp_path: Path) -> None:
+    """``None``: the current directory, read only when a path needs it."""
+    archive = tmp_path / "demo-1.0.0.tar.gz"
+    archive.write_bytes(b"x")
+    assert registry_base_dir(archive) is None
+    assert registry_base_dir(tmp_path) == tmp_path
+
+
+def test_no_base_dir_reads_the_current_directory_coded(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A refused ``getcwd`` is the coded ``file-unreadable``, not a bare
+    ``PermissionError``."""
+
+    def refused(_cls: type[Path]) -> Path:
+        raise PermissionError(errno.EACCES, "Permission denied")
+
+    monkeypatch.setattr(Path, "cwd", classmethod(refused))
+    with pytest.raises(CodedValueError) as caught:
+        resolve_registry("reg.json", None, None)
+    assert code_of(caught.value) == "file-unreadable"

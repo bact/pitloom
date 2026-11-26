@@ -31,6 +31,7 @@ from __future__ import annotations
 import dataclasses
 import inspect
 import logging
+import os
 from collections.abc import Callable, Iterable, Mapping
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -319,8 +320,10 @@ EMBEDDED_SBOM_PARAMS = tuple(_EMBED_COMMON)
 
 def project_target_kind(target: Path) -> str:
     """:data:`SDIST` for an archive *target* of the project generator, else
-    :data:`PROJECT` (a directory)."""
-    return SDIST if target.is_file() else PROJECT
+    :data:`PROJECT` (a directory, or nothing: the caller says it is
+    missing). ``os.path.isfile``, which never raises (a name too long
+    raises from ``Path.is_file`` on Python 3.10-3.13)."""
+    return SDIST if os.path.isfile(target) else PROJECT
 
 
 def settle_inert(

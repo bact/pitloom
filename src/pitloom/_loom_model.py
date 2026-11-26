@@ -56,6 +56,7 @@ from pitloom._loom_caller import (
 )
 from pitloom._loom_dataset import name_key_reason
 from pitloom.assemble.spdx3.provenance import emit_provenance
+from pitloom.core.current_dir import current_dir
 from pitloom.core.file_hash import FileDigests, file_digests
 from pitloom.core.lfs_pointer import UnreadPointers
 from pitloom.core.models import generate_spdx_id
@@ -204,7 +205,7 @@ class LoomModels:
             name=name,
             element=element,
             generated=generated,
-            path=None if path is None else os.path.join(os.getcwd(), os.fspath(path)),
+            path=None if path is None else os.path.join(current_dir(), os.fspath(path)),
             given="" if path is None else os.fspath(path),
             label="" if path is None else cwd_relative_label(path),
         )

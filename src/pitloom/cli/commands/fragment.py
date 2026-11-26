@@ -23,6 +23,7 @@ from pitloom.assemble.spdx3._fragments_read import (
     read_fragment_bytes,
 )
 from pitloom.assemble.spdx3.fragments import _find_fragment_document_id
+from pitloom.cli._path_args import non_empty_path
 from pitloom.cli.commands.utils import (
     _import_spdx3_validate,
     _validate_spdx3_documents,
@@ -31,6 +32,7 @@ from pitloom.cli.commands.utils import (
 )
 from pitloom.cli.kv_output import print_kv
 from pitloom.core.config import FragmentConfig, read_pitloom_config
+from pitloom.core.current_dir import current_dir
 from pitloom.core.given_path import TypedPath
 from pitloom.core.internal_error import InternalError
 from pitloom.core.path_probe import is_missing_errno
@@ -277,7 +279,7 @@ def _own_document_id(project_dir: Path) -> str | None:
 @cli_error_handler
 def _run_fragment_list(args: argparse.Namespace) -> int:
     """Run `loom fragment list`."""
-    project_dir: Path = (args.project_dir or Path.cwd()).resolve()
+    project_dir: Path = (args.project_dir or current_dir()).resolve()
     if not is_input_dir(project_dir, shown=args.project_dir or project_dir):
         say_input_not_found("project directory", args.project_dir or project_dir)
         return 1
@@ -347,7 +349,7 @@ def add_parser(subparsers: Any, _parent_parser: argparse.ArgumentParser) -> None
     )
     list_parser.add_argument(
         "--project-dir",
-        type=TypedPath,
+        type=non_empty_path,
         default=None,
         help="Project directory containing pyproject.toml (default: cwd).",
     )

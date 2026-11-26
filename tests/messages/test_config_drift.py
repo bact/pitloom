@@ -20,6 +20,7 @@ import sys
 
 import pytest
 
+from pitloom._loom_args import DATASET_TYPES
 from pitloom.assemble.spdx3._provenance_encoders import _ENCODERS
 from pitloom.core._config_keys import KNOWN_ENTRY_KEYS, KNOWN_KEYS
 from pitloom.core._config_legacy import (
@@ -74,8 +75,9 @@ _ENTRIES = (
         ("one-of-preserve", _VALID_PRESERVE_SOURCE_METADATA),
         ("one-of-method", VALID_CONTENT_TYPE_METHODS),
         ("creator-type", VALID_CREATOR_TYPES),
+        ("one-of-dataset-type", DATASET_TYPES),
     ],
-    ids=["format", "detail", "schema", "preserve", "method", "creator-type"],
+    ids=["format", "detail", "schema", "preserve", "method", "creator-type", "dataset"],
 )
 def test_a_choice_text_lists_the_readers_choices(
     expected: str, choices: frozenset[str]

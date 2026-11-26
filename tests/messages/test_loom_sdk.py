@@ -87,7 +87,7 @@ def test_hostile_model_names_stay_one_cut_line(
 @pytest.mark.parametrize(
     ("dataset", "wanted", "shown"),
     [
-        (None, None, "add_output_dataset(None) names input_datasets=None,"),
+        (None, "in", "add_output_dataset(None) names input_datasets='in',"),
         ("out", "in", "add_output_dataset('out') names input_datasets='in',"),
     ],
     ids=["none", "names"],

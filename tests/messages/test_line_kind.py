@@ -74,7 +74,18 @@ _CASES = [
     ("WARNING: own words, then fickling: x", "uncoded"),
     ("WARNING: fickling:x", "uncoded"),
     ("ERROR: loom generate: boom", "uncoded"),
+    # A message the masker could not show: coded when it keeps a catalogued
+    # code with a line at that level, after at most one allowed frame.
     (f"ERROR: loom generate: {UNSHOWN_MESSAGE}", "uncoded"),
+    (f"ERROR: loom generate: {UNSHOWN_MESSAGE} [input-not-found]", "coded"),
+    (f"ERROR: {UNSHOWN_MESSAGE} [input-not-found]", "coded"),
+    (f"WARNING: {UNSHOWN_MESSAGE} [lfs-pointer-malformed]", "coded"),
+    (f"ERROR: loom generate: {UNSHOWN_MESSAGE} [no-such-code]", "uncoded"),
+    (f"INFO: {UNSHOWN_MESSAGE} [input-not-found]", "uncoded"),  # no INFO line
+    (f"ERROR: loom generate: x {UNSHOWN_MESSAGE} [input-not-found]", "uncoded"),
+    (f"ERROR: loom: loom generate: {UNSHOWN_MESSAGE} [input-not-found]", "uncoded"),
+    # A frame that does not allow the code at that level.
+    (f"ERROR: Git source: {UNSHOWN_MESSAGE} [input-not-found]", "uncoded"),
 ]
 
 

@@ -22,13 +22,13 @@ from pathlib import Path
 from typing import Any
 
 from _harness import (
-    TAGS,
     Context,
     check,
     child_env,
     expect,
     load_graph,
     run_loom,
+    stderr_problems,
 )
 
 _SCRIPT = """\
@@ -170,13 +170,16 @@ with loom.run(out, id_registry=registry):
 
 def _model_run(root: Path, out: Path, mode: str) -> tuple[str, list[str]]:
     """Run the model script in *mode* from *root*, ending cleanly: the
-    model's id and the stderr lines, every one tagged."""
+    model's id and the stderr lines, every one tagged and none uncoded
+    (:func:`_harness.stderr_problems`, as every matrix run is checked)."""
     code, stderr = _python(
         root / "run.py", root, str(out), str(root / "loom-id-registry.json"), mode
     )
     expect(code == 0, f"loom {mode} script exited {code}\n{stderr}")
     lines = stderr.splitlines()
-    expect(all(line.startswith(TAGS) for line in lines), f"untagged:\n{stderr}")
+    untagged, uncoded = stderr_problems(lines)
+    expect(not untagged, f"untagged:\n{stderr}")
+    expect(not uncoded, f"uncoded:\n{stderr}")
     (model,) = [e for e in load_graph(out) if e["type"] == "ai_AIPackage"]
     return str(model["spdxId"]), lines
 

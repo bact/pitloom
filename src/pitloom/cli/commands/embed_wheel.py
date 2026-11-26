@@ -25,6 +25,7 @@ from pitloom._wheel_sbom_location import (
     read_wheel_name_version_from_path,
 )
 from pitloom.assemble import VALIDATED_FORMATS, detect_sbom_format
+from pitloom.cli._path_args import non_empty_path
 from pitloom.cli.commands._embed_wheel_batch import (
     EmbedBatchContext,
     batch_options,
@@ -263,7 +264,7 @@ def add_parser(subparsers: Any, parent_parser: argparse.ArgumentParser) -> None:
     )
     embed_parser.add_argument(
         "--project-dir",
-        type=TypedPath,
+        type=non_empty_path,
         default=None,
         metavar="DIR",
         help=(

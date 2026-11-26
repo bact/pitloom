@@ -16,6 +16,8 @@ import collections
 import contextlib
 import inspect
 import json
+import re
+import runpy
 import sys
 from pathlib import Path
 
@@ -113,12 +115,15 @@ def test_a_parent_of_a_linked_cwd_names_the_bare_file(
 def test_caller_script_below_a_linked_cwd_is_relative(
     linked: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """The script is below the current directory whichever way it is named."""
+    """The script is below the current directory whichever way it is named;
+    its path is kept as invoked."""
     (linked / "real" / "s.py").write_bytes(b"x = 1\n")
     frames = [_FRAME(str(linked / "link" / "s.py"), "f")]
     monkeypatch.setattr(inspect, "stack", lambda: frames)
     # pylint: disable-next=protected-access
-    assert _loom_caller._get_caller_script_path() == "s.py"
+    path = _loom_caller._get_caller_script_path()
+    assert path is not None and path == frames[0].filename
+    assert _loom_caller.cwd_relative_label(path) == "s.py"
 
 
 def test_caller_provenance_names_the_script_below_the_cwd(
@@ -162,7 +167,7 @@ def test_a_loom_module_frame_is_never_the_caller(
     info = _loom_caller._get_caller_info()
     assert info.startswith("Source: user_script.py | ")
     assert info.endswith("function: outer)")
-    assert _loom_caller._get_caller_script_path() == "user_script.py"
+    assert _loom_caller._get_caller_script_path() == str(script)
 
 
 def test_contextlib_frame_is_not_the_script_of_a_run(
@@ -176,7 +181,7 @@ def test_contextlib_frame_is_not_the_script_of_a_run(
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(inspect, "stack", lambda: frames)
     # pylint: disable-next=protected-access
-    assert _loom_caller._get_caller_script_path() == "user_script.py"
+    assert _loom_caller._get_caller_script_path() == str(script)
 
 
 def test_decorated_run_records_the_script_that_calls_it(
@@ -197,3 +202,54 @@ def test_decorated_run_records_the_script_that_calls_it(
     names = {e["name"] for e in graph if e.get("type") == "software_File"}
     assert Path(__file__).name in names
     assert "contextlib.py" not in names
+
+
+@_needs_symlinks
+def test_a_script_run_through_a_link_is_named_as_invoked(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``link.py -> real/s.py``: the script's file and every provenance
+    ``Source:`` name ``link.py``, never the file the link points to."""
+    (tmp_path / "real").mkdir()
+    (tmp_path / "real" / "s.py").write_bytes(b"x = 1\n")
+    (tmp_path / "link.py").symlink_to(tmp_path / "real" / "s.py")
+    monkeypatch.chdir(tmp_path)
+    frames = [_FRAME(str(tmp_path / "link.py"), "main")]
+    monkeypatch.setattr(inspect, "stack", lambda: frames)
+    with loom.run(tmp_path / "frag.json"):
+        loom.set_model("m")
+        loom.add_dataset("d")
+    graph = json.loads((tmp_path / "frag.json").read_text(encoding="utf-8"))["@graph"]
+    files = [e["name"] for e in graph if e.get("type") == "software_File"]
+    sources = {
+        source
+        for e in graph
+        if e.get("type") == "Annotation"
+        for source in re.findall(r'"source":"([^"]*)"', e.get("statement", ""))
+    }
+    assert files == ["link.py"]
+    assert sources == {"link.py"}
+
+
+def test_a_script_that_changes_directory_is_still_hashed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A script named relatively (``train.py``) is hashed at the run's exit
+    from where it was, though it changed directory during the run."""
+    other = tmp_path / "other"
+    other.mkdir()
+    monkeypatch.chdir(tmp_path)
+    source = (
+        "import os\nfrom pitloom import loom\n"
+        "with loom.run(OUT):\n"
+        "    loom.set_model('m')\n    loom.add_dataset('d')\n"
+        "    os.chdir(OTHER)\n"
+    )
+    (tmp_path / "train.py").write_bytes(source.encode())
+    out = tmp_path / "frag.json"
+    runpy.run_path("train.py", {"OUT": out, "OTHER": other})
+    assert Path.cwd().samefile(other)
+    graph = json.loads(out.read_text(encoding="utf-8"))["@graph"]
+    (script,) = [e for e in graph if e.get("type") == "software_File"]
+    assert script["name"] == "train.py"
+    assert script.get("verifiedUsing")

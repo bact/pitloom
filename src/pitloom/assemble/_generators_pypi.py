@@ -27,6 +27,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from pitloom._sbom_io import refuse_empty_output
 from pitloom.core.acquisition import Acquisition
 from pitloom.core.build_options import BuildOptions
 from pitloom.core.config import PitloomConfig
@@ -245,6 +246,7 @@ def generate_pypi_sbom_with_download(
             file could not be fetched or verified (``pypi.*``).
     """
     configure_logging()
+    refuse_empty_output(output_path)
     if kind not in _KINDS:
         raise InternalError(f"kind must be {WHEEL!r} or {SDIST!r}, got {kind!r}")
     if max_model_extract_bytes is not None:

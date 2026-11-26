@@ -27,6 +27,7 @@ from pathlib import Path
 from typing import TextIO
 
 from pitloom.messages import code_of
+from pitloom.messages.config import Parameter, invalid_value
 from pitloom.messages.files import SBOM_USE, file_unwritable_error
 
 #: The ``-o`` value that means "write to standard output".
@@ -111,9 +112,11 @@ def write_stdout_lf(text: str) -> None:
 
 
 @contextlib.contextmanager
-def coded_write(file: str | os.PathLike[str]) -> Iterator[None]:
+def coded_write(file: str | os.PathLike[str], *, use: str = SBOM_USE) -> Iterator[None]:
     """Say a write of *file* (as the line names it) the system refuses as
-    ``file-unwritable`` for the SBOM: an :class:`OSError` that carries a
+    ``file-unwritable`` for *use* (one of
+    :data:`~pitloom.messages.READ_USES`, the SBOM by default): an
+    :class:`OSError` that carries a
     code of ours (a refused read of a wheel, coded where it is read by
     :func:`~pitloom.core.wheel_dist_info.refuse_unreadable`) passes as it
     is."""
@@ -122,7 +125,19 @@ def coded_write(file: str | os.PathLike[str]) -> Iterator[None]:
     except OSError as exc:
         if code_of(exc) is not None:
             raise
-        raise file_unwritable_error(exc, file=file, use=SBOM_USE) from exc
+        raise file_unwritable_error(exc, file=file, use=use) from exc
+
+
+def refuse_empty_output(output_path: Path | str | None) -> None:
+    """Refuse an *output_path* spelt as nothing (``""``): ``option-invalid``
+    (``non-empty``) naming ``output_path``, as the CLI's ``-o ""`` is. Each
+    library entry calls it first, before anything is read or written.
+
+    Raises:
+        pitloom.messages.CodedValueError: *output_path* is ``""``.
+    """
+    if isinstance(output_path, str) and not output_path:
+        raise invalid_value(Parameter("output_path"), "non-empty", got="")
 
 
 def write_sbom_output(sbom_json: str, output_path: Path | str | None) -> None:
@@ -134,9 +149,12 @@ def write_sbom_output(sbom_json: str, output_path: Path | str | None) -> None:
 
     Raises:
         pitloom.messages.CodedOSError: The system refused the write.
+        pitloom.messages.CodedValueError: *output_path* is ``""``
+            (:func:`refuse_empty_output`).
     """
     if output_path is None:
         return
+    refuse_empty_output(output_path)
     if is_stdout(output_path):
         write_stdout_lf(sbom_json)
         return
@@ -149,6 +167,7 @@ __all__ = [
     "coded_write",
     "is_stdout",
     "open_text_lf",
+    "refuse_empty_output",
     "replace_text_lf",
     "write_sbom_output",
     "write_stdout_lf",

@@ -30,6 +30,7 @@ from pitloom.messages._file_unreadable import (
     FILE_UNREADABLE_OUTSIDE_REPOSITORY,
 )
 from pitloom.messages._file_unreadable_warning import (
+    current_dir_error,
     dir_unlistable_error,
     file_unreadable_error,
     file_unwritable_error,
@@ -91,6 +92,7 @@ __all__ = [
     "TEMP_DIR_UNUSABLE",
     "WRITE_ERROR_LINE",
     "WRITE_LINE",
+    "current_dir_error",
     "dir_unlistable_error",
     "file_unreadable_error",
     "file_unwritable_error",

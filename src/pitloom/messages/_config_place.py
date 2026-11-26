@@ -264,6 +264,15 @@ EXPECTED: Final[Mapping[str, str]] = MappingProxyType(
         "sbom-content": "an SBOM, not empty or white space only",
         "local-file": "a local file, not a URL",
         "local-model": "a local model file, not a Hugging Face model",
+        "path": "a path (a str or an os.PathLike)",
+        "list-of-strings": "a list or tuple of strings",
+        "mapping-of-strings": "a mapping of strings to strings",
+        "one-of-dataset-type": "one of audio, categorical, graph, image, "
+        "noAssertion, numeric, other, sensor, structured, syntactic, text, "
+        "timeseries, timestamp, video",
+        "creation-metadata": "a CreationMetadata",
+        "registry-source": "a path to an ID registry file, or an IdRegistry",
+        "credential-policy": "a CredentialPolicy",
     }
 )
 

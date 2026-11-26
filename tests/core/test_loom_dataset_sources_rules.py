@@ -113,7 +113,7 @@ def test_precedence_across_declarations(
 
 @pytest.mark.parametrize("value", [123, True, b"MIT", ["MIT"]], ids=repr)
 def test_a_declared_licence_not_a_string_raises(project: Path, value: object) -> None:
-    with pytest.raises(TypeError, match="declared_license must be a str, not"):
+    with pytest.raises(TypeError, match="^loom SDK: declared_license: must be a str"):
         with loom.run(project / "out.json"):
             loom.add_dataset("t.txt", declared_license=value)  # type: ignore[arg-type]
 

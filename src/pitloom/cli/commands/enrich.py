@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from pitloom.assemble import enrich_model
+from pitloom.cli._path_args import non_empty_path
 from pitloom.cli.commands.utils import (
     _print_sbom_output_path,
     cli_error_handler,
@@ -21,6 +22,7 @@ from pitloom.cli.commands.utils import (
 from pitloom.cli.kv_output import log_verbose
 from pitloom.cli.options import add_use_lockfile_argument
 from pitloom.cli.options_config import explicit_config_and_options
+from pitloom.core.current_dir import current_dir
 from pitloom.core.given_path import TypedPath
 from pitloom.core.inert_options import ENRICH, forward_options
 from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
@@ -41,7 +43,7 @@ def _run_enrich_command(args: argparse.Namespace) -> int:
     target: str = args.target
     # The path as given goes to the generator, so its log lines name the
     # file as the user wrote it.
-    given_path = Path(target)
+    given_path = TypedPath(target)
     model_path: Path = given_path.resolve()
     opened_path = existing_model_path(given_path)
     if opened_path is None:
@@ -56,7 +58,7 @@ def _run_enrich_command(args: argparse.Namespace) -> int:
     pitloom_config, options = explicit_config_and_options(args)
 
     output_path = args.output or (
-        Path.cwd() / f"{model_path.name}.enrich{SPDX3_JSONLD_EXTENSION}"
+        current_dir() / f"{model_path.name}.enrich{SPDX3_JSONLD_EXTENSION}"
     )
 
     if args.verbose:
@@ -95,7 +97,7 @@ def add_parser(subparsers: Any, parent_parser: argparse.ArgumentParser) -> None:
     )
     enrich_parser.add_argument(
         "--project-dir",
-        type=TypedPath,
+        type=non_empty_path,
         default=None,
         metavar="DIR",
         help=(
