@@ -133,8 +133,9 @@ strings):
 - **13 equivalent**, each with a reason in the triage note (for example
   `mark` is never 0, a `_Memo` lookup at `len - 1`, a default only `_detect`
   passes explicitly).
-- **1 left**: U27, the `0x21` urllib-leading bound. It is a known bug
-  (below), not pinned.
+- **1 left**: U27, the `0x21` urllib-leading bound. It was a known bug
+  (below), not pinned; its fix killed it with a boundary test on
+  `normalised`.
 
 Of the 5 `_detect`/`_tokens` survivors, 3 are gaps, now killed: the
 `find`/`holds` defaults (`test_the_defaults_read_an_account_name_and_no_id`)
@@ -154,7 +155,7 @@ would freeze a possible leak.
 | - | - |
 | packaging 25.0-26.2 drops a valid extras entry whose marker value holds `"`, with a false "not a PEP 508" warning (reproduced with 26.0) | [extraction-and-fragments.md](../design/known-bugs/extraction-and-fragments.md) |
 | A registry file name of 234-255 characters cannot be saved (`ENAMETOOLONG`, reproduced) | [id-registry-and-identity.md](../design/known-bugs/id-registry-and-identity.md) |
-| `!https://u:S3CRET@h/x` in a URL field: no `credentials-unsafe` line, not refused, while the maskers mask it (reproduced end to end) | [messages-and-provenance.md](../design/known-bugs/messages-and-provenance.md) |
+| `!https://u:S3CRET@h/x` in a URL field: no `credentials-unsafe` line, not refused, while the maskers mask it (reproduced end to end; fixed by the first-word reading) | [messages-and-provenance.md](../design/known-bugs/messages-and-provenance.md) |
 | `test_a_long_unread_value_is_cut_in_the_warning` fails with a long `TMPDIR` (523 characters) | [process-tooling-and-release-checks.md](../design/known-bugs/process-tooling-and-release-checks.md) |
 
 ## Lessons

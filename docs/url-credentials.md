@@ -76,6 +76,11 @@ project, wheel, environment, model, Git and PyPI targets, a fragment, a merge
 and an SBOM embedded in a wheel. A file given to `embed-wheel --sbom` is read
 wider: see [By surface](#by-surface).
 
+What a value is (a URL, a PURL, an scp-style address) starts in its first
+word, before any white space: a character in front of it that cannot start
+it hides nothing (`!https://user:pw@host/x`, `(pkg:pypi/x?token=...`,
+`Docs:https://...`), while a URL after the first white space is prose.
+
 | Field | Read as |
 | :--- | :--- |
 | `software_downloadLocation`, `software_homePage`, `software_packageUrl`, `software_contentIdentifierValue`, `locator`, `identifierLocator`, `expandedlicensing_seeAlso`, `build_configSourceUri`, `build_buildType`, `security_locator` | A URL, a PURL or an scp-style address |
@@ -344,6 +349,11 @@ credentials out of URLs:
 - A GitLab (`glpat-`) or Google (`AIza`) key that lacks a digit, an upper-case
   or a lower-case letter: a documentation word fits the shape otherwise. A
   legacy OpenAI key (`sk-` without `proj-`, `svcacct-` or `admin-`).
+- In a URL field or a provenance note, a URL, PURL or scp-style address
+  that starts after the first white space of the value
+  (`! https://user:pw@host`), an access token that is the whole value
+  (`ghp_...` as a home page), and a PURL qualifier with no `=`
+  (`pkg:pypi/x?a=1&https://user:pw@host`). Log lines mask them.
 - A token inside prose, a README or a description: see [What is not
   read](#what-is-not-read). That includes a dataset or model `name` that is a
   URL (a decision: a name is prose), and the free strings that are not typed as

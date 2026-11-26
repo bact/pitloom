@@ -15,20 +15,25 @@ See also: :mod:`pitloom.core.url_masking._detect` (the field rule),
 :mod:`pitloom.core.purl` (which builds a PURL with the helpers here).
 Standard library only.
 
-A value is read by what it is, as a whole, never as prose that holds URLs:
+A value is read by what it is, as a whole, never as prose that holds URLs.
+What it is starts in its first word (to its first white space), where the
+masker would read it, so a character that may not start it hides nothing
+(``!https://u:p@h``, ``(pkg:...``, ``!u:p@h:x``); what starts after white
+space is prose (``see https://u:p@h``, ``! https://u:p@h``):
 
-* a URL (a scheme and ``/`` or ``\\`` at its start, as a masker reads one:
-  ``s3:/u:p@h`` and ``ssh:\\\\u:p@h`` too), read as ``urllib`` reads it
+* a URL (a scheme and ``/`` or ``\\`` in its first word, as a masker reads
+  one: ``s3:/u:p@h``, ``ssh:\\\\u:p@h`` and ``Docs:https://u:p@h`` too),
+  read as ``urllib`` reads it
   (:func:`~pitloom.core.url_masking._urls.find_urls`), to its end: white
-  space is a character of it, so a value that starts with a URL is read
-  whole, and every URL in it too (conservative:
-  ``https://h/x see https://u:p@h2/y`` is found);
+  space is a character of it, so the value is read whole, and every URL in
+  it too (conservative: ``https://h/x see https://u:p@h2/y`` is found);
 * a PEP 508 requirement with a direct reference (``name @ URL``, with
   extras and a marker), whose URL is read so;
 * an scp-style address ``user:password@host:path`` (a dotless host and a
   slashless path too: ``build:42@ci:linux``), with no white space in it
-  (``build:42@ci:linux now`` is a sentence);
-* a PURL, whose qualifiers are read as parameters: one named like a
+  (``build:42@ci:linux now`` is a sentence), unless a URL starts before it;
+* a PURL (``pkg:`` after no letter or digit, before any URL start), whose
+  qualifiers are read as parameters: one named like a
   secret (``token=...``) is a hit, and each value is read so as written and
   after each percent-decode, at most :data:`PURL_DECODE_ROUNDS`. A ``#``
   after the qualifiers stays part of the last value (a URL's fragment such
@@ -46,11 +51,12 @@ and the whole fragment of a URL also after each percent-decode, as a
 qualifier value is (``?next=https%3A%2F%2Fu%3Ap%40h``), but with no
 ``nesting`` hit when still encoded; a PURL qualifier value as a
 whole value or an access token; a PURL subpath, a path, for a URL anywhere
-in it, an access token or a whole scp-style address. A URL inside a value
-of no kind above (``urn:x:https://u:p@h``) is not read, unless the value is
-an identifier Pitloom stores (*embedded*, :func:`iter_hits`), which is read
-as written and after each percent-decode too (an id built from a name
-percent-encodes its ``/``: ``https:%2F%2Fu:p@h``).
+in it, an access token or a whole scp-style address. A URL after the first
+word of a value of no kind above (``urn:x https://u:p@h``) is not read,
+unless the value is an identifier Pitloom stores (*embedded*,
+:func:`iter_hits`), which is read as written and after each percent-decode
+too (an id built from a name percent-encodes its ``/``:
+``https:%2F%2Fu:p@h``).
 
 In a URL a hit is a user information (an account name on an ``ssh`` or
 ``git`` URL apart), a parameter named like a secret, a parameter value
@@ -87,7 +93,6 @@ __all__ = [
     "PURL_DECODE_ROUNDS",
     "FindingKind",
     "Hit",
-    "is_purl",
     "iter_hits",
     "normalised",
     "purl_qualifiers",
@@ -112,6 +117,9 @@ _REQUIREMENT = re.compile(
 #: The closing character of each pair that may enclose a whole value.
 _ENCLOSING = {"<": ">", '"': '"', "'": "'"}
 _SPACE = re.compile(r"\s")
+#: A PURL's start in a value's first word: ``pkg:`` (any case) after no
+#: letter or digit.
+_PURL_START = re.compile(r"(?<![A-Za-z0-9])(?i:pkg):")
 #: A query value of a URL (to the next ``&``, ``;`` or ``#``).
 _QUERY_VALUE = re.compile(r"[?&;]([^&;#=?]*)=([^&;#]*)")
 #: A query or fragment parameter value of a URL, to the next ``&``, ``;``
@@ -139,9 +147,45 @@ class Hit(NamedTuple):
     shown: str | None = None
 
 
-def is_purl(text: str) -> bool:
-    """Whether *text* is a Package URL (``pkg:``, any case)."""
-    return text[:4].lower() == "pkg:"
+def _first_word_end(text: str) -> int:
+    """Where the first word of *text* ends: at its first white space, else
+    at its end."""
+    space = _SPACE.search(text)
+    return len(text) if space is None else space.start()
+
+
+def _url_start(text: str) -> int | None:
+    """Where the first URL of *text* starts when it starts in its first
+    word (``!https://u:p@h``, ``Docs:https://u:p@h``); else ``None``: a
+    URL after white space is in prose (``see https://u:p@h``)."""
+    found = WIDE_URL_START.search(text, 0, _first_word_end(text))
+    return None if found is None else found.start()
+
+
+def _reads_as_url(value: str, *, scp: bool) -> bool:
+    """Whether *value* is read as a URL: one starts in its first word
+    (:func:`_url_start`), before any scp-style address (with *scp*) there
+    (``alice:pw@host:/srv/r`` is an address)."""
+    url = _url_start(value)
+    if url is None or not scp:
+        return url is not None
+    address = _scp_start(value)
+    return address is None or url <= address
+
+
+def _purl_start(text: str, *, scp: bool) -> int | None:
+    """Where *text* is read as a PURL from: the first ``pkg:`` in its first
+    word, after no letter or digit, when no URL and (with *scp*) no
+    scp-style address starts before it (``!pkg:pypi/x``;
+    ``https://h/pkg:x`` is a URL, ``u:p@h:o/pkg:x`` an address); else
+    ``None``."""
+    found = _PURL_START.search(text, 0, _first_word_end(text))
+    if found is None:
+        return None
+    others = (_url_start(text), _scp_start(text) if scp else None)
+    if any(other is not None and other < found.start() for other in others):
+        return None
+    return found.start()
 
 
 def _url_hits(url: str, *, account: bool, decode: bool = True) -> list[Hit]:
@@ -212,7 +256,7 @@ def _decoded_level_hits(value: str, head: str, *, account: bool) -> list[Hit]:
     fragment, else nothing: :func:`_param_hits`: a relative target
     ``/cb?token=T``, ``a&token=T``, a fragment's ``access_token=T``)."""
     value = value.strip()
-    if WIDE_URL_START.match(value) is not None:
+    if _reads_as_url(value, scp=True):
         hits = _url_hits(value, account=account, decode=False)
     else:
         hits = [Hit("scp", value)] if _is_scp(value) else []
@@ -245,8 +289,18 @@ def _param_hits(text: str, value: str) -> list[Hit]:
 
 def _is_scp(value: str) -> bool:
     """Whether *value* is, as a whole, an scp-style address with a
-    password."""
-    return SCP_USERINFO_RE.match(value) is not None and _SPACE.search(value) is None
+    password (:func:`_scp_start`)."""
+    return _scp_start(value) is not None
+
+
+def _scp_start(value: str) -> int | None:
+    """Where the scp-style address with a password of *value* starts, when
+    *value* has no white space: where the masker reads one, so after a
+    character that may not start it too (``!u:p@h:x``); else ``None``."""
+    if _SPACE.search(value) is not None:
+        return None
+    found = SCP_USERINFO_RE.search(value)
+    return None if found is None else found.start()
 
 
 def _qualifier_value_hits(value: str, *, scp: bool, account: bool) -> list[Hit]:
@@ -268,10 +322,10 @@ def _subpath_value_hits(value: str, *, scp: bool, account: bool) -> list[Hit]:
 
 def _value_hits(value: str, *, scp: bool, account: bool) -> list[Hit]:
     """The hits of *value* when, as a whole (without the white space around
-    it), it is a URL or (with *scp*) an scp-style address; none for
-    anything else."""
+    it), it is a URL or (with *scp*) an scp-style address, either starting
+    in its first word (this module's docstring); none for anything else."""
     value = value.strip()
-    if WIDE_URL_START.match(value) is not None:
+    if _reads_as_url(value, scp=scp):
         return _url_hits(value, account=account)
     if scp and _is_scp(value):
         return [Hit("scp", value)]
@@ -418,7 +472,9 @@ def _embedded_hits(text: str, *, scp: bool, account: bool) -> list[Hit]:
 
 def _whole_hits(text: str, *, scp: bool, account: bool) -> list[Hit]:
     """The hits of *text*, :func:`normalised`, by what it is as a whole."""
-    if is_purl(text):
+    start = _purl_start(text, scp=scp)
+    if start is not None:
+        text = text[start:]
         hits: list[Hit] = []
         for item in purl_qualifiers(text)[1]:
             hits += qualifier_hits(item, scp=scp, account=account)

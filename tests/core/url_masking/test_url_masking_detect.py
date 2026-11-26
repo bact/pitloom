@@ -28,6 +28,7 @@ from pitloom.core.url_masking import (
     holds_url_credentials,
     masked_given_path,
 )
+from pitloom.core.url_masking._hits import normalised
 from tests.core.url_masking._probe_corpus import PLANTED, PROBES
 
 
@@ -119,13 +120,19 @@ def test_a_finding_never_shows_its_view() -> None:
     "function", [find_url_credentials, holds_url_credentials], ids=["find", "holds"]
 )
 def test_the_defaults_read_an_account_name_and_no_id(
-    function: Callable[[str], object],
+    function: Callable[..., object],
 ) -> None:
     """By default an ``ssh`` account name is a credential (not accepted),
-    an scp address is looked for, and a URL inside an id is not read."""
+    an scp address is looked for, and an id is not read percent-decoded
+    nor after its first word."""
     assert function("ssh://git@h.example/r")
     assert function("alice:S3CRET@host.example:o/r")
-    assert not function("urn:x:https://u:S3CRET@h.example/x")
+    for text in (
+        "urn:x:https:%2F%2Fu:S3CRET@h.example/x",
+        "urn:x https://u:S3CRET@h.example/x",
+    ):
+        assert not function(text)
+        assert function(text, embedded=True)
 
 
 @pytest.mark.parametrize(
@@ -196,14 +203,16 @@ def test_a_format_character_is_kept_where_it_hides_no_credential() -> None:
 def test_a_value_is_read_as_urllib_reads_it() -> None:
     """The reading of :func:`test_a_value_is_read_as_a_reader_reads_it`
     follows ``urllib`` on this interpreter: a tab, CR or LF anywhere and a
-    C0 control or space at the start are dropped; DEL is not."""
+    C0 control or space at the start are dropped; DEL is not, but a URL in
+    the first word is read all the same
+    (:func:`test_a_url_in_the_first_word_is_read`)."""
     from urllib.parse import urlsplit  # pylint: disable=import-outside-toplevel
 
     for text in ("htt\tps://u:p@h/", "https://u:p\r\n@h/", "\x01 \x1fhttps://u:p@h/"):
         assert urlsplit(text).password == "p"
         assert find_url_credentials(text)
     assert urlsplit("\x7fhttps://u:p@h/").password is None
-    assert not find_url_credentials("\x7fhttps://u:p@h/")
+    assert find_url_credentials("\x7fhttps://u:p@h/")
 
 
 @pytest.mark.parametrize(
@@ -233,3 +242,151 @@ def test_a_percent_encoded_text_without_a_credential_is_shown_as_given() -> None
     assert (
         masked_given_path(text, line=True) == "https://***:***@h/a%20b and urn:x:a%2Fb"
     )
+
+
+#: What may stand before a value in its first word without starting it:
+#: ASCII punctuation (``"``, ``'`` and ``<`` enclose, ``+``, ``-`` and
+#: ``.`` start a scheme's run), controls, Unicode letters, marks, digits
+#: and format characters, and Unicode spaces (stripped at the start only).
+_LEADS = [
+    *"!#$%&()*,/:;=>?@[\\]^_`{|}~",
+    *("!!(", "\x00", "\x1f", "\x7f", "\x80", "\x85", "\x9f"),
+    *("\xa0", "\u3000", "\u00e9", "\u00df", "\u03b1", "\u6f22", "\u0661"),
+    *("\u0301", "\uff48", "\u200b", "\ufeff", "\u00ad", "\ufeff!"),
+]
+
+
+@pytest.mark.parametrize(
+    "lead", _LEADS, ids=["-".join(f"{ord(c):04X}" for c in lead) for lead in _LEADS]
+)
+def test_a_url_in_the_first_word_is_read(lead: str) -> None:
+    """A credential URL behind a character that may not start it is found
+    as a whole value, in a requirement and in a PURL qualifier, and the
+    finding shows no secret; the same URL without one is no finding. (A
+    ``&`` ends a PURL qualifier: a qualifier with no ``=`` is not read.)"""
+    values = [
+        (f"{lead}https://u:S3CRET@h.example/x", "secret"),
+        (f"x @ {lead}https://u:S3CRET@h.example/x.whl", "secret"),
+        (f"{lead}https://h.example/x?token=S3CRET", "secret"),
+        (f"{lead}git+ssh://git@h.example/r", "account"),
+    ]
+    if lead != "&":
+        purl = f"pkg:pypi/x?repository_url={lead}https://u:S3CRET@h.example/x"
+        values.append((purl, "secret"))
+    for value, kind in values:
+        found = find_url_credentials(value, account=True)
+        assert kind in {f.kind for f in found}, value
+        assert not any("S3CRET" in f.shown for f in found)
+        assert "S3CRET" not in masked_given_path(value)
+    for clean in (f"{lead}https://h.example/x", f"{lead}https://h.example/a@b"):
+        assert not find_url_credentials(clean, account=True)
+
+
+_ADDRESS = "alice:S3CRET@host.example"
+_ADDRESS_SHOWN = "***:***@host.example"
+
+
+@pytest.mark.parametrize(
+    ("text", "shown"),
+    [
+        ("!pkg:pypi/x?token=S3CRET", [("secret", "token=***")]),
+        ("?pkg:pypi/x?token=S3CRET", [("secret", "token=***")]),
+        ("pkg:/x?token=S3CRET", [("secret", "token=***")]),
+        (f"(pkg:pypi/x@1#{_ADDRESS}:o/r", [("scp", f"{_ADDRESS_SHOWN}:o/r")]),
+        (f"!{_ADDRESS}:o/r", [("scp", f"!{_ADDRESS_SHOWN}:o/r")]),
+        (
+            f",{_ADDRESS}:o/r,b:T0KEN@ee:f",
+            [("scp", f",{_ADDRESS_SHOWN}:o/r,***:***@ee:f")],
+        ),
+        (f"{_ADDRESS}:o/pkg:x", [("scp", f"{_ADDRESS_SHOWN}:o/pkg:x")]),
+        (f"{_ADDRESS}:pkg:x", [("scp", f"{_ADDRESS_SHOWN}:pkg:x")]),
+        (
+            "!https://u:S3CRET@h/a,b:c@dd:e",
+            [("secret", "https://***:***@h/a,***:***@dd:e")],
+        ),
+        (
+            "https://h/x?next=alice%3AS3CRET%40host%3A%2Fsrv%2Fr",
+            [("scp", "https://h/x?next=***:***@host:/srv/r")],
+        ),
+        (
+            "Docs:https://u:S3CRET@h.example/x",
+            [("secret", "https://***:***@h.example/x")],
+        ),
+        (
+            "urn:x:https://u:S3CRET@h.example/x",
+            [("secret", "https://***:***@h.example/x")],
+        ),
+        (
+            "!https://h.example/x see https://u:S3CRET@h2.example/y",
+            [("secret", "https://***:***@h2.example/y")],
+        ),
+    ],
+    ids=[
+        *("purl", "purl-after-mark", "purl-url-tie", "purl-subpath", "scp"),
+        *("scp-run", "scp-path-pkg", "scp-before-pkg", "url-before-scp"),
+        *("decoded-scp", "after-a-word", "in-an-urn", "whole-after-the-first"),
+    ],
+)
+def test_each_kind_starts_in_the_first_word(
+    text: str, shown: list[tuple[str, str]]
+) -> None:
+    """A PURL, an scp-style address and a URL are read from where they start
+    in the first word, as the masker reads them, the earliest deciding (a
+    PURL on a tie with a URL); a value whose first word holds a URL is read
+    whole."""
+    assert [(f.kind, f.shown) for f in find_url_credentials(text)] == shown
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "see !https://u:S3CRET@h.example/x",
+        "see pkg:pypi/x?token=S3CRET",
+        "Apkg:pypi/x?token=S3CRET",
+        "https://h/pkg:pypi/x?token=S3CRET#",
+        "alice:pw@host:/srv/r",
+    ],
+    ids=["second-word", "purl-second-word", "purl-after-a-letter"]
+    + ["purl-in-a-url", "address-path"],
+)
+def test_the_first_word_decides_what_a_value_is(text: str) -> None:
+    """The finder's prose ruling: a value after white space is prose; a
+    ``pkg:`` after a letter is no PURL, as for the masker; a ``pkg:`` after
+    a URL's start is part of the URL (its ``token`` a secret parameter
+    there); an scp-style address whose path looks like a URL is an
+    address."""
+    found = find_url_credentials(text)
+    if text.startswith("see"):
+        assert not found
+    elif text.startswith("A"):
+        assert not found and masked_given_path(text) == text
+    elif text.startswith("https"):
+        assert [(f.kind, f.view) for f in found] == [("secret", text)]
+    else:
+        assert [f.kind for f in found] == ["scp"]
+
+
+def test_only_what_urllib_strips_leads_a_normalised_value() -> None:
+    """``normalised`` strips a C0 control or a space at the start, no more:
+    a ``!`` is part of the value (the first-word reading skips it)."""
+    assert normalised("\x00 \x20x") == "x"
+    assert normalised("!x") == "!x"
+    assert normalised("\x01!x") == "!x"
+
+
+@pytest.mark.parametrize(
+    ("text", "shown"),
+    [
+        ("a:b@cc:https://u:S3CRET@h/x", "https://***:***@h/x"),
+        ("a:b@cc:pkg:pypi/x?token=S3CRET", "token=***"),
+    ],
+    ids=["url", "purl"],
+)
+def test_an_address_decides_nothing_when_none_is_looked_for(
+    text: str, shown: str
+) -> None:
+    """With *scp* false (a file name), an scp-style address in front of a
+    URL or a PURL does not hide it."""
+    assert [(f.kind, f.shown) for f in find_url_credentials(text, scp=False)] == [
+        ("secret", shown)
+    ]
