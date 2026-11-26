@@ -47,7 +47,6 @@ from pitloom.messages._file_unwritable import (
 )
 from pitloom.messages._over_cap import (
     CLONE_LINE,
-    CONFIG_MEMBER_LINE,
     DOWNLOAD_LINE,
     GIT_OUTPUT_LINE,
     OVER_CAP,
@@ -68,7 +67,6 @@ from pitloom.messages._remote_fetch import (
 
 __all__ = [
     "CLONE_LINE",
-    "CONFIG_MEMBER_LINE",
     "Cap",
     "DIR_READ_LINE",
     "DIR_UNLISTABLE",

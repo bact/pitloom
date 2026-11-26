@@ -153,9 +153,10 @@ release ships.
   (mutation-backfill PR, 2026-11-26).** The mutant is equivalent only for a
   name that holds the lone surrogate and is otherwise ASCII (`ascii()` then
   equals `repr()`); a printable name (the surrogate in another field) or a
-  non-ASCII one kills it, and
-  `tests/export/test_spdx3_json_graph.py` now has both. *Found 2026-11-05,
-  review of #444.*
+  non-ASCII one kills it. #553 replaced the code (a file by `FILE=`, any
+  other element by `ELEMENT=`); its test in
+  `tests/export/test_spdx3_json_graph.py` keeps the non-ASCII file name.
+  *Found 2026-11-05, review of #444.*
 - [x] **An import that is found but fails was reported as "not installed"
   (S), fixed (#446).** It says `library-unusable`, naming what
   the import raised (`optional_libraries.import_failed`), at every optional

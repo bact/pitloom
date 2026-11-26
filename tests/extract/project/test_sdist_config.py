@@ -325,8 +325,10 @@ def test_oversize_first_member_still_wins_over_a_later_one(
         },
         fmt=fmt,
     )
-    match = f"{sdist.name}:pyproject.toml': larger than the 1048576-byte config-member"
-    with pytest.raises(ValueError, match=match + " cap; not read") as caught:
+    match = f"{sdist.name}:pyproject.toml: larger than the 1048576-byte config-member"
+    with pytest.raises(
+        ValueError, match=match + " cap for the project metadata; not read"
+    ) as caught:
         read_sdist(sdist)
     assert raised_as(caught.value, OVER_CAP)
 

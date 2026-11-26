@@ -35,14 +35,17 @@ from typing import Any, Final
 
 from pitloom.core.internal_error import InternalError
 from pitloom.messages import CodedValueError
-from pitloom.messages.config import ConfigPlace, config_invalid
+from pitloom.messages.config import (
+    ConfigPlace,
+    Parameter,
+    config_invalid,
+    invalid_value,
+)
 from pitloom.messages.options import (
     FINGERPRINT_LINE,
     FINGERPRINT_PATTERN,
     FINGERPRINT_SHAPE,
     OPTION_INVALID,
-    REFUSE_ARGUMENT_LINE,
-    URL_CREDENTIALS_MODE_ARGUMENT_LINE,
 )
 
 __all__ = [
@@ -168,7 +171,9 @@ class CredentialPolicy:
         entries = frozenset(require_fingerprint(entry) for entry in self.accepted)
         object.__setattr__(self, "accepted", entries)
         if not isinstance(self.refuse, bool):
-            raise CodedValueError(OPTION_INVALID, line=REFUSE_ARGUMENT_LINE)
+            raise invalid_value(
+                Parameter("CredentialPolicy.refuse"), "python-bool", self.refuse
+            )
         inherited = frozenset(require_fingerprint(entry) for entry in self.inherited)
         object.__setattr__(self, "inherited", inherited)
 
@@ -258,7 +263,12 @@ def require_mode(value: object, *, table: str | None = _TABLE) -> str:
     if isinstance(value, str) and value in _MODES:
         return value
     if table is None:
-        raise CodedValueError(OPTION_INVALID, line=URL_CREDENTIALS_MODE_ARGUMENT_LINE)
+        raise invalid_value(
+            Parameter("PitloomConfig.url_credentials"),
+            "url-credentials-mode",
+            value,
+            secret=True,
+        )
     raise config_invalid(
         _place(table, MODE_KEY), "url-credentials-mode", value, secret=True
     )

@@ -18,14 +18,19 @@ from __future__ import annotations
 
 from typing import Final
 
-from pitloom.messages._registry_file import REGISTRY_PREFIX
+from pitloom.messages._registry_file import REGISTRY_PREFIX, UNENCODABLE
 from pitloom.messages._types import ASK_FIRST, Line, Message
 
 #: What every line says was done.
 _WRITTEN: Final = "lone surrogates written as \\uXXXX"
 
-#: Text read from a file, or an SBOM element named by its name.
+#: Text read from a file, or an SBOM file element named by its name.
 FILE_LINE: Final = Line(level="WARNING", template=f"FILE=%(file)s: {_WRITTEN}")
+#: An SBOM element other than a file, named by its ``spdxId`` (else the
+#: ``@id`` of a blank node, else its type).
+ELEMENT_LINE: Final = Line(
+    level="WARNING", template=f"ELEMENT=%(spdx_id)s: {_WRITTEN}", since="0.25.0"
+)
 #: Text read from a model file, its format named first.
 MODEL_LINE: Final = Line(
     level="WARNING", template=f"FORMAT=%(format)s FILE=%(file)s: {_WRITTEN}"
@@ -42,13 +47,15 @@ LICENSE_LINE: Final = Line(
 TEXT_MALFORMED: Final = Message(
     code="text-malformed",
     condition="malformed",
-    lines=(FILE_LINE, MODEL_LINE, LICENSE_LINE),
+    lines=(FILE_LINE, ELEMENT_LINE, MODEL_LINE, LICENSE_LINE),
     summary="Text Pitloom read holds lone surrogates (U+D800 to U+DFFF), which "
     "UTF-8 cannot hold: a JSON or YAML \\ud800 escape in a file (a model's "
     "metadata, a model or dataset card, a Croissant document, an SBOM "
     "fragment, a licence value), or a file name that is not UTF-8. For the "
-    "SBOM itself, the line names the first element holding one, by its name; "
-    "for a licence value, the value (LICENSE=).",
+    "SBOM itself, the line names the first element holding one: a file by "
+    "its name (FILE=), any other element by its spdxId (ELEMENT=; a blank "
+    "node by its @id as read, else its type); for a licence value, the "
+    "value (LICENSE=).",
     did="Wrote each lone surrogate as the six characters \\udXXX, in the SBOM "
     "and in its provenance, and went on; said once per file (once per SBOM "
     "for element names). In a licence value (the LICENSE= line), replaced "
@@ -65,12 +72,10 @@ TEXT_MALFORMED: Final = Message(
     since="0.23.0",
 )
 
-#: Why the ID registry cannot hold a name, in each of its lines.
-_UNENCODABLE: Final = "cannot be encoded as UTF-8 (lone surrogate)"
 #: A name ``IdRegistry.register`` is given (a ``-e`` NAME, a library call).
 REGISTRY_NAME_LINE: Final = Line(
     level="ERROR",
-    template=f"{REGISTRY_PREFIX}%(registry_part)s %(value)s {_UNENCODABLE}",
+    template=f"{REGISTRY_PREFIX}%(registry_part)s %(value)s {UNENCODABLE}",
 )
 #: An SBOM element whose key or ``spdxId`` an import or harvest leaves out.
 REGISTRY_NAME_SKIPPED_LINE: Final = Line(
@@ -79,7 +84,7 @@ REGISTRY_NAME_SKIPPED_LINE: Final = Line(
 #: A file ``loom id generate`` leaves out of the index for its name.
 REGISTRY_FILE_NAME_LINE: Final = Line(
     level="WARNING",
-    template=f"{REGISTRY_PREFIX}PATH %(path)s: name {_UNENCODABLE}; not indexed",
+    template=f"{REGISTRY_PREFIX}PATH %(path)s: name {UNENCODABLE}; not indexed",
 )
 
 TEXT_MALFORMED_REGISTRY: Final = Message(

@@ -26,7 +26,6 @@ from typing import NoReturn
 from urllib.parse import SplitResult, unquote, urlsplit, urlunsplit
 
 from pitloom.core.internal_error import reraise_internal
-from pitloom.core.quote_source import quote_source
 from pitloom.core.url_masking import sanitize_url, split_userinfo
 from pitloom.extract.remote.errors import RemoteSourceError
 from pitloom.messages import url_text
@@ -142,7 +141,7 @@ def _refuse(arg: str) -> NoReturn:
     shown = f"{scheme}://***@{rest[authority.rfind('@') + 1 :]}"
     raise RemoteSourceError(
         "git.url-invalid",
-        GIT_USERINFO_LINE.render({"url": quote_source(sanitize_url(shown))}),
+        GIT_USERINFO_LINE.render({"url": url_text(shown)}),
         pitloom_code=CREDENTIALS_UNSAFE_GIT_USERINFO.code,
     )
 

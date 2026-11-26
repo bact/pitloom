@@ -171,19 +171,25 @@ def warn_config_unknown_key(
 
 
 def invalid_value(
-    where: ConfigPlace | Parameter, expected: str, got: object = MISSING
+    where: ConfigPlace | Parameter,
+    expected: str,
+    got: object = MISSING,
+    *,
+    secret: bool = False,
 ) -> CodedValueError:
     """The refusal of a shared validator, by the stage *where* says: a
     :class:`ConfigPlace` (a configuration file) is ``config-invalid``
     (:func:`config_invalid`), a :class:`Parameter` (a library caller's
     value) the ``option-invalid`` line ``<parameter>: must be X, got Y``.
+    *secret*: the value may be a credential, so the line names its type
+    only.
 
     Raises:
         pitloom.core.internal_error.InternalError: *expected* is not an id
             of the table, or *where* is neither.
     """
     if isinstance(where, ConfigPlace):
-        return config_invalid(where, expected, got)
+        return config_invalid(where, expected, got, secret=secret)
     if not isinstance(where, Parameter):
         raise InternalError(f"not a stage: {where!r}")
     return CodedValueError(
@@ -191,7 +197,7 @@ def invalid_value(
         line=VALUE_LINE,
         option=where.name,
         expected=_known(expected),
-        got=got,
+        got=Found(kind_text(got)) if secret else got,
     )
 
 

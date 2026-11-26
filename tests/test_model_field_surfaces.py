@@ -35,7 +35,7 @@ _PYPROJECT = (
 #: A PT2 archive whose ``extra/tags`` is not JSON: read, the tags kept raw.
 _PT2 = dated_zip({"mdl/version": b"2\n", "mdl/extra/tags": b"not json\n"})
 _TAGS = (
-    ": Failed to parse PT2 extra/tags as JSON: Expecting value: line 1 column 1 "
+    ": failed to parse PT2 extra/tags as JSON: Expecting value: line 1 column 1 "
     "(char 0) | Field(s) affected (degraded): properties.tags (kept as raw string) "
     "[model-field-unreadable]"
 )

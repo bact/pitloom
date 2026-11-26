@@ -30,17 +30,13 @@ from pitloom.extract.ai_model import LFS_POINTER_REASON, NotAModel, refusal_erro
 from pitloom.extract.scanner import read_model_candidate, sniff_model_format
 from pitloom.extract.scanner_project import local_model_candidate, remote_reader_gate
 from pitloom.messages import (
-    CodedFileNotFoundError,
     CodedValueError,
 )
 from pitloom.messages.models import (
     MODEL_WRONG_FORMAT,
     NOT_A_MODEL_LINE,
 )
-from pitloom.messages.targets import (
-    INPUT_NOT_FOUND,
-    MODEL_FILE_NOT_FOUND_LINE,
-)
+from pitloom.messages.targets import MODEL_FILE_KIND, input_not_found
 
 __all__ = [
     "ModelFile",
@@ -105,9 +101,7 @@ def require_model_file(path: Path, shown: str | os.PathLike[str]) -> None:
     except OSError as exc:
         if not is_missing_errno(exc):
             raise
-        raise CodedFileNotFoundError(
-            INPUT_NOT_FOUND, line=MODEL_FILE_NOT_FOUND_LINE, path=shown
-        ) from None
+        raise input_not_found(MODEL_FILE_KIND, shown) from None
     if not stat.S_ISREG(found.st_mode):
         raise CodedValueError(MODEL_WRONG_FORMAT, line=NOT_A_MODEL_LINE, path=shown)
 
@@ -176,9 +170,7 @@ def named_file(
     header that contradicts a model suffix, is refused either way."""
     if _outside_clone_folder(path, root):
         if strict:
-            raise CodedFileNotFoundError(
-                INPUT_NOT_FOUND, line=MODEL_FILE_NOT_FOUND_LINE, path=shown
-            )
+            raise input_not_found(MODEL_FILE_KIND, shown)
         return None
     if not strict and not os.path.isfile(path):
         return None

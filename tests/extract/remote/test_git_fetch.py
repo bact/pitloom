@@ -247,7 +247,7 @@ def test_a_resolved_url_is_one_info_naming_source_and_target(
     ]
     assert lines == [
         f"Git source: URL={given}: read as repository {_url(root)}, "
-        "branch feature/x, folder 'pkg'"
+        "branch feature/x, directory 'pkg'"
     ]
     caplog.clear()
     with caplog.at_level(logging.INFO):

@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-09
-Last-Modified: 2026-11-10
+Last-Modified: 2026-11-26
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -204,7 +204,7 @@ URL form by mode (`resolve_git_target`, then `resolve_sbom_target`). A
 | URL names | `generate` (auto) | `loom model` | `loom project` |
 | :-------- | :---------------- | :----------- | :------------- |
 | a model file | the model (even beside a project) | the model | the folder's project; no project and model-like files: `git.no-project` + hint |
-| a non-model file with a name no model has (`pyproject.toml`) | `INFO:` `not an AI model file; reading its folder`, then as a folder | refused (`model-wrong-format`) | the folder's project |
+| a non-model file with a name no model has (`pyproject.toml`) | `INFO:` `not an AI model file; reading its directory`, then as a folder | refused (`model-wrong-format`) | the folder's project |
 | a file with a model suffix that is no model (empty `e.gguf`) | refused (`model-wrong-format`), as `loom model e.gguf` locally | the same | the folder's project |
 | a file absent from the repository, or a link | model suffix: `git.path-not-found`; any other name: the folder, `INFO:` as above | `git.path-not-found` | the folder's project (the file name is ignored) |
 | a model file that is an LFS pointer | `ERROR:` `lfs-pointer` (clone advice) | the same | n/a |

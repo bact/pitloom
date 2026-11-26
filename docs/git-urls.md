@@ -218,11 +218,12 @@ PyTorch, PT2, Safetensors). Which command reads which URL:
   supported format` (`model-wrong-format`) instead, as for a local path that is
   not a model. A named file with
   a model suffix that is not in the repository, or is a link (not followed),
-  is `git.path-not-found` (`No file '<path>' in the repository at that
-  branch. [input-not-found]`); for `loom model`, any named file is. `loom
-  project <url>` on a folder with models and no project says `ERROR: loom project: ... No
-  pyproject.toml, setup.cfg, or setup.py found in <url>; it holds files that
-  may be AI models ... [project-not-found/model-files]`.
+  is `git.path-not-found` (`no file '<path>' in the repository at that
+  branch [input-not-found]`); for `loom model`, any named file is. `loom
+  project <url>` on a folder with models and no project says `ERROR: loom
+  project: '<url>': no Python project (pyproject.toml, setup.cfg or
+  setup.py); it holds files that may be AI models ...
+  [project-not-found/model-files]`.
 - **A name is read as the repository spells it, and stays inside the clone.**
   An encoded slash between plain names (`models%2Fm.keras`) is a path inside
   the folder (here `models/m.keras`). A URL segment that decodes (`%2F`) to a

@@ -197,7 +197,7 @@ def test_a_named_non_model_file_that_is_no_file_reads_the_folder(
     page = url + "/blob/main/README.md"
     with caplog.at_level(logging.INFO, logger="pitloom"):
         assert _resolved(page)[0] == PROJECT
-    assert "FILE=README.md: not an AI model file; reading its folder" in caplog.text
+    assert "FILE=README.md: not an AI model file; reading its directory" in caplog.text
     with pytest.raises(RemoteSourceError) as excinfo:
         _resolved(page, MODEL)
     assert excinfo.value.code == "git.path-not-found"

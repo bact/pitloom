@@ -70,7 +70,7 @@ because a parallel change is rewriting them.
 | S2 | same | nested `hold` | Gap, killed | `test_a_signal_in_a_nested_hold_waits_for_the_outer_hold`, `test_a_signal_in_a_hold_ends_the_process_at_the_hold_exit` |
 | S3 | same | `_wait_until` deadline slack | Gap, killed | `test_models_wheel_build_subprocess_wait.py` |
 | S4 | same | `parse_build_timeout` empty match | Gap, killed | `test_parse_build_timeout_error_shows_the_value_cut_at_40[empty]` |
-| S5 | known-bugs/messages-and-provenance.md | `export/spdx3_json.py` `repr(min(changed))` | Gap; the "equivalent for ASCII" note was wrong (equivalent only for a name that holds the surrogate and is otherwise ASCII) | `test_spdx3_json_graph.py::test_the_lone_surrogate_warning_names_the_element_as_a_file_field` |
+| S5 | known-bugs/messages-and-provenance.md | `export/spdx3_json.py` `repr(min(changed))` | Gap; the "equivalent for ASCII" note was wrong (equivalent only for a name that holds the surrogate and is otherwise ASCII) | Code replaced in #553 (a file by `FILE=`, else `ELEMENT=`); `test_spdx3_json_graph.py::test_the_surrogate_warning_names_a_file_by_name_else_an_element_by_id` covers the non-ASCII name |
 | S6 | license-pr276-followups.md | licence gap terms | Not measured (licence modules fenced) | Backlog |
 | S7 | roadmap.md | hook `scan-model-usage` tri-state | Already killed on `main` at all five call sites | None needed |
 | S8 | sweep plans | `_loom_dataset_meta` merge helpers | 4 gaps killed, 2 equivalent | see below |

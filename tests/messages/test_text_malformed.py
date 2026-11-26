@@ -22,7 +22,10 @@ import pytest
 
 from pitloom import __main__
 from pitloom.assemble import generate_model_sbom
-from pitloom.core.untrusted_text import escape_lone_surrogates_in_elements
+from pitloom.core.untrusted_text import (
+    ChangedElement,
+    escape_lone_surrogates_in_elements,
+)
 from pitloom.logging_config import CODE_ATTR, loggable
 from pitloom.messages import trusted_message
 from pitloom.messages.text import TEXT_MALFORMED, warn_lone_surrogates
@@ -69,15 +72,25 @@ def test_a_name_is_escaped_once_whether_or_not_the_caller_did(
     assert record.getMessage() == f"FILE='a\\nWARNING: x': {_SAID}"
 
 
-def test_an_element_with_no_name_is_still_named() -> None:
-    """The SBOM's line names an element by its name, else its id, else its
-    type: never an empty ``FILE=``, which the line refuses."""
+def test_an_element_is_named_by_its_file_name_else_its_id() -> None:
+    """The SBOM's line names a file by its name, any other element by its
+    id, else its type: never an empty value, which the line refuses."""
     graph = [
         {"type": "CreationInfo", "comment": "x\ud800"},
         {"@id": "_:b", "a": "\udc00"},
+        {"type": "software_File", "spdxId": "a#F", "name": "f\ud800"},
+        {"type": "software_Package", "spdxId": "a#P", "name": "p\ud800"},
+        {"type": "software_File", "spdxId": "a#G", "name": ""},
     ]
-    assert escape_lone_surrogates_in_elements(graph) == ["CreationInfo", "_:b"]
-    assert escape_lone_surrogates_in_elements([{"x": "\ud800"}]) == ["element"]
+    assert escape_lone_surrogates_in_elements(graph) == [
+        ChangedElement(False, "CreationInfo"),
+        ChangedElement(False, "_:b"),
+        ChangedElement(True, "f\ud800"),
+        ChangedElement(False, "a#P"),
+    ]
+    assert escape_lone_surrogates_in_elements([{"x": "\ud800"}]) == [
+        ChangedElement(False, "element")
+    ]
 
 
 def _keras(path: Path) -> Path:

@@ -26,13 +26,9 @@ from pitloom.core.current_dir import absolute_path, current_dir
 from pitloom.core.given_path import TypedPath
 from pitloom.core.inert_options import ENRICH, forward_options
 from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
-from pitloom.logging_config import print_error
 from pitloom.messages import say_summary
 from pitloom.messages.fragments import ENRICH_REGISTER_HINT
-from pitloom.messages.targets import (
-    INPUT_NOT_FOUND,
-    MODEL_FILE_NOT_FOUND_LINE,
-)
+from pitloom.messages.targets import MODEL_FILE_KIND, say_input_not_found
 
 log = logging.getLogger(__name__)
 
@@ -47,10 +43,7 @@ def _run_enrich_command(args: argparse.Namespace) -> int:
     model_path: Path = absolute_path(given_path).resolve()
     opened_path = existing_model_path(given_path)
     if opened_path is None:
-        print_error(
-            MODEL_FILE_NOT_FOUND_LINE.render({"path": target}),
-            code=INPUT_NOT_FOUND.code,
-        )
+        say_input_not_found(MODEL_FILE_KIND, target)
         return 1
 
     # Only an explicitly named config applies: a pyproject.toml near the

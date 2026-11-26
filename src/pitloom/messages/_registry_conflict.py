@@ -207,7 +207,7 @@ HASH_CHANGED_LINE: Final = _line(
 #: A model whose gated lookup missed while its key is held.
 MODEL_GATE_MISS_LINE: Final = _line(
     "INFO",
-    "model %(entity)s: no registry entry records its SHA-256; a new id is used",
+    "model %(entity)s: no registry entry records its SHA-256; minting a new spdxId",
 )
 
 REGISTRY_HASH_CONFLICT: Final = Message(

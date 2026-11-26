@@ -319,8 +319,10 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
 - **Lines**:
 
   ```text
-  INFO: FILE=<file> MODEL=<name>: model file name found; no usage relationship recorded [usage-unparseable/mention]
+  INFO: FILE=<file> MODEL='<model>': model file name found; no usage relationship recorded [usage-unparseable/mention]
   ```
+
+- **Since**: 0.22.1; line 1: 0.25.0
 
 ### `usage-unusable`
 

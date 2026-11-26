@@ -7,7 +7,7 @@
 ``project-or-model-not-found``, ``model-ambiguous`` and its ``/over-cap``
 variant, ``project-not-found`` and its ``/model-files`` variant): each line
 reads back as its entry, a value of the wrong shape is refused, and the error
-names the folder quoted.
+names the directory quoted.
 
 See also: tests/extract/test_model_target.py (the resolver that says them)
 and tests/messages/test_model_stub.py (a neighbouring family).
@@ -43,6 +43,8 @@ from tests._message_drift import TEST_LOGGER_PREFIX, raised_as
 
 _LOG = logging.getLogger(f"{TEST_LOGGER_PREFIX}sbom_target")
 
+_NO_PROJECT = "no Python project (pyproject.toml, setup.cfg or setup.py)"
+
 
 def test_the_module_has_its_codes() -> None:
     """Only the decisions are said with no effect on the SBOM; every refusal
@@ -72,7 +74,7 @@ def test_the_module_has_its_codes() -> None:
             NO_SBOM_TARGET,
             "ERROR: loom project: 'models': no Python project "
             "(pyproject.toml, setup.cfg or setup.py) and no AI model file of a "
-            "supported format; name a project folder or a model file "
+            "supported format; name a project directory or a model file "
             "[project-or-model-not-found]",
         ),
         (
@@ -92,7 +94,7 @@ def test_the_module_has_its_codes() -> None:
         ),
         (
             TARGET_AMBIGUOUS,
-            "INFO: FILE=sub/README.md: not an AI model file; reading its folder "
+            "INFO: FILE=sub/README.md: not an AI model file; reading its directory "
             "[target-ambiguous]",
         ),
         (
@@ -101,13 +103,13 @@ def test_the_module_has_its_codes() -> None:
         ),
         (
             PROJECT_NOT_FOUND,
-            "ERROR: loom project: No pyproject.toml, setup.cfg, or "
-            "setup.py found in 'p' [project-not-found]",
+            "ERROR: loom project: 'p': no Python project (pyproject.toml, "
+            "setup.cfg or setup.py) [project-not-found]",
         ),
         (
             PROJECT_NOT_FOUND_MODEL_FILES,
-            "ERROR: No pyproject.toml, setup.cfg, or setup.py found in "
-            "'https://h/o/r'; it holds files that may be AI models (a.gguf and 5 "
+            "ERROR: 'https://h/o/r': no Python project (pyproject.toml, setup.cfg "
+            "or setup.py); it holds files that may be AI models (a.gguf and 5 "
             "more): use 'loom model <url>' or 'loom generate <url>' "
             "[project-not-found/model-files]",
         ),
@@ -133,16 +135,16 @@ def test_a_printed_line_is_trusted_as_its_entry(message: Message, line: str) -> 
         # an unquoted path, a count that is no count, another level
         "ERROR: models: no Python project (pyproject.toml, setup.cfg or "
         "setup.py) and no AI model file of a supported format; name a project "
-        "folder or a model file [project-or-model-not-found]",
+        "directory or a model file [project-or-model-not-found]",
         "ERROR: 'm': several AI model files (1 files); name one file [model-ambiguous]",
         "WARNING: FILE=a.gguf: one of several AI model files [model-ambiguous]",
         # the base line's code on the over-cap variant's line
         "ERROR: 'm': more than 1000 files that could be AI models, none read; "
         "name one file [model-ambiguous]",
         # the base line's code on the variant's line
-        "ERROR: No pyproject.toml, setup.cfg, or setup.py found in 'p'; it holds "
-        "files that may be AI models (a.gguf): use 'loom model <url>' or 'loom "
-        "generate <url>' [project-not-found]",
+        "ERROR: 'p': no Python project (pyproject.toml, setup.cfg or setup.py); "
+        "it holds files that may be AI models (a.gguf): use 'loom model <url>' "
+        "or 'loom generate <url>' [project-not-found]",
     ],
     ids=["unquoted", "count", "level", "over-cap-code", "variant"],
 )
@@ -150,7 +152,7 @@ def test_a_line_out_of_its_shapes_is_not_trusted(line: str) -> None:
     assert trusted_message(line) is None
 
 
-def test_the_errors_name_the_folder_quoted() -> None:
+def test_the_errors_name_the_directory_quoted() -> None:
     none = CodedValueError(NO_SBOM_TARGET, path="m d")
     assert str(none).startswith("'m d': no Python project (") and raised_as(
         none, NO_SBOM_TARGET
@@ -169,7 +171,7 @@ def test_the_errors_name_the_folder_quoted() -> None:
     assert isinstance(absent, FileNotFoundError) and raised_as(
         absent, PROJECT_NOT_FOUND
     )
-    assert str(absent) == "No pyproject.toml, setup.cfg, or setup.py found in 'm d'"
+    assert str(absent) == f"'m d': {_NO_PROJECT}"
     hint = MODEL_FILES_LINE.render({"path": "u", "files": "a\nb.gguf"})
     assert "('a\\nb.gguf')" in hint and "\n" not in hint
 

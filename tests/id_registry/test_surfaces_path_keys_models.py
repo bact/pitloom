@@ -404,5 +404,5 @@ def test_retrain_info_names_the_model_by_its_own_name_on_every_route(
     ]
     assert infos == [
         f"ID registry: model {MODEL_NAME}: no registry entry records its SHA-256; "
-        "a new id is used"
+        "minting a new spdxId"
     ]

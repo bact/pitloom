@@ -294,7 +294,7 @@ that table:
   name but cannot be parsed by the running Python gives `WARNING:
   FILE=<path>: could not parse as Python <x.y> for usage scanning; <failure>
   [usage-unparseable]`, one
-  `INFO: FILE=<path> MODEL=<name>: model file name found; no usage
+  `INFO: FILE=<path> MODEL='<model>': model file name found; no usage
   relationship recorded [usage-unparseable/mention]` per model file name, and
   no edge.
   A file named `.PY` in capitals is not read at all: `WARNING: FILE=<path>:

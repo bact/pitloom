@@ -27,8 +27,8 @@ create and choose one), [messages.md](messages.md) (every line's code).
   model with `path=`, a model file in a project run); normal after an edit or
   a retrain (a `project` run reports a changed file as `updated stale
   entries` above).
-- `INFO: ID registry: model X: no registry entry records its SHA-256; a new
-  id is used` -- `project`, `model`, `wheel` and the like: the model's entry
+- `INFO: ID registry: model X: no registry entry records its SHA-256;
+  minting a new spdxId` -- `project`, `model`, `wheel` and the like: the model's entry
   has no hash (an old or imported one) or another; it never hits and the run
   records the hashed entry.
 - `INFO: ID registry: dataset X matched a pin without SHA-256; content not
@@ -113,7 +113,7 @@ create and choose one), [messages.md](messages.md) (every line's code).
   in a dataset directory; expected for a registry kept there, so relay it
   (once per directory per run). Suggest keeping the registry outside the
   dataset only if the user wants the line gone; do not move it for them.
-- `WARNING: ID registry: loom model X has no path=; looked up ungated: not
+- `WARNING: ID registry: loom SDK model X has no path=; looked up ungated: not
   hashed [registry-hash-missing]` (or `... path= 'p' is not a file at exit ...`) --
   the model is looked up by name and gets no hash; add `path=` to the
   `set_model()`/`use_model()` call. With no registry loaded, a missing file is

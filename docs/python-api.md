@@ -351,7 +351,7 @@ and registry key do not change. Runs naming one file two
 ways keep the project's name, with a `WARNING:` (see
 [SBOM fragments](fragments.md#merge-fragments)).
 Without `path=`, or when it is not a file when the run ends, the model gets no
-hash. With a registry loaded, one `WARNING: ID registry: loom model ... looked
+hash. With a registry loaded, one `WARNING: ID registry: loom SDK model ... looked
 up ungated: not hashed [registry-hash-missing]` says the model is looked up by its
 name alone; the match hits an id held with no hash (a model with no file) and
 never one recorded with a SHA-256, which no content vouches for: a retrained

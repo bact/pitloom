@@ -19,6 +19,7 @@ import os
 
 from pitloom.messages._emit import CodedValueError, emit
 from pitloom.messages._text_malformed import (
+    ELEMENT_LINE,
     FILE_LINE,
     LICENSE_LINE,
     MODEL_LINE,
@@ -51,6 +52,13 @@ def warn_lone_surrogates(
             file=file,
             format=model_format,
         )
+
+
+def warn_element_surrogates(log: logging.Logger, *, spdx_id: str) -> None:
+    """The one ``WARNING:`` on *log* that an SBOM element other than a file,
+    *spdx_id* (as held, raw: the line escapes it), held lone surrogates, now
+    written as text, ``[text-malformed]``; said once per SBOM."""
+    emit(log, TEXT_MALFORMED, logging.WARNING, line=ELEMENT_LINE, spdx_id=spdx_id)
 
 
 def warn_license_surrogates(log: logging.Logger, *, value: str, once: str) -> None:

@@ -242,7 +242,10 @@ def test_read_mode_key_refuses_without_quoting(
 def test_a_bad_mode_in_a_built_config_raises_when_built() -> None:
     with pytest.raises(ValueError, match="url_credentials: must be") as info:
         PitloomConfig(url_credentials="S3CRET")
-    assert "S3CRET" not in str(info.value)
+    # The library's must-be line, the type named, never the value.
+    assert str(info.value) == (
+        'PitloomConfig.url_credentials: must be "warn" or "refuse", got a string'
+    )
     assert code_of(info.value) == "option-invalid"
 
 
@@ -353,7 +356,9 @@ def test_refuse_takes_only_a_bool(value: Any) -> None:
     """A truthy non-bool is no silent ``warn``: it is refused."""
     with pytest.raises(ValueError) as info:
         CredentialPolicy(refuse=value)
-    assert str(info.value) == "CredentialPolicy refuse: must be True or False"
+    assert str(info.value).startswith(
+        "CredentialPolicy.refuse: must be True or False, got "
+    )
     assert code_of(info.value) == "option-invalid"
 
 

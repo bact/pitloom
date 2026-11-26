@@ -141,7 +141,7 @@ def test_no_count_and_no_warning(
 @pytest.mark.parametrize(
     ("files", "said"),
     [
-        ({_WEIGHTS: b"{not json"}, f"Failed to read PT2 m/{_WEIGHTS}"),
+        ({_WEIGHTS: b"{not json"}, f"failed to read PT2 m/{_WEIGHTS}"),
         (_weights([]), "parameter_count"),
         (_weights({"w": "x"}), "parameter_count"),
         (_weights({"w": {"is_param": True, "tensor_meta": {}}}), "parameter_count"),
@@ -200,7 +200,7 @@ def test_a_model_json_nested_too_deep_is_warned_not_raised(
         meta = _read(tmp_path, {"models/model.json": b"[" * 100_000})
     assert not meta.inputs
     (warning,) = logged_warnings(caplog)
-    assert "Failed to parse PT2 model graph" in warning
+    assert "failed to parse PT2 model graph" in warning
 
 
 def test_a_weights_config_over_a_cap_is_not_absorbed(

@@ -58,14 +58,15 @@ from pitloom.messages import (
 )
 from pitloom.messages.build import INTERRUPTED
 from pitloom.messages.targets import (
+    INPUT_LINE,
     INPUT_NOT_FOUND,
-    MODEL_FILE_NOT_FOUND_LINE,
+    MODEL_FILE_KIND,
 )
 from tests._message_drift import SRC_ROOT, source_modules
 
 pytestmark = pytest.mark.platform  # argv, stderr lines, a hook
 
-_LINE = MODEL_FILE_NOT_FOUND_LINE.render({"path": "m.gguf"})
+_LINE = INPUT_LINE.render({"input": MODEL_FILE_KIND, "path": "m.gguf"})
 
 
 def _subparser_progs(parser: argparse.ArgumentParser) -> tuple[set[str], set[str]]:

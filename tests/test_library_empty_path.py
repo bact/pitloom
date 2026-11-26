@@ -63,8 +63,8 @@ class _Spelt:
 _ENTRIES: list[tuple[Callable[..., Any], str]] = [
     (generate_wheel_sbom, "wheel file not found: ''"),
     (embed_wheel_sbom, "wheel file not found: ''"),
-    (generate_model_sbom, "Model file not found: ''"),
-    (enrich_model, "Model file not found: ''"),
+    (generate_model_sbom, "model file not found: ''"),
+    (enrich_model, "model file not found: ''"),
     (generate_project_sbom, "project path not found: ''"),
     (generate, "project path not found: ''"),
     (generate_merged_sbom, "fragments directory not found: ''"),

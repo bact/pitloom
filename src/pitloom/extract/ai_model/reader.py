@@ -49,7 +49,6 @@ from pitloom.extract.ai_model.safetensors import (
     read_safetensors,
 )
 from pitloom.messages import (
-    CodedFileNotFoundError,
     CodedValueError,
 )
 from pitloom.messages.models import (
@@ -58,10 +57,7 @@ from pitloom.messages.models import (
     MODEL_WRONG_FORMAT,
     NOT_A_MODEL_LINE,
 )
-from pitloom.messages.targets import (
-    INPUT_NOT_FOUND,
-    MODEL_FILE_NOT_FOUND_LINE,
-)
+from pitloom.messages.targets import MODEL_FILE_KIND, input_not_found
 
 __all__ = [
     "AiModelFormat",
@@ -451,9 +447,7 @@ def read_ai_model(
             a bound.
     """
     if not model_path.exists():
-        raise CodedFileNotFoundError(
-            INPUT_NOT_FOUND, line=MODEL_FILE_NOT_FOUND_LINE, path=model_path
-        )
+        raise input_not_found(MODEL_FILE_KIND, model_path)
     if not os.path.isfile(model_path):
         raise refusal_error(model_path, None, None)
 

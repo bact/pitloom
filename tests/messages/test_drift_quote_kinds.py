@@ -100,18 +100,18 @@ _NO_MARKERS: dict[str, tuple[str, ...]] = {}
     [
         # a code: the line's level and code, or nothing
         (
-            "INFO: FILE=<path> MODEL=<name>: model file name found "
+            "INFO: FILE=<path> MODEL='<model>': model file name found "
             "[usage-unparseable/mention]",
             CODED,
         ),
-        ("WARNING: FILE=<path> MODEL=<name>: model file name found ...", None),
+        ("WARNING: FILE=<path> MODEL='<model>': model file name found ...", None),
         (
-            "WARNING: FILE=<path> MODEL=<name>: model file name found "
+            "WARNING: FILE=<path> MODEL='<model>': model file name found "
             "[usage-unparseable/mention]",
             None,
         ),
         (
-            "INFO: FILE=<path> MODEL=<name>: model file name found "
+            "INFO: FILE=<path> MODEL='<model>': model file name found "
             "[reader-unsafe/remote]",
             None,
         ),
@@ -160,7 +160,10 @@ def test_quote_kind_boundaries(quote: str, kind: str | None) -> None:
 @pytest.mark.parametrize(
     ("quote", "expected"),
     [
-        ("WARNING: ID registry: loom model X has no path=; looked up ungated", True),
+        (
+            "WARNING: ID registry: loom SDK model X has no path=; looked up ungated",
+            True,
+        ),
         ("ID registry: model X has no path=; looked up ungated", True),
         # with its level, a quote starts where the line starts: a free value
         # (the model's name) cannot hold the line's own start

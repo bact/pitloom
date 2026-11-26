@@ -103,8 +103,6 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
   ERROR: PATH '<path>' is outside --project-dir '<root>' [option-invalid]
   ERROR: ID registry: PATH '<path>' is not inside the project root '<root>' [option-invalid]
   ERROR: not a fingerprint (sha256: and 16 to 64 lowercase hex digits) [option-invalid]
-  ERROR: PitloomConfig url_credentials: must be "warn" or "refuse" [option-invalid]
-  ERROR: CredentialPolicy refuse: must be True or False [option-invalid]
   ERROR: <option>: must be <expected>, got <got> [option-invalid]
   ERROR: loom SDK: <option>: must be <expected>, got <got> [option-invalid]
   ERROR: namespace <why>: <namespace> [option-invalid]

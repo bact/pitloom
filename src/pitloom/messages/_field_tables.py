@@ -151,6 +151,7 @@ INPUT_KINDS: Final = (
     "Croissant document",
     "fragments directory",
     "ID registry file",
+    "model file",
     "PATH",
     "project directory",
     "project path",

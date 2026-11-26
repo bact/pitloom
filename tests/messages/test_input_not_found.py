@@ -40,8 +40,9 @@ from pitloom.messages.targets import (
     GIT_FILE_IS_LINK_LINE,
     GIT_FILE_NOT_FOUND_LINE,
     GIT_FOLDER_NOT_FOUND_LINE,
+    INPUT_LINE,
     INPUT_NOT_FOUND,
-    MODEL_FILE_NOT_FOUND_LINE,
+    MODEL_FILE_KIND,
     input_not_found,
     say_input_not_found,
     warn_fragment_not_found,
@@ -57,22 +58,21 @@ _NEEDS_SYMLINK = pytest.mark.skipif(not CAN_SYMLINK, reason="needs a symlink")
 @pytest.mark.parametrize(
     ("line", "text"),
     [
-        (MODEL_FILE_NOT_FOUND_LINE, "Model file not found: 'a b.gguf'"),
         (
             GIT_FILE_NOT_FOUND_LINE,
-            "No file 'a b.gguf' in the repository at that branch.",
+            "no file 'a b.gguf' in the repository at that branch",
         ),
         (
             GIT_FILE_IS_LINK_LINE,
-            "File 'a b.gguf' in the repository at that branch is a symbolic "
-            "link; links are not followed.",
+            "file 'a b.gguf' in the repository at that branch is a symbolic "
+            "link; links are not followed",
         ),
         (
             GIT_FOLDER_NOT_FOUND_LINE,
-            "No folder 'a b.gguf' in the repository at that branch.",
+            "no directory 'a b.gguf' in the repository at that branch",
         ),
     ],
-    ids=["model-file", "git-file", "git-link", "git-folder"],
+    ids=["git-file", "git-link", "git-folder"],
 )
 def test_each_line_is_a_file_not_found_error_with_its_code(
     line: Line, text: str
@@ -86,20 +86,29 @@ def test_each_line_is_a_file_not_found_error_with_its_code(
         assert (str(again), code_of(again)) == (text, "input-not-found")
 
 
+def test_a_model_file_is_said_by_the_input_line() -> None:
+    """A model file not found is one kind of input, said as every other
+    kind is (once a line of its own: ``Model file not found``)."""
+    exc = input_not_found(MODEL_FILE_KIND, "a b.gguf")
+    assert str(exc) == "model file not found: 'a b.gguf'"
+    assert str(exc) == INPUT_LINE.render({"input": MODEL_FILE_KIND, "path": "a b.gguf"})
+    assert raised_as(exc, INPUT_NOT_FOUND)
+
+
 def test_the_caller_names_the_line() -> None:
-    """Eight lines name a path alone: none is chosen for the caller."""
-    with pytest.raises(ValueError, match="8 name of its ERROR lines"):
+    """Seven lines name a path alone: none is chosen for the caller."""
+    with pytest.raises(ValueError, match="7 name of its ERROR lines"):
         raise CodedFileNotFoundError(INPUT_NOT_FOUND, path="a")
 
 
 @pytest.mark.parametrize(
     "line",
     [
-        "ERROR: Model file not found: a.gguf [input-not-found]",
-        "WARNING: Model file not found: 'a.gguf' [input-not-found]",
+        "ERROR: model file not found: a.gguf [input-not-found]",
+        "INFO: model file not found: 'a.gguf' [input-not-found]",
         "ERROR: No file 'a' in the repository at that branch [input-not-found]",
     ],
-    ids=["unquoted", "level", "no-period"],
+    ids=["unquoted", "level", "capital"],
 )
 def test_a_line_out_of_its_shapes_is_not_trusted(line: str) -> None:
     assert trusted_message(line) is None
@@ -236,10 +245,11 @@ def test_the_printed_line_is_the_raised_text(
     ("kind", "tail", "probed"),
     [
         ("project path", "", False),
+        ("model file", "", False),
         ("wheel file", " is not a file", True),
         ("fragments directory", " is not a directory", True),
     ],
-    ids=["either-kind", "file-kind", "directory-kind"],
+    ids=["either-kind", "model-kind", "file-kind", "directory-kind"],
 )
 def test_a_path_that_appears_after_the_probe_is_named_by_its_kind(
     kind: str, tail: str, probed: bool, monkeypatch: pytest.MonkeyPatch

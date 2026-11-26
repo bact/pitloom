@@ -76,8 +76,9 @@ _TRUSTED = [
         OVER_CAP,
     ),
     (
-        "ERROR: loom project: config file 's.tar.gz:pyproject.toml': "
-        "larger than the 1048576-byte config-member cap; not read [over-cap]",
+        "ERROR: loom project: FILE=s.tar.gz:pyproject.toml: larger than the "
+        "1048576-byte config-member cap for the project metadata; not read "
+        "[over-cap]",
         OVER_CAP,
     ),
     (

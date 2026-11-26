@@ -163,8 +163,8 @@ _WHL = "gone-1.0-py3-none-any.whl"
             "loom generate: project path not found: 'gone'",
         ),
         (["merge", "gone"], "loom merge: fragments directory not found: 'gone'"),
-        (["model", "gone.gguf"], "loom model: Model file not found: 'gone.gguf'"),
-        (["enrich", "gone.gguf"], "loom enrich: Model file not found: 'gone.gguf'"),
+        (["model", "gone.gguf"], "loom model: model file not found: 'gone.gguf'"),
+        (["enrich", "gone.gguf"], "loom enrich: model file not found: 'gone.gguf'"),
         (
             ["fragment", "validate", "gone.json"],
             "loom fragment validate: SBOM file not found: 'gone.json'",

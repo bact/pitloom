@@ -301,7 +301,9 @@ def test_a_named_file_that_is_no_model_reads_the_folder_under_auto_only(
         )
     assert target.model == ModelFile(path, f"s/{path.name}", AiModelFormat.GGUF)
     messages = [r.getMessage() for r in caplog.records]
-    assert messages[0] == "FILE=s/README.md: not an AI model file; reading its folder"
+    assert (
+        messages[0] == "FILE=s/README.md: not an AI model file; reading its directory"
+    )
     assert _codes(caplog, logging.INFO) == ["target-ambiguous"] * 2
     with pytest.raises(ValueError) as caught:
         resolve_sbom_target(tmp_path, subject="d", file="README.md", mode=MODEL)
@@ -309,7 +311,7 @@ def test_a_named_file_that_is_no_model_reads_the_folder_under_auto_only(
     with pytest.raises(FileNotFoundError) as missing:
         resolve_sbom_target(tmp_path, subject="d", file="gone.gguf", shown_prefix="s")
     assert code_of(missing.value) == "input-not-found"
-    assert str(missing.value) == "Model file not found: 's/gone.gguf'"
+    assert str(missing.value) == "model file not found: 's/gone.gguf'"
 
 
 @pytest.mark.parametrize(
@@ -319,7 +321,7 @@ def test_a_named_file_that_is_no_model_reads_the_folder_under_auto_only(
             AUTO,
             "project-or-model-not-found",
             "'d': no Python project (pyproject.toml, setup.cfg or setup.py) and "
-            "no AI model file of a supported format; name a project folder or a "
+            "no AI model file of a supported format; name a project directory or a "
             "model file",
         ),
         (
@@ -381,10 +383,10 @@ def test_a_missing_model_file_is_said_by_the_catalogue(tmp_path: Path) -> None:
     with pytest.raises(FileNotFoundError) as caught:
         read_model_file(gone)
     assert code_of(caught.value) == "input-not-found"
-    assert str(caught.value) == f"Model file not found: {quote_source(gone)}"
+    assert str(caught.value) == f"model file not found: {quote_source(gone)}"
     with pytest.raises(FileNotFoundError) as shown:
         read_model_file(gone, shown="repo/gone.gguf")
-    assert str(shown.value) == "Model file not found: 'repo/gone.gguf'"
+    assert str(shown.value) == "model file not found: 'repo/gone.gguf'"
 
 
 @pytest.mark.platform

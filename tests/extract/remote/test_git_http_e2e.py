@@ -229,7 +229,9 @@ def test_the_loom_program_reads_a_url(base: str, tmp_path: Path) -> None:
     moved = f"URL={base}/g/p: redirects to {base}/g/p.git; followed [url-moved]"
     assert f"INFO: Git source: {moved}" in done.stderr
     read_as = f"URL={base}/g/p/-/tree/main/svc/a: read as repository {base}/g/p.git"
-    assert f"INFO: Git source: {read_as}, branch main, folder 'svc/a' [" in done.stderr
+    assert (
+        f"INFO: Git source: {read_as}, branch main, directory 'svc/a' [" in done.stderr
+    )
     assert_spdx3_valid(out)
     again = tmp_path / "again.json"
     done = _loom(

@@ -122,9 +122,9 @@ def test_parse_failure_warns_and_informs_without_recording_edge(
 
     info_texts = [r.getMessage() for r in infos]
     assert info_texts == [
-        "FILE=src/pkg/bad.py MODEL=a.onnx: model file name found; no usage "
+        "FILE=src/pkg/bad.py MODEL='a.onnx': model file name found; no usage "
         "relationship recorded",
-        "FILE=src/pkg/bad.py MODEL=b.onnx: model file name found; no usage "
+        "FILE=src/pkg/bad.py MODEL='b.onnx': model file name found; no usage "
         "relationship recorded",
     ]
     assert all(getattr(r, CODE_ATTR) == USAGE_UNPARSEABLE_MENTION.code for r in infos)

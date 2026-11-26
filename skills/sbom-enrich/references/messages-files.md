@@ -95,9 +95,9 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
   'loom id generate' PATH: no registry or SBOM is written; a configuration file,
   or a project metadata file (a project's pyproject.toml read by the build hook
   says for the configuration): nothing is written; the only possible model file
-  of a folder named for a model SBOM: no SBOM is written; the input check: the
-  command writes nothing and exits 1, the library raises ValueError carrying the
-  code; the current directory: the command writes nothing and exits 1, the
+  of a directory named for a model SBOM: no SBOM is written; the input check:
+  the command writes nothing and exits 1, the library raises ValueError carrying
+  the code; the current directory: the command writes nothing and exits 1, the
   library and the loom SDK raise ValueError carrying the code; a wheel of
   verify-wheel, validate-wheel or embed-wheel fails alone, the others go on).
 - **Tell the user**: which file could not be read and what the system reported,
@@ -291,7 +291,6 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
   WARNING: FORMAT=<format> FILE=<file>: all <number> metadata key(s) left out to fit the <limit>-byte <cap> cap [over-cap]
   WARNING: FILE=<file>: its metadata does not fit the <limit>-byte <cap> cap even with no key; artifact-metadata annotation left out [over-cap]
   WARNING: FILE=<file>: all <number> metadata key(s) left out to fit the <limit>-byte <cap> cap [over-cap]
-  ERROR: config file '<path>': larger than the <limit>-<unit> <cap> cap; not read [over-cap]
   ERROR: FILE=<file>: larger than the <limit>-<unit> <cap> cap <use>; not read [over-cap]
   ERROR: FILE=<file>: larger than the <limit>-<unit> <cap> cap; not downloaded [over-cap]
   ERROR: the repository is larger than the <limit>-<unit> <cap> cap; git <command> was stopped [over-cap]
@@ -299,7 +298,7 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
   WARNING: FILE=<file>: larger than the <limit>-<unit> <cap> cap <use>; not read [over-cap]
   ```
 
-- **Since**: 0.22.0; lines 3-7, 13: 0.25.0
+- **Since**: 0.22.0; lines 3-7, 12: 0.25.0
 
 ### `temp-dir-unusable`
 

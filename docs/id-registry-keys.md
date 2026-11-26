@@ -77,7 +77,7 @@ file's SHA-256 (and its SHA-512) as `verifiedUsing` (every route that reads the 
 `enrich`, which makes no `ai_AIPackage`, uses only the gate), and the registry
 entry records the SHA-256. Retrained bytes at the same path get a new id. `project`, `wheel`, `model` and
 the other generating routes say `INFO: ID registry: model <name>: no registry
-entry records its SHA-256; a new id is used` when an entry exists under the key
+entry records its SHA-256; minting a new spdxId` when an entry exists under the key
 but records no, or another, hash; `id generate` and `loom.Run` say `content
 changed` instead ([log lines](#fallbacks-print-info)). An entry with no hash
 never matches a model.
@@ -260,7 +260,7 @@ stderr lists them:
 | Layout alias used | `<number> element(s) matched a registry key through the src/lib layout alias` |
 | `id generate` promotes a held alias | `<number> key(s) promoted from a layout alias` |
 | `id generate` replaces a changed key by its alias | `<number> key(s) of changed content took their layout alias's id` |
-| Model refused by the gate (`project`, `model`, `wheel`, ...) | `model <name>: no registry entry records its SHA-256; a new id is used` |
+| Model refused by the gate (`project`, `model`, `wheel`, ...) | `model <name>: no registry entry records its SHA-256; minting a new spdxId` |
 | Content changed (`id generate`, `loom.Run`) | `content changed for <key>; minting a new spdxId (old: <id>)` |
 | `loom.Run` or `model` hashed model keyed by its name | `model <name> keyed by its name: <why>` |
 | Dataset by name, or ungated | `dataset <key> keyed by its name: <why>`, `dataset <key> looked up ungated: not hashed` |

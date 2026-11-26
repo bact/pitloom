@@ -135,12 +135,9 @@ FILE_BUDGET_NO_KEY_LINE: Final = Line(
     level="WARNING", template=f"FILE=%(file)s: {_BUDGET_NO_KEY}", since="0.25.0"
 )
 
-#: An sdist's own configuration file over the member cap: the sdist is
-#: not read.
-CONFIG_MEMBER_LINE: Final = Line(
-    level="ERROR", template=f"config file %(path)s: {REASON}; not read"
-)
-#: A JSON document over a cap: it is not read.
+#: A document over a cap (a JSON document, an sdist's own
+#: ``pyproject.toml`` or ``setup.cfg`` named ``<sdist>:<member>``): it is not
+#: read.
 SOURCE_LINE: Final = Line(
     level="ERROR", template=f"FILE=%(file)s: {REASON} %(use)s; not read"
 )
@@ -172,7 +169,6 @@ OVER_CAP: Final = Message(
         BUDGET_NO_KEY_LINE,
         FILE_BUDGET_NO_FIT_LINE,
         FILE_BUDGET_NO_KEY_LINE,
-        CONFIG_MEMBER_LINE,
         SOURCE_LINE,
         DOWNLOAD_LINE,
         CLONE_LINE,

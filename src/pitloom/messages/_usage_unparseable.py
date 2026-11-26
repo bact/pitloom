@@ -57,8 +57,9 @@ USAGE_UNPARSEABLE_MENTION: Final = Message(
     lines=(
         Line(
             level="INFO",
-            template="FILE=%(file)s MODEL=%(name)s: model file name found; no "
+            template="FILE=%(file)s MODEL=%(model)s: model file name found; no "
             "usage relationship recorded",
+            since="0.25.0",
         ),
     ),
     summary="The text of a Python file that could not be parsed names an AI "

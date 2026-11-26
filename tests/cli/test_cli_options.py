@@ -148,8 +148,11 @@ def test_resolve_project_paths_no_config(
     result = __main__.main()
     assert result == 1
     err = capsys.readouterr().err
-    assert "ERROR: loom project: No pyproject.toml, setup.cfg, or setup.py found" in err
-    assert err.rstrip().endswith("[project-not-found]")
+    assert "ERROR: loom project: " in err
+    assert err.rstrip().endswith(
+        ": no Python project (pyproject.toml, setup.cfg or setup.py) "
+        "[project-not-found]"
+    )
 
 
 @pytest.mark.usefixtures("stub_project_pipeline")

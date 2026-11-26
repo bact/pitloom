@@ -20,7 +20,7 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
 | Code | Level | Means | Since |
 | --- | --- | --- | --- |
 | [`git-filter-unusable`](#git-filter-unusable) | INFO | Pitloom fetches with a filter that leaves out large files the checkout does not need; the server answered it with an error (Azure DevOps: HTTP 400). | 0.25.0 |
-| [`git-link-unsafe`](#git-link-unsafe) | INFO | The checkout holds symbolic links that lead outside the repository, into its .git directory, or to a folder. The repository is untrusted: following them would read files it does not hold, or walk a folder twice. | 0.25.0 |
+| [`git-link-unsafe`](#git-link-unsafe) | INFO | The checkout holds symbolic links that lead outside the repository, into its .git directory, or to a directory. The repository is untrusted: following them would read files it does not hold, or walk a directory twice. | 0.25.0 |
 | [`git-missing`](#git-missing) | ERROR | A Git URL is fetched by running git, and no git program is on PATH. | 0.25.0 |
 | [`git-redirect-unusable`](#git-redirect-unusable) | INFO | Before git is run, Pitloom asks the URL itself whether it redirects, so a redirect is checked before git follows it. That request got no usable answer: an HTTP error, a redirect without a Location, no answer in time, or a failed connection. | 0.25.0 |
 | [`git-ref-not-found`](#git-ref-not-found) | ERROR | The Git URL names a branch, tag or commit (in its path, as a page URL's tree or blob part, or as a version query) that the repository does not have as a branch or tag; a commit is fetched only by its full hash. | 0.25.0 |
@@ -50,8 +50,8 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
 
 - **Level**: INFO.
 - **Means**: The checkout holds symbolic links that lead outside the repository,
-  into its .git directory, or to a folder. The repository is untrusted:
-  following them would read files it does not hold, or walk a folder twice.
+  into its .git directory, or to a directory. The repository is untrusted:
+  following them would read files it does not hold, or walk a directory twice.
 - **SBOM effect**: thinner: the SBOM says less than reading the input would.
 - **Pitloom did**: Removed the links before reading: the SBOM lists neither them
   nor what they point to.
@@ -62,7 +62,7 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
 - **Lines**:
 
   ```text
-  INFO: URL=<url>: <number> symbolic link(s) leading out of the repository, into its .git directory or to a folder; removed, not followed [git-link-unsafe]
+  INFO: URL=<url>: <number> symbolic link(s) leading out of the repository, into its .git directory or to a directory; removed, not followed [git-link-unsafe]
   ```
 
 ### `git-missing`

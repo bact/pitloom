@@ -157,8 +157,9 @@ DATASET_FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
             QUOTED,
             quoted_name_text,
             "'<model>'",
-            "a model with no file (a Hugging Face model, a library caller's "
-            f"model) by the name it is shown under, {_SHOWN_TEXT}",
+            "a model by the name it is shown under: one with no file (a "
+            "Hugging Face model, a library caller's model), or the file name "
+            f"a Python file mentions, {_SHOWN_TEXT}",
         ),
         "dataset_value_type": Field(
             "|".join(re.escape(name) for name in _TYPE_NAMES),

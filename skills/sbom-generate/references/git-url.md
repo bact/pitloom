@@ -52,7 +52,7 @@ URL is read by the host's conventions. Rules to state to the user:
   [credentials-unsafe/git-line-break]`; a private repository then fails). A
   URL whose user information git would read differently (an empty host
   after the `@`, for one) is refused before git runs: `ERROR: loom
-  project: URL='https://***:***@/o/r': user information cannot be taken out
+  project: URL=https://***:***@/o/r: user information cannot be taken out
   of the git command line; not fetched [credentials-unsafe/git-userinfo]`; a
   malformed port is refused as `ERROR: ... URL=<url>: the port is not a number;
   nothing fetched [git-url-invalid]`. Never put a credential into a URL for the user.
@@ -101,7 +101,7 @@ URL is read by the host's conventions. Rules to state to the user:
 - Read the `INFO:` lines: each redirect followed (`Git source: URL=<url>:
   redirects to <target>; followed [url-moved]`), and the repository, branch
   and folder used (`Git source: URL=<url>: read as repository <target>,
-  <ref-kind> <ref>, folder '<path>' [target-ambiguous/git-page]`). The `Git
+  <ref-kind> <ref>, directory '<path>' [target-ambiguous/git-page]`). The `Git
   source: ` in front of an `INFO:` or `WARNING:` line is a frame, no part of
   the line: take the code and its entry, not the prefix. A failure is one
   `ERROR:` line, with no `Git source: ` frame and no `WARNING:` twin. A redirect

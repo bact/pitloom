@@ -235,7 +235,13 @@ def _chain(exc: BaseException | None) -> list[str]:
 def test_every_expected_id_has_a_case() -> None:
     """A new id of the table fails here until a real reader says it."""
     # A parameter's type or value, no file says it.
-    library_only = {"config-source", "sbom-content", "local-file", "local-model"}
+    library_only = {
+        "python-bool",
+        "config-source",
+        "sbom-content",
+        "local-file",
+        "local-model",
+    }
     # A loom SDK argument's type or value (tests/core/test_loom_args.py).
     library_only |= {
         "path",
