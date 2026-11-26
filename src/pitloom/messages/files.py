@@ -57,6 +57,7 @@ from pitloom.messages._over_cap import (
 from pitloom.messages._over_cap_warning import (
     over_cap_of,
     warn_archive_member_over_cap,
+    warn_metadata_budget,
     warn_over_cap,
 )
 from pitloom.messages._remote_fetch import (
@@ -99,6 +100,7 @@ __all__ = [
     "over_cap_of",
     "system_failure",
     "warn_archive_member_over_cap",
+    "warn_metadata_budget",
     "warn_dir_unlistable",
     "warn_file_unreadable",
     "warn_over_cap",

@@ -156,7 +156,7 @@ def test_name_field_cut_only_after_a_mailbox(
     is no mailbox warns."""
     with caplog.at_level(logging.WARNING):
         assert read_author_fields(author, None) == expected
-    lines = [f"AUTHOR={e!r}: not an email address; not recorded" for e in unread]
+    lines = [f"AUTHOR={e!r}: not one valid email address; not recorded" for e in unread]
     if cut:
         shown = excerpt(author)
         lines.append(

@@ -538,7 +538,7 @@ def test_one_name_at_one_version_is_one_dataset_and_a_dropped_fact_is_said(
         "Second",
     )
     assert logged_warnings(caplog) == [
-        "DATASET='d' FIELD=download_url: references differ; kept the first"
+        "FILE=m.gguf DATASET='d' FIELD=download_url: references differ; kept the first"
     ]
     assert _codes(caplog) == ["dataset-conflict"]
 
@@ -555,8 +555,8 @@ def test_two_versions_reach_the_sbom_as_one_package_with_a_warning(
     (package,) = [e for e in graph if e["type"] == "dataset_DatasetPackage"]
     assert package["software_packageVersion"] == "1"
     assert [w for w in logged_warnings(caplog) if "DATASET='d'" in w] == [
-        "DATASET='d' FIELD=version: references differ; kept the first",
-        "DATASET='d' FIELD=download_url: references differ; kept the first",
+        "FILE=m.gguf DATASET='d' FIELD=version: references differ; kept the first",
+        "FILE=m.gguf DATASET='d' FIELD=download_url: references differ; kept the first",
     ]
     assert _codes(caplog) == ["dataset-conflict"] * 2
 
@@ -574,7 +574,7 @@ def test_a_field_differing_in_three_entries_of_one_dataset_is_said_once(
         meta = _read(tmp_path, *pairs)
     assert [ref.metadata.download_url for ref in meta.datasets] == ["https://x.org/0"]
     assert logged_warnings(caplog) == [
-        "DATASET='d' FIELD=download_url: references differ; kept the first"
+        "FILE=m.gguf DATASET='d' FIELD=download_url: references differ; kept the first"
     ]
     assert _codes(caplog) == ["dataset-conflict"]
 

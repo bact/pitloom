@@ -34,6 +34,7 @@ from pitloom.messages.datasets import (
     NOT_A_URL,
     NOT_TEXT,
     UNQUOTED_VERSION,
+    DatasetModel,
     say_one_dataset,
     warn_dataset_conflict,
     warn_dataset_field,
@@ -156,15 +157,36 @@ def test_each_kind_says_its_line(
 
 
 def test_the_conflict_and_spelling_lines(caplog: pytest.LogCaptureFixture) -> None:
+    """A conflict names its model by its file, else by its name; the
+    spelling line names no model (one dataset, whichever model reads it)."""
     with caplog.at_level(logging.INFO, logger=_LOG.name):
-        warn_dataset_conflict(_LOG, "org/name", "description")
+        warn_dataset_conflict(_LOG, DatasetModel(file="m.gguf"), "org/name", "version")
+        warn_dataset_conflict(_LOG, DatasetModel(name="Org/M"), "org/name", "license")
+        warn_dataset_conflict(
+            _LOG, DatasetModel(file="a b.gguf", name="M"), "org/name", "description"
+        )
         say_one_dataset(_LOG, "org/name", "Org/Name")
     assert _printed(caplog) == [
-        "WARNING: DATASET='org/name' FIELD=description: references differ; kept "
-        "the first [dataset-conflict]",
+        "WARNING: FILE=m.gguf DATASET='org/name' FIELD=version: references "
+        "differ; kept the first [dataset-conflict]",
+        "WARNING: MODEL='Org/M' DATASET='org/name' FIELD=license: references "
+        "differ; kept the first [dataset-conflict]",
+        "WARNING: FILE=a b.gguf DATASET='org/name' FIELD=description: references "
+        "differ; kept the first [dataset-conflict]",
         "INFO: DATASET='org/name': 'Org/Name' names it too; kept the first "
         "spelling [dataset-conflict/spelling]",
     ]
+    assert all(trusted_message(line) is not None for line in _printed(caplog))
+
+
+@pytest.mark.parametrize(
+    "named",
+    [{}, {"file": ""}, {"name": ""}, {"file": "", "name": "M"}],
+    ids=["none", "empty-file", "empty-name", "empty-file-and-name"],
+)
+def test_a_dataset_model_is_named(named: dict[str, str]) -> None:
+    with pytest.raises(InternalError, match="dataset's model"):
+        DatasetModel(**named)
 
 
 def test_text_unsafe_needs_a_subject(caplog: pytest.LogCaptureFixture) -> None:

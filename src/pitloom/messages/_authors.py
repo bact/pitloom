@@ -5,11 +5,11 @@
 
 """The free-text author fields of core metadata (``Author``,
 ``Author-email``, a dependency's ``Maintainer`` pair): a field split by a
-guess (``author-ambiguous``), an address entry holding no address
-(``author-invalid``), and a project directory whose declared authors an
-embed could not read (``project-unreadable``). Only a ``pyproject.toml``
-authors list keeps each author apart; every other route reads these
-fields.
+guess (``author-ambiguous``), an address entry that is not one valid
+email address (``author-invalid``), and a project directory whose
+declared authors an embed could not read (``project-unreadable``). Only
+a ``pyproject.toml`` authors list keeps each author apart; every other
+route reads these fields.
 
 See also: :mod:`pitloom.messages._authors_say` (the helpers that say
 them), :mod:`pitloom.extract.authors` (the reading) and
@@ -102,26 +102,27 @@ AUTHOR_AMBIGUOUS: Final = Message(
     since=_SINCE,
 )
 
-#: An address field's entries holding no address, one entry.
+#: An address field's entry that is not one valid email address.
 EMAIL_INVALID_LINE: Final = Line(
     level="WARNING",
-    template="AUTHOR_EMAIL=%(authors)s: not an email address; not recorded",
+    template="AUTHOR_EMAIL=%(authors)s: not one valid email address; not recorded",
 )
 #: The same, several entries.
 EMAIL_INVALID_COUNT_LINE: Final = Line(
     level="WARNING",
-    template="AUTHOR_EMAIL=%(authors)s: not an email address; %(entry_count)s "
-    "not recorded",
+    template="AUTHOR_EMAIL=%(authors)s: not one valid email address; "
+    "%(entry_count)s not recorded",
 )
-#: A name field's mailboxes holding no address, one entry.
+#: A name field's mailbox that is not one valid email address.
 NAME_INVALID_LINE: Final = Line(
     level="WARNING",
-    template="AUTHOR=%(authors)s: not an email address; not recorded",
+    template="AUTHOR=%(authors)s: not one valid email address; not recorded",
 )
 #: The same, several entries.
 NAME_INVALID_COUNT_LINE: Final = Line(
     level="WARNING",
-    template="AUTHOR=%(authors)s: not an email address; %(entry_count)s not recorded",
+    template="AUTHOR=%(authors)s: not one valid email address; %(entry_count)s "
+    "not recorded",
 )
 
 AUTHOR_INVALID: Final = Message(
@@ -133,17 +134,19 @@ AUTHOR_INVALID: Final = Message(
         NAME_INVALID_LINE,
         NAME_INVALID_COUNT_LINE,
     ),
-    summary="An entry of a project's free-text author field holds an address "
-    "that is no address of the form local@domain (an Author-email entry, or "
-    "a mailbox in Author with '<' or '@'), or two addresses in one mailbox. "
+    summary="An entry of a project's free-text author field (an Author-email "
+    "entry, or a mailbox in Author with '<' or '@') is not one valid email "
+    "address: its address is not of the form local@domain, text follows a "
+    "valid address ('Ann <a@x.org> extra', 'a@x.org trailing'), or one "
+    "mailbox holds two addresses. "
     "The line shows the entries, the first few when several, and how many.",
     did="Recorded no address for the entry; a display name stated before "
     "its '<' is kept as an author with no address. The SBOM is written.",
     effect="thinner",
     actor="user",
-    advice="Tell the user which entries hold no email address, as the line "
-    "says. They correct the address in the project's metadata and generate "
-    f"again. Do not edit the metadata for them; {ASK_FIRST}",
+    advice="Tell the user which entries are not one valid email address, as "
+    "the line says. They correct the address in the project's metadata and "
+    f"generate again. Do not edit the metadata for them; {ASK_FIRST}",
     subject_key="AUTHOR_EMAIL",
     since=_SINCE,
 )

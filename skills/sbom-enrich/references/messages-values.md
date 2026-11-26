@@ -99,6 +99,7 @@ holds the value there. The table lists every name a line or a prefix uses.
 | `<members>` | archive member names, each shown as a member is, comma-separated, at most 10 then `and N more` |
 | `<metadata-fields>` | [project] keys, comma-separated (`version, dependencies`) |
 | `<minimum-version>` | the oldest release of a library that has what Pitloom needs (`1.29.0`) |
+| `'<model>'` | a model with no file (a Hugging Face model, a library caller's model) by the name it is shown under, in quotes, a URL's credentials masked, cut to 500 characters with `...` before the closing quote, escaped when it holds a control character |
 | `<module>` | the Python module Pitloom imports for the step (`h5py`) |
 | `<name>` | the input as Pitloom names it (a path, a field, a dataset, the start of a requirement), a `setup()` keyword or a name a file declares; in quotes, escaped, when it holds a control character |
 | `<namespace>` | a document namespace IRI, as an ID registry file or an SBOM states it, a URL's credentials masked; in quotes, escaped, when it holds a control character |

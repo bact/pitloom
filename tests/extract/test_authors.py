@@ -105,7 +105,7 @@ def test_dependency_address_problem_is_quiet(caplog: pytest.LogCaptureFixture) -
 _TWO_MAILBOXES = "Ann <a@x.org>, Bob <b@x.org>"
 _NAME_REASON = "; a name field is never cut between names"
 _NOT_ADDRESSES = "; ".join(f"x{i} at y@" for i in range(1000))
-_NOT_AN_ADDRESS = ": not an email address; "
+_NOT_AN_ADDRESS = ": not one valid email address; "
 
 
 def _dependency_split(names: str | None, addresses: str | None) -> None:
@@ -134,6 +134,14 @@ def _dependency_split(names: str | None, addresses: str | None) -> None:
         (
             lambda: read_author_fields(None, "y@ " + "y" * 200),
             [f"AUTHOR_EMAIL='y@ {'y' * 117}'...{_NOT_AN_ADDRESS}not recorded"],
+        ),
+        (
+            lambda: read_author_fields(None, "Ann <a@x.org> extra"),
+            [f"AUTHOR_EMAIL='Ann <a@x.org> extra'{_NOT_AN_ADDRESS}not recorded"],
+        ),
+        (
+            lambda: read_author_fields("a@x.org trailing", None),
+            [f"AUTHOR='a@x.org trailing'{_NOT_AN_ADDRESS}not recorded"],
         ),
         (
             lambda: read_author_fields(None, "Ann, " + "b" * 200),
@@ -171,6 +179,8 @@ def _dependency_split(names: str | None, addresses: str | None) -> None:
         "flood",
         "per-field",
         "cut",
+        "text-after-address",
+        "text-after-bare-address",
         "split-cut",
         "splits-cut",
         "dependency-author-unsplit",
@@ -295,12 +305,36 @@ def test_fields_sharing_the_shown_excerpt_warn_each(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     """The once-per-field key is the whole field, not the excerpt shown;
-    a dependency's field is used, so it warns too."""
+    a dependency's field is used, so it warns too, naming its package."""
     with caplog.at_level(logging.WARNING), dependency_author_splits():
         read_author_fields("z" * 70000 + ", Ann", None)
         read_author_fields("z" * 70000 + ", Bob", None)
         dependency_author_pairs("a", "z" * 70000 + ", Cee", None)
-    assert [m.startswith("FIELD=AUTHOR: ") for m in caplog.messages] == [True] * 3
+    assert [m.split(": ", 1)[0] for m in caplog.messages] == [
+        "FIELD=AUTHOR",
+        "FIELD=AUTHOR",
+        "PACKAGE=a FIELD=AUTHOR",
+    ]
+
+
+def test_a_dependency_field_over_the_cap_names_its_package(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """One field text over the cap, read for the project and for two
+    dependencies, each twice: one line per owner, each naming its package
+    (the project's none); a repeat for one owner is not said again."""
+    field = "z" * 70000 + ", Ann"
+    with caplog.at_level(logging.WARNING), dependency_author_splits():
+        for _ in range(2):
+            read_author_fields(field, None)
+            dependency_author_pairs("a", field, None)
+            dependency_author_pairs("b", field, None)
+    assert [m.split(": ", 1)[0] for m in caplog.messages] == [
+        "FIELD=AUTHOR",
+        "PACKAGE=a FIELD=AUTHOR",
+        "PACKAGE=b FIELD=AUTHOR",
+    ]
+    assert all(" author-field cap; " in m for m in caplog.messages)
 
 
 #: A dependency's originator from its fields (core-metadata names), by the
@@ -325,7 +359,11 @@ _DOE = "Doe, Jane <j@x.org>"
             [("Doe", None), ("Jane", "j@x.org")],
             f"PACKAGE=p MAINTAINER_EMAIL={_DOE!r}: split into 2 entries",
         ),
-        ({"Maintainer": "z" * 70000}, [], "FIELD=MAINTAINER: larger than the"),
+        (
+            {"Maintainer": "z" * 70000},
+            [],
+            "PACKAGE=p FIELD=MAINTAINER: larger than the",
+        ),
         ({"Author": "Ann <a@x.org, Bob <b@x.org>", "Maintainer": "Zed"}, [], ""),
         (
             {"Author": "Ann <a@x.org>, Bob <b@x.org>", "Maintainer": "Zed"},

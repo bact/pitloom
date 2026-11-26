@@ -5,7 +5,8 @@
 
 """The helpers that say the shared dataset lines: a dataset value its field
 cannot hold (:func:`warn_dataset_field`), two references to one dataset
-that differ (:func:`warn_dataset_conflict`) or spell it two ways
+that differ (:func:`warn_dataset_conflict`, naming the model by
+:class:`DatasetModel`) or spell it two ways
 (:func:`say_one_dataset`). Each takes the values as read; the fields mask,
 cut and escape them.
 
@@ -17,6 +18,7 @@ from __future__ import annotations
 import datetime
 import logging
 from collections.abc import Mapping
+from dataclasses import dataclass
 from types import MappingProxyType
 from typing import Any, Final
 
@@ -26,6 +28,7 @@ from pitloom.messages._datasets import (
     DATASET_CONFLICT,
     DATASET_CONFLICT_SPELLING,
     DATASET_FIELD_INVALID,
+    MODEL_CONFLICT_LINE,
     NOT_A_COUNT_LINE,
     NOT_A_URL_LINE,
     NOT_TEXT_LINE,
@@ -110,18 +113,45 @@ def warn_dataset_field(
     )
 
 
-def warn_dataset_conflict(log: logging.Logger, dataset: str, field: str) -> None:
-    """The ``WARNING:`` (``dataset-conflict``) that two references to the
-    dataset *dataset* state different values of *field*; the first is
-    kept. The caller says it once per dataset and field."""
-    emit(
-        log,
-        DATASET_CONFLICT,
-        logging.WARNING,
-        line=CONFLICT_LINE,
-        dataset=dataset,
-        dataset_field=field,
-    )
+@dataclass(frozen=True)
+class DatasetModel:
+    """The model a dataset conflict is said of: by its *file* when it has
+    one (``FILE=``), else by its *name* (``MODEL=``).
+
+    Raises:
+        pitloom.core.internal_error.InternalError: Neither is given, or one
+            is empty.
+    """
+
+    #: The model's file, as its other lines name it; ``None`` with none.
+    file: str | None = None
+    #: The model's name, for a model with no file.
+    name: str | None = None
+
+    def __post_init__(self) -> None:
+        """Check that the model is named."""
+        if self.file is None and self.name is None:
+            raise InternalError("a dataset's model needs a file or a name")
+        if self.file == "" or self.name == "":
+            raise InternalError("a dataset's model is named by empty text")
+
+
+def warn_dataset_conflict(
+    log: logging.Logger, model: DatasetModel, dataset: str, field: str
+) -> None:
+    """The ``WARNING:`` (``dataset-conflict``) that two references of
+    *model* to the dataset *dataset* state different values of *field*;
+    the first is kept. The caller says it once per model, dataset and
+    field."""
+    # Each value is a field's, written by it: emit takes them as keywords.
+    values: dict[str, Any] = {"dataset": dataset, "dataset_field": field}
+    if model.file is not None:
+        line = CONFLICT_LINE
+        values["file"] = model.file
+    else:
+        line = MODEL_CONFLICT_LINE
+        values["model"] = model.name
+    emit(log, DATASET_CONFLICT, logging.WARNING, line=line, **values)
 
 
 def say_one_dataset(log: logging.Logger, kept: str, spelling: str) -> None:

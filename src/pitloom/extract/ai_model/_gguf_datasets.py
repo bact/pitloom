@@ -39,6 +39,7 @@ See also: :mod:`pitloom.extract.ai_model.gguf` (the reader) and
 
 from __future__ import annotations
 
+import logging
 import re
 from collections.abc import Iterator, Mapping, Sequence
 from typing import Any, NamedTuple
@@ -58,7 +59,10 @@ from pitloom.core.dataset_names import (
 from pitloom.core.provenance import provenance_segment
 from pitloom.extract.ai_model._stated_text import stated_text
 from pitloom.extract.dataset.values import stated_url
+from pitloom.messages.datasets import DatasetModel
 from pitloom.messages.files import Cap
+
+log = logging.getLogger(__name__)
 
 #: The spec's string array of dataset names or links.
 DATASETS_KEY = "general.datasets"
@@ -267,6 +271,15 @@ def _listed_entry(text: str, source: str, file_name: str) -> DatasetMetadata:
     return meta
 
 
+def _trained_on(meta: DatasetMetadata, said: set[str] | None) -> DatasetReference:
+    """The ``trainedOn`` reference to *meta*, with the fields whose
+    conflict the reader *said* (``None``: none), so the assembler does not
+    say them again."""
+    return DatasetReference(
+        role="trainedOn", metadata=meta, said_conflicts=frozenset(said or ())
+    )
+
+
 def read_gguf_datasets(
     fields: Mapping[str, Any],
     listed: Sequence[str] | None,
@@ -285,7 +298,11 @@ def read_gguf_datasets(
     is another spelling of the first numbered entry of its name. A later
     entry of a kept identity fills the fields the first leaves unset, with
     a ``WARNING:`` for each that both state differently
-    (:func:`~pitloom.core.dataset_merge.merge_dataset_into`). At most
+    (:func:`~pitloom.core.dataset_merge.merge_dataset_into`, the model
+    named by *file_name*, on this reader's logger so that a model scan
+    relays it naming the model's stable path), recorded on its reference
+    (:attr:`~pitloom.core.dataset_metadata.DatasetReference.said_conflicts`)
+    so the assembler does not say it again. At most
     :data:`GGUF_DATASETS_CAP` datasets, with one ``WARNING:`` naming *where*
     when more are listed.
 
@@ -296,13 +313,17 @@ def read_gguf_datasets(
             or ``None`` when the file has none.
         source: The ``Source: <file name>`` part of the provenance.
         where: The model's path, for the over-cap warning.
-        file_name: The model's file name, naming it in a URL warning.
+        file_name: The model's file name, naming it in a URL or a conflict
+            warning (a model scan names it by its stable path).
     """
     found: dict[DatasetIdentity, DatasetMetadata] = {}
     # The field each dataset came from, so the provenance names only the
     # fields of the datasets kept.
     origin: dict[DatasetIdentity, str] = {}
-    warned: dict[DatasetIdentity, set[str]] = {}
+    # The fields said to conflict, per dataset name: the line names no
+    # version, so two releases share one memo.
+    warned: dict[str, set[str]] = {}
+    model = DatasetModel(file=file_name)
     # The version of the first numbered entry of each name: an array
     # element, which states none, is another spelling of that entry.
     first_version: dict[str, str | None] = {}
@@ -311,7 +332,11 @@ def read_gguf_datasets(
         identity = dataset_identity(meta.name, version)
         if identity in found:
             merge_dataset_into(
-                found[identity], meta, warned.setdefault(identity, set())
+                found[identity],
+                meta,
+                warned.setdefault(identity[0], set()),
+                model,
+                say_on=log,
             )
         else:
             found[identity] = meta
@@ -340,6 +365,6 @@ def read_gguf_datasets(
     ]
     if not kept:
         return [], None
-    datasets = [DatasetReference(role="trainedOn", metadata=found[i]) for i in kept]
+    datasets = [_trained_on(found[i], warned.get(i[0])) for i in kept]
     used = dict.fromkeys(origin[i] for i in kept)
     return datasets, provenance_segment(source, "Field", ", ".join(used))

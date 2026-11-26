@@ -184,6 +184,7 @@ SAMPLES: dict[str, object] = {
     "dataset_source": "corpus/README.md",
     "dataset_field": "version",
     "dataset_value_type": 1.1,
+    "model": "org/tiny-model",
     "properties": ["dataset name", "name"],
 }
 

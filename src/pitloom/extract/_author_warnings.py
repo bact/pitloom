@@ -55,15 +55,26 @@ class AuthorSplit(NamedTuple):
     named: bool = False
 
 
-def warn_field_cap(field: str, key: str, cap: Cap, read: str | None) -> None:
-    """One ``WARNING:`` once per *field* (its whole text) and process
-    (:func:`~pitloom.messages.files.warn_over_cap`) that it is over *cap*:
-    *key* names the field, *read* what was read (``3 entries``; ``None``:
-    nothing)."""
+def warn_field_cap(
+    field: str, key: str, cap: Cap, read: str | None, package: str | None = None
+) -> None:
+    """One ``WARNING:`` once per *package*, *key* and *field* (its whole
+    text) and process (:func:`~pitloom.messages.files.warn_over_cap`) that
+    it is over *cap*: *key* names the field, *read* what was read
+    (``3 entries``; ``None``: nothing), *package* the dependency whose
+    record holds it (``None``: the project's own)."""
     digest = hashlib.sha256(field.encode("utf-8", "surrogatepass")).hexdigest()
     shown = excerpt(field)
     outcome = f"only the first {read} read of {shown}" if read else f"{shown} not read"
-    warn_over_cap(_logger, cap, key, outcome, once=True, key=f"{key}:{digest}")
+    warn_over_cap(
+        _logger,
+        cap,
+        key,
+        outcome,
+        once=True,
+        key=repr((package, key, digest)),
+        package=package,
+    )
 
 
 def warn_author_splits(splits: list[AuthorSplit], *, quiet: bool = False) -> None:

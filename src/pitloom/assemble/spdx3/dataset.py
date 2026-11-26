@@ -28,6 +28,7 @@ from pitloom.core.provenance import ProvenanceConfig
 from pitloom.core.purl import build_generic_purl
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 from pitloom.extract.dataset.values import is_stated_count, stated_count
+from pitloom.messages.datasets import DatasetModel
 
 # Mapping from DatasetReference.role strings to SPDX 3.0.1 RelationshipType.
 # finetunedOn, validatedOn, pretrainedOn do not exist in SPDX 3.0.1;
@@ -259,6 +260,17 @@ def _dataset_relationship(
     return rel
 
 
+def dataset_model(ai_model: AiModelMetadata) -> DatasetModel:
+    """*ai_model* as a dataset conflict names it: by its file, as its other
+    warnings name it
+    (:attr:`~pitloom.core.ai_metadata.AiModelFormatInfo.shown_path`), else
+    by the name it is shown under (not its URL, as other warnings do)."""
+    file = ai_model.format_info.shown_path
+    if file:
+        return DatasetModel(file=file)
+    return DatasetModel(name=ai_model.resolve_name()[0])
+
+
 # pylint: disable=too-many-arguments,too-many-positional-arguments
 def add_datasets_for_model(
     ai_package_spdx_id: str,
@@ -279,7 +291,8 @@ def add_datasets_for_model(
     :func:`~pitloom.assemble.spdx3._ai_package.finish_ai_package`.
 
     References to one dataset (:mod:`pitloom.core.dataset_merge`) give one
-    package, its elements built once.
+    package, its elements built once; a conflict between them names
+    *ai_model* (:func:`dataset_model`).
 
     Each dataset's name and creator name is cut as *ai_model*'s own name
     is, with the warning naming *ai_model*
@@ -292,7 +305,7 @@ def add_datasets_for_model(
     entry, or any dataset when it is ``None``, takes *creation_info*.
     """
     created: list[tuple[str, spdx3.Element]] = []
-    for dataset in merge_dataset_references(datasets):
+    for dataset in merge_dataset_references(datasets, model=dataset_model(ai_model)):
         meta = dataset.metadata
         element_creation_info = next(
             (

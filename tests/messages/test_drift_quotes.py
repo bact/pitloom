@@ -117,7 +117,7 @@ _MARKERS: dict[str, tuple[str, ...]] = {
         "an address field cannot tell a list",
         "read as one author; it may list several",
     ),
-    "author-invalid": ("not an email address; ",),
+    "author-invalid": ("not one valid email address; ",),
     "caller-info-unreadable": (
         "caller info not determined",
         "caller script path not determined",

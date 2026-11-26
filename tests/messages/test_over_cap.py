@@ -37,7 +37,7 @@ from pitloom.messages import (
     emit,
     trusted_message,
 )
-from pitloom.messages._over_cap import KEY_LINE, MODEL_LINE, REASON
+from pitloom.messages._over_cap import KEY_LINE, MODEL_LINE, PACKAGE_KEY_LINE, REASON
 from pitloom.messages._templates import render
 from pitloom.messages.files import (
     CONFIG_MEMBER_LINE,
@@ -45,6 +45,7 @@ from pitloom.messages.files import (
     SOURCE_LINE,
     Cap,
     over_cap_of,
+    warn_metadata_budget,
     warn_over_cap,
 )
 
@@ -214,6 +215,50 @@ def test_extra_never_replaces_the_code(caplog: pytest.LogCaptureFixture) -> None
     (record,) = caplog.records
     assert getattr(record, CODE_ATTR) == "over-cap"
     assert record.__dict__["pitloom_probe"] == 1
+
+
+def test_a_dependency_s_input_names_its_package_first(
+    capsys: pytest.CaptureFixture[str], caplog: pytest.LogCaptureFixture
+) -> None:
+    """The package, then the key: one line per package for the same field
+    text, each trusted as the entry, the cap on its record."""
+    configure_logging()
+    cap = Cap(1000, "entry", "author-field", "FIELD")
+    with caplog.at_level(logging.DEBUG, logger=_LOG.name):
+        for package in ("requests", "idna", "requests"):
+            warn_over_cap(_LOG, cap, "AUTHOR_EMAIL", once=True, package=package)
+    assert [r.levelno for r in caplog.records] == [
+        logging.WARNING,
+        logging.WARNING,
+        logging.DEBUG,
+    ]
+    first = caplog.records[0]
+    assert first.msg == PACKAGE_KEY_LINE.template
+    assert over_cap_of(first) == (cap, "skipped")
+    printed = capsys.readouterr().err.splitlines()
+    assert printed == [
+        f"WARNING: PACKAGE={package} FIELD=AUTHOR_EMAIL: larger than the "
+        "1000-entry author-field cap; skipped [over-cap]"
+        for package in ("requests", "idna")
+    ]
+    assert all(trusted_message(line) is OVER_CAP for line in printed)
+
+
+def test_a_model_s_cap_names_no_package() -> None:
+    with pytest.raises(InternalError, match="names no package"):
+        warn_over_cap(_LOG, model_cap(_NAME, "gguf"), "m.gguf", package="p")
+
+
+@pytest.mark.parametrize("keys", [0, -1, True], ids=repr)
+def test_a_metadata_budget_counts_one_key_or_more(keys: int) -> None:
+    cap = Cap.of_model(10, "byte", "max-source-metadata-bytes", "gguf")
+    with pytest.raises(InternalError, match="metadata keys"):
+        warn_metadata_budget(_LOG, cap, "m.gguf", keys)
+
+
+def test_a_metadata_budget_counts_bytes() -> None:
+    with pytest.raises(InternalError, match="counts bytes"):
+        warn_metadata_budget(_LOG, Cap(10, "entry", "max-entries"), "m.gguf", None)
 
 
 def test_a_model_is_named_once() -> None:

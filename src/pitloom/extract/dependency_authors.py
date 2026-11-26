@@ -35,12 +35,18 @@ def dependency_author_pairs(
     (their keys *keys*), by :func:`~pitloom.extract.authors.author_pairs`.
     A split is reported once per document by the enclosing
     :func:`~pitloom.extract.authors.dependency_author_splits` block, or at
-    once outside one; an address entry that is no address is left out
-    quietly (another project's record, one line each would flood a large
-    environment). A field over a cap warns: these authors are used."""
+    once outside one; an address entry that is not one valid email
+    address is left out quietly (another project's record, one line each
+    would flood a large environment). A field over a cap warns, naming
+    *package*: these authors are used."""
     splits: list[AuthorSplit] = []
     pairs = author_pairs(
-        names, addresses, splits=splits, quiet=False, address_warnings=False, keys=keys
+        names,
+        addresses,
+        splits=splits,
+        quiet=False,
+        keys=keys,
+        package=package,
     )
     report_dependency_splits(package, splits)
     return pairs

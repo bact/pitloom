@@ -52,12 +52,11 @@ from pitloom.core.provenance import (
 )
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 from pitloom.messages.config import Parameter
-from pitloom.messages.files import Cap, warn_over_cap
+from pitloom.messages.files import Cap, warn_metadata_budget
 
 log = logging.getLogger(__name__)
 
 _BUDGET = "max-source-metadata-bytes"
-_EMPTIED = "every metadata key left out of the artifact-metadata annotation"
 
 #: Statement-schema URL for a fragment-unification process Annotation (A1).
 UNIFICATION_SCHEMA_URL = "https://pitloom.dev/provenance/unification/1"
@@ -359,11 +358,11 @@ def build_source_metadata_annotation(
             metadata, source_format, max_metadata_bytes, types, left_out
         )
         if result is None:
-            warn_over_cap(log, cap, where, "artifact-metadata annotation left out")
+            warn_metadata_budget(log, cap, where, None)
             return None
         kept_metadata, dropped_keys = result
         if dropped_keys and not kept_metadata:
-            warn_over_cap(log, cap, where, _EMPTIED)
+            warn_metadata_budget(log, cap, where, len(dropped_keys))
 
     statement = _artifact_metadata_envelope(
         source_format,

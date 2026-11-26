@@ -300,3 +300,25 @@ def test_no_code_assigns_the_source_metadata_fields_by_hand() -> None:
         and node.attr in _SOURCE_FIELDS
     ]
     assert {where for where, _ in stores} == _SOURCE_FIELD_STORES_ALLOWED
+
+
+@pytest.mark.parametrize(
+    ("physical", "relative", "name", "shown"),
+    [
+        ("src/p/m.gguf", "p/m.gguf", "m.gguf", "src/p/m.gguf"),
+        (None, "p/m.gguf", "m.gguf", "p/m.gguf"),
+        ("", "", "m.gguf", "m.gguf"),
+        (None, None, None, None),
+        ("", "", "", None),
+    ],
+    ids=["physical", "relative", "name", "none", "all-empty"],
+)
+def test_shown_path_takes_the_first_path_stated(
+    physical: str | None, relative: str | None, name: str | None, shown: str | None
+) -> None:
+    """A model file as warnings name it: physical path, then path in the
+    package, then file name; ``None``, never ``""``, with none stated."""
+    info = AiModelFormatInfo(
+        file_name=name, file_path_relative=relative, physical_path=physical
+    )
+    assert info.shown_path == shown

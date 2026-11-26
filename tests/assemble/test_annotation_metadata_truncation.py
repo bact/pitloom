@@ -129,9 +129,8 @@ def test_budget_drops_every_key_but_envelope_still_fits(
     assert sorted(statement["truncatedKeys"]) == sorted(metadata)
     assert statement["truncatedKeyCount"] == len(metadata)
     assert [r.getMessage() for r in caplog.records] == [
-        "FORMAT=gguf FILE=urn:doc#ai_AIPackage-1: larger than the 230-byte "
-        "max-source-metadata-bytes cap; every metadata key left out of the "
-        "artifact-metadata annotation"
+        "FORMAT=gguf FILE=urn:doc#ai_AIPackage-1: all 3 metadata key(s) left "
+        "out to fit the 230-byte max-source-metadata-bytes cap"
     ]
     assert [getattr(r, "pitloom_code", None) for r in caplog.records] == ["over-cap"]
 
@@ -152,8 +151,9 @@ def test_budget_too_small_for_empty_envelope_returns_none(
         )
     assert ann is None
     assert [r.getMessage() for r in caplog.records] == [
-        "FORMAT=gguf FILE=urn:doc#ai_AIPackage-1: larger than the 8-byte "
-        "max-source-metadata-bytes cap; artifact-metadata annotation left out"
+        "FORMAT=gguf FILE=urn:doc#ai_AIPackage-1: its metadata does not fit "
+        "the 8-byte max-source-metadata-bytes cap even with no key; "
+        "artifact-metadata annotation left out"
     ]
     assert [getattr(r, "pitloom_code", None) for r in caplog.records] == ["over-cap"]
 
@@ -218,8 +218,9 @@ def test_a_model_route_names_the_model_file_in_the_budget_line(
         r for r in caplog.records if getattr(r, "pitloom_code", None) == "over-cap"
     ]
     assert [r.getMessage() for r in budget] == [
-        "FORMAT=gguf FILE=models/m.gguf: larger than the 8-byte "
-        "max-source-metadata-bytes cap; artifact-metadata annotation left out"
+        "FORMAT=gguf FILE=models/m.gguf: its metadata does not fit the 8-byte "
+        "max-source-metadata-bytes cap even with no key; artifact-metadata "
+        "annotation left out"
     ]
 
 

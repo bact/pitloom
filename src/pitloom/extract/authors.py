@@ -121,6 +121,9 @@ class _Report(NamedTuple):
     #: Where the ``(key, entry)`` of an address entry holding no address
     #: is noted (:func:`_read_entry`); ``None``: not warned about.
     addresses: list[tuple[str, str]] | None
+    #: The dependency whose record holds the fields, named in a cap's
+    #: warning; ``None``: the project's own.
+    package: str | None = None
 
 
 def _counted_entries(count: int) -> str:
@@ -128,25 +131,26 @@ def _counted_entries(count: int) -> str:
     return f"{count} {'entry' if count == 1 else 'entries'}"
 
 
-def _capped(field: str, parts: list[str], what: _Field, warn: bool) -> list[str]:
+def _capped(field: str, parts: list[str], what: _Field, report: _Report) -> list[str]:
     """*parts* of *field* within :data:`AUTHOR_FIELD_MAX_CHARS` and
     :data:`AUTHOR_FIELD_MAX_NAMES`: past the first, the last part (maybe
     cut; a name field's one part when it holds no mailbox) is dropped too.
-    With *warn*, one ``WARNING:`` once per field and process naming the
-    cap hit (the character cap when both are) and what was read
+    With ``report.caps``, one ``WARNING:`` once per field and process
+    naming the cap hit (the character cap when both are), what was read
+    and ``report.package``
     (:func:`~pitloom.extract._author_warnings.warn_field_cap`)."""
     cut = len(field) > AUTHOR_FIELD_MAX_CHARS
     if not cut and len(parts) <= AUTHOR_FIELD_MAX_NAMES:
         return parts
     kept = parts[: -1 if cut else None][:AUTHOR_FIELD_MAX_NAMES]
-    if warn:
+    if report.caps:
         cap = (
             Cap(AUTHOR_FIELD_MAX_CHARS, "character", "author-field", "FIELD")
             if cut
             else Cap(AUTHOR_FIELD_MAX_NAMES, "entry", "author-field", "FIELD")
         )
         read = _counted_entries(len(kept)) if kept else None
-        warn_field_cap(field, what.key, cap, read)
+        warn_field_cap(field, what.key, cap, read, report.package)
     return kept
 
 
@@ -260,7 +264,7 @@ def _field_entries(
     and ``<...>``."""
     read = text[:AUTHOR_FIELD_MAX_CHARS]
     parts, warned = field_parts(read, what.named)
-    parts = _capped(text, parts, what, report.caps)
+    parts = _capped(text, parts, what, report)
     noted: list[tuple[str, str]] = []
     entries = [pair for part in parts for pair in _read_entry(part, what.key, noted)]
     if report.addresses is not None:
@@ -281,8 +285,8 @@ def author_pairs(
     *,
     splits: list[AuthorSplit],
     quiet: bool,
-    address_warnings: bool = True,
     keys: tuple[str, str] = AUTHOR_KEYS,
+    package: str | None = None,
 ) -> list[NameEmail]:
     """``(name, email)`` pairs from a free-text name field and its address
     field (``Author``/``Author-email``, ``author``/``author_email``).
@@ -312,9 +316,11 @@ def author_pairs(
     cannot be recovered from these headers; the one fixed rule keeps the
     result stable.
 
-    An address entry holding no address of the form ``local@domain`` is not
-    recorded, its stated display name kept, with one ``WARNING:`` per field
-    (unless *quiet* or not *address_warnings*). An address field cut where
+    An address entry that is not one valid email address
+    (``local@domain``) is not recorded, its stated display name kept, with
+    one ``WARNING:`` per field (unless *quiet*, or for a dependency's
+    record, *package* set: another project's, one line each would flood a
+    large environment). An address field cut where
     a separator could be inside a name, and a name field cut at all, are
     appended to *splits*, for the caller's warning, as is a name field
     recorded as one author though it holds ``,``, ``;`` or ``and`` (one
@@ -324,10 +330,11 @@ def author_pairs(
     read is used, and *quiet* marks a read whose value is discarded (or
     re-reads a field already reported), which warns about nothing. A
     ``WARNING:`` names a field by its key in *keys* (name field, address
-    field).
+    field), after ``PACKAGE=`` *package* for a dependency's record.
     """
-    noted: list[tuple[str, str]] | None = [] if address_warnings and not quiet else None
-    report = _Report(caps=not quiet, addresses=noted)
+    warn_addresses = package is None and not quiet
+    noted: list[tuple[str, str]] | None = [] if warn_addresses else None
+    report = _Report(caps=not quiet, addresses=noted, package=package)
     names_text = stated_text(names)
     address_field = _Field(keys[1], named=False)
     parsed = _field_entries(stated_text(addresses), address_field, splits, report)

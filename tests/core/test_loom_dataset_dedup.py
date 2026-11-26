@@ -28,6 +28,7 @@ from pitloom.core.dataset_merge import merge_dataset_references
 from pitloom.core.dataset_metadata import DatasetMetadata, DatasetReference
 from pitloom.core.dataset_names import CARD_DATASETS_CAP, distinct_dataset_names
 from pitloom.id_registry import DATASET_PACKAGE_TYPE, FILE_TYPE
+from pitloom.messages.datasets import DatasetModel
 from tests.registry_helpers import make_registry
 
 from .conftest import _relationships
@@ -351,7 +352,8 @@ def test_a_folded_spelling_is_said_once_by_every_route(
                     ("testedOn", "org/data"),
                     ("trainedOn", "Org/Data"),
                 )
-            ]
+            ],
+            model=DatasetModel(file="m.gguf"),
         )
         merged = _said(caplog)
     assert sdk == card == merged == [expected]

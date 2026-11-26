@@ -142,11 +142,12 @@ and this project adheres to
   (`file-unwritable`) naming that file ([#524])
 - loom SDK lines start `loom SDK: `, a model's registry lines `ID registry: `;
   no model, a `croissant=` URL or an `enrich_model()` Hub source are coded ([#527])
-- Author lines drop the ` -- only authors ...` hint; a dependency split starts
-  `PACKAGE=`; a bad sdist `pyproject.toml` relays its reader's code ([#527])
+- Author lines drop the ` -- only authors ...` hint and say `not one valid email
+  address`; a dependency's split or over-cap field starts `PACKAGE=` ([#527], [#548])
+- A bad sdist `pyproject.toml` relays its reader's code ([#527])
 - A library `sbom_basename` refusal names `sbom_basename`, not `--sbom-basename` ([#527])
 - Dataset field, Croissant name, display-text and metadata-budget lines carry
-  codes; dataset lines name `SOURCE=` and `FIELD=` ([#534])
+  codes; a dataset conflict names its model (`FILE=`/`MODEL=`) ([#534], [#548])
 - `generate_model_sbom()` on a PyPI URL raises `pypi-url-unusable` without an
   uncoded `WARNING:` first; a refused `-o` or hook-staged SBOM write is
   `file-unwritable` (library: `CodedOSError`, not `PermissionError`) ([#536])
@@ -169,6 +170,7 @@ and this project adheres to
 - The message reference dates a line newer than its code ([#546]); `line_kind()`
   reads a message that could not be shown but kept a catalogued code as `coded`
   ([#545], [#546])
+- Metadata-budget lines say the metadata, not the file, is over the cap ([#548])
 
 ### Fixed
 
@@ -270,6 +272,7 @@ and this project adheres to
 [#544]: https://github.com/bact/pitloom/pull/544
 [#545]: https://github.com/bact/pitloom/pull/545
 [#546]: https://github.com/bact/pitloom/pull/546
+[#548]: https://github.com/bact/pitloom/pull/548
 
 ## [0.24.0] - 2026-11-11
 
