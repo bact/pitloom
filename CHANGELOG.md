@@ -175,6 +175,8 @@ and this project adheres to
 - Metadata-budget lines say the metadata, not the file, is over the cap ([#548])
 - Messages reworded for one shape: lower-case conditions, `directory` not `folder`,
   `ELEMENT=`, a quoted `MODEL=`, an sdist member as `FILE=` ([#553])
+- A licence file holding several licence texts (numpy's `LICENSE.txt`) gives no
+  detected licence, stated or not ([#554])
 
 ### Fixed
 
@@ -281,6 +283,7 @@ and this project adheres to
 [#550]: https://github.com/bact/pitloom/pull/550
 [#551]: https://github.com/bact/pitloom/pull/551
 [#553]: https://github.com/bact/pitloom/pull/553
+[#554]: https://github.com/bact/pitloom/pull/554
 
 ## [0.24.0] - 2026-11-11
 
