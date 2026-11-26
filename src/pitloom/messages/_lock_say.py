@@ -31,8 +31,7 @@ from typing import Any, Final, Literal
 from packaging.utils import canonicalize_name
 
 from pitloom.core.internal_error import InternalError
-from pitloom.log_masking import masked_text
-from pitloom.logging_config import EXCERPT_CHARS, one_line
+from pitloom.logging_config import EXCERPT_CHARS, collapsed, one_line
 from pitloom.messages._dependency import (
     CAUSE_LINES,
     DEPENDENCY_NAME_AMBIGUOUS,
@@ -107,7 +106,8 @@ class _CutFailure(Exception):
 
 def _cut_failure(failure: object) -> object:
     """*failure* as a lock or dependency line prints it: an exception's
-    text on one line, a URL's credentials masked, then cut to
+    text on one line and masked, before and after its white space is
+    collapsed (:func:`~pitloom.logging_config.collapsed`), then cut to
     :data:`~pitloom.logging_config.EXCERPT_CHARS` characters, ``...`` after
     it when cut (a parser's message can repeat a 3,000-character marker or
     version). An :class:`OSError` with its own description, or any value
@@ -116,7 +116,7 @@ def _cut_failure(failure: object) -> object:
         isinstance(failure, OSError) and failure.strerror
     ):
         return failure
-    text = masked_text(" ".join(str(failure).split()))
+    text = collapsed(str(failure))
     if len(text) <= EXCERPT_CHARS:
         return failure
     return _CutFailure(text[:EXCERPT_CHARS] + "...")

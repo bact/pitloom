@@ -13,6 +13,7 @@ import sys
 from typing import Any
 
 from pitloom.core.project import ProjectMetadata
+from pitloom.log_masking import masked_lines
 from pitloom.messages.dependencies import (
     NO_DEPENDENCY_KEY,
     NO_OUTPUT,
@@ -27,8 +28,11 @@ from pitloom.messages.dependencies import (
 
 def _last_line(stderr: bytes | None) -> str:
     """The last line of *stderr* that is not blank, stripped, or
-    :data:`~pitloom.messages.dependencies.NO_OUTPUT`."""
-    lines = (stderr or b"").decode("utf-8", "replace").strip().splitlines()
+    :data:`~pitloom.messages.dependencies.NO_OUTPUT`. *stderr* is masked
+    whole before its last line is picked
+    (:func:`~pitloom.log_masking.masked_lines`): a password holding a line
+    break is not cut to its last piece."""
+    lines = masked_lines((stderr or b"").decode("utf-8", "replace").strip())
     return lines[-1].strip() if lines else NO_OUTPUT
 
 

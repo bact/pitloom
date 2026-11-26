@@ -25,7 +25,14 @@ from pitloom.extract.remote._git_credentials import split_credentials
 from pitloom.extract.remote._http_errors import shown_url
 from pitloom.extract.remote.pypi_url import parse_pypi_url
 from pitloom.messages import escaped_name, url_text
-from pitloom.messages._field_writers import NAME_CHARACTERS, NAME_CUT_MARK
+from pitloom.messages._field_writers import (
+    NAME_CHARACTERS,
+    NAME_CUT_MARK,
+    entity_text,
+    failure_text,
+    file_text,
+    free_text,
+)
 
 _BODY = "T0KEN" + "aB3" * 10 + "x"
 _TOKEN = f"ghp_{_BODY}"
@@ -106,3 +113,44 @@ def test_each_caller_writes_a_refused_url_masked_then_escaped(
         refuse(url)
     message = str(excinfo.value)
     assert _BODY[:18] not in message and "ghp_***" in message
+
+
+_LABELS = ["Request ID", "Amzn Trace ID", "Amz CF ID"]
+
+
+@pytest.mark.parametrize("label", _LABELS, ids=["request", "amzn", "amz-cf"])
+def test_a_dropped_request_id_does_not_glue_a_token(label: str) -> None:
+    """The token is masked before the request id is dropped: masked after
+    it only, ``abcghp_...`` reads as one word, which no shape matches. The
+    mirror, user information the drop joins, is masked after it."""
+    glued = failure_text(RuntimeError(f"abc({label}: a){_TOKEN}"))
+    assert _BODY not in glued and glued == "abcghp_***"
+    joined = failure_text(RuntimeError(f"https://u:pw99x({label}: a)@h"))
+    assert "pw99x" not in joined and joined == "https://***:***@h"
+
+
+_ZERO_WIDTH_SPLIT = _TOKEN[:10] + "\u200b" + _TOKEN[10:]
+
+
+@pytest.mark.parametrize(
+    "write", [free_text, file_text, entity_text], ids=["free", "file", "entity"]
+)
+@pytest.mark.parametrize(
+    ("value", "secrets", "masked_form"),
+    [
+        (f"see {_ZERO_WIDTH_SPLIT}\t", (_BODY[:6], _BODY[6:]), "ghp_***"),
+        ("alice:p\u00e4ssw0rd9@host:o/r\t", ("alice", "ssw0rd9"), "***:***@host"),
+    ],
+    ids=["zero-width", "scp-non-ascii"],
+)
+def test_a_writer_masks_before_it_escapes(
+    write: Callable[[object], str],
+    value: str,
+    secrets: tuple[str, ...],
+    masked_form: str,
+) -> None:
+    """Escaped first, ``\\u200b`` stands inside the token and ``\\xe4``
+    inside the password, which no shape matches."""
+    shown = write(value)
+    assert not any(secret in shown for secret in secrets)
+    assert masked_form in shown and shown.endswith("\\t'")

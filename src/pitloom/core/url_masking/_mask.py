@@ -20,6 +20,7 @@ from urllib.parse import unquote
 
 from pitloom.core.url_masking._auth_schemes import mask_auth_schemes
 from pitloom.core.url_masking._boundary import word_start
+from pitloom.core.url_masking._headers import mask_secret_headers
 from pitloom.core.url_masking._hits import (
     PURL_DECODE_ROUNDS,
     purl_qualifiers,
@@ -121,7 +122,10 @@ def masked_given_path(
     (:mod:`pitloom.cli.kv_output`). A secret value runs to the next ``&``,
     ``#`` or the URL's end (to a ``;`` too when a ``;`` opened it: a path
     parameter), over a ``;``, a quote, and over white space unless in a
-    *line* outside quotes. The masked text is masked again until nothing changes,
+    *line* outside quotes (so outside a *line*, a value empty at a line end
+    takes the next line: ``?token=`` then a wrapped secret is masked, and
+    so is an ordinary next line). The masked text is masked again until
+    nothing changes,
     at most :data:`_MASK_PASSES` times (a URL masked in a quoted context
     can take away the stop that ended an earlier URL's user information),
     so masking a masked text changes nothing unless a text needs more
@@ -135,8 +139,11 @@ def masked_given_path(
     the value of a PURL qualifier that holds a hit once percent-decoded
     (``download_url=***``), and the credential after a ``Bearer`` or
     ``Basic`` scheme (``Authorization: Bearer ***``,
-    :mod:`~pitloom.core.url_masking._auth_schemes`). A token, an scp-style
-    address, a PURL or a scheme may start right after an escape sequence
+    :mod:`~pitloom.core.url_masking._auth_schemes`), the value of a header
+    that carries a secret and of each cookie (``X-Api-Key: ***``,
+    ``Cookie: sid=***``, :mod:`~pitloom.core.url_masking._headers`). A
+    token, an scp-style address, a PURL, a scheme or a header name may start
+    right after an escape sequence
     (``\\t``, ``\\x1b``: a text escaped before it is masked,
     :mod:`~pitloom.core.url_masking._boundary`).
 
@@ -262,7 +269,8 @@ def _masked_formats(text: str, *, line: bool, free_params: bool) -> str:
 
 def _masked(text: str, *, line: bool, free_params: bool) -> str:
     """:func:`masked_given_path` of *text* as it is."""
-    text = mask_auth_schemes(mask_scp(mask_tokens(_masked_purls(text))))
+    text = mask_scp(mask_tokens(_masked_purls(text)))
+    text = mask_secret_headers(mask_auth_schemes(text))
     masked = masked_once(text, line=line)
     passes = 1
     while masked != text and passes < _MASK_PASSES:

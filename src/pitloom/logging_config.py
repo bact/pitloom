@@ -32,6 +32,12 @@ from typing import TYPE_CHECKING, Any, TextIO, cast
 from pitloom._log_text import EXCERPT_CHARS as EXCERPT_CHARS  # noqa: F401
 
 # pylint: disable-next=useless-import-alias,unused-import
+from pitloom._log_text import collapsed as collapsed  # noqa: F401
+
+# pylint: disable-next=useless-import-alias,unused-import
+from pitloom._log_text import escaped_literal as escaped_literal  # noqa: F401
+
+# pylint: disable-next=useless-import-alias,unused-import
 from pitloom._log_text import excerpt as excerpt  # noqa: F401
 
 # pylint: disable-next=useless-import-alias,unused-import
@@ -44,7 +50,12 @@ from pitloom._log_text import loggable as loggable  # noqa: F401
 from pitloom._log_text import one_line as one_line  # noqa: F401
 from pitloom.core.untrusted_text import DISPLAY_CONTROLS
 from pitloom.core.url_masking import mask_checkout, masked_given_path
-from pitloom.log_masking import install_record_factory, mask_record, masked_text
+from pitloom.log_masking import (
+    install_record_factory,
+    mask_record,
+    masked_lines,
+    masked_text,
+)
 
 # Guards the handlers.clear()/addHandler() swap below (see
 # configure_logging()'s docstring) and the _WARNED_ONCE read-then-write in
@@ -194,10 +205,10 @@ def print_traceback() -> None:
     """Print the traceback of the exception being handled to stderr, each
     line indented and escaped by :func:`escape_controls`: a line of an
     exception message that reads ``WARNING: forged`` is not a tagged line.
-    The traceback is masked whole
-    (:func:`~pitloom.log_masking.masked_text`) before it is split, so a
-    password holding a line break is not left in pieces on two lines."""
-    for line in masked_text(traceback.format_exc()).splitlines():
+    The traceback is masked whole before it is split
+    (:func:`~pitloom.log_masking.masked_lines`), so a password holding a
+    line break is not left in pieces on two lines."""
+    for line in masked_lines(traceback.format_exc()):
         print(f"  {escape_controls(line)}", file=sys.stderr)
 
 

@@ -6,12 +6,12 @@ SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
 ---
 
-# Log masking PR (before 0.25.0): order of mask, collapse and escape; new shapes
+# Log masking (#544): mask before collapse and escape; header, ANSI, scp shapes
 
-See also: [log-masker-escaped-tokens.md](../implementation/log-masker-escaped-tokens.md)
+See also: [log-masker-escaped-tokens.md](log-masker-escaped-tokens.md)
 (#526, its "Left open" list is this PR's source),
-[message-catalogue-sweep-b-plan.md](../implementation/message-catalogue-sweep-b-plan.md)
-("For sweep C", masking items), [roadmap.md](roadmap.md) ("Log masker
+[message-catalogue-sweep-b-plan.md](message-catalogue-sweep-b-plan.md)
+("For sweep C", masking items), [roadmap.md](../design/roadmap.md) ("Log masker
 leftovers"), `docs/url-credentials.md` (what a user reads).
 
 Reference tree 4c194136 (main 4ef7961d plus #543, `%20` ends a run). Every
@@ -356,3 +356,89 @@ Per-regex cost on 200,000 characters (seconds, base / prototype with the
 gate): `m` run: SCP 0.009 / 0.009, PURL 0.007 / 0.009, header 0.012; prose
 words: SCP 0.010 / 0.010, token 0.011 / 0.011; ANSI and token text: token
 0.009 / 0.016. Without the gate the SCP and PURL passes took 0.07 s (7x).
+
+## 10. As built (2026-11-26)
+
+Built as planned, with the rulings above (R3 a closed list). Changes from
+the plan:
+
+- `logging_config.py` split first, as a pure move: `loggable`, `excerpt`,
+  `one_line`, `failure_reason` and their constants went to
+  `pitloom._log_text`, re-exported from `pitloom.logging_config` (no caller
+  changed). `collapsed()` and `escaped_literal()` live there too.
+- `collapsed()` turns every white space character that `str.split()`
+  collapses but the masker's line reading does not read inside a user
+  information (U+00A0, U+3000, U+2000 to U+200A, ...; built from `\s`
+  minus the space, the tab and the `splitlines` breaks) into a tab before
+  the first mask. A tab is read inside a user information, so a password
+  split by a no-break space is masked. Over-mask: words joined only by such
+  characters can read as one address, as with a tab.
+- The ratio helpers of the linear-time tests are one module,
+  `tests/_linear_time.py`, used by the masker shapes and by a new
+  `one_line` (with `steady`) cost test.
+
+Fresh review (Fable, after Gate A; 20,232-case differential over 16
+surfaces, 69 cost shapes, 23 mutants). Two regressions against base, both
+fixed: a scheme-less `Authorization:` credential before a line break was
+shown (the line break made the key the "scheme"; the first word is now
+judged alone when the run after a line break is no credential), and a git
+failure text showed a password split by a no-break space (above). Gaps
+fixed: a quote escaped three times (`\\{0,3}`), any `splitlines` break raw
+or escaped as a header separator (lone `\r`, U+2028, U+0085, `\x0b`), an
+scp password starting or ending with `@` (`[^\s/\\:]+@`, greedy to the
+last `@`, linear as no password spans a `:`), a terminal sequence between
+the scheme and the credential, ECMA-48 parameter characters `[0-?]` (a
+`:` in `\x1b[38:5:196m`), `("X-Api-Key", "v")` pairs, a quoted cookie value
+holding a space, an indented next header name kept. One mutant survivor
+(the second mask in `_git_run._failure`) is now killed.
+
+Not taken: the review's finding that an empty secret value at a line end
+takes the next line (`?token=` then `fatal: repository not found` prints
+`?token=***`, and `env._last_line` loses `ValueError: boom`). A fix was
+built and reverted: it showed a secret wrapped right after its `=`
+(`?token=\n<secret>`), which base masks, against this PR's rule that no
+text masked on base is shown after. Documented as over-masked; pinned by
+`test_a_secret_wrapped_after_its_parameter_name_stays_masked`.
+
+Verification:
+
+- Before/after sweep (366 texts x 10 views, base 63dde20e against the
+  tree): 87 of 3,670 rows change, every one masking more; no word shown
+  that base hid, no row with fewer `***`. Reviewer's differential against
+  base: 0 regressions on 15 surfaces, no new exception.
+- Linear time: 45 new masker shapes (ratio 2.3 to 9.0 on a loaded
+  machine, bound 15) and 6 `one_line` shapes (3.9 to 7.6 at 100k against
+  500k; the 13.9 seen at 30k was noise).
+- Gate A (before the review round): full suite 29,417 passed; branch
+  coverage of the 15 changed modules 100%; every CI linter clean; message
+  inventory and reference unchanged; manual CLI checks (setuptools, build,
+  wheel, remote targets, offline): 90 pass, 0 fail, 8 need `--network`.
+- Windows dry-run: an ESC in the CLI test's path is `ERROR_INVALID_NAME`
+  (winerror 123), which `is_missing_errno` and `Path.exists()` read as
+  missing, so the test gives `input-not-found` there too; `\r\n` is covered
+  in the relay, `masked_lines` and header-separator tests.
+
+Gate B mutation (hand, on scratch copies, after the review round): 146
+mutants, 100 killed at first. The 46 survivors were test gaps, now killed
+by pinned inputs (the 13 header names as a literal list, the `Expires` and
+`Priority` attribute values, each placeholder first character, `token` as
+a scheme word in a secret header, the escaped tab and line end in the
+header pass, a cookie value escaped twice, an empty cookie value, a
+terminal sequence after a scheme word alone, the `\x1c` to `\x1e` and
+U+2029 breaks raw and escaped, upper-case hexadecimal escapes, a triple-
+escaped and a pair `Authorization`, the steady collapse, `one_line`
+writing a cut masked text unmasked again), or equivalent: CR and LF
+alternatives inside a `+` run, the git fallback escaper over masked text,
+`Secure`/`HttpOnly`/`Partitioned` (no value). From it:
+
+- The header and cookie placeholder first characters are one constant
+  (`<`, `$`, `{`, `*`); before, a header value starting `>` or `}` was kept
+  and a cookie value not.
+- The pass order stays `Authorization` first. Run first, the header pass
+  masks `Authorization: Bearer X-Api-Key: v` too, but ends a value at a
+  terminal sequence's `;` and so hides the scheme word from the
+  `Authorization` pass: `X-Api-Key: Bearer\x1b[0;1m<key>` printed the key
+  (found by the review differential, 9 inputs per surface).
+- Removing the cost gate of the terminal-sequence lookbehind makes masking
+  about 4x slower on every text alike, so the ratio test cannot see it; it
+  is a speed-only mutant, left to review.
