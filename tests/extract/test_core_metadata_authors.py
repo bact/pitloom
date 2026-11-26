@@ -338,9 +338,9 @@ def test_author_email_entry_without_an_address(
         []
         if quiet
         else [
-            f"{key}={entries[0]!r}: not an email address; not recorded"
+            f"{key}={entries[0]!r}: not one valid email address; not recorded"
             if len(entries) == 1
-            else f"{key}={entries!r}: not an email address;"
+            else f"{key}={entries!r}: not one valid email address;"
             f" {len(entries)} entries not recorded"
             for key, entries in by_key.items()
         ]

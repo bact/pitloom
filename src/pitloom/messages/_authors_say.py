@@ -107,8 +107,8 @@ def warn_dependency_split(
 
 def warn_not_addresses(log: logging.Logger, key: str, entries: Sequence[str]) -> None:
     """The ``WARNING:`` that *entries* of a project's author field *key*
-    (``AUTHOR`` or ``AUTHOR_EMAIL``) hold no email address, with how many
-    when several.
+    (``AUTHOR`` or ``AUTHOR_EMAIL``) are not one valid email address each,
+    with how many when several.
 
     Raises:
         pitloom.core.internal_error.InternalError: *key* is neither, or

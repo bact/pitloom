@@ -266,7 +266,7 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
   memory or disk.
 - **SBOM effect**: thinner: the SBOM says less than reading the input would.
 - **Pitloom did**: Kept what fits the cap and left the rest out, or did not read
-  the input; the text after the semicolon says which.
+  the input; the line says which.
 - **Tell the user**: which input was over which cap and what the SBOM lacks for
   it. Four caps are settings, which they can raise for an input they trust and
   then generate again: max-model-extract-bytes (and with it the per-wheel
@@ -287,6 +287,11 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
   ```text
   WARNING: <key>=<name>: larger than the <limit>-<unit> <cap> cap; <outcome> [over-cap]
   WARNING: FORMAT=<format> FILE=<file>: larger than the <limit>-<unit> <cap> cap; <outcome> [over-cap]
+  WARNING: PACKAGE=<package> <key>=<name>: larger than the <limit>-<unit> <cap> cap; <outcome> [over-cap]
+  WARNING: FORMAT=<format> FILE=<file>: its metadata does not fit the <limit>-byte <cap> cap even with no key; artifact-metadata annotation left out [over-cap]
+  WARNING: FORMAT=<format> FILE=<file>: all <number> metadata key(s) left out to fit the <limit>-byte <cap> cap [over-cap]
+  WARNING: FILE=<file>: its metadata does not fit the <limit>-byte <cap> cap even with no key; artifact-metadata annotation left out [over-cap]
+  WARNING: FILE=<file>: all <number> metadata key(s) left out to fit the <limit>-byte <cap> cap [over-cap]
   ERROR: config file '<path>': larger than the <limit>-<unit> <cap> cap; not read [over-cap]
   ERROR: FILE=<file>: larger than the <limit>-<unit> <cap> cap <use>; not read [over-cap]
   ERROR: FILE=<file>: larger than the <limit>-<unit> <cap> cap; not downloaded [over-cap]
@@ -295,7 +300,7 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
   WARNING: FILE=<file>: larger than the <limit>-<unit> <cap> cap <use>; not read [over-cap]
   ```
 
-- **Since**: 0.22.0; line 8: 0.25.0
+- **Since**: 0.22.0; lines 3-7, 13: 0.25.0
 
 ### `temp-dir-unusable`
 

@@ -146,7 +146,7 @@ and this project adheres to
   `PACKAGE=`; a bad sdist `pyproject.toml` relays its reader's code ([#527])
 - A library `sbom_basename` refusal names `sbom_basename`, not `--sbom-basename` ([#527])
 - Dataset field, Croissant name, display-text and metadata-budget lines carry
-  codes; dataset lines name `SOURCE=` and `FIELD=` ([#534])
+  codes; dataset field lines name `SOURCE=` and `FIELD=` ([#534])
 - `generate_model_sbom()` on a PyPI URL raises `pypi-url-unusable` without an
   uncoded `WARNING:` first; a refused `-o` or hook-staged SBOM write is
   `file-unwritable` (library: `CodedOSError`, not `PermissionError`) ([#536])

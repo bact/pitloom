@@ -150,10 +150,16 @@ class DatasetReference:
             ``"testedOn"``, ``"finetunedOn"``, ``"validatedOn"``,
             ``"pretrainedOn"``.  Any other value falls back to ``other``.
         metadata: Extracted dataset metadata.
+        said_conflicts: The fields whose ``dataset-conflict`` warning the
+            route that built this reference already said for its dataset
+            (a GGUF reader folding two entries of one dataset), so the
+            assembler's fold by name does not say them again. Empty for a
+            route that said none.
     """
 
     role: str
     metadata: DatasetMetadata
+    said_conflicts: frozenset[str] = frozenset()
 
 
 __all__ = [

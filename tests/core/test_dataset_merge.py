@@ -20,6 +20,14 @@ from pitloom.core.dataset_metadata import (
     DatasetReference,
     FurtherLicences,
 )
+from pitloom.messages.datasets import DatasetModel
+
+_MODEL = DatasetModel(file="m.gguf")
+
+
+def _merge(references: list[DatasetReference]) -> list[MergedDataset]:
+    """*references* merged as one model's, the model named ``m.gguf``."""
+    return merge_dataset_references(references, model=_MODEL)
 
 
 def _ref(role: str, name: str = "o/d", **fields: Any) -> DatasetReference:
@@ -28,7 +36,7 @@ def _ref(role: str, name: str = "o/d", **fields: Any) -> DatasetReference:
 
 def _one(references: list[DatasetReference]) -> MergedDataset:
     """The one dataset *references* merge into."""
-    merged = merge_dataset_references(references)
+    merged = _merge(references)
     assert len(merged) == 1
     return merged[0]
 
@@ -44,9 +52,7 @@ def _one(references: list[DatasetReference]) -> MergedDataset:
     ids=["hub-case", "legacy-case", "whitespace", "plain-case"],
 )
 def test_spellings_of_one_dataset_merge(names: list[str], datasets: int) -> None:
-    merged = merge_dataset_references(
-        [_ref("trainedOn", names[0]), _ref("testedOn", names[1])]
-    )
+    merged = _merge([_ref("trainedOn", names[0]), _ref("testedOn", names[1])])
     assert len(merged) == datasets
     assert merged[0].metadata.name == names[0]
     if datasets == 1:
@@ -55,14 +61,12 @@ def test_spellings_of_one_dataset_merge(names: list[str], datasets: int) -> None
 
 
 def test_roles_are_distinct_and_in_order() -> None:
-    merged = merge_dataset_references(
-        [_ref("testedOn"), _ref("trainedOn"), _ref("testedOn")]
-    )
+    merged = _merge([_ref("testedOn"), _ref("trainedOn"), _ref("testedOn")])
     assert [m.roles for m in merged] == [["testedOn", "trainedOn"]]
 
 
 def test_order_of_first_appearance_is_kept() -> None:
-    merged = merge_dataset_references([_ref("trainedOn", n) for n in ("b", "a", "b")])
+    merged = _merge([_ref("trainedOn", n) for n in ("b", "a", "b")])
     assert [m.metadata.name for m in merged] == ["b", "a"]
 
 
@@ -116,7 +120,7 @@ def test_conflict_warns_once_per_field_and_keeps_the_first(
     merged = _one([_ref("trainedOn", version="1"), _ref("testedOn", version="2")])
     assert merged.metadata.version == "1"
     assert [r.getMessage() for r in caplog.records] == [
-        "DATASET='o/d' FIELD=version: references differ; kept the first"
+        "FILE=m.gguf DATASET='o/d' FIELD=version: references differ; kept the first"
     ]
     assert [getattr(r, "pitloom_code", None) for r in caplog.records] == [
         "dataset-conflict"
@@ -147,17 +151,15 @@ def test_a_conflict_names_the_kept_spelling_not_the_later_one(
 
 def test_equal_values_do_not_warn(caplog: pytest.LogCaptureFixture) -> None:
     caplog.set_level(logging.WARNING)
-    merge_dataset_references(
-        [_ref("trainedOn", version="1"), _ref("testedOn", version="1")]
-    )
+    _merge([_ref("trainedOn", version="1"), _ref("testedOn", version="1")])
     assert not caplog.records
 
 
 def test_inputs_are_not_changed() -> None:
     first, second = _ref("trainedOn"), _ref("testedOn", creator="C", keywords=["k"])
-    merge_dataset_references([first, second])
+    _merge([first, second])
     assert first.metadata.creator is None and not first.metadata.keywords
-    merged = merge_dataset_references([first, second])[0]
+    merged = _merge([first, second])[0]
     merged.metadata.keywords.append("x")
     assert second.metadata.keywords == ["k"]
 
@@ -203,18 +205,14 @@ def test_a_conflict_warns_once_however_many_references_repeat_it(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     caplog.set_level(logging.WARNING)
-    merge_dataset_references(
-        [_ref("trainedOn", version=v) for v in ("1", "2", "2", "3")]
-    )
+    _merge([_ref("trainedOn", version=v) for v in ("1", "2", "2", "3")])
     assert len(caplog.records) == 1
 
 
 def test_a_name_cannot_forge_a_log_line(caplog: pytest.LogCaptureFixture) -> None:
     caplog.set_level(logging.WARNING)
     name = "o/d\nINFO: forged"
-    merge_dataset_references(
-        [_ref("trainedOn", name, version="1"), _ref("testedOn", name, version="2")]
-    )
+    _merge([_ref("trainedOn", name, version="1"), _ref("testedOn", name, version="2")])
     assert "\n" not in caplog.records[0].getMessage()
 
 
@@ -234,7 +232,7 @@ def test_download_url_conflict(
     first: str, second: str, warns: bool, caplog: pytest.LogCaptureFixture
 ) -> None:
     caplog.set_level(logging.WARNING)
-    merge_dataset_references(
+    _merge(
         [_ref("trainedOn", download_url=first), _ref("testedOn", download_url=second)]
     )
     assert bool(caplog.records) is warns
@@ -253,3 +251,64 @@ def test_an_empty_list_is_a_gap_as_the_metadata_cannot_tell_it_from_absent() -> 
         [_ref("trainedOn", known_bias=[]), _ref("testedOn", known_bias=["b"])]
     )
     assert merged.metadata.known_bias == ["b"]
+
+
+def _said_ref(
+    role: str, said: frozenset[str], name: str = "o/d", **fields: Any
+) -> DatasetReference:
+    return DatasetReference(role, DatasetMetadata(name=name, **fields), said)
+
+
+@pytest.mark.parametrize(
+    ("references", "warned"),
+    [
+        # said on the first reference: not said again
+        (
+            [
+                _said_ref("trainedOn", frozenset({"version"}), version="1"),
+                _ref("testedOn", version="2"),
+            ],
+            [],
+        ),
+        # said on a later reference, in another spelling: not said either
+        (
+            [
+                _ref("trainedOn", version="1"),
+                _said_ref("testedOn", frozenset({"version"}), "O/D", version="2"),
+            ],
+            [],
+        ),
+        # another field said: this one is still said
+        (
+            [
+                _said_ref("trainedOn", frozenset({"license"}), version="1"),
+                _ref("testedOn", version="2"),
+            ],
+            ["version"],
+        ),
+        # said for another dataset: this one is still said
+        (
+            [
+                _said_ref("trainedOn", frozenset({"version"}), "o/e"),
+                _ref("trainedOn", version="1"),
+                _ref("testedOn", version="2"),
+            ],
+            ["version"],
+        ),
+    ],
+    ids=["first", "later-spelling", "other-field", "other-dataset"],
+)
+def test_a_field_a_route_already_said_is_not_said_again(
+    caplog: pytest.LogCaptureFixture,
+    references: list[DatasetReference],
+    warned: list[str],
+) -> None:
+    caplog.set_level(logging.WARNING)
+    said = [ref.said_conflicts for ref in references]
+    _merge(references)
+    assert [
+        r.getMessage().split("FIELD=")[1].split(":")[0]
+        for r in caplog.records
+        if getattr(r, "pitloom_code", None) == "dataset-conflict"
+    ] == warned
+    assert [ref.said_conflicts for ref in references] == said  # not changed

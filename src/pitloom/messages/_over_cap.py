@@ -96,6 +96,45 @@ MODEL_LINE: Final = Line(
     level="WARNING",
     template=f"FORMAT=%(format)s FILE=%(file)s: {REASON}; %(outcome)s",
 )
+#: A dependency's input over a cap (an author field of an installed
+#: package), named by its package, then its key.
+PACKAGE_KEY_LINE: Final = Line(
+    level="WARNING",
+    template=f"PACKAGE=%(package)s %(key)s=%(name)s: {REASON}; %(outcome)s",
+    since="0.25.0",
+)
+
+#: What the metadata-budget lines name the cap by: its size in bytes and
+#: its setting.
+_BUDGET_CAP: Final = "the %(limit)s-byte %(purpose)s cap"
+#: A model's metadata that does not fit the budget even with no key: the
+#: artifact-metadata annotation is left out.
+_BUDGET_NO_FIT: Final = (
+    f"its metadata does not fit {_BUDGET_CAP} even with no key; "
+    "artifact-metadata annotation left out"
+)
+#: A model's metadata that fits the budget only with every key left out.
+_BUDGET_NO_KEY: Final = f"all %(number)s metadata key(s) left out to fit {_BUDGET_CAP}"
+#: The metadata budget lines, for a model named by its format and file.
+BUDGET_NO_FIT_LINE: Final = Line(
+    level="WARNING",
+    template=f"FORMAT=%(format)s FILE=%(file)s: {_BUDGET_NO_FIT}",
+    since="0.25.0",
+)
+BUDGET_NO_KEY_LINE: Final = Line(
+    level="WARNING",
+    template=f"FORMAT=%(format)s FILE=%(file)s: {_BUDGET_NO_KEY}",
+    since="0.25.0",
+)
+#: The same, for a model whose format a library caller labelled in its own
+#: words (:meth:`Cap.of_model`): named by its file only.
+FILE_BUDGET_NO_FIT_LINE: Final = Line(
+    level="WARNING", template=f"FILE=%(file)s: {_BUDGET_NO_FIT}", since="0.25.0"
+)
+FILE_BUDGET_NO_KEY_LINE: Final = Line(
+    level="WARNING", template=f"FILE=%(file)s: {_BUDGET_NO_KEY}", since="0.25.0"
+)
+
 #: An sdist's own configuration file over the member cap: the sdist is
 #: not read.
 CONFIG_MEMBER_LINE: Final = Line(
@@ -128,6 +167,11 @@ OVER_CAP: Final = Message(
     lines=(
         KEY_LINE,
         MODEL_LINE,
+        PACKAGE_KEY_LINE,
+        BUDGET_NO_FIT_LINE,
+        BUDGET_NO_KEY_LINE,
+        FILE_BUDGET_NO_FIT_LINE,
+        FILE_BUDGET_NO_KEY_LINE,
         CONFIG_MEMBER_LINE,
         SOURCE_LINE,
         DOWNLOAD_LINE,
@@ -140,7 +184,7 @@ OVER_CAP: Final = Message(
     "records, so that a crafted or unusually large input cannot exhaust time, "
     "memory or disk.",
     did="Kept what fits the cap and left the rest out, or did not read the "
-    "input; the text after the semicolon says which.",
+    "input; the line says which.",
     effect="thinner",
     actor="user",
     advice="Tell the user which input was over which cap and what the SBOM "

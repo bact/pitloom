@@ -42,7 +42,7 @@ _METADATA = (
 _LINES = [
     (
         "WARNING",
-        "AUTHOR_EMAIL='nobody@': not an email address; not recorded",
+        "AUTHOR_EMAIL='nobody@': not one valid email address; not recorded",
         "author-invalid",
     ),
     (

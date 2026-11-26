@@ -103,27 +103,35 @@ DATASET_NAME_MISSING: Final = Message(
     since=_SINCE,
 )
 
-#: Two references to one dataset that state different values of a field.
-CONFLICT_LINE: Final = Line(
-    level="WARNING",
-    template="DATASET=%(dataset)s FIELD=%(dataset_field)s: references differ; "
-    "kept the first",
+#: What a conflict line says after the model and the dataset it names.
+_CONFLICT: Final = (
+    "DATASET=%(dataset)s FIELD=%(dataset_field)s: references differ; kept the first"
+)
+#: Two references to one dataset that state different values of a field,
+#: the model named by its file.
+CONFLICT_LINE: Final = Line(level="WARNING", template=f"FILE=%(file)s {_CONFLICT}")
+#: The same, for a model with no file (a Hugging Face model, a library
+#: caller's model), named by its name.
+MODEL_CONFLICT_LINE: Final = Line(
+    level="WARNING", template=f"MODEL=%(model)s {_CONFLICT}"
 )
 
 DATASET_CONFLICT: Final = Message(
     code="dataset-conflict",
     condition="conflict",
-    lines=(CONFLICT_LINE,),
+    lines=(CONFLICT_LINE, MODEL_CONFLICT_LINE),
     summary="Two references to one dataset (a model's card and its file, "
     "or a model listing it twice) state different values of one field. Said "
-    "once per dataset and field.",
+    "once per model, dataset and field; the line names the model by its "
+    "file, or by its name when it has none.",
     did="Recorded the first reference's value; the other is left out. The "
     "dataset is recorded once, with the roles of every reference.",
     effect="weaker",
     actor="user",
     advice="Tell the user which dataset and field the references disagree "
-    "on; the SBOM states the first value read. They may correct the source "
-    "that is wrong and generate again. Do not edit a source for them.",
+    "on, and of which model; the SBOM states the first value read. They may "
+    "correct the source that is wrong and generate again. Do not edit a "
+    "source for them.",
     subject_key="DATASET",
     since=_SINCE,
 )

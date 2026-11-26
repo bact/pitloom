@@ -378,3 +378,56 @@ pages excluded), ~24 files; C2b about 650 lines, ~28 files. One PR would be
   after a count field (`%(number)s Python files` would pass); `quote_kind`
   requires a frame on an `ERROR` relay, `line_kind` does not (true today:
   the only `ERROR` relay is framed by the CLI command).
+
+## 11. C2b as built: deviations and known limits
+
+Branch `catalogue-sweep-c2b-wording`, cut from main 4bb8d266 (#544, #545,
+#546 merged).
+
+- **Scope.** W1 and W2 shipped in C2a (#546, ruling 1); R1's dedup shipped
+  in C1a (#545, ruling 10: `_loom_active_run.py` says each missing name once
+  per output); ruling 8 stays for the rescan. C2b is A1-A3, D1-D3, B1.
+- **Section 9 re-checked against main.** C1a did not touch
+  `extract/authors.py`: `Ann <a@x.org> extra` still records `Ann` with no
+  address and is noted, so A1's wording applies unchanged.
+- **A1.** The `author-invalid` summary names the three causes (no
+  `local@domain` address, text after a valid address, two addresses in one
+  mailbox); the advice says "not one valid email address". The code is new
+  in 0.25.0, so no per-line `since`.
+- **A3.** `author_pairs(..., package=)` carries the package in `_Report`
+  to `warn_field_cap`, whose once-memo key is `repr((package, key,
+  digest))`: the project and each dependency holding one field text are
+  each said once.
+- **A3 line.** `over-cap` gains `PACKAGE=%(package)s %(key)s=%(name)s:
+  larger than ...; %(outcome)s` (since 0.25.0); `warn_over_cap(...,
+  package=)` picks it and refuses a model cap with a package
+  (`InternalError`).
+- **D1.** `DatasetReference.said_conflicts` is set by one helper in the GGUF
+  reader (`_trained_on`), the only route that folds references before the
+  assembler; `merge_dataset_references` seeds its memo with the union over
+  every reference of a name. Inventory: `enrich/readme.py` and
+  `huggingface_field.py` never fold (distinct names), Croissant and Hub
+  dataset metadata fill in place, the enrichment document carries the
+  references through, the loom SDK builds no `DatasetReference`.
+  A reader conflict for `d@1` (url a vs b) also covers the assembler's
+  `d@1` vs `d@2` fold of that field: "once per dataset and field" is per
+  field, not per pair of values.
+- **D1, logger.** The reader now says the conflict on its own logger
+  (`merge_dataset_into(..., say_on=)`), under `pitloom.extract.ai_model`, so
+  a wheel scan relays it and `named_stably` rewrites the temporary copy's
+  name to the model's path; the reader names the model by `file_name`
+  (the value the relay rewrites).
+- **D2.** Two lines: `FILE=%(file)s DATASET=... FIELD=...` and
+  `MODEL=%(model)s DATASET=... FIELD=...`. `MODEL=` takes a new quoted
+  `model` field (masked, cut), not the free `name` field of
+  `usage-unparseable`. `assemble.spdx3.dataset.dataset_model()` names a
+  model by `physical_path`, `file_path_relative`, `file_name`, else
+  `resolve_name()`; so a Hub model's conflict says `MODEL=<name>` where its
+  other lines fall back to the URL (ruling 6 as written). `SPELLING_LINE`
+  (`dataset-conflict/spelling`, INFO, no effect) is unchanged: its
+  conclusion does not depend on the model.
+- **B1.** Four lines, not two: `Cap.of_model` drops a format that is no
+  format (a library caller's label), so each line has a `FORMAT= FILE=`
+  and a `FILE=` form; one helper `warn_metadata_budget(log, cap, where,
+  keys)`. The `over-cap` `did` text reads "the line says which" (a
+  `key(s)` line has no semicolon).

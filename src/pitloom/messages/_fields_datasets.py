@@ -153,6 +153,13 @@ DATASET_FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
             "`general.dataset.0.repo_url`, `rai:dataBiases`, `creator name`), "
             "or a dataset metadata field (`byte_size`, `download_url`)",
         ),
+        "model": Field(
+            QUOTED,
+            quoted_name_text,
+            "'<model>'",
+            "a model with no file (a Hugging Face model, a library caller's "
+            f"model) by the name it is shown under, {_SHOWN_TEXT}",
+        ),
         "dataset_value_type": Field(
             "|".join(re.escape(name) for name in _TYPE_NAMES),
             dataset_value_type_text,

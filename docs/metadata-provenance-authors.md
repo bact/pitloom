@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-15
-Last-Modified: 2026-10-15
+Last-Modified: 2026-11-26
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -99,10 +99,11 @@ sdist's `pyproject.toml` replaces). The core metadata specification's
 CA <cschultz@peanuts.example.com>`, reads as one author with the address,
 the affiliation in the name. An address is checked as written
 (`a@b c` is not `a@bc`), a comma inside `<...>` included: an address of
-the project's own (an entry holding `<`, `>` or `@`) that is no address
-is not recorded, with one `WARNING:`
-per field naming the first three and how many (`AUTHOR_EMAIL=['a', 'b',
-'c', ...]: not an email address; 5 entries not recorded [author-invalid]`), and a name
+the project's own (an entry holding `<`, `>` or `@`) that is not one
+valid email address (no address, or text after one: `Ann <a@x.org> extra`)
+is not recorded, with one `WARNING:` per field naming the first three and
+how many (`WARNING: AUTHOR_EMAIL=['x@y z', 'p@q r', 's@t u', ...]: not one
+valid email address; 5 entries not recorded [author-invalid]`), and a name
 stated before its one `<` is kept (`Ann <a@b c>` is `Ann`). The `UNKNOWN`
 older setuptools writes is no author: in `setup.py` it gives way to
 `setup.cfg`'s author. An sdist's `pyproject.toml` gives the declared authors as a

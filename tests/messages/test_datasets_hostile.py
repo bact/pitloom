@@ -34,6 +34,7 @@ from pitloom.messages import trusted_message
 from pitloom.messages._field_writers import NAME_CHARACTERS, NAME_CUT_MARK
 from pitloom.messages.datasets import (
     NOT_TEXT,
+    DatasetModel,
     say_one_dataset,
     warn_dataset_conflict,
     warn_dataset_field,
@@ -57,7 +58,14 @@ _IDS = ["newline", "ansi", "bidi", "credential", "1mb", "quotes", "credential-at
 #: Each emitter of a name or source, by the code it says.
 _EMITTERS: list[tuple[str, Callable[[str], None]]] = [
     ("dataset-field-invalid", lambda v: warn_dataset_field(_LOG, NOT_TEXT, v, "f", 1)),
-    ("dataset-conflict", lambda v: warn_dataset_conflict(_LOG, v, "version")),
+    (
+        "dataset-conflict",
+        lambda v: warn_dataset_conflict(_LOG, DatasetModel(file="m"), v, "version"),
+    ),
+    (
+        "dataset-conflict",
+        lambda v: warn_dataset_conflict(_LOG, DatasetModel(name=v), v, "version"),
+    ),
     ("dataset-conflict/spelling", lambda v: say_one_dataset(_LOG, v, v)),
     ("text-unsafe", lambda v: warn_text_unsafe(_LOG, ["dataset name"], dataset=v)),
 ]

@@ -20,7 +20,7 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
 | Code | Level | Means | Since |
 | --- | --- | --- | --- |
 | [`author-ambiguous`](#author-ambiguous) | WARNING, INFO | A free-text author field (core metadata Author or Author-email, a setup.cfg or setup.py author, a dependency's author or maintainer record) was read by a guess. An address field is a list, split on ',' and ';', though one name may hold a comma ('Doe, Jane'); a name field is one author, cut only next to the complete mailboxes it holds. The INFO line is a name field read as one author though it holds ',', ';' or 'and' ('Doe, Jane' and 'Ann and Bob' cannot be told from lists). For dependencies, one line per document names the first field split and how many dependencies were. | 0.25.0 |
-| [`author-invalid`](#author-invalid) | WARNING | An entry of a project's free-text author field holds an address that is no address of the form local@domain (an Author-email entry, or a mailbox in Author with '<' or '@'), or two addresses in one mailbox. The line shows the entries, the first few when several, and how many. | 0.25.0 |
+| [`author-invalid`](#author-invalid) | WARNING | An entry of a project's free-text author field (an Author-email entry, or a mailbox in Author with '<' or '@') is not one valid email address: its address is not of the form local@domain, text follows a valid address ('Ann <a@x.org> extra', 'a@x.org trailing'), or one mailbox holds two addresses. The line shows the entries, the first few when several, and how many. | 0.25.0 |
 | [`project-unreadable`](#project-unreadable) | WARNING | An embed with a project directory (embed-wheel --project-dir, wheel --embed with --project-dir, the library's embed_wheel_sbom) reads the project's metadata only for its declared authors, which keep their order there; the metadata could not be read: a configuration or metadata file that does not parse, is not UTF-8 or cannot be opened. The line gives what was reported. | 0.25.0 |
 
 ### `author-ambiguous`
@@ -58,23 +58,26 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
 ### `author-invalid`
 
 - **Level**: WARNING.
-- **Means**: An entry of a project's free-text author field holds an address
-  that is no address of the form local@domain (an Author-email entry, or a
-  mailbox in Author with '<' or '@'), or two addresses in one mailbox. The line
-  shows the entries, the first few when several, and how many.
+- **Means**: An entry of a project's free-text author field (an Author-email
+  entry, or a mailbox in Author with '<' or '@') is not one valid email address:
+  its address is not of the form local@domain, text follows a valid address
+  ('Ann <a@x.org> extra', 'a@x.org trailing'), or one mailbox holds two
+  addresses. The line shows the entries, the first few when several, and how
+  many.
 - **SBOM effect**: thinner: the SBOM says less than reading the input would.
 - **Pitloom did**: Recorded no address for the entry; a display name stated
   before its '<' is kept as an author with no address. The SBOM is written.
-- **Tell the user**: which entries hold no email address, as the line says. They
-  correct the address in the project's metadata and generate again. Do not edit
-  the metadata for them; ask first, and with nobody to ask, report it only.
+- **Tell the user**: which entries are not one valid email address, as the line
+  says. They correct the address in the project's metadata and generate again.
+  Do not edit the metadata for them; ask first, and with nobody to ask, report
+  it only.
 - **Lines**:
 
   ```text
-  WARNING: AUTHOR_EMAIL=<authors>: not an email address; not recorded [author-invalid]
-  WARNING: AUTHOR_EMAIL=<authors>: not an email address; <entry-count> not recorded [author-invalid]
-  WARNING: AUTHOR=<authors>: not an email address; not recorded [author-invalid]
-  WARNING: AUTHOR=<authors>: not an email address; <entry-count> not recorded [author-invalid]
+  WARNING: AUTHOR_EMAIL=<authors>: not one valid email address; not recorded [author-invalid]
+  WARNING: AUTHOR_EMAIL=<authors>: not one valid email address; <entry-count> not recorded [author-invalid]
+  WARNING: AUTHOR=<authors>: not one valid email address; not recorded [author-invalid]
+  WARNING: AUTHOR=<authors>: not one valid email address; <entry-count> not recorded [author-invalid]
   ```
 
 ### `project-unreadable`

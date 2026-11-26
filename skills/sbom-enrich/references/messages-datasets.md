@@ -20,7 +20,7 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
 | Code | Level | Means | Since |
 | --- | --- | --- | --- |
 | [`caller-info-unreadable`](#caller-info-unreadable) | WARNING | The loom SDK could not inspect the call stack (inspect.stack raised: a sandboxed or frozen interpreter) to name the script and function that made a loom call, or the script that opened the run. Said once per process. | 0.25.0 |
-| [`dataset-conflict`](#dataset-conflict) | WARNING | Two references to one dataset (a model's card and its file, or a model listing it twice) state different values of one field. Said once per dataset and field. | 0.25.0 |
+| [`dataset-conflict`](#dataset-conflict) | WARNING | Two references to one dataset (a model's card and its file, or a model listing it twice) state different values of one field. Said once per model, dataset and field; the line names the model by its file, or by its name when it has none. | 0.25.0 |
 | [`dataset-conflict/spelling`](#dataset-conflictspelling) | INFO | Two references name one dataset in different spellings (a Hub id in other case, or other spacing), which name one dataset. | 0.25.0 |
 | [`dataset-field-invalid`](#dataset-field-invalid) | WARNING | A dataset source (a dataset card, a Croissant document, a GGUF file's dataset keys, a Hugging Face model card's datasets) or a library caller's DatasetMetadata states a value its field cannot hold: a value that is not text, text in a URL field that is not a URL, or a size that is not a whole number of zero or more. A card version YAML read as a number, a Boolean or a date was written unquoted (1.10 reads as 1.1). | 0.25.0 |
 | [`dataset-name-missing`](#dataset-name-missing) | ERROR | A Croissant document (read for a loom dataset's croissant=, or by the library's read_croissant) states no name for its dataset, or one that is not text. | 0.25.0 |
@@ -53,17 +53,19 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
 - **Level**: WARNING.
 - **Means**: Two references to one dataset (a model's card and its file, or a
   model listing it twice) state different values of one field. Said once per
-  dataset and field.
+  model, dataset and field; the line names the model by its file, or by its name
+  when it has none.
 - **SBOM effect**: weaker: what the SBOM says is less sure.
 - **Pitloom did**: Recorded the first reference's value; the other is left out.
   The dataset is recorded once, with the roles of every reference.
-- **Tell the user**: which dataset and field the references disagree on; the
-  SBOM states the first value read. They may correct the source that is wrong
-  and generate again. Do not edit a source for them.
+- **Tell the user**: which dataset and field the references disagree on, and of
+  which model; the SBOM states the first value read. They may correct the source
+  that is wrong and generate again. Do not edit a source for them.
 - **Lines**:
 
   ```text
-  WARNING: DATASET='<dataset>' FIELD=<dataset-field>: references differ; kept the first [dataset-conflict]
+  WARNING: FILE=<file> DATASET='<dataset>' FIELD=<dataset-field>: references differ; kept the first [dataset-conflict]
+  WARNING: MODEL='<model>' DATASET='<dataset>' FIELD=<dataset-field>: references differ; kept the first [dataset-conflict]
   ```
 
 ### `dataset-conflict/spelling`

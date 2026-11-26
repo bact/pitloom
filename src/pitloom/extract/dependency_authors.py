@@ -37,10 +37,17 @@ def dependency_author_pairs(
     :func:`~pitloom.extract.authors.dependency_author_splits` block, or at
     once outside one; an address entry that is no address is left out
     quietly (another project's record, one line each would flood a large
-    environment). A field over a cap warns: these authors are used."""
+    environment). A field over a cap warns, naming *package*: these
+    authors are used."""
     splits: list[AuthorSplit] = []
     pairs = author_pairs(
-        names, addresses, splits=splits, quiet=False, address_warnings=False, keys=keys
+        names,
+        addresses,
+        splits=splits,
+        quiet=False,
+        address_warnings=False,
+        keys=keys,
+        package=package,
     )
     report_dependency_splits(package, splits)
     return pairs

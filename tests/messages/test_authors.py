@@ -172,7 +172,7 @@ def test_not_an_address_picks_its_line_by_key_and_count(
         warn_not_addresses(_LOG, key, entries)
     (record,) = _records(caplog)
     assert record.getMessage().startswith(f"{key}=")
-    assert record.getMessage().endswith(f"not an email address{tail}")
+    assert record.getMessage().endswith(f"not one valid email address{tail}")
     assert record.msg == line.template  # type: ignore[attr-defined]
     assert trusted_message(_printed(record)) is AUTHOR_INVALID
 
