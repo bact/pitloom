@@ -24,6 +24,7 @@ import hatchling.metadata.core as hatchling_metadata_core  # noqa: E402
 from hatchling.plugin.manager import PluginManager  # noqa: E402
 
 from pitloom.core.models import compute_doc_uuid  # noqa: E402
+from pitloom.extract._license_text_match import LicenseTextReading
 from pitloom.extract.project.hatchling import metadata_from_hatchling  # noqa: E402
 from pitloom.extract.project.pyproject import read_pyproject  # noqa: E402
 
@@ -104,8 +105,8 @@ def test_metadata_from_hatchling_matches_read_pyproject_for_license_conflict() -
         )
 
         with patch(
-            "pitloom.extract._license.detect_license_from_text",
-            return_value="Apache-2.0",
+            "pitloom.extract._license.read_license_text",
+            return_value=LicenseTextReading("Apache-2.0"),
         ):
             cli_meta, _ = read_pyproject(tmp_path / "pyproject.toml")
             hatch_pm = hatchling_metadata_core.ProjectMetadata(
@@ -132,8 +133,8 @@ def test_metadata_from_hatchling_matches_read_pyproject_for_license_agreement() 
         )
 
         with patch(
-            "pitloom.extract._license.detect_license_from_text",
-            return_value="MIT",
+            "pitloom.extract._license.read_license_text",
+            return_value=LicenseTextReading("MIT"),
         ):
             cli_meta, _ = read_pyproject(tmp_path / "pyproject.toml")
             hatch_pm = hatchling_metadata_core.ProjectMetadata(

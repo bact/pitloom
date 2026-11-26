@@ -57,7 +57,10 @@ from pitloom.extract._license_resolve import (
     clear_resolution_cache,
     resolve_declared_value,
 )
-from pitloom.extract._license_text_match import detect_license_from_text
+from pitloom.extract._license_text_match import (
+    detect_license_from_text,
+    read_license_text,
+)
 from pitloom.extract.copyright_notices import apply_in_package_copyright
 
 try:
@@ -100,15 +103,19 @@ def license_from_candidates(
     :func:`~pitloom.extract._license_detect.license_candidates_from_members`)
     that states an id or expression, or whose text LicenseID identifies
     (the manifest's *stated* licence winning a near-tie, see
-    :func:`detect_license_from_text`); ``None`` when none does."""
+    :func:`read_license_text`); ``None`` when none does, or when a licence
+    file holding the texts of several licences comes first: a later file
+    names one licence of several, not the project's."""
     for value, source in candidates:
         if _looks_like_spdx_license_id(value) or _looks_like_spdx_license_expression(
             value
         ):
             return value, source
-        detected = detect_license_from_text(value, stated=stated)
-        if detected:
-            return detected, _with_tool_tag(
+        reading = read_license_text(value, stated=stated)
+        if reading.several_texts:
+            return None
+        if reading.expression:
+            return reading.expression, _with_tool_tag(
                 provenance_segment(source, "Method", "licenseid_detection")
             )
     return None

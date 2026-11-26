@@ -72,7 +72,7 @@ def test_a_warning_carries_its_parts() -> None:
 
 
 def test_a_detection_has_the_keys_pitloom_reads() -> None:
-    assert {"expression", "score", "similarity", "coverage"} <= set(
+    assert {"expression", "score", "similarity", "coverage", "texts"} <= set(
         Detection.__annotations__
     )
 

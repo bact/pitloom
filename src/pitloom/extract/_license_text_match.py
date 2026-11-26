@@ -5,11 +5,12 @@
 
 """Licence text detection with LicenseID's detector.
 
-:func:`detect_license_from_text` names the SPDX licence a text is, from the
+:func:`read_license_text` names the SPDX licence a text is, from the
 LicenseID database: built once per process (:func:`_get_detector`), warned
 about once when it cannot be used (:func:`_database_unusable`), and read
-with the stated licence winning a near-tie. Build the database before first
-use::
+with the stated licence winning a near-tie; a text of several licences
+is none, said apart (:class:`LicenseTextReading`) so a search over
+licence files stops there. Build the database before first use::
 
     licenseid update --source packaged
 
@@ -28,6 +29,7 @@ import functools
 import logging
 import re
 from collections.abc import Sequence
+from typing import NamedTuple
 
 from licenseid import DatabaseNotReadyError, Detection, LicenseDetector
 
@@ -46,7 +48,7 @@ from pitloom.messages.licences import (
 
 _logger = logging.getLogger(__name__)
 
-__all__ = ["detect_license_from_text"]
+__all__ = ["LicenseTextReading", "detect_license_from_text", "read_license_text"]
 
 
 @functools.lru_cache(maxsize=1)
@@ -263,6 +265,21 @@ def _readings(detector: LicenseDetector, text: str) -> list[list[Detection]]:
     return readings
 
 
+def _holds_several_texts(readings: Sequence[Sequence[Detection]]) -> bool:
+    """Whether a reading's ``texts`` (the List texts LicenseID finds whole in
+    the input, the same list on each result of a call) names two or more
+    licences. Such a file has no one licence: its top match is only one of
+    them (numpy's ``LICENSE.txt`` holds BSD-3-Clause, BSD-3-Clause-Open-MPI
+    and the GPL-3.0 text of a bundled library, and answers ``GPL-3.0-only``),
+    and the texts alone cannot say whether they combine with ``AND`` or
+    ``OR`` (Highway's are a choice)."""
+    for results in readings:
+        held = results[0].get("texts") if results else None
+        if isinstance(held, list) and len(held) > 1:
+            return True
+    return False
+
+
 def _top_score(results: Sequence[Detection]) -> float:
     """The best score in *results*, or -1 for none."""
     return max((float(r["score"]) for r in results), default=-1.0)
@@ -291,49 +308,86 @@ def _best_reading_decides(
     return next((answer for answer in answers if answer), None)
 
 
-def detect_license_from_text(
-    text: str, threshold: float = 0.85, *, stated: str | None = None
+def _answer(
+    readings: Sequence[Sequence[Detection]], threshold: float, stated: str | None
 ) -> str | None:
-    """Detect SPDX License ID from *text* using the LicenseID library.
+    """The licence *readings* give (:func:`read_license_text`): an id or
+    expression *stated* names that the best reading matches at *threshold*
+    nearly as well as its top match (:func:`_stated_among`); else what that
+    reading decides (:func:`_best_reading_decides`)."""
+    wanted = _stated_ids(stated)
+    for results in _best_readings(readings):
+        above = [r for r in results if r["score"] >= threshold]
+        chosen = _stated_among(above, wanted)
+        if chosen:
+            return chosen
+    return _best_reading_decides(readings, threshold)
 
-    Returns the top-ranked SPDX License ID when its score meets *threshold*,
-    or ``None`` when *text* is too short to be a real licence body (decided
-    before the database is looked up, so nothing is said about it), the
-    database cannot be used, or no match exceeds the threshold. *text* is
-    read as written and without its copyright notice lines
+
+class LicenseTextReading(NamedTuple):
+    """What :func:`read_license_text` found in a text: the licence it is
+    (*expression*), or ``None``; *several_texts* when it holds the texts of
+    several licences (:func:`_holds_several_texts`), which is no licence but
+    is not "no licence text" either: a search over licence files stops at
+    it, where a ``None`` alone moves on to the next file."""
+
+    expression: str | None
+    several_texts: bool = False
+
+
+_NO_READING = LicenseTextReading(None)
+_SEVERAL_TEXTS = LicenseTextReading(None, several_texts=True)
+
+
+def read_license_text(
+    text: str, threshold: float = 0.85, *, stated: str | None = None
+) -> LicenseTextReading:
+    """Read *text* as a licence with the LicenseID library.
+
+    The expression is the top-ranked SPDX License ID when its score meets
+    *threshold*, or ``None`` when *text* is too short to be a real licence
+    body (decided before the database is looked up, so nothing is said about
+    it), the database cannot be used, or no match exceeds the threshold.
+    *text* is read as written and without its copyright notice lines
     (:func:`_readings`); the better-scoring reading counts
     (:func:`_best_readings`). A licence *stated* (the manifest's declared
     licence) makes a missing database an ``INFO:`` line
-    (:func:`_database_unusable`). An id or expression it names that *text*
-    matches at *threshold* nearly as well as its top match, and fits the
-    input as well, wins (:data:`_STATED_TIE_MARGIN`); else that reading
+    (:func:`_database_unusable`). A *text* that holds the texts of several
+    licences gives no expression, stated or not, and ``several_texts``
+    (:func:`_holds_several_texts`). An id or expression *stated* names that
+    *text* matches at *threshold* nearly as well as its top match, and fits
+    the input as well, wins (:data:`_STATED_TIE_MARGIN`); else that reading
     decides (:func:`_best_reading_decides`), ``None`` when its top match is
     a near-tie with another licence family.
     """
     # A text too short to be a licence body is no detection: decided before
     # the database is looked up, so a short label never reports one missing.
     if len(text.strip()) < _MIN_LICENSE_TEXT_LENGTH:
-        return None
+        return _NO_READING
     declared = bool(stated and stated.strip())
     detector = _detector(declared=declared)
     if detector is None:
-        return None
+        return _NO_READING
     try:
         readings = _readings(detector, text)
-        wanted = _stated_ids(stated)
-        for results in _best_readings(readings):
-            above = [r for r in results if r["score"] >= threshold]
-            chosen = _stated_among(above, wanted)
-            if chosen:
-                return chosen
-        return _best_reading_decides(readings, threshold)
+        if _holds_several_texts(readings):
+            return _SEVERAL_TEXTS
+        return LicenseTextReading(_answer(readings, threshold, stated))
     # The database failed after the detector was built (deleted, truncated,
     # corrupted): LicenseID raises this for any failed read.
     except DatabaseNotReadyError as exc:
         _database_unusable(exc, declared=declared)
-        return None
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
         reraise_internal(exc)
         _logger.debug("licenseid detection failed: %s", exc)
-        return None
+    return _NO_READING
+
+
+def detect_license_from_text(
+    text: str, threshold: float = 0.85, *, stated: str | None = None
+) -> str | None:
+    """The SPDX licence *text* is, or ``None``: the expression of
+    :func:`read_license_text`, for a caller that reads one text and
+    searches no further."""
+    return read_license_text(text, threshold, stated=stated).expression

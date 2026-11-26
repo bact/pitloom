@@ -258,8 +258,9 @@ def _detect_license_from_hf_files(
     Downloads each of *license_files* (the names ``model_info()`` showed the
     repository holds, in priority order; ``None`` when it showed no file
     list) and runs
-    :func:`~pitloom.extract._license_text_match.detect_license_from_text`
-    on the content.
+    :func:`~pitloom.extract._license_text_match.read_license_text`
+    on the content, stopping at a file that holds the texts of several
+    licences (no licence, and a later file names only one of them).
 
     Returns ``(spdx_id, provenance_string)`` when a match is found above the
     default threshold, or ``(None, None)`` otherwise (at once, asking
@@ -273,7 +274,7 @@ def _detect_license_from_hf_files(
     if not hub.asks_hub or not license_files:
         return None, None
     # pylint: disable-next=import-outside-toplevel
-    from pitloom.extract._license_text_match import detect_license_from_text
+    from pitloom.extract._license_text_match import read_license_text
 
     kind = FileKind(LICENSE_FILE_CAP, "license file not read")
     for filename in license_files:
@@ -287,9 +288,11 @@ def _detect_license_from_hf_files(
         if not text:
             continue
 
-        detected = detect_license_from_text(text)
-        if detected:
-            return detected, provenance_segment(
+        reading = read_license_text(text)
+        if reading.several_texts:
+            break
+        if reading.expression:
+            return reading.expression, provenance_segment(
                 provenance_source("Hugging Face Hub", file=filename),
                 "Method",
                 "licenseid_detection",

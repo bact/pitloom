@@ -16,13 +16,20 @@ from __future__ import annotations
 import json
 import tarfile
 from pathlib import Path
+from unittest.mock import create_autospec
 
 import pytest
 
 from pitloom._embed_overlay import add_concluded_license
 from pitloom.core.project import ProjectMetadata
+from pitloom.extract._license import (
+    apply_in_package_license_files,
+    license_from_candidates,
+)
 from pitloom.extract._license_text_match import _family, detect_license_from_text
 from pitloom.extract.project.sdist import read_sdist
+from pitloom.extract.remote._hub_files import HubFiles
+from pitloom.extract.remote.huggingface_fetch import _detect_license_from_hf_files
 from tests.fixtures.real_world import REAL_WORLD_ROOT, load_expected
 
 _CORPUS = Path(__file__).resolve().parents[1] / "fixtures" / "license-texts"
@@ -133,3 +140,84 @@ def test_embed_wheel_concludes_the_stated_licence(tmp_path: Path) -> None:
     metadata.license_name = "Apache-2.0"
     add_concluded_license(metadata, tmp_path)
     assert metadata.license_concluded == "Apache-2.0"
+
+
+@pytest.mark.parametrize(
+    ("name", "stated"),
+    [
+        # BSD-3-Clause, BSD-3-Clause-Open-MPI and a bundled library's GPL-3.0
+        ("numpy-2.5.5-LICENSE", "BSD-3-Clause AND 0BSD AND MIT AND Zlib AND CC0-1.0"),
+        # typeshed's Apache-2.0, then the MIT text of some of its parts
+        ("types-setuptools-84.2.0.20261122-LICENSE", "Apache-2.0"),
+    ],
+)
+def test_a_file_of_several_licence_texts_gives_no_licence(
+    name: str, stated: str
+) -> None:
+    """Its top match is one of its texts (numpy's alone gives
+    ``GPL-3.0-only``), stated or not: no detection."""
+    text = (_CORPUS / name).read_bytes().decode("utf-8")
+    assert detect_license_from_text(text) is None
+    assert detect_license_from_text(text, stated=stated) is None
+
+
+_SEVERAL_FILE = "types-setuptools-84.2.0.20261122-LICENSE"
+_MIT_FILE = "RapidFuzz-3.14.5-LICENSE"
+
+
+@pytest.mark.parametrize(
+    ("files", "expected"),
+    [
+        # a later file names only one licence of the several: not read
+        ((_SEVERAL_FILE, _MIT_FILE), None),
+        ((_MIT_FILE, _SEVERAL_FILE), "MIT"),  # the first decides
+    ],
+    ids=["several-first", "several-second"],
+)
+def test_a_file_of_several_licence_texts_ends_the_search(
+    files: tuple[str, str], expected: str | None
+) -> None:
+    candidates = [
+        ((_CORPUS / name).read_bytes().decode("utf-8"), f"Source: {name}")
+        for name in files
+    ]
+    found = license_from_candidates(candidates, stated="Apache-2.0")
+    assert (found[0] if found else None) == expected
+
+
+def test_a_stated_id_before_a_file_of_several_texts_still_wins() -> None:
+    """``CITATION.cff`` and ``codemeta.json`` come before the licence files."""
+    text = (_CORPUS / _SEVERAL_FILE).read_bytes().decode("utf-8")
+    found = license_from_candidates(
+        [("Apache-2.0", "Source: codemeta.json"), (text, "Source: LICENSE")]
+    )
+    assert found == ("Apache-2.0", "Source: codemeta.json")
+
+
+#: ``LICENSE`` of Apache-2.0 and MIT texts, then a ``COPYING`` of MIT alone.
+_SEVERAL_THEN_MIT = {"LICENSE": _SEVERAL_FILE, "COPYING": _MIT_FILE}
+
+
+def test_a_project_concludes_no_licence_from_a_file_after_several_texts() -> None:
+    """Stated ``Apache-2.0``: ``COPYING`` alone would conclude ``MIT``."""
+    metadata = ProjectMetadata(name="p", version="1")
+    metadata.license_name = "Apache-2.0"
+    members = {k: (_CORPUS / v).read_bytes() for k, v in _SEVERAL_THEN_MIT.items()}
+    apply_in_package_license_files(metadata, members)
+    assert metadata.license_concluded is None
+    assert "license_concluded" not in metadata.provenance
+
+
+def test_a_hub_repository_gives_no_licence_from_a_file_after_several_texts(
+    tmp_path: Path,
+) -> None:
+    for name, fixture in _SEVERAL_THEN_MIT.items():
+        (tmp_path / name).write_bytes((_CORPUS / fixture).read_bytes())
+    hub = create_autospec(HubFiles, instance=True)
+    hub.asks_hub = True
+    hub.read.side_effect = lambda _model, name, **_kw: tmp_path / name
+    found = _detect_license_from_hf_files(
+        hub, "o/m", license_files=list(_SEVERAL_THEN_MIT)
+    )
+    assert found == (None, None)
+    assert hub.read.call_count == 1

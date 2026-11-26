@@ -16,6 +16,7 @@ from unittest.mock import patch
 
 import pytest
 
+from pitloom.extract._license_text_match import LicenseTextReading
 from pitloom.extract.project.poetry import extract_poetry_metadata
 from pitloom.extract.project.pyproject import _try_read_poetry, read_pyproject
 
@@ -336,8 +337,8 @@ def test_extract_poetry_metadata_license_conflict() -> None:
         tmp_path = Path(d)
         (tmp_path / "LICENSE").write_text("Apache License", encoding="utf-8")
         with patch(
-            "pitloom.extract._license.detect_license_from_text",
-            return_value="Apache-2.0",
+            "pitloom.extract._license.read_license_text",
+            return_value=LicenseTextReading("Apache-2.0"),
         ):
             metadata = extract_poetry_metadata(data, tmp_path)
     assert metadata.license_name == "MIT"
@@ -362,8 +363,8 @@ license = "MIT"
         (tmp_path / "pyproject.toml").write_text(content)
         (tmp_path / "LICENSE").write_text("Apache License", encoding="utf-8")
         with patch(
-            "pitloom.extract._license.detect_license_from_text",
-            return_value="Apache-2.0",
+            "pitloom.extract._license.read_license_text",
+            return_value=LicenseTextReading("Apache-2.0"),
         ):
             metadata, _ = read_pyproject(tmp_path / "pyproject.toml")
 
@@ -380,8 +381,8 @@ def test_extract_poetry_metadata_license_agrees() -> None:
         tmp_path = Path(d)
         (tmp_path / "LICENSE").write_text("MIT License", encoding="utf-8")
         with patch(
-            "pitloom.extract._license.detect_license_from_text",
-            return_value="MIT",
+            "pitloom.extract._license.read_license_text",
+            return_value=LicenseTextReading("MIT"),
         ):
             metadata = extract_poetry_metadata(data, tmp_path)
     assert metadata.license_name == "MIT"

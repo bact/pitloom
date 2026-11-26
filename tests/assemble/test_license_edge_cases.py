@@ -35,6 +35,7 @@ from pitloom.extract._license_detect import (
     collect_license_candidates,
     find_license_files,
 )
+from pitloom.extract._license_text_match import LicenseTextReading
 
 
 def test_looks_like_spdx_license_expression_newlines_and_length() -> None:
@@ -132,8 +133,8 @@ def test_detect_independent_license_loop_continuation() -> None:
         lic1.write_text("Some random non-license text", encoding="utf-8")
 
         with patch(
-            "pitloom.extract._license.detect_license_from_text",
-            return_value=None,
+            "pitloom.extract._license.read_license_text",
+            return_value=LicenseTextReading(None),
         ):
             detected, prov = detect_independent_license(p)
             assert detected is None

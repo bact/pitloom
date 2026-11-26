@@ -19,6 +19,7 @@ from unittest.mock import patch
 
 import pytest
 
+from pitloom.extract._license_text_match import LicenseTextReading
 from pitloom.extract.project.pyproject import read_pyproject
 from pitloom.messages import code_of
 
@@ -312,8 +313,8 @@ def test_license_concluded_populated_on_conflict() -> None:
         (tmppath / "LICENSE").write_text("Apache License\nVersion 2.0" + "x" * 200)
 
         with patch(
-            "pitloom.extract._license.detect_license_from_text",
-            return_value="Apache-2.0",
+            "pitloom.extract._license.read_license_text",
+            return_value=LicenseTextReading("Apache-2.0"),
         ):
             metadata, _ = read_pyproject(pyproject_path)
 
@@ -337,8 +338,8 @@ def test_license_concluded_matches_declared_no_conflict() -> None:
         (tmppath / "LICENSE").write_text("MIT License\n\nPermission" + "x" * 200)
 
         with patch(
-            "pitloom.extract._license.detect_license_from_text",
-            return_value="MIT",
+            "pitloom.extract._license.read_license_text",
+            return_value=LicenseTextReading("MIT"),
         ):
             metadata, _ = read_pyproject(pyproject_path)
 
@@ -370,8 +371,8 @@ def test_license_concluded_none_when_nothing_declared() -> None:
         (tmppath / "LICENSE").write_text("MIT License\n\nPermission" + "x" * 200)
 
         with patch(
-            "pitloom.extract._license.detect_license_from_text",
-            return_value="MIT",
+            "pitloom.extract._license.read_license_text",
+            return_value=LicenseTextReading("MIT"),
         ):
             metadata, _ = read_pyproject(pyproject_path)
 

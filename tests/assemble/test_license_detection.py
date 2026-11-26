@@ -33,7 +33,10 @@ from pitloom.extract._license_detect import (
     collect_license_candidates,
     find_license_files,
 )
-from pitloom.extract._license_text_match import detect_license_from_text
+from pitloom.extract._license_text_match import (
+    LicenseTextReading,
+    detect_license_from_text,
+)
 
 # ---------------------------------------------------------------------------
 # _looks_like_spdx_license_id
@@ -309,8 +312,8 @@ def test_detect_project_from_license_file_with_detection() -> None:
         p = Path(d)
         (p / "LICENSE").write_text(mit_text)
         with patch(
-            "pitloom.extract._license.detect_license_from_text",
-            return_value="MIT",
+            "pitloom.extract._license.read_license_text",
+            return_value=LicenseTextReading("MIT"),
         ) as mock_detect:
             result_id, prov = detect_license_for_project(p)
             mock_detect.assert_called_once_with(mit_text, stated=None)

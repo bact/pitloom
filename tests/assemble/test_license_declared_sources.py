@@ -32,6 +32,7 @@ from pitloom.assemble import (
 from pitloom.assemble.spdx3._provenance_encoders import THIRD_PARTY_SOURCES
 from pitloom.assemble.spdx3.document import build_model
 from pitloom.core.creation import CreationMetadata
+from pitloom.extract._license_text_match import LicenseTextReading
 from tests._license_graph import (
     deployed,
     graph_of,
@@ -195,9 +196,11 @@ def test_an_in_package_source_is_declared_when_the_manifest_states_nothing(
     for name, text in files.items():
         (tmp_path / name).write_text(text, encoding="utf-8")
     with patch(
-        "pitloom.extract._license.detect_license_from_text",
+        "pitloom.extract._license.read_license_text",
         autospec=True,
-        side_effect=lambda text, **_: "MIT" if text == _LICENSE_TEXT else None,
+        side_effect=lambda text, **_: LicenseTextReading(
+            "MIT" if text == _LICENSE_TEXT else None
+        ),
     ):
         graph = _read(surface, tmp_path)
     assert sorted(_relationships(graph, "demo")) == expected
