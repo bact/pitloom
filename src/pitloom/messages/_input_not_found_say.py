@@ -45,16 +45,16 @@ from pitloom.messages._input_not_found import (
     INPUT_NOT_FILE_LINE,
     INPUT_NOT_FOUND,
     INPUT_NOT_FOUND_FRAGMENT,
-    MODEL_FILE_NOT_FOUND_LINE,
     REQUIRED_FRAGMENT_LINE,
 )
 from pitloom.messages._types import Line
 
 #: The kinds of :data:`~pitloom.messages._field_tables.INPUT_KINDS` that name a
-#: directory; ``project path`` and ``PATH`` (a ``loom id generate`` PATH)
-#: name either, so none is expected of them.
+#: directory; ``project path``, ``PATH`` (a ``loom id generate`` PATH) and
+#: ``model file`` (a model file, or a directory holding one) name either, so
+#: none is expected of them.
 _DIRECTORY_KINDS: Final = frozenset({"fragments directory", "project directory"})
-_EITHER_KINDS: Final = frozenset({"PATH", "project path"})
+_EITHER_KINDS: Final = frozenset({"PATH", "model file", "project path"})
 #: The line said when something of the wrong kind is at the path, by kind.
 _WRONG_KIND_LINES: Final[Mapping[str, Line]] = MappingProxyType(
     {
@@ -65,9 +65,8 @@ _WRONG_KIND_LINES: Final[Mapping[str, Line]] = MappingProxyType(
 )
 
 
-#: The kind :func:`refuse_empty_input` names a model file by: the model
-#: routes' own line (``Model file not found``), not one of
-#: :data:`~pitloom.messages._field_tables.INPUT_KINDS`.
+#: The kind of :data:`~pitloom.messages._field_tables.INPUT_KINDS` the model
+#: routes name their input by (a model file, or a directory holding one).
 MODEL_FILE_KIND: Final = "model file"
 
 
@@ -80,23 +79,20 @@ def is_empty_input(given: str | os.PathLike[str]) -> bool:
 
 def refuse_empty_input(given: str | os.PathLike[str], kind: str) -> None:
     """Raise ``input-not-found`` for *given*, an input path named as *kind*
-    (one of :data:`~pitloom.messages._field_tables.INPUT_KINDS`, or
-    :data:`MODEL_FILE_KIND`), when it was given as empty: nothing is there,
+    (one of :data:`~pitloom.messages._field_tables.INPUT_KINDS`), when it was
+    given as empty: nothing is there,
     although :class:`pathlib.Path` would read it as the current directory.
     Called at each entry taking an input path, before any format check.
 
     Raises:
         pitloom.messages.CodedFileNotFoundError: *given* is empty.
-        pitloom.core.internal_error.InternalError: *kind* is neither.
+        pitloom.core.internal_error.InternalError: *kind* is not one of
+            :data:`~pitloom.messages._field_tables.INPUT_KINDS`.
     """
-    if kind != MODEL_FILE_KIND and kind not in INPUT_KINDS:
+    if kind not in INPUT_KINDS:
         raise InternalError(f"input kind {kind!r} is not in INPUT_KINDS")
     if not is_empty_input(given):
         return
-    if kind == MODEL_FILE_KIND:
-        raise CodedFileNotFoundError(
-            INPUT_NOT_FOUND, line=MODEL_FILE_NOT_FOUND_LINE, path=""
-        )
     raise input_not_found(kind, "")
 
 

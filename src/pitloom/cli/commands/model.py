@@ -44,10 +44,7 @@ from pitloom.messages.pypi import (
     MODEL_URL_LINE,
     PYPI_URL_UNUSABLE,
 )
-from pitloom.messages.targets import (
-    INPUT_NOT_FOUND,
-    MODEL_FILE_NOT_FOUND_LINE,
-)
+from pitloom.messages.targets import MODEL_FILE_KIND, say_input_not_found
 
 
 def _write_model_sbom(
@@ -145,10 +142,7 @@ def _run_model_command(args: argparse.Namespace) -> int:
     if opened_path is None:
         # Named as given, with the credentials of anything URL-shaped in it
         # masked.
-        print_error(
-            MODEL_FILE_NOT_FOUND_LINE.render({"path": target}),
-            code=INPUT_NOT_FOUND.code,
-        )
+        say_input_not_found(MODEL_FILE_KIND, target)
         return 1
     # A folder: its one model file, which names the output.
     model_path = model_path_of(opened_path, subject=target)

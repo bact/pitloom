@@ -17,7 +17,9 @@ from typing import Any
 import pytest
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
+from pitloom.export import spdx3_json
 from pitloom.export.spdx3_json import Spdx3JsonExporter
+from pitloom.logging_config import CODE_ATTR
 
 _BASE = "https://e.org/a#"
 
@@ -113,14 +115,15 @@ def test_only_references_are_remapped(orphan_first: bool) -> None:
 
 @pytest.mark.parametrize(
     ("names", "warned"),
-    [(("b\udc80", "a\udcff"), ["FILE='a\\udcff'"]), (("b", "a"), [])],
+    [(("b\udc80", "a\udcff"), [f"ELEMENT={_BASE}P1"]), (("b", "a"), [])],
     ids=["lone-surrogates", "clean"],
 )
 def test_a_lone_surrogate_is_written_as_text_with_one_warning(
     names: tuple[str, str], warned: list[str], caplog: pytest.LogCaptureFixture
 ) -> None:
     """Every element's text is escaped before the passes that read it (the
-    relationship description); one warning names the least name changed."""
+    relationship description); one warning names the least element
+    changed, a package by its spdxId."""
     info = _creation_info()
     agent = spdx3.SoftwareAgent(spdxId=_BASE + "A", name="x", creationInfo=info)
     info.createdBy = [agent]
@@ -147,4 +150,53 @@ def test_a_lone_surrogate_is_written_as_text_with_one_warning(
     assert [n["name"] for n in nodes if n["type"] == "software_Package"] == shown
     (rel,) = [n for n in nodes if n["type"] == "Relationship"]
     assert rel["description"] == f"{shown[0]} dependsOn: {shown[1]}"
-    assert [r.getMessage().split(":")[0] for r in caplog.records] == warned
+    said = [r.getMessage().rpartition(": lone surrogates")[0] for r in caplog.records]
+    assert said == warned
+
+
+@pytest.mark.parametrize(
+    ("graph", "warned"),
+    [
+        (
+            [
+                {"type": "software_Package", "spdxId": "a#P", "name": "p\udcff"},
+                {"type": "software_File", "spdxId": "a#F", "name": "z\udcff.py"},
+            ],
+            "FILE='z\\udcff.py'",
+        ),
+        (
+            [
+                {"type": "software_Package", "spdxId": "a#Q", "name": "q\udcff"},
+                {"type": "software_Package", "spdxId": "a#P", "name": "z\udcff"},
+            ],
+            "ELEMENT=a#P",
+        ),
+        ([{"type": "software_File", "spdxId": "a#F", "x": "\udcff"}], "ELEMENT=a#F"),
+        ([{"@id": "_:c", "comment": "\udcff"}], "ELEMENT=_:c"),
+        # A non-ASCII name escaped once, by the field writer.
+        (
+            [{"type": "software_File", "spdxId": "a#F", "name": "é\udcff.py"}],
+            "FILE='\\xe9\\udcff.py'",
+        ),
+        # No spdxId and no @id: named by its type.
+        ([{"type": "CreationInfo", "comment": "c\udcff"}], "ELEMENT=CreationInfo"),
+    ],
+    ids=[
+        "file-first",
+        "least-id",
+        "file-with-no-name",
+        "blank-node",
+        "non-ascii-file",
+        "type-only",
+    ],
+)
+def test_the_surrogate_warning_names_a_file_by_name_else_an_element_by_id(
+    graph: list[dict[str, Any]], warned: str, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A file is named by its path (``FILE=``), any other element by its
+    spdxId (``ELEMENT=``): a package's name is no file."""
+    with caplog.at_level(logging.WARNING, logger="pitloom"):
+        spdx3_json.escape_lone_surrogates_in_graph(graph)
+    (record,) = caplog.records
+    assert record.getMessage() == f"{warned}: lone surrogates written as \\uXXXX"
+    assert getattr(record, CODE_ATTR) == "text-malformed"

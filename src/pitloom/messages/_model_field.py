@@ -31,16 +31,21 @@ _SKIPPED: Final = field_loss_suffix("skipped", "%(fields)s")
 _DEGRADED: Final = field_loss_suffix("degraded", "%(fields)s")
 
 
-def _skipped(template: str) -> Line:
+#: The release that first prints the lines that began "Failed to" in lower
+#: case, as every other line begins.
+_LOWER_SINCE: Final = "0.25.0"
+
+
+def _skipped(template: str, since: str | None = None) -> Line:
     """A ``WARNING`` line: *template*, then the fields left unset."""
-    return Line(level="WARNING", template=template + _SKIPPED)
+    return Line(level="WARNING", template=template + _SKIPPED, since=since)
 
 
 FASTTEXT_ARGS_LINE: Final = _skipped(
-    "Failed to read fastText model.f.getArgs(): %(error)s"
+    "failed to read fastText model.f.getArgs(): %(error)s", _LOWER_SINCE
 )
 FASTTEXT_LABELS_LINE: Final = _skipped(
-    "Failed to read fastText model labels: %(error)s"
+    "failed to read fastText model labels: %(error)s", _LOWER_SINCE
 )
 #: fickling refused the pickle (shared by the bound and the parse).
 FICKLING_PARSE_LINE: Final = _skipped(
@@ -51,18 +56,25 @@ FICKLING_WALK_LINE: Final = _skipped(
 )
 #: A PyTorch archive's pickle member, *name* the provenance source.
 PICKLE_MEMBER_LINE: Final = _skipped(
-    "Failed to inspect %(entry)s in %(name)s: %(error)s"
+    "failed to inspect %(entry)s in %(name)s: %(error)s", _LOWER_SINCE
 )
 PT2_META_LINE: Final = _skipped(
-    "Failed to parse PT2 metadata entry %(entry)s: %(error)s"
+    "failed to parse PT2 metadata entry %(entry)s: %(error)s", _LOWER_SINCE
 )
-PT2_EXTRA_LINE: Final = _skipped("Failed to read PT2 extra file %(entry)s: %(error)s")
+PT2_EXTRA_LINE: Final = _skipped(
+    "failed to read PT2 extra file %(entry)s: %(error)s", _LOWER_SINCE
+)
 PT2_TAGS_LINE: Final = Line(
     level="WARNING",
-    template="Failed to parse PT2 extra/tags as JSON: %(error)s" + _DEGRADED,
+    template="failed to parse PT2 extra/tags as JSON: %(error)s" + _DEGRADED,
+    since=_LOWER_SINCE,
 )
-PT2_GRAPH_LINE: Final = _skipped("Failed to parse PT2 model graph %(entry)s: %(error)s")
-PT2_VERSION_LINE: Final = _skipped("Failed to read PT2 %(entry)s: %(error)s")
+PT2_GRAPH_LINE: Final = _skipped(
+    "failed to parse PT2 model graph %(entry)s: %(error)s", _LOWER_SINCE
+)
+PT2_VERSION_LINE: Final = _skipped(
+    "failed to read PT2 %(entry)s: %(error)s", _LOWER_SINCE
+)
 #: A Keras or HDF5 root attribute that h5py cannot read.
 ATTRIBUTE_LINE: Final = _skipped("%(part)s attribute cannot be read; %(error)s")
 #: A ``model_config`` part not as Keras writes it, the raw text kept.

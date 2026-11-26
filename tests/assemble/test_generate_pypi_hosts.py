@@ -157,7 +157,7 @@ def test_a_spelling_of_pypi_org_reads_pypi_org(
 def test_the_model_call_refuses_a_pypi_url_as_loom_model_does(
     url: str, offline: bool, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """Not read as a missing local path (``Model file not found``), and
+    """Not read as a missing local path (``model file not found``), and
     raised without a record first (said once, as the Git route says it)."""
     caplog.set_level(logging.DEBUG, logger="pitloom")
     with pytest.raises(ValueError) as info:

@@ -91,10 +91,12 @@ ELEMENTS_LINE: Final = _line("malformed entry: 'elements' is not an object")
 TYPE_TABLE_LINE: Final = _line(
     "malformed entry: elements %(element_type)s is not an object"
 )
+#: Why the ID registry cannot hold a name: its file is UTF-8. Said of a
+#: registry file that holds one (here) and of a name given to it
+#: (``text-malformed/registry``).
+UNENCODABLE: Final = "cannot be encoded as UTF-8 (lone surrogate)"
 #: A key or ``spdxId`` holding a lone surrogate (a JSON ``\ud800`` escape).
-UNENCODABLE_LINE: Final = _line(
-    "%(registry_part)s %(value)s cannot be encoded as UTF-8 (lone surrogate)"
-)
+UNENCODABLE_LINE: Final = _line(f"%(registry_part)s %(value)s {UNENCODABLE}")
 #: Two keys that are one once normalised (NFC, a package's version).
 DUPLICATE_ENTRY_LINE: Final = _line("two %(element_type)s entries for %(name)s")
 #: An entry that is not an object.

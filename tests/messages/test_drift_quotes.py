@@ -210,7 +210,7 @@ _MARKERS: dict[str, tuple[str, ...]] = {
     "hyperparameter-conflict": ("replaced by the parameter count",),
     "index-path-no-effect": ("skipped directory name",),
     "input-not-found": (
-        "Model file not found",
+        "model file not found",
         "in the repository at that branch",
         "SBOM fragment not found",
         "no wheel file matches",
@@ -287,12 +287,12 @@ _MARKERS: dict[str, tuple[str, ...]] = {
     "model-ambiguous": ("several AI model files", "could be AI models, none read"),
     "model-field-conflict": ("the length of array ", "appear more than once"),
     "model-field-unreadable": (
-        "Failed to read fastText model",
+        "failed to read fastText model",
         "fickling failed to parse pickle",
         "fickling parsed pickle but",
-        "Failed to inspect ",
-        "Failed to parse PT2 ",
-        "Failed to read PT2 ",
+        "failed to inspect ",
+        "failed to parse PT2 ",
+        "failed to read PT2 ",
         "attribute cannot be read",
         "kept as properties.model_config_raw",
         "the fields read before it are kept",
@@ -328,12 +328,12 @@ _MARKERS: dict[str, tuple[str, ...]] = {
         "has a project name",
     ),
     "project-not-found": (
-        "No pyproject.toml, setup.cfg, or setup.py found",
-        "Python projects are in subfolders",
+        ": no Python project (pyproject.toml, setup.cfg or setup.py)",
+        "Python projects are in subdirectories",
     ),
     "project-or-model-not-found": (
         "no Python project (pyproject.toml",
-        "Python projects are in subfolders",
+        "Python projects are in subdirectories",
     ),
     "pypi-response-invalid": (
         "declares no SHA-256 digest",
@@ -452,12 +452,12 @@ _MARKERS: dict[str, tuple[str, ...]] = {
         "out of range for a date",
     ),
     "target-ambiguous": (
-        "not an AI model file; reading its folder",
+        "not an AI model file; reading its directory",
         "no Python project; reading this AI model file",
         "the one AI model file; reading it",
         "read as repository ",
         "not a repository; read as",
-        ", not a folder; read as the file",
+        ", not a directory; read as the file",
         ", not a file; reading it",
         "read as Hugging Face model ",
     ),
@@ -649,8 +649,8 @@ def test_the_matcher_reads_elisions_and_checks_level_code_and_wording(
         ),
         ("FILE=<path>: larger than the 10-byte usage-scan limit cap; skipped", True),
         (
-            "ERROR: config file '<path>': larger than the <limit>-byte config-member "
-            "cap; not read [over-cap]",
+            "ERROR: FILE=<path>: larger than the <limit>-byte config-member "
+            "cap for the project metadata; not read [over-cap]",
             True,
         ),
         # the wording, a value's shape, the level or the code differs

@@ -22,7 +22,7 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
 | [`card-malformed`](#card-malformed) | WARNING | The YAML frontmatter at the top of a card (the block between two --- lines) does not parse: a model card beside a local model, a dataset's own card, a Hugging Face model's card, or a Hugging Face dataset card a Hub model lists. The line gives what the parser reported. | 0.23.0 |
 | [`json-malformed`](#json-malformed) | ERROR, WARNING | A JSON document Pitloom was given to read does not parse, or its top level is not an object; the line says which document by what it was read for: a Croissant document, PyPI's release metadata, or an SBOM given to embed or to import into an ID registry, or an ID registry file. The lines print since 0.23.0 for a Croissant document, 0.24.0 for PyPI's release metadata and 0.25.0 for an SBOM and an ID registry file. | 0.23.0 |
 | [`json-malformed/bom`](#json-malformedbom) | WARNING | An SBOM given to read ('embed-wheel --sbom', 'loom id import') starts with a UTF-8 byte order mark (U+FEFF): RFC 8259 section 8.1 says JSON text must not, and a reader that does not drop it fails. | 0.25.0 |
-| [`text-malformed`](#text-malformed) | WARNING | Text Pitloom read holds lone surrogates (U+D800 to U+DFFF), which UTF-8 cannot hold: a JSON or YAML \ud800 escape in a file (a model's metadata, a model or dataset card, a Croissant document, an SBOM fragment, a licence value), or a file name that is not UTF-8. For the SBOM itself, the line names the first element holding one, by its name; for a licence value, the value (LICENSE=). | 0.23.0 |
+| [`text-malformed`](#text-malformed) | WARNING | Text Pitloom read holds lone surrogates (U+D800 to U+DFFF), which UTF-8 cannot hold: a JSON or YAML \ud800 escape in a file (a model's metadata, a model or dataset card, a Croissant document, an SBOM fragment, a licence value), or a file name that is not UTF-8. For the SBOM itself, the line names the first element holding one: a file by its name (FILE=), any other element by its spdxId (ELEMENT=; a blank node by its @id as read, else its type); for a licence value, the value (LICENSE=). | 0.23.0 |
 | [`text-malformed/registry`](#text-malformedregistry) | ERROR, WARNING | A name the ID registry is to hold holds lone surrogates (U+D800 to U+DFFF), which its UTF-8 file cannot hold: a file name that is not UTF-8 (loom id generate), the name or spdxId of an SBOM element (a \ud800 escape; loom id import, or the registry update of a run), or a name given to IdRegistry.register (a -e NAME). The value is shown escaped. | 0.25.0 |
 | [`text-unsafe`](#text-unsafe) | WARNING | The display text of a model's elements (its package, base model, datasets and their creators, licence, originators and the relationships between them) or of a loom dataset's (when it has a Croissant document or dataset card) held invisible or bidi control characters (U+202E can make txt.exe read exe.txt), or a control character. Said once per model or dataset. | 0.25.0 |
 
@@ -114,8 +114,9 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
   UTF-8 cannot hold: a JSON or YAML \ud800 escape in a file (a model's metadata,
   a model or dataset card, a Croissant document, an SBOM fragment, a licence
   value), or a file name that is not UTF-8. For the SBOM itself, the line names
-  the first element holding one, by its name; for a licence value, the value
-  (LICENSE=).
+  the first element holding one: a file by its name (FILE=), any other element
+  by its spdxId (ELEMENT=; a blank node by its @id as read, else its type); for
+  a licence value, the value (LICENSE=).
 - **SBOM effect**: weaker: what the SBOM says is less sure.
 - **Pitloom did**: Wrote each lone surrogate as the six characters \udXXX, in
   the SBOM and in its provenance, and went on; said once per file (once per SBOM
@@ -134,11 +135,12 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
 
   ```text
   WARNING: FILE=<file>: lone surrogates written as \uXXXX [text-malformed]
+  WARNING: ELEMENT=<spdx-id>: lone surrogates written as \uXXXX [text-malformed]
   WARNING: FORMAT=<format> FILE=<file>: lone surrogates written as \uXXXX [text-malformed]
   WARNING: LICENSE=<license>: lone surrogates replaced with U+FFFD [text-malformed]
   ```
 
-- **Since**: 0.23.0; line 3: 0.25.0
+- **Since**: 0.23.0; lines 2, 4: 0.25.0
 
 ### `text-malformed/registry`
 

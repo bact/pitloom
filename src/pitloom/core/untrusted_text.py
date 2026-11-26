@@ -51,13 +51,14 @@ from __future__ import annotations
 import json
 import math
 import re
-from typing import Any
+from typing import Any, NamedTuple
 
 from pitloom.core.canonical_json import canonical_json
 from pitloom.core.internal_error import reraise_internal
 
 __all__ = [
     "DISPLAY_CONTROLS",
+    "ChangedElement",
     "escape_display_controls",
     "escape_display_controls_in_iri",
     "escape_display_controls_in_json",
@@ -244,23 +245,37 @@ def escape_lone_surrogates_in(value: Any) -> tuple[Any, bool]:
     return value, changed_any
 
 
-def escape_lone_surrogates_in_elements(elements: list[dict[str, Any]]) -> list[str]:
+class ChangedElement(NamedTuple):
+    """An SBOM element whose text held lone surrogates, as a warning names
+    it: a file by its ``name`` (its path), any other element by its
+    ``spdxId`` (else the ``@id`` of a blank node, the ``type``, else
+    ``element``), as it was before. The label is never empty."""
+
+    #: A ``software_File`` with a name.
+    is_file: bool
+    label: str
+
+
+def _changed_element(element: dict[str, Any]) -> ChangedElement:
+    name = element.get("name")
+    if element.get("type") == "software_File" and name:
+        return ChangedElement(True, str(name))
+    label = element.get("spdxId") or element.get("@id") or element.get("type")
+    return ChangedElement(False, str(label or "element"))
+
+
+def escape_lone_surrogates_in_elements(
+    elements: list[dict[str, Any]],
+) -> list[ChangedElement]:
     """Each JSON object of *elements* (the decoded ``@graph`` of an SBOM)
-    with :func:`escape_lone_surrogates_in` applied, in place. Returns the
-    ``name`` (else the ``spdxId``, the ``@id`` of a blank node, the
-    ``type``, else ``element``) of each object that changed, as it was
-    before, in the order of *elements*: a project file whose POSIX name is
-    not UTF-8 (``b"\\xff.py"`` read as ``"\\udcff.py"``) reaches the output
-    as the text ``\\udcff.py``. A label is never empty."""
-    changed: list[str] = []
+    with :func:`escape_lone_surrogates_in` applied, in place. Returns each
+    object that changed (:class:`ChangedElement`), in the order of
+    *elements*: a project file whose POSIX name is not UTF-8
+    (``b"\\xff.py"`` read as ``"\\udcff.py"``) reaches the output as the
+    text ``\\udcff.py``."""
+    changed: list[ChangedElement] = []
     for element in elements:
-        label = str(
-            element.get("name")
-            or element.get("spdxId")
-            or element.get("@id")
-            or element.get("type")
-            or "element"
-        )
+        label = _changed_element(element)
         if escape_lone_surrogates_in(element)[1]:
             changed.append(label)
     return changed

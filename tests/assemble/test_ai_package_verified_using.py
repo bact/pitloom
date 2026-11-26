@@ -49,7 +49,7 @@ from tests.registry_helpers import make_registry
 
 _MODEL = "m.safetensors"
 _OLD, _NEW = safetensors_bytes(), safetensors_bytes(extra=1)
-_GATE_INFO = "no registry entry records its SHA-256; a new id is used"
+_GATE_INFO = "no registry entry records its SHA-256; minting a new spdxId"
 _PIN = "https://spdx.org/spdxdocs/pins#AIPackage-1"
 _PYPROJECT = (
     '[build-system]\nrequires = ["hatchling"]\nbuild-backend = "hatchling.build"\n'

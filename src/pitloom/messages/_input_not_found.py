@@ -12,7 +12,7 @@ merge goes on without it.
 See also: :mod:`pitloom.messages._input_not_found_say` (the helpers),
 :mod:`pitloom.extract._model_named` (a model file named on its own),
 :mod:`pitloom.extract.remote.git_target` and
-:mod:`pitloom.extract.remote._git_folder` (a file or folder a Git URL names).
+:mod:`pitloom.extract.remote._git_folder` (a file or directory a Git URL names).
 """
 
 from __future__ import annotations
@@ -23,29 +23,29 @@ from pitloom.messages._fragments import fragment_lines
 from pitloom.messages._types import ASK_FIRST, Line, Message
 
 #: The release that first prints ``input-not-found/fragment``, and each
-#: ``input-not-found`` line after its first four (a model file, a Git URL's
-#: file or folder), which print since 0.23.4.
+#: ``input-not-found`` line: the code's lines of 0.23.4 were reworded.
 _SINCE: Final = "0.25.0"
 
-#: A model file named on its own (a path, or a file of a folder) that does
-#: not exist.
-MODEL_FILE_NOT_FOUND_LINE: Final = Line(
-    level="ERROR", template="Model file not found: %(path)s"
-)
 #: The file a Git URL names is no regular file of the repository at its
-#: branch (gone, a folder, or out of the repository).
+#: branch (gone, a directory, or out of the repository).
 GIT_FILE_NOT_FOUND_LINE: Final = Line(
-    level="ERROR", template="No file %(path)s in the repository at that branch."
+    level="ERROR",
+    template="no file %(path)s in the repository at that branch",
+    since=_SINCE,
 )
 #: The file a Git URL names is a symbolic link, which is not followed.
 GIT_FILE_IS_LINK_LINE: Final = Line(
     level="ERROR",
-    template="File %(path)s in the repository at that branch is a symbolic "
-    "link; links are not followed.",
+    template="file %(path)s in the repository at that branch is a symbolic "
+    "link; links are not followed",
+    since=_SINCE,
 )
-#: The folder a Git URL names is no folder of the repository at its branch.
+#: The directory a Git URL names is no directory of the repository at its
+#: branch.
 GIT_FOLDER_NOT_FOUND_LINE: Final = Line(
-    level="ERROR", template="No folder %(path)s in the repository at that branch."
+    level="ERROR",
+    template="no directory %(path)s in the repository at that branch",
+    since=_SINCE,
 )
 
 #: A path named for Pitloom to read, of a kind of
@@ -97,7 +97,6 @@ INPUT_NOT_FOUND: Final = Message(
     code="input-not-found",
     condition="not-found",
     lines=(
-        MODEL_FILE_NOT_FOUND_LINE,
         GIT_FILE_NOT_FOUND_LINE,
         GIT_FILE_IS_LINK_LINE,
         GIT_FOLDER_NOT_FOUND_LINE,
@@ -116,12 +115,11 @@ INPUT_NOT_FOUND: Final = Message(
     "wheel, sdist, project directory, configuration, ID registry or SBOM file, "
     "or a PATH given to 'loom id generate' to index, on disk "
     "(or something else is there: the line says it is not a file, or not a "
-    "directory), the file or folder a Git URL names in the repository at its "
+    "directory), the file or directory a Git URL names in the repository at its "
     "branch (a symbolic link there is not followed, so it counts as absent: "
     "its line says it is a link), or a pattern or directory that holds "
     "nothing of what was asked for (or a wheel pattern nested too deeply to "
-    "expand: its line says so). The lines for a model file and for a Git "
-    f"URL's file or folder print since 0.23.4, the others since {_SINCE}.",
+    "expand: its line says so).",
     did="Wrote nothing: no SBOM is written; for 'loom id', the ID registry "
     "is not written; for 'loom embed-wheel', no wheel is changed; a check "
     "('loom fragment validate', 'loom verify-wheel', 'loom validate-wheel') "
@@ -130,7 +128,7 @@ INPUT_NOT_FOUND: Final = Message(
     "the code (IdRegistry.generate for a path to index that is not there), "
     "ValueError for a fragments directory that holds no JSON file, "
     "or RemoteSourceError (code git.path-not-found) for a Git URL's file or "
-    "folder. As a WARNING, an ID registry file was gone (or no longer a "
+    "directory. As a WARNING, an ID registry file was gone (or no longer a "
     "file) when a run whose SBOM is already built read it again to save "
     "the ids it added: nothing is saved and the SBOM stands.",
     effect="not-written",

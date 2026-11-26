@@ -34,6 +34,8 @@ from tests.kv_helpers import info_kv, records, sbom_output_path
 from .conftest import _make_dummy_wheel, _spdx3_json_with_subject
 from .test_embed_cleanup import _make_ctpkg_project_and_wheel
 
+_NO_PROJECT = "no Python project (pyproject.toml, setup.cfg or setup.py)"
+
 
 def test_cli_embed_wheel_absolute_glob(
     monkeypatch: pytest.MonkeyPatch,
@@ -179,10 +181,8 @@ def test_cli_embed_wheel_project_dir(
     )
     assert __main__.main() == 1
     err = capsys.readouterr().err
-    assert (
-        "ERROR: loom embed-wheel: No pyproject.toml, setup.cfg, or setup.py found"
-        in err
-    )
+    assert "ERROR: loom embed-wheel: " in err
+    assert f": {_NO_PROJECT} [project-not-found]" in err
 
 
 def test_cli_embed_wheel_pregenerated_sbom(
@@ -324,7 +324,7 @@ def test_cli_embed_wheel_project_dir_without_metadata(
     )
     assert __main__.main() == 1
     err = capsys.readouterr().err
-    assert "No pyproject.toml" in err
+    assert f": {_NO_PROJECT} [project-not-found]" in err
 
 
 def _read_embedded_sbom(wheel_path: Path) -> bytes:

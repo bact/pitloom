@@ -139,12 +139,6 @@ REGISTRY_PATH_OUTSIDE_LINE: Final = Line(
 FINGERPRINT_LINE: Final = Line(
     level="ERROR", template=f"not a fingerprint ({FINGERPRINT_SHAPE})"
 )
-#: A ``PitloomConfig(url_credentials=...)`` that is no mode, given to the
-#: library.
-URL_CREDENTIALS_MODE_ARGUMENT_LINE: Final = Line(
-    level="ERROR",
-    template='PitloomConfig url_credentials: must be "warn" or "refuse"',
-)
 #: A value given to the library (a parameter, a ``PitloomConfig`` field) of
 #: the wrong type or shape: ``must be X, got Y``, as ``config-invalid`` says
 #: it of a configuration setting.
@@ -165,11 +159,6 @@ NAMESPACE_INVALID_LINE: Final = Line(
 )
 #: The same, for an empty namespace.
 NAMESPACE_EMPTY_LINE: Final = Line(level="ERROR", template="namespace is empty")
-#: A ``CredentialPolicy(refuse=...)`` that is no ``bool``.
-REFUSE_ARGUMENT_LINE: Final = Line(
-    level="ERROR",
-    template="CredentialPolicy refuse: must be True or False",
-)
 
 OPTION_INVALID: Final = Message(
     code="option-invalid",
@@ -182,8 +171,6 @@ OPTION_INVALID: Final = Message(
         PATH_OUTSIDE_LINE,
         REGISTRY_PATH_OUTSIDE_LINE,
         FINGERPRINT_LINE,
-        URL_CREDENTIALS_MODE_ARGUMENT_LINE,
-        REFUSE_ARGUMENT_LINE,
         VALUE_LINE,
         LOOM_SDK_VALUE_LINE,
         NAMESPACE_INVALID_LINE,

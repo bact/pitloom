@@ -156,16 +156,18 @@ def test_the_command_line_ends_the_error_in_its_code(tmp_path: Path) -> None:
     done = _loom(["generate", str(sdist), "-o", str(tmp_path / "o.json")], tmp_path)
     assert done.returncode == 1
     (line,) = _said(done.stderr, "config-member cap")
-    assert line.startswith("ERROR: loom generate: config file ")
+    assert line.startswith("ERROR: loom generate: FILE=")
     assert line.endswith(
-        ":pyproject.toml': larger than the 1048576-byte config-member cap; not read"
-        " [over-cap]"
+        ":pyproject.toml: larger than the 1048576-byte config-member cap for the "
+        "project metadata; not read [over-cap]"
     )
     assert trusted_message(line) is OVER_CAP
 
 
 def test_the_library_raises_it_with_its_code(tmp_path: Path) -> None:
     sdist = _oversized_sdist(tmp_path)
-    with pytest.raises(ValueError, match="config-member cap; not read") as caught:
+    with pytest.raises(
+        ValueError, match="config-member cap for the project metadata; not read"
+    ) as caught:
         generate_project_sbom(sdist, output_path=tmp_path / "o.json", offline=True)
     assert code_of(caught.value) == "over-cap"

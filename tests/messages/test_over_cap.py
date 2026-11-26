@@ -33,14 +33,12 @@ from pitloom.logging_config import CODE_ATTR, configure_logging
 from pitloom.messages import (
     CodedValueError,
     Line,
-    code_of,
     emit,
     trusted_message,
 )
 from pitloom.messages._over_cap import KEY_LINE, MODEL_LINE, PACKAGE_KEY_LINE, REASON
 from pitloom.messages._templates import render
 from pitloom.messages.files import (
-    CONFIG_MEMBER_LINE,
     OVER_CAP,
     SOURCE_LINE,
     Cap,
@@ -85,14 +83,6 @@ def test_the_reason_has_one_writer() -> None:
     cap = Cap(1048576, "byte", "config-member")
     assert cap.reason == render(REASON, cap.reason_values())
     assert cap.reason == "larger than the 1048576-byte config-member cap"
-    error = CodedValueError(
-        OVER_CAP,
-        line=CONFIG_MEMBER_LINE,
-        path="s.tar.gz:setup.cfg",
-        **cap.reason_values(),
-    )
-    assert str(error) == f"config file 's.tar.gz:setup.cfg': {cap.reason}; not read"
-    assert code_of(error) == "over-cap"
     use = "for the Croissant document"
     source = CodedValueError(
         OVER_CAP, line=SOURCE_LINE, file="c.json", use=use, **cap.reason_values()

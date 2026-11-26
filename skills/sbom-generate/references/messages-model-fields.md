@@ -120,16 +120,16 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
 - **Lines**:
 
   ```text
-  WARNING: Failed to read fastText model.f.getArgs(): <error> | Field(s) affected (skipped): <fields> [model-field-unreadable]
-  WARNING: Failed to read fastText model labels: <error> | Field(s) affected (skipped): <fields> [model-field-unreadable]
+  WARNING: failed to read fastText model.f.getArgs(): <error> | Field(s) affected (skipped): <fields> [model-field-unreadable]
+  WARNING: failed to read fastText model labels: <error> | Field(s) affected (skipped): <fields> [model-field-unreadable]
   WARNING: fickling failed to parse pickle bytes: <error> | Field(s) affected (skipped): <fields> [model-field-unreadable]
   WARNING: fickling parsed pickle but AST walk failed: <error> | Field(s) affected (skipped): <fields> [model-field-unreadable]
-  WARNING: Failed to inspect <entry> in <name>: <error> | Field(s) affected (skipped): <fields> [model-field-unreadable]
-  WARNING: Failed to parse PT2 metadata entry <entry>: <error> | Field(s) affected (skipped): <fields> [model-field-unreadable]
-  WARNING: Failed to read PT2 extra file <entry>: <error> | Field(s) affected (skipped): <fields> [model-field-unreadable]
-  WARNING: Failed to parse PT2 extra/tags as JSON: <error> | Field(s) affected (degraded): <fields> [model-field-unreadable]
-  WARNING: Failed to parse PT2 model graph <entry>: <error> | Field(s) affected (skipped): <fields> [model-field-unreadable]
-  WARNING: Failed to read PT2 <entry>: <error> | Field(s) affected (skipped): <fields> [model-field-unreadable]
+  WARNING: failed to inspect <entry> in <name>: <error> | Field(s) affected (skipped): <fields> [model-field-unreadable]
+  WARNING: failed to parse PT2 metadata entry <entry>: <error> | Field(s) affected (skipped): <fields> [model-field-unreadable]
+  WARNING: failed to read PT2 extra file <entry>: <error> | Field(s) affected (skipped): <fields> [model-field-unreadable]
+  WARNING: failed to parse PT2 extra/tags as JSON: <error> | Field(s) affected (degraded): <fields> [model-field-unreadable]
+  WARNING: failed to parse PT2 model graph <entry>: <error> | Field(s) affected (skipped): <fields> [model-field-unreadable]
+  WARNING: failed to read PT2 <entry>: <error> | Field(s) affected (skipped): <fields> [model-field-unreadable]
   WARNING: <part> attribute cannot be read; <error> | Field(s) affected (skipped): <fields> [model-field-unreadable]
   WARNING: <part> <error>; kept as properties.model_config_raw | Field(s) affected (skipped): <fields> [model-field-unreadable]
   WARNING: <part> <error>; kept as properties.model_config_raw, the first <limit> of <number> characters | Field(s) affected (skipped): <fields> [model-field-unreadable]
@@ -137,6 +137,8 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
   WARNING: <part> <error>; reading stopped there | Field(s) affected (skipped): <fields> [model-field-unreadable]
   WARNING: <part> <error>; the other archive members are read | Field(s) affected (skipped): <fields> [model-field-unreadable]
   ```
+
+- **Since**: 0.23.0; lines 1-2, 5-10: 0.25.0
 
 ### `parameter-count-invalid`
 

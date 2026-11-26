@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-23
-Last-Modified: 2026-11-25
+Last-Modified: 2026-11-26
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -111,6 +111,10 @@ design); the 14a follow-ups other than `Bearer`; code-shape and file-size
 items; Hub behaviour items.
 
 ## 4. Consistency rescan
+
+Progress (2026-11-26): built as three PRs; PR 1 (permanent tests, wording
+rulings) on branch `message-consistency-rescan`, PRs 2-3 planned. Rulings,
+opinions and follow-ups: [message-consistency-rescan.md](message-consistency-rescan.md).
 
 Permanent tests (new): D4 and D5; a closed subject-key vocabulary; level
 against effect and actor (derive the table from today's entries, fail on new

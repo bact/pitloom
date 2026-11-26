@@ -219,7 +219,7 @@ def test_read_pytorch_pt2_malformed_extra_tags_logs_and_keeps_raw_value(
         meta = read_pytorch_pt2(model_file)
     assert meta.properties.get("tags") == "not a json array"
     assert any(
-        "Failed to parse PT2 extra/tags as JSON" in r.message for r in caplog.records
+        "failed to parse PT2 extra/tags as JSON" in r.message for r in caplog.records
     )
 
 

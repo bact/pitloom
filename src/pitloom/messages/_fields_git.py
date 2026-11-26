@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """The values only the Git URL lines name: the git command, the branch, tag
-or commit a URL names and its kind, the subfolders that hold a project, and
+or commit a URL names and its kind, the subdirectories that hold a project, and
 a git command line as run.
 
 See also: :mod:`pitloom.messages._fields` (every field, these included) and
@@ -43,8 +43,8 @@ GIT_FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
         "folders": Field(
             r".+",
             free_text,
-            "<folders>",
-            "the subfolders that hold a Python project, comma-separated, "
+            "<directories>",
+            "the subdirectories that hold a Python project, comma-separated, "
             "`and N more` after the last one shown; a name in quotes, "
             "escaped, when it holds a control character",
             free=True,

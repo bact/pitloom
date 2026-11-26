@@ -28,6 +28,7 @@ from pitloom.messages._text_malformed import (
 )
 from pitloom.messages._text_malformed_warning import (
     registry_name_error,
+    warn_element_surrogates,
     warn_license_surrogates,
     warn_lone_surrogates,
     warn_registry_file_name,
@@ -53,6 +54,7 @@ __all__ = [
     "TEXT_MALFORMED_REGISTRY",
     "TEXT_UNSAFE",
     "registry_name_error",
+    "warn_element_surrogates",
     "warn_license_surrogates",
     "warn_lone_surrogates",
     "warn_registry_file_name",

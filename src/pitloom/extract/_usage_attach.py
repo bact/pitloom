@@ -102,7 +102,7 @@ def attach_from_source(
                 USAGE_UNPARSEABLE_MENTION,
                 logging.INFO,
                 file=source.physical_path,
-                name=name,
+                model=name,
             )
         return
     accesses = find_usages(tree, [usage for _, usage in named])

@@ -68,7 +68,7 @@ every message the Git route prints.
     break are not sent to git [credentials-unsafe/git-line-break]`.
   - A URL whose user information `git` would read differently from Pitloom
     (an empty host after the `@`, for one) is refused before `git` runs:
-    `ERROR: loom project: URL='https://***:***@/o/r': user information
+    `ERROR: loom project: URL=https://***:***@/o/r: user information
     cannot be taken out of the git command line; not fetched
     [credentials-unsafe/git-userinfo]`. So is a user name or password
     holding a NUL (`%00`), which cannot be handed to `git`. A malformed host
@@ -168,25 +168,25 @@ Every URL that is changed, refused or not followed is said, never silently:
 | Level | Message | When |
 | :---- | :------ | :--- |
 | `INFO:` | `Git source: URL=<url>: redirects to <target>; followed [url-moved]` | the server redirected: both URLs |
-| `INFO:` | `Git source: URL=<url>: read as repository <target>, <ref-kind> <ref>, folder '<path>' [target-ambiguous/git-page]` | the URL named more than a repository (or was cleaned); the ref and the folder are left out of the line when the URL names none |
+| `INFO:` | `Git source: URL=<url>: read as repository <target>, <ref-kind> <ref>, directory '<path>' [target-ambiguous/git-page]` | the URL named more than a repository (or was cleaned); the ref and the folder are left out of the line when the URL names none |
 | `INFO:` | `Git source: URL=<url>: not a repository; read as repository <target> [target-ambiguous/git-page]` | a group called `src`/`tree`/`blob`: the whole URL is tried |
-| `INFO:` | `Git source: URL=<url>: '<path>' is a folder, not a file; reading it [target-ambiguous/git-page]` | a file page whose path is a folder |
-| `INFO:` | `Git source: URL=<url>: '<path>' is a file, not a folder; read as the file named [target-ambiguous/git-page]` | a folder page whose path is a file: the file is read as the one the URL named (a model file, or else its folder) |
+| `INFO:` | `Git source: URL=<url>: '<path>' is a directory, not a file; reading it [target-ambiguous/git-page]` | a file page whose path is a folder |
+| `INFO:` | `Git source: URL=<url>: '<path>' is a file, not a directory; read as the file named [target-ambiguous/git-page]` | a folder page whose path is a file: the file is read as the one the URL named (a model file, or else its folder) |
 | `INFO:` | `Git source: URL=<url>: the query and fragment have no effect; cut [query-no-effect]` | the URL held a query or fragment that names no ref |
 | `INFO:` | `Git source: URL=<url>: the version names no branch, tag or commit; the default branch is read [query-no-effect]` | a page URL's version query (Azure DevOps) names none |
-| `INFO:` | `FILE=<file>: not an AI model file; reading its folder` | the file URL named a file whose name no model has, and that is not a model or is missing (`loom generate`) |
+| `INFO:` | `FILE=<file>: not an AI model file; reading its directory` | the file URL named a file whose name no model has, and that is not a model or is missing (`loom generate`) |
 | `INFO:` | `FILE=<file>: no Python project; reading this AI model file` | `loom generate` on a folder with no project and one model |
 | `INFO:` | `FILE=<file>: the one AI model file; reading it` | `loom model` on a folder with one model |
 | `INFO:` | `FILE=<file>: one of several AI model files`, then `ERROR:` `<url>: several AI model files (N files); name one file` | a folder holds several models (one line per file; `model-ambiguous`) |
 | `INFO:` | `AI models from a Git URL in these formats are listed without metadata, their reader not being run on a downloaded file: <formats>; pass --trust-model-files for a repository you trust` | a model in a format whose reader is not run on a download |
-| `ERROR:` | `No pyproject.toml, setup.cfg, or setup.py found in '<path>'; Python projects are in subfolders (<folders>); give the URL of one of them [project-not-found]` | the folder holds no project but folders below it do (`loom project`); a folder's line ends `Pitloom reads the folder in the URL only` instead |
-| `ERROR:` | `<url>: no Python project (pyproject.toml, setup.cfg or setup.py) and no AI model file of a supported format; name a project folder or a model file` | neither a project nor a model (`project-or-model-not-found`; with subfolders that hold projects, the same hint as above) |
+| `ERROR:` | `'<path>': no Python project (pyproject.toml, setup.cfg or setup.py); Python projects are in subdirectories (<directories>); give the URL of one of them [project-not-found]` | the folder holds no project but folders below it do (`loom project`); a folder's line ends `Pitloom reads the directory in the URL only` instead |
+| `ERROR:` | `<url>: no Python project (pyproject.toml, setup.cfg or setup.py) and no AI model file of a supported format; name a project directory or a model file` | neither a project nor a model (`project-or-model-not-found`; with subfolders that hold projects, the same hint as above) |
 | `ERROR:` | `<file>: header is a Git LFS pointer, content not fetched (oid sha256:<oid>, size <size>); clone with git lfs, then run on the file` | the named model file is an LFS pointer |
 | `INFO:` | `Git source: URL=<url>: the server rejected the blob filter; fetching without it [git-filter-unusable]` | the server cannot leave out large blobs (Azure DevOps) |
 | `INFO:` | `Git source: URL=<url>: could not be checked for a redirect (<why>); git asked directly [git-redirect-unusable]` | the redirect probe failed |
 | `INFO:` | `Git source: $ git ...` | each `git` call (a summary: no code); a URL's credentials are not among its arguments |
 | `WARNING:` | `Git source: URL=<url>: redirects to <target>; not followed (<why>); the URL itself asked of git [url-unsafe]` | a redirect to another scheme, or to a page that is not a repository: git is run on the URL as given and follows no redirect |
-| `INFO:` | `Git source: URL=<url>: <n> symbolic link(s) leading out of the repository, into its .git directory or to a folder; removed, not followed [git-link-unsafe]` | such links were removed |
+| `INFO:` | `Git source: URL=<url>: <n> symbolic link(s) leading out of the repository, into its .git directory or to a directory; removed, not followed [git-link-unsafe]` | such links were removed |
 | `ERROR:` | `URL=<url>: only http and https URLs are fetched (not ssh, git, file or scp-style addresses); nothing fetched [git-url-invalid]` | an ssh, git, file or scp-style address |
 | `ERROR:` | `URL=<url>: the port is not a number; nothing fetched [git-url-invalid]` | a malformed port |
 | `ERROR:` | `URL=<url>: a path part decodes to ., .., an empty part, a backslash, a NUL or .git; nothing fetched [git-url-invalid]` | a branch or path part that would leave the checkout or reach git's own files |

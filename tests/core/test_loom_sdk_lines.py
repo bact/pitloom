@@ -72,15 +72,15 @@ def _registry(project: Path) -> Path:
         (
             True,
             "gone.pt",
-            "WARNING: ID registry: loom model m: path= 'gone.pt' is not a file at "
+            "WARNING: ID registry: loom SDK model m: path= 'gone.pt' is not a file at "
             "exit; looked up ungated: not hashed [registry-hash-missing]",
             "registry-hash-missing",
         ),
         (
             True,
             None,
-            "WARNING: ID registry: loom model m has no path=; looked up ungated: not "
-            "hashed [registry-hash-missing]",
+            "WARNING: ID registry: loom SDK model m has no path=; looked up "
+            "ungated: not hashed [registry-hash-missing]",
             "registry-hash-missing",
         ),
         (

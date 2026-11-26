@@ -57,8 +57,8 @@ from pitloom.extract.project.setuptools_cfg import setup_cfg_pitloom_config
 from pitloom.logging_config import field_loss_suffix
 from pitloom.messages import CodedValueError, code_of
 from pitloom.messages.files import (
-    CONFIG_MEMBER_LINE,
     OVER_CAP,
+    SOURCE_LINE,
     Cap,
     warn_over_cap,
 )
@@ -148,8 +148,9 @@ def _member_bytes(root: dict[str, bytes | Cap], member: str, sdist_name: str) ->
     if isinstance(raw, Cap):
         raise CodedValueError(
             OVER_CAP,
-            line=CONFIG_MEMBER_LINE,
-            path=f"{sdist_name}:{member}",
+            line=SOURCE_LINE,
+            file=f"{sdist_name}:{member}",
+            use=METADATA_USE,
             **raw.reason_values(),
         )
     return raw

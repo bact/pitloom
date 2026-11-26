@@ -280,12 +280,12 @@ def test_a_named_link_is_refused_as_a_link(
             _kind(f"{url}/blob/main/m.keras", mode)
         assert excinfo.value.code == "git.path-not-found"
         assert str(excinfo.value) == (
-            "File 'm.keras' in the repository at that branch is a symbolic link; "
-            "links are not followed."
+            "file 'm.keras' in the repository at that branch is a symbolic link; "
+            "links are not followed"
         )
     with caplog.at_level(logging.INFO, logger="pitloom"):
         assert _kind(f"{url}/blob/main/m.dat") == (PROJECT, "")
-    assert "FILE=m.dat: not an AI model file; reading its folder" in caplog.text
+    assert "FILE=m.dat: not an AI model file; reading its directory" in caplog.text
 
 
 @pytest.mark.skipif(_NO_GIT, reason="needs git and POSIX file:// URLs")

@@ -75,14 +75,14 @@ GIT_LINK_UNSAFE: Final = Message(
         Line(
             level="INFO",
             template="URL=%(url)s: %(number)s symbolic link(s) leading out of "
-            "the repository, into its .git directory or to a folder; removed, "
+            "the repository, into its .git directory or to a directory; removed, "
             "not followed",
         ),
     ),
     summary="The checkout holds symbolic links that lead outside the "
-    "repository, into its .git directory, or to a folder. The repository is "
+    "repository, into its .git directory, or to a directory. The repository is "
     "untrusted: following them would read files it does not hold, or walk "
-    "a folder twice.",
+    "a directory twice.",
     did="Removed the links before reading: the SBOM lists neither them nor "
     "what they point to.",
     effect="thinner",

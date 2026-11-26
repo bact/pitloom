@@ -313,9 +313,9 @@ def test_an_error_without_text_is_named_by_its_class(
         with mock.patch.object(pt2, "read_archive_member", side_effect=OSError()):
             pt2._read_pt2_text(_zip({}), "extra/name", "name")
     assert [r.getMessage() for r in caplog.records] == [
-        "Failed to read PT2 extra file 'extra/name\\n': \"There is no item named "
+        "failed to read PT2 extra file 'extra/name\\n': \"There is no item named "
         "'extra/name\\\\n' in the archive\" | Field(s) affected (skipped): name",
-        "Failed to read PT2 extra file extra/name: OSError | Field(s) affected "
+        "failed to read PT2 extra file extra/name: OSError | Field(s) affected "
         "(skipped): name",
     ]
 

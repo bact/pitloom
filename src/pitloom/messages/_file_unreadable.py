@@ -116,7 +116,7 @@ FILE_UNREADABLE: Final = Message(
     "pyproject.toml read by the build hook says for the configuration): "
     "nothing is written; the only "
     "possible "
-    "model file of a folder named for a model SBOM: no SBOM is written; the "
+    "model file of a directory named for a model SBOM: no SBOM is written; the "
     "input check: the command writes nothing and exits 1, the library "
     "raises ValueError carrying the code; the current directory: the "
     "command writes nothing and exits 1, the library and the loom SDK raise "

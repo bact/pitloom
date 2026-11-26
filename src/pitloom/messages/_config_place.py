@@ -235,6 +235,8 @@ FINGERPRINT_SHAPE: Final = "sha256: and 16 to 64 lowercase hex digits"
 EXPECTED: Final[Mapping[str, str]] = MappingProxyType(
     {
         "boolean": "true or false",
+        # A library caller's bool, in Python's spelling.
+        "python-bool": "True or False",
         "integer": "an integer",
         "positive": "an integer of at least 1",
         "budget": f"0 (no cap) or an integer of at least {BUDGET_MINIMUM}",

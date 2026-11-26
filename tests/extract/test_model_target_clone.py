@@ -75,7 +75,7 @@ def test_a_named_link_in_a_clone_is_not_followed(
         with caplog.at_level(logging.INFO, logger="pitloom"):
             target = resolve_sbom_target(tmp_path, subject="d", file="m.dat")
         assert target.kind == PROJECT
-        assert "FILE=m.dat: not an AI model file; reading its folder" in caplog.text
+        assert "FILE=m.dat: not an AI model file; reading its directory" in caplog.text
         with pytest.raises(FileNotFoundError) as excinfo:
             resolve_sbom_target(tmp_path, subject="d", file="m.gguf", mode=MODEL)
     assert code_of(excinfo.value) == "input-not-found"

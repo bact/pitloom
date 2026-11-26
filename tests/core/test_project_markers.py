@@ -39,7 +39,9 @@ def _says_no_project(folder: Path) -> bool:
     try:
         read_project(folder, include_installed_metadata=False, quiet=True)
     except FileNotFoundError as exc:
-        return str(exc).startswith("No pyproject.toml, setup.cfg, or setup.py ")
+        return str(exc).endswith(
+            ": no Python project (pyproject.toml, setup.cfg or setup.py)"
+        )
     # pylint: disable-next=broad-exception-caught
     except Exception:  # another failure: it found something to read
         return False

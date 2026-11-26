@@ -171,6 +171,8 @@ def test_a_url_whose_userinfo_cannot_be_split_off_is_refused_masked(
     assert caught.value.pitloom_code == code
     assert SECRET not in str(caught.value) and TOKEN not in str(caught.value)
     assert ("the host is not plain ASCII" in str(caught.value)) == (code == _HOST)
+    # Each refusal shows its URL as its siblings do: unquoted when printable.
+    assert str(caught.value).startswith("URL=https://")
 
 
 @pytest.mark.parametrize(

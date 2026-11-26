@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-29
-Last-Modified: 2026-11-22
+Last-Modified: 2026-11-26
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -294,6 +294,12 @@ recommendations"; SARIF and LicenseID codes get room only, no scheme):
   from the catalogue entry of the code, never from the line; a free value is
   data. Stated in `docs/messages.md` ("What a trusted line does and does not
   prove").
+- **N. An `INFO:`-only entry is a decision nobody acts on** (rule R1,
+  recorded in the consistency rescan): its `effect` and `actor` are `none`.
+  Forward-only: the 12 entries that predate the rule keep theirs, each with
+  its ruling in `R1_OUTLIERS` (`tests/messages/test_catalogue_consistency.py`);
+  a new outlier fails the test. See
+  [message-consistency-rescan.md](message-consistency-rescan.md).
 
 **Room for SARIF and LicenseID** (a note, no design): the charset keeps the
 door open; a `/` variant maps to a SARIF hierarchical `ruleId`

@@ -28,8 +28,8 @@ from pitloom.messages import (
     trusted_message,
 )
 from pitloom.messages.files import (
-    CONFIG_MEMBER_LINE,
     OVER_CAP,
+    SOURCE_LINE,
 )
 from pitloom.messages.models import LFS_POINTER_MALFORMED
 
@@ -79,7 +79,10 @@ def test_a_hostile_path_cannot_forge_a_line(
 
 
 _LOOKS = "'m': header looks like a Git LFS pointer but is not a valid one"
-_CONFIG = "config file 's.tar.gz:setup.cfg': larger than the 1-byte config-member cap"
+_CONFIG = (
+    "FILE=s.tar.gz:setup.cfg: larger than the 1-byte config-member cap "
+    "for the project metadata"
+)
 _CLONE = (
     "the repository is larger than the 1024-byte max-download-bytes cap; "
     "git clone was stopped"
@@ -97,8 +100,9 @@ _CLONE = (
         (
             CodedValueError(
                 OVER_CAP,
-                line=CONFIG_MEMBER_LINE,
-                path="s.tar.gz:setup.cfg",
+                line=SOURCE_LINE,
+                file="s.tar.gz:setup.cfg",
+                use="for the project metadata",
                 limit=1,
                 unit="byte",
                 purpose="config-member",
