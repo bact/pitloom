@@ -166,6 +166,9 @@ and this project adheres to
   `dataset_type` is refused, not `text`; a symlinked script keeps its own name ([#545])
 - `loom id generate --namespace` holding a credential is `credentials-unsafe/registry`,
   exit 1, as in the library ([#545])
+- The message reference dates a line newer than its code ([#546]); `line_kind()`
+  reads a message that could not be shown but kept a catalogued code as `coded`
+  ([#545], [#546])
 
 ### Fixed
 
@@ -212,6 +215,8 @@ and this project adheres to
   write and a NUL in `croissant=` are coded errors, not tracebacks ([#545])
 - A missing `input_datasets` name is warned once; `PitloomConfig(sbom_basename=)`
   is checked when built ([#545])
+- A build, download or git time limit of one second reads `1 second`, not
+  `1 seconds` ([#546])
 
 ### Security
 
@@ -264,6 +269,7 @@ and this project adheres to
 [#543]: https://github.com/bact/pitloom/pull/543
 [#544]: https://github.com/bact/pitloom/pull/544
 [#545]: https://github.com/bact/pitloom/pull/545
+[#546]: https://github.com/bact/pitloom/pull/546
 
 ## [0.24.0] - 2026-11-11
 

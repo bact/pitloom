@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-29
-2026-11-19
+Last-Modified: 2026-11-26
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -333,8 +333,8 @@ with loom.run("fragments/train.spdx3.json", id_registry="loom-id-registry.json")
 - `set_model()`/`use_model()` take `path=`; the model resolves when the block
   ends without an exception (nothing is written if it raises). A changed file
   at `path` is a new model: `INFO: ... content changed ...`, a new id.
-  Without `path=`, one `WARNING: ID registry: model X has no path=; looked up
-  ungated: not hashed [registry-hash-missing]` and a name-only
+  Without `path=`, one `WARNING: ID registry: loom model X has no path=;
+  looked up ungated: not hashed [registry-hash-missing]` and a name-only
   lookup that hits a hash-less entry only: an id recorded with a SHA-256
   (a model file, `id import` of a model SBOM) is not reused, since no
   content vouches for it (`WARNING: ... the entry records a SHA-256 but no

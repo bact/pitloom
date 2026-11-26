@@ -74,17 +74,26 @@ _CASES = [
     ("WARNING: own words, then fickling: x", "uncoded"),
     ("WARNING: fickling:x", "uncoded"),
     ("ERROR: loom generate: boom", "uncoded"),
-    # A message the masker could not show: coded when it keeps a catalogued
-    # code with a line at that level, after at most one allowed frame.
-    (f"ERROR: loom generate: {UNSHOWN_MESSAGE}", "uncoded"),
-    (f"ERROR: loom generate: {UNSHOWN_MESSAGE} [input-not-found]", "coded"),
-    (f"ERROR: {UNSHOWN_MESSAGE} [input-not-found]", "coded"),
+    # A message the masker could not show keeps its code: coded when the code
+    # has a line at that level, after at most one frame allowing it.
+    (f"ERROR: loom generate: {UNSHOWN_MESSAGE}", "uncoded"),  # no code
+    (f"ERROR: loom enrich: {UNSHOWN_MESSAGE} [input-not-found]", "coded"),
+    (f"ERROR: {UNSHOWN_MESSAGE} [input-not-found]", "coded"),  # frame optional
+    (f"WARNING: {UNSHOWN_MESSAGE} [lfs-pointer]", "coded"),
     (f"WARNING: {UNSHOWN_MESSAGE} [lfs-pointer-malformed]", "coded"),
-    (f"ERROR: loom generate: {UNSHOWN_MESSAGE} [no-such-code]", "uncoded"),
+    (f"WARNING: FORMAT=x FILE=m: {UNSHOWN_MESSAGE} [model-field-conflict]", "coded"),
+    (f"ERROR: {UNSHOWN_MESSAGE} [model-field-conflict]", "uncoded"),  # level
+    (f"INFO: {UNSHOWN_MESSAGE} [lfs-pointer]", "uncoded"),  # level
     (f"INFO: {UNSHOWN_MESSAGE} [input-not-found]", "uncoded"),  # no INFO line
+    (f"WARNING: {UNSHOWN_MESSAGE} [no-such-code]", "uncoded"),
+    (f"ERROR: loom generate: {UNSHOWN_MESSAGE} [no-such-code]", "uncoded"),
+    (f"WARNING: {UNSHOWN_MESSAGE}, and more [lfs-pointer]", "uncoded"),
     (f"ERROR: loom generate: x {UNSHOWN_MESSAGE} [input-not-found]", "uncoded"),
+    # More than one frame.
+    (f"ERROR: loom enrich: loom: {UNSHOWN_MESSAGE} [input-not-found]", "uncoded"),
     (f"ERROR: loom: loom generate: {UNSHOWN_MESSAGE} [input-not-found]", "uncoded"),
     # A frame that does not allow the code at that level.
+    (f"WARNING: FORMAT=x FILE=m: {UNSHOWN_MESSAGE} [lfs-pointer]", "uncoded"),
     (f"ERROR: Git source: {UNSHOWN_MESSAGE} [input-not-found]", "uncoded"),
 ]
 

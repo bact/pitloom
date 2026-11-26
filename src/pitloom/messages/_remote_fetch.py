@@ -26,6 +26,8 @@ from typing import Final
 from pitloom.messages._types import ASK_FIRST, Line, Message
 
 _SINCE: Final = "0.24.0"
+#: The release that first prints a line reworded after its code shipped.
+_NEW_LINE_SINCE: Final = "0.25.0"
 
 #: A redirect that is not followed.
 REDIRECT_REFUSED_LINE: Final = Line(
@@ -186,17 +188,20 @@ DOWNLOAD_FAILED: Final = Message(
 #: A request that did not finish in time.
 DOWNLOAD_TIMEOUT_LINE: Final = Line(
     level="ERROR",
-    template="URL=%(url)s: no complete answer within %(seconds)s seconds; not read",
+    template="URL=%(url)s: no complete answer within %(duration)s; not read",
+    since=_NEW_LINE_SINCE,
 )
 #: A request for a Hugging Face file that did not finish in time.
 DOWNLOAD_TIMEOUT_WARNING_LINE: Final = Line(
     level="WARNING",
-    template="URL=%(url)s: no complete answer within %(seconds)s seconds; %(outcome)s",
+    template="URL=%(url)s: no complete answer within %(duration)s; %(outcome)s",
+    since=_NEW_LINE_SINCE,
 )
 #: A git call that did not finish in time.
 GIT_TIMEOUT_LINE: Final = Line(
     level="ERROR",
-    template="git %(command)s did not finish within %(seconds)s seconds; stopped",
+    template="git %(command)s did not finish within %(duration)s; stopped",
+    since=_NEW_LINE_SINCE,
 )
 
 #: A request to a remote source that did not finish in time.
@@ -304,6 +309,7 @@ GIT_HOST_SPELLING_LINE: Final = Line(
     "-), which git would resolve to a host the URL does not spell or read "
     "as an option; write it in ASCII (an international name in its xn-- "
     "form); nothing fetched",
+    since=_NEW_LINE_SINCE,
 )
 
 #: A Git URL's host spelled with what a resolver maps to another character.

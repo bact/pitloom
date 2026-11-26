@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-29
-Last-Modified: 2026-11-25
+Last-Modified: 2026-11-26
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -79,6 +79,10 @@ reads a project's configuration, when it calls it an error), `fickling: `
 adds no code; the prefix may follow a frame, as in
 `ERROR: loom validate-wheel: spdx3-validate: ...`.
 
+In this documentation a quote of a coded line may leave its frame out: the
+code names the line. A quote of an uncoded line, matched by its text (a
+relay, a summary), shows the frame the line prints.
+
 To read a line back, match this regular expression on the line without its
 line ending. The groups are the level, the text and the code:
 
@@ -121,9 +125,10 @@ A code is stable from the release that first prints it (its "Since" below):
 Trusting a code:
 
 - The last `[code]` of a line is Pitloom's. A line without a code never ends
-  in one: a value that would end it so (a file named `x [lfs-pointer]`) is
-  printed with its `[` escaped, `WARNING: skipped x \x5blfs-pointer]`. In a
-  catalogued line the value stays as it is and the real code comes last.
+  in one: a value that would end it so (a file named `x [lfs-pointer]` in
+  another tool's words) is printed with its `[` escaped, as in the relay
+  `WARNING: licenseid: skipped x \x5blfs-pointer]`. In a catalogued line
+  the value stays as it is and the real code comes last.
 - **Trust a code only when it is catalogued and the text before it is one of
   that code's lines at that level**, each value of its shape (a path in
   quotes, a 64-digit hex `oid`), after at most one prefix from the catalogue's

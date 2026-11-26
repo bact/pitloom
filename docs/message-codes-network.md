@@ -87,10 +87,12 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
 - **Lines**:
 
   ```text
-  ERROR: URL=<url>: no complete answer within <seconds> seconds; not read [download-timeout]
-  ERROR: git <command> did not finish within <seconds> seconds; stopped [download-timeout]
-  WARNING: URL=<url>: no complete answer within <seconds> seconds; <outcome> [download-timeout]
+  ERROR: URL=<url>: no complete answer within <duration>; not read [download-timeout]
+  ERROR: git <command> did not finish within <duration>; stopped [download-timeout]
+  WARNING: URL=<url>: no complete answer within <duration>; <outcome> [download-timeout]
   ```
+
+- **Since**: 0.24.0; lines 1-3: 0.25.0
 
 ### `hub-response-invalid`
 
@@ -178,6 +180,8 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
   INFO: URL=<url>: the query and fragment have no effect; cut [query-no-effect]
   INFO: URL=<url>: the version names no branch, tag or commit; the default branch is read [query-no-effect]
   ```
+
+- **Since**: 0.24.0; line 2: 0.25.0
 
 ### `url-moved`
 
@@ -290,3 +294,5 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
   ```text
   ERROR: URL=<url>: the host is not plain ASCII, is percent-encoded or holds a character no host name holds (=, !, white space, a leading -), which git would resolve to a host the URL does not spell or read as an option; write it in ASCII (an international name in its xn-- form); nothing fetched [url-unsafe/host-spelling]
   ```
+
+- **Since**: 0.24.0; line 1: 0.25.0

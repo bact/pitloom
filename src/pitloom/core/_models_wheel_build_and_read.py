@@ -225,7 +225,7 @@ def _say_failure(project_dir: Path, exc: Exception) -> None:
             line=timeout_line(tree_terminated=exc.tree_terminated),
             frame=BUILD_FRAME,
             dir=project_dir,
-            seconds=exc.timeout,
+            duration=exc.timeout,
         )
     elif isinstance(exc, BuildFailedError):
         line, said = exc.said

@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-07
-Last-Modified: 2026-11-23
+Last-Modified: 2026-11-26
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -76,7 +76,7 @@ or whose `@graph` is not a list of objects
 (`FILE=<file>: SBOM @graph is not a list [sbom-invalid]`, with or without
 `--validate`) is an `ERROR:` and exit 1, and no wheel is written. So is one
 that `spdx3-validate` refuses: each of its findings is one
-`ERROR: spdx3-validate: <line>` line, then one coded line ends the run
+`ERROR: loom embed-wheel: spdx3-validate: <line>` line, then one coded line ends the run
 (`FILE=<file>: SBOM is not valid; no wheel was written [sbom-invalid]`). A JSON
 object in another format under another name is embedded, with a `WARNING:`
 that its name and version cannot be cross-checked
@@ -301,7 +301,7 @@ loom validate-wheel dist/*.whl
 An embedded file in an unrecognised format prints a `WARNING:` and skips
 validation (exit 0, `STATUS=skipped`): unsupported is not invalid. An invalid
 SBOM prints each finding of `spdx3-validate` once, as
-`ERROR: spdx3-validate: <line>`, then one coded
+`ERROR: loom validate-wheel: spdx3-validate: <line>`, then one coded
 `ERROR: FILE=<file>: not valid SPDX 3 (<number> finding(s) above) [sbom-invalid]`
 line (`FILE=` names the SBOM as `<wheel>/<member>`), and the wheel is reported
 `STATUS=failed`; there is no empty `ERROR:` line.

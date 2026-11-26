@@ -22,8 +22,8 @@ from typing import Final
 from pitloom.messages._fragments import fragment_lines
 from pitloom.messages._types import ASK_FIRST, Line, Message
 
-#: The release that first prints ``input-not-found/fragment``, and the lines
-#: of ``input-not-found`` after its first four (a model file, a Git URL's
+#: The release that first prints ``input-not-found/fragment``, and each
+#: ``input-not-found`` line after its first four (a model file, a Git URL's
 #: file or folder), which print since 0.23.4.
 _SINCE: Final = "0.25.0"
 
@@ -50,18 +50,26 @@ GIT_FOLDER_NOT_FOUND_LINE: Final = Line(
 
 #: A path named for Pitloom to read, of a kind of
 #: :data:`~pitloom.messages._field_tables.INPUT_KINDS`, that does not exist.
-INPUT_LINE: Final = Line(level="ERROR", template="%(input)s not found: %(path)s")
+INPUT_LINE: Final = Line(
+    level="ERROR", template="%(input)s not found: %(path)s", since=_SINCE
+)
 #: The same, where something that is not a file is there.
 INPUT_NOT_FILE_LINE: Final = Line(
-    level="ERROR", template="%(input)s not found: %(path)s is not a file"
+    level="ERROR",
+    template="%(input)s not found: %(path)s is not a file",
+    since=_SINCE,
 )
 #: The same, where something that is not a directory is there.
 INPUT_NOT_DIR_LINE: Final = Line(
-    level="ERROR", template="%(input)s not found: %(path)s is not a directory"
+    level="ERROR",
+    template="%(input)s not found: %(path)s is not a directory",
+    since=_SINCE,
 )
 #: A wheel pattern (a glob) that matches no wheel file.
 NO_WHEEL_MATCH_LINE: Final = Line(
-    level="ERROR", template="no wheel file matches %(path)s"
+    level="ERROR",
+    template="no wheel file matches %(path)s",
+    since=_SINCE,
 )
 #: A wheel pattern nested too deeply for the standard library's ``glob`` to
 #: expand (its recursion limit).
@@ -69,16 +77,20 @@ WHEEL_PATTERN_TOO_DEEP_LINE: Final = Line(
     level="ERROR",
     template="no wheel file matches %(path)s: the pattern nests too deeply "
     "to expand; name each wheel file without a pattern",
+    since=_SINCE,
 )
 #: A fragments directory that holds no JSON file.
 NO_FRAGMENT_FILE_LINE: Final = Line(
-    level="ERROR", template="no JSON fragment file in %(path)s"
+    level="ERROR",
+    template="no JSON fragment file in %(path)s",
+    since=_SINCE,
 )
 #: A project directory without the source or data directories ``loom id
 #: generate`` reads when no ``PATH`` is given.
 NO_ID_PATHS_LINE: Final = Line(
     level="ERROR",
     template="no source or data directory under %(path)s; pass PATH arguments",
+    since=_SINCE,
 )
 
 INPUT_NOT_FOUND: Final = Message(
@@ -97,8 +109,8 @@ INPUT_NOT_FOUND: Final = Message(
         NO_FRAGMENT_FILE_LINE,
         NO_ID_PATHS_LINE,
         # Said again when a run re-reads its ID registry file to save.
-        Line(level="WARNING", template=INPUT_LINE.template),
-        Line(level="WARNING", template=INPUT_NOT_FILE_LINE.template),
+        Line(level="WARNING", template=INPUT_LINE.template, since=_SINCE),
+        Line(level="WARNING", template=INPUT_NOT_FILE_LINE.template, since=_SINCE),
     ),
     summary="A path named for Pitloom to read does not exist: a model file, "
     "wheel, sdist, project directory, configuration, ID registry or SBOM file, "

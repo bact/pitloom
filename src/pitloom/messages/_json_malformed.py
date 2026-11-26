@@ -48,8 +48,8 @@ JSON_MALFORMED: Final = Message(
     lines=(
         NOT_JSON_LINE,
         NOT_OBJECT_LINE,
-        Line(level="WARNING", template=NOT_JSON_LINE.template),
-        Line(level="WARNING", template=NOT_OBJECT_LINE.template),
+        Line(level="WARNING", template=NOT_JSON_LINE.template, since=_SINCE_SBOM),
+        Line(level="WARNING", template=NOT_OBJECT_LINE.template, since=_SINCE_SBOM),
     ),
     summary="A JSON document Pitloom was given to read does not parse, or "
     "its top level is not an object; the line says which document by what it "

@@ -150,7 +150,7 @@ def test_a_build_past_its_time_is_a_coded_line_and_the_run_goes_on(
 ) -> None:
     project = _project(tmp_path, "slow_backend", _SLOW_BACKEND)
     result = run_loom(
-        ["project", str(project), *_BUILD, "--build-timeout", "2", *_AT]
+        ["project", str(project), *_BUILD, "--build-timeout", "1", *_AT]
         + ["-o", str(tmp_path / "o.json")],
         tmp_path,
     )
@@ -162,8 +162,11 @@ def test_a_build_past_its_time_is_a_coded_line_and_the_run_goes_on(
         "build-timeout",
         "file-discovery-needs-build",
     ]
-    (line,) = [ln for ln, code in codes.items() if code == "build-timeout"]
-    assert "the build timed out after 2 seconds (--build-timeout); " in line
+    said = {code: ln for ln, code in codes.items()}
+    # One second, singular, in both lines that state the limit.
+    assert "build for up to 1 second (--build-timeout), " in said["build-code-unsafe"]
+    line = said["build-timeout"]
+    assert "the build timed out after 1 second (--build-timeout); " in line
     assert line.endswith(" [build-timeout]")
     _tagged(result.stderr)
 
@@ -263,7 +266,7 @@ def test_the_library_says_a_timeout_on_the_log(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
     project = _project(tmp_path, "slow_backend", _SLOW_BACKEND)
-    options = BuildOptions(allow=True, no_isolation=True, timeout=2)
+    options = BuildOptions(allow=True, no_isolation=True, timeout=1)
     with caplog.at_level(logging.INFO):
         generate_project_sbom(project, build_options=options)
     seen = [code for code, _ in _records(caplog) if code != "temp-dir-unwritable"]
@@ -272,6 +275,9 @@ def test_the_library_says_a_timeout_on_the_log(
         "build-timeout",
         "file-discovery-needs-build",
     ]
+    said = {getattr(r, CODE_ATTR): r.getMessage() for r in caplog.records}
+    assert "build for up to 1 second (--build-timeout), " in said["build-code-unsafe"]
+    assert "timed out after 1 second (--build-timeout); " in said["build-timeout"]
 
 
 def test_the_library_says_nothing_of_a_build_it_was_not_asked_for(

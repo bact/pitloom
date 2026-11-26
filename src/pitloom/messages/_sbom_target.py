@@ -163,11 +163,11 @@ _SUBFOLDERS_FOLDER: Final = (
 #: A Git URL's whole repository, neither a project nor a model, with
 #: subfolders that hold a project.
 NO_TARGET_HINT_LINE: Final = Line(
-    level="ERROR", template=_NO_TARGET_HEAD + _SUBFOLDERS_WHOLE
+    level="ERROR", template=_NO_TARGET_HEAD + _SUBFOLDERS_WHOLE, since=_GIT_SINCE
 )
 #: The same for a folder of the repository the URL names.
 NO_TARGET_FOLDER_HINT_LINE: Final = Line(
-    level="ERROR", template=_NO_TARGET_HEAD + _SUBFOLDERS_FOLDER
+    level="ERROR", template=_NO_TARGET_HEAD + _SUBFOLDERS_FOLDER, since=_GIT_SINCE
 )
 
 #: A folder with no project config and no model file of a supported format.
@@ -257,11 +257,15 @@ PROJECT_NOT_FOUND_LINE: Final = Line(
 #: A Git URL's whole repository with no project config, with subfolders that
 #: hold a project.
 PROJECT_HINT_LINE: Final = Line(
-    level="ERROR", template=PROJECT_NOT_FOUND_LINE.template + _SUBFOLDERS_WHOLE
+    level="ERROR",
+    template=PROJECT_NOT_FOUND_LINE.template + _SUBFOLDERS_WHOLE,
+    since=_GIT_SINCE,
 )
 #: The same for a folder of the repository the URL names.
 PROJECT_FOLDER_HINT_LINE: Final = Line(
-    level="ERROR", template=PROJECT_NOT_FOUND_LINE.template + _SUBFOLDERS_FOLDER
+    level="ERROR",
+    template=PROJECT_NOT_FOUND_LINE.template + _SUBFOLDERS_FOLDER,
+    since=_GIT_SINCE,
 )
 PROJECT_NOT_FOUND: Final = Message(
     code="project-not-found",

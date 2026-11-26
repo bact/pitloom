@@ -194,7 +194,7 @@ def _try_build_and_read(
         frame=BUILD_FRAME,
         dir=project_dir,
         backend=backend,
-        seconds=build.timeout,
+        duration=build.timeout,
     )
     return build_and_read_wheel(
         project_dir, isolated=build.isolated, timeout=build.timeout

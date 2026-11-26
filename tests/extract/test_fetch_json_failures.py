@@ -64,19 +64,17 @@ def test_a_refused_or_reset_connection_is_a_failure_not_a_timeout(
 
 
 @pytest.mark.parametrize(
-    ("timeout", "seconds"),
-    [(0.5, "1"), (2.1, "3"), (3.0, "3")],
+    ("timeout", "duration"),
+    [(0.5, "1 second"), (2.1, "3 seconds"), (3.0, "3 seconds")],
     ids=["below-one-is-one", "rounded-up", "whole"],
 )
 def test_a_timeout_names_whole_seconds_rounded_up_never_below_one(
-    timeout: float, seconds: str
+    timeout: float, duration: str
 ) -> None:
     entry: Entry = DOWNLOAD_TIMEOUT
     error = _fetch_failing_with(TimeoutError("timed out"), timeout)
     assert raised_as(error, entry)
-    assert str(error) == (
-        f"URL={_URL}: no complete answer within {seconds} seconds; not read"
-    )
+    assert str(error) == (f"URL={_URL}: no complete answer within {duration}; not read")
 
 
 def test_a_missing_file_error_hides_the_os_error_behind_it(tmp_path: Path) -> None:

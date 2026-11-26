@@ -56,6 +56,8 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
   ERROR: DIR=<dir>: could not list <use>; <failure> [dir-unlistable]
   ```
 
+- **Since**: 0.22.0; line 2: 0.25.0
+
 ### `file-unreadable`
 
 - **Level**: ERROR, WARNING. As an ERROR, the command stops for that input and
@@ -115,6 +117,8 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
   ERROR: DIR=<dir>: could not read <use>; <failure> [file-unreadable]
   ```
 
+- **Since**: 0.22.0; lines 4, 7: 0.25.0
+
 ### `file-unreadable/not-utf8`
 
 - **Level**: ERROR, WARNING. As an ERROR, the command stops for that input and
@@ -142,6 +146,8 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
   WARNING: FILE=<file>: could not read for <field>; not UTF-8: <failure> [file-unreadable/not-utf8]
   ERROR: FILE=<file>: could not read <use>; not UTF-8: <failure> [file-unreadable/not-utf8]
   ```
+
+- **Since**: 0.22.0; line 3: 0.25.0
 
 ### `file-unreadable/outside-project`
 
@@ -287,6 +293,8 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
   ERROR: git <command> produced more than <size> [over-cap]
   WARNING: FILE=<file>: larger than the <limit>-<unit> <cap> cap <use>; not read [over-cap]
   ```
+
+- **Since**: 0.22.0; line 8: 0.25.0
 
 ### `temp-dir-unusable`
 

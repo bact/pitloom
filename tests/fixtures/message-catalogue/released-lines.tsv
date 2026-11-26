@@ -1,0 +1,141 @@
+# released-lines 0.24.0
+card-malformed	WARNING	FILE=%(file)s: %(card)s frontmatter is not valid YAML; %(failure)s
+config-unsafe	INFO	FILE=%(file)s: the downloaded sdist's own [tool.pitloom] settings are ignored (untrusted); --config or pitloom_config= applies
+config-unsafe	INFO	Git source: the repository's own [tool.pitloom] settings are ignored (untrusted); --config or pitloom_config= applies
+config-unsafe/build-code	WARNING	FILE=%(file)s: build-time code of the downloaded repository is not run; %(settings)s ignored
+digest-invalid	ERROR	FILE=%(file)s: SHA-256 %(measured)s does not match %(declared)s declared by %(source)s; not read
+dir-unlistable	WARNING	DIR=%(dir)s: could not list %(use)s; %(failure)s
+download-network-failed	ERROR	URL=%(url)s: %(failure)s; not read
+download-network-failed	ERROR	git %(command)s failed: %(error)s; nothing fetched
+download-network-failed	WARNING	URL=%(url)s: %(failure)s; %(outcome)s
+download-timeout	ERROR	URL=%(url)s: no complete answer within %(seconds)s seconds; not read
+download-timeout	ERROR	git %(command)s did not finish within %(seconds)s seconds; stopped
+download-timeout	WARNING	URL=%(url)s: no complete answer within %(seconds)s seconds; %(outcome)s
+field-not-recordable	INFO	FORMAT=%(format)s FILE=%(file)s: no SPDX 3.0.1 property: %(elements)s
+file-ambiguous	INFO	PYPI=%(name)s VERSION=%(version)s: %(number)s sdists; using %(file)s
+file-ambiguous	INFO	PYPI=%(name)s VERSION=%(version)s: %(number)s wheels match this environment; using %(file)s, the best-ranked
+file-ambiguous	INFO	PYPI=%(name)s: generate() reads the wheel; generate_pypi_sbom('%(url)s', kind='sdist') reads the sdist
+file-ambiguous	INFO	PYPI=%(name)s: loom generate reads the wheel; 'loom project %(url)s' reads the sdist
+file-unreadable	ERROR	FILE=%(file)s: could not read %(use)s; %(failure)s
+file-unreadable	ERROR	FORMAT=%(format)s FILE=%(file)s: could not read header; %(failure)s
+file-unreadable	WARNING	FILE=%(file)s: could not read %(use)s; %(failure)s
+file-unreadable	WARNING	FILE=%(file)s: could not read for %(field)s; %(failure)s
+file-unreadable	WARNING	FORMAT=%(format)s FILE=%(file)s: could not read header; %(failure)s
+file-unreadable/not-utf8	WARNING	FILE=%(file)s: could not read %(use)s; not UTF-8: %(failure)s
+file-unreadable/not-utf8	WARNING	FILE=%(file)s: could not read for %(field)s; not UTF-8: %(failure)s
+file-unreadable/outside-project	WARNING	FILE=%(file)s: could not read %(use)s; outside the project directory
+file-unreadable/outside-project	WARNING	FILE=%(file)s: could not read for %(field)s; outside the project directory
+file-unreadable/outside-repository	WARNING	FILE=%(file)s: outside the downloaded repository; not read
+file-unreadable/outside-repository	WARNING	listed files outside the downloaded repository%(count)s; not read
+hyperparameter-conflict	WARNING	FORMAT=%(format)s FILE=%(file)s: hyperparameter parameters replaced by the parameter count
+input-not-found	ERROR	File %(path)s in the repository at that branch is a symbolic link; links are not followed.
+input-not-found	ERROR	Model file not found: %(path)s
+input-not-found	ERROR	No file %(path)s in the repository at that branch.
+input-not-found	ERROR	No folder %(path)s in the repository at that branch.
+json-malformed	ERROR	FILE=%(file)s: not a JSON object %(use)s
+json-malformed	ERROR	FILE=%(file)s: not valid JSON %(use)s; %(failure)s
+lfs-pointer	ERROR	%(path)s: header is a Git LFS pointer, content not fetched (oid sha256:%(oid)s, size %(size)s); clone with git lfs, then run on the file
+lfs-pointer	ERROR	%(path)s: header is a Git LFS pointer, content not pulled (oid sha256:%(oid)s, size %(size)s); run 'git lfs pull'
+lfs-pointer	WARNING	FILE=%(file)s: Git LFS pointer, content not read%(count)s; clone with git lfs, then run on the directory
+lfs-pointer	WARNING	FILE=%(file)s: Git LFS pointer, content not read%(count)s; run 'git lfs pull' for the content
+lfs-pointer-malformed	ERROR	%(path)s: header looks like a Git LFS pointer but is not a valid one
+lfs-pointer-malformed	WARNING	FILE=%(file)s: header looks like a Git LFS pointer but is not a valid one; not listed as an AI model
+lfs-pointer-malformed	WARNING	FORMAT=%(format)s FILE=%(file)s: header looks like a Git LFS pointer but is not a valid one; not listed as an AI model
+lfs-pointer/shipped	WARNING	FILE=%(file)s: Git LFS pointer shipped%(count)s; the build did not pull LFS content
+library-missing	ERROR	required library not installed: %(module)s; install %(requirement)s
+library-missing	WARNING	FORMAT=%(format)s FILE=%(file)s: required library not installed; install %(requirement)s
+library-unusable	ERROR	required library failed to import: %(module)s: %(error)s; reinstall %(requirement)s
+library-unusable	WARNING	FORMAT=%(format)s FILE=%(file)s: required library failed to import: %(error)s; reinstall %(requirement)s
+library-unusable	WARNING	required library failed to import: %(module)s: %(error)s; content types from file extensions; reinstall %(requirement)s
+license-relationship-invalid	ERROR	Fragment merge left a licence relationship of the wrong type; fix the fragment
+license-relationship-invalid	WARNING	RELATIONSHIP=%(name)s: a licence relationship goes to %(target)s, which is not an AnyLicenseInfo; point it at a LicenseExpression
+license-relationship-invalid	WARNING	RELATIONSHIP=%(name)s: a licence relationship starts at %(target)s, which is not a package, file or snippet; start it at one
+model-ambiguous	ERROR	%(path)s: several AI model files%(count)s; name one file
+model-ambiguous	INFO	FILE=%(file)s: one of several AI model files
+model-ambiguous/over-cap	ERROR	%(path)s: more than %(limit)s files that could be AI models, none read; name one file
+model-field-conflict	WARNING	GGUF key %(entry)s is in the file; the length of array %(name)s is not a property
+model-field-conflict	WARNING	ONNX metadata_props: %(number)s key(s) appear more than once; kept the last value of each: %(name)s
+model-field-unreadable	WARNING	%(part)s %(error)s; kept as properties.model_config_raw | Field(s) affected (skipped): %(fields)s
+model-field-unreadable	WARNING	%(part)s %(error)s; kept as properties.model_config_raw, the first %(limit)s of %(number)s characters | Field(s) affected (skipped): %(fields)s
+model-field-unreadable	WARNING	%(part)s %(error)s; reading stopped there | Field(s) affected (skipped): %(fields)s
+model-field-unreadable	WARNING	%(part)s %(error)s; the fields read before it are kept | Field(s) affected (skipped): %(fields)s
+model-field-unreadable	WARNING	%(part)s %(error)s; the other archive members are read | Field(s) affected (skipped): %(fields)s
+model-field-unreadable	WARNING	%(part)s attribute cannot be read; %(error)s | Field(s) affected (skipped): %(fields)s
+model-field-unreadable	WARNING	Failed to inspect %(entry)s in %(name)s: %(error)s | Field(s) affected (skipped): %(fields)s
+model-field-unreadable	WARNING	Failed to parse PT2 extra/tags as JSON: %(error)s | Field(s) affected (degraded): %(fields)s
+model-field-unreadable	WARNING	Failed to parse PT2 metadata entry %(entry)s: %(error)s | Field(s) affected (skipped): %(fields)s
+model-field-unreadable	WARNING	Failed to parse PT2 model graph %(entry)s: %(error)s | Field(s) affected (skipped): %(fields)s
+model-field-unreadable	WARNING	Failed to read PT2 %(entry)s: %(error)s | Field(s) affected (skipped): %(fields)s
+model-field-unreadable	WARNING	Failed to read PT2 extra file %(entry)s: %(error)s | Field(s) affected (skipped): %(fields)s
+model-field-unreadable	WARNING	Failed to read fastText model labels: %(error)s | Field(s) affected (skipped): %(fields)s
+model-field-unreadable	WARNING	Failed to read fastText model.f.getArgs(): %(error)s | Field(s) affected (skipped): %(fields)s
+model-field-unreadable	WARNING	fickling failed to parse pickle bytes: %(error)s | Field(s) affected (skipped): %(fields)s
+model-field-unreadable	WARNING	fickling parsed pickle but AST walk failed: %(error)s | Field(s) affected (skipped): %(fields)s
+model-unreadable	WARNING	FORMAT=%(format)s FILE=%(file)s: %(reason)s; metadata not read
+model-unreadable	WARNING	FORMAT=%(format)s FILE=%(file)s: failed to extract metadata; %(error)s
+model-wrong-format	ERROR	%(path)s: file is empty
+model-wrong-format	ERROR	%(path)s: header is not %(format)s
+model-wrong-format	ERROR	%(path)s: not an AI model file of a supported format
+model-wrong-format	WARNING	FORMAT=%(format)s FILE=%(file)s: header is not %(format)s; not listed as an AI model
+offline-unusable	ERROR	URL=%(url)s: network access is forbidden (offline mode); nothing fetched
+offline-unusable	WARNING	URL=%(url)s: network access is forbidden (offline mode); %(outcome)s
+over-cap	ERROR	FILE=%(file)s: larger than the %(limit)s-%(unit)s %(purpose)s cap %(use)s; not read
+over-cap	ERROR	FILE=%(file)s: larger than the %(limit)s-%(unit)s %(purpose)s cap; not downloaded
+over-cap	ERROR	config file %(path)s: larger than the %(limit)s-%(unit)s %(purpose)s cap; not read
+over-cap	ERROR	git %(command)s produced more than %(size)s
+over-cap	ERROR	the repository is larger than the %(limit)s-%(unit)s %(purpose)s cap; git %(command)s was stopped
+over-cap	WARNING	%(key)s=%(name)s: larger than the %(limit)s-%(unit)s %(purpose)s cap; %(outcome)s
+over-cap	WARNING	FORMAT=%(format)s FILE=%(file)s: larger than the %(limit)s-%(unit)s %(purpose)s cap; %(outcome)s
+parameter-count-invalid	WARNING	FORMAT=%(format)s FILE=%(file)s: stated parameter count is not a non-negative integer; parameter count not recorded
+parameter-count-invalid	WARNING	tensor dimension %(value)s is not a non-negative integer; parameter count not recorded
+project-not-found	ERROR	No pyproject.toml, setup.cfg, or setup.py found in %(path)s
+project-not-found/model-files	ERROR	No pyproject.toml, setup.cfg, or setup.py found in %(path)s; it holds files that may be AI models (%(files)s): use 'loom model <url>' or 'loom generate <url>'
+project-or-model-not-found	ERROR	%(path)s: no Python project (pyproject.toml, setup.cfg or setup.py) and no AI model file of a supported format; name a project folder or a model file
+pypi-response-invalid	ERROR	FILE=%(file)s: PyPI declares no SHA-256 digest; not downloaded
+pypi-response-invalid	ERROR	PYPI=%(name)s: PyPI answered for project %(answered)s; not read
+pypi-response-invalid	ERROR	PYPI=%(name)s: the PyPI JSON API answer has no valid %(field)s; not read
+pypi-response-invalid	WARNING	PYPI=%(name)s FILE=%(file)s: %(why)s; skipped
+pypi-url-invalid	ERROR	URL=%(url)s: %(name)s is not a valid project name
+pypi-url-invalid	ERROR	URL=%(url)s: %(version)s is not a PEP 440 version
+pypi-url-invalid	ERROR	URL=%(url)s: PyPI is read over https only; give the https:// URL
+pypi-url-invalid	ERROR	URL=%(url)s: a file link is not read yet; give the project or release page https://pypi.org/project/<name>/<version>/
+pypi-url-invalid	ERROR	URL=%(url)s: holds user information; a PyPI URL is read without credentials
+pypi-url-invalid	ERROR	URL=%(url)s: not a PyPI project or release page; give https://pypi.org/project/<name>/ or .../<name>/<version>/
+pypi-url-invalid	ERROR	URL=%(url)s: only pypi.org is read; another index is not supported yet
+pypi-url-invalid	ERROR	URL=%(url)s: pypi.python.org is PyPI's old address; give https://pypi.org/project/<name>/
+pypi-url-unusable	ERROR	URL=%(url)s: --embed writes into a wheel file, and a PyPI URL has none to keep; nothing fetched
+pypi-url-unusable	ERROR	URL=%(url)s: a PyPI page is not a Git repository; generate_pypi_sbom(), 'loom wheel' or 'loom project' reads it; nothing fetched
+pypi-url-unusable	ERROR	URL=%(url)s: a PyPI page is not a model; 'loom wheel' reads its wheel, 'loom project' its sdist; nothing fetched
+query-no-effect	INFO	URL=%(url)s: the query and fragment have no effect; cut
+reader-unsafe	INFO	AI models in a wheel in these formats are listed without metadata, their reader not being run on a wheel's files: %(formats)s; pass --trust-model-files for a wheel you trust
+reader-unsafe/remote	INFO	AI models from a Git URL in these formats are listed without metadata, their reader not being run on a downloaded file: %(formats)s; pass --trust-model-files for a repository you trust
+reader-unsafe/remote	INFO	FILE=%(file)s: AI models in these formats are listed without metadata, their reader not being run on a downloaded file: %(formats)s; pass --trust-model-files for a release you trust
+release-file-not-found	ERROR	PYPI=%(name)s VERSION=%(version)s: the release has no wheel; 'loom project %(url)s' reads its sdist
+release-file-not-found/compatible-wheel	ERROR	PYPI=%(name)s VERSION=%(version)s: no wheel matches this Python and platform (wheels: %(files)s); 'loom project %(url)s' reads its sdist
+release-file-not-found/sdist	ERROR	PYPI=%(name)s VERSION=%(version)s: the release has no sdist; 'loom wheel %(url)s' reads a wheel
+release-not-found	ERROR	PYPI=%(name)s VERSION=%(version)s: no such release on PyPI
+release-not-found	ERROR	PYPI=%(name)s: no release has a wheel or sdist with a SHA-256 digest
+release-not-found	ERROR	PYPI=%(name)s: no such project on PyPI
+release-unpinned	INFO	PYPI=%(name)s VERSION=%(version)s: no version given; using the latest release
+release-unpinned/prerelease	INFO	PYPI=%(name)s VERSION=%(version)s: no version given and no stable release that is not yanked; using the newest pre-release
+release-unpinned/yanked	INFO	PYPI=%(name)s VERSION=%(version)s: no version given and every release is yanked; using the newest (yanked: %(why)s)
+release-unusable	INFO	PYPI=%(name)s VERSION=%(version)s FILE=%(file)s: the file is yanked (%(why)s); reading it anyway
+target-ambiguous	INFO	FILE=%(file)s: no Python project; reading this AI model file
+target-ambiguous	INFO	FILE=%(file)s: not an AI model file; reading its folder
+target-ambiguous	INFO	FILE=%(file)s: the one AI model file; reading it
+temp-dir-unusable	ERROR	FILE=%(file)s: could not be saved in the temporary directory (%(failure)s); not downloaded
+temp-dir-unusable	WARNING	FILE=%(file)s: could not be saved in the temporary directory (%(failure)s); %(outcome)s
+text-malformed	WARNING	FILE=%(file)s: lone surrogates written as \uXXXX
+text-malformed	WARNING	FORMAT=%(format)s FILE=%(file)s: lone surrogates written as \uXXXX
+url-moved	INFO	URL=%(url)s: redirects to %(target)s; followed
+url-moved/hf-endpoint	INFO	URL=%(url)s: the Hub HF_ENDPOINT names; Hugging Face files are fetched from it
+url-unsafe	ERROR	FILE=%(file)s: download URL %(target)s is not on %(hosts)s; not fetched
+url-unsafe	ERROR	URL=%(url)s: more than %(number)s redirects; not followed
+url-unsafe	ERROR	URL=%(url)s: redirects to %(target)s; not followed (%(why)s)
+url-unsafe	WARNING	URL=%(url)s: more than %(number)s redirects; %(outcome)s
+url-unsafe	WARNING	URL=%(url)s: redirects to %(target)s; not followed (%(why)s); %(outcome)s
+url-unsafe/hf-endpoint	WARNING	URL=%(url)s: HF_ENDPOINT not used (%(why)s); nothing asked of the Hub
+url-unsafe/host-spelling	ERROR	URL=%(url)s: the host is not plain ASCII or is percent-encoded, which git would resolve to a host the URL does not spell; write it in ASCII (an international name in its xn-- form); nothing fetched
+usage-unparseable	WARNING	FILE=%(file)s: could not parse as Python %(python)s for usage scanning; %(failure)s
+usage-unparseable/mention	INFO	FILE=%(file)s MODEL=%(name)s: model file name found; no usage relationship recorded
+usage-unusable	WARNING	FILE=%(file)s: not scanned for usage; only a .py extension is read as Python

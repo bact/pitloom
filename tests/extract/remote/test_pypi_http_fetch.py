@@ -282,7 +282,7 @@ def test_a_slow_drip_stops_at_the_deadline(
         fetch_json(fake.url("/a"), _policy(fake))
     assert time.monotonic() - started < 8
     assert _code(info) == DOWNLOAD_TIMEOUT.code
-    assert "within 1 seconds" in str(info.value)
+    assert "within 1 second;" in str(info.value)
 
 
 def test_a_stalled_socket_times_out(
@@ -491,7 +491,7 @@ def test_a_socket_timeout_is_reported_as_it_was(
     per-operation timeout when the deadline was nearer."""
     monkeypatch.setattr(_http_fetch, "SOCKET_TIMEOUT_SECONDS", 0.3)
     fake.routes["/a"] = Route(body=b"{}", drip=5.0)
-    with pytest.raises(RemoteSourceError, match="within 1 seconds"):
+    with pytest.raises(RemoteSourceError, match="within 1 second;"):
         fetch_json(fake.url("/a"), _policy(fake))
     watch = Watch(100.0)
     watch.socket_seconds = 2.2

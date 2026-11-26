@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-10
-Last-Modified: 2026-11-20
+Last-Modified: 2026-11-26
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -312,7 +312,7 @@ before the code.
 | `ERROR:` | `URL=<url>: more than <n> redirects; not followed` | too many redirects ([`url-unsafe`](message-codes-network.md#url-unsafe)) |
 | `ERROR:` | `FILE=<file>: download URL <target> is not on <hosts>; not fetched` | PyPI names a file on another host ([`url-unsafe`](message-codes-network.md#url-unsafe)) |
 | `ERROR:` | `URL=<url>: <failure>; not read` | an HTTP status other than 404, a refused connection, a name that did not resolve ([`download-network-failed`](message-codes-network.md#download-network-failed)) |
-| `ERROR:` | `URL=<url>: no complete answer within <seconds> seconds; not read` | a timeout ([`download-timeout`](message-codes-network.md#download-timeout)) |
+| `ERROR:` | `URL=<url>: no complete answer within <duration>; not read` | a timeout ([`download-timeout`](message-codes-network.md#download-timeout)) |
 | `ERROR:` | `URL=<url>: network access is forbidden (offline mode); nothing fetched` | `--offline`, or `offline = true` in `--config` ([`offline-unusable`](message-codes-network.md#offline-unusable)) |
 | `ERROR:` | `URL=<url>: --embed writes into a wheel file, and a PyPI URL has none to keep; nothing fetched` | `loom wheel <url> --embed` ([`pypi-url-unusable`](message-codes-pypi.md#pypi-url-unusable)) |
 | `ERROR:` | `URL=<url>: a PyPI page is not a model; 'loom wheel' reads its wheel, 'loom project' its sdist; nothing fetched` | `loom model <url>` ([`pypi-url-unusable`](message-codes-pypi.md#pypi-url-unusable)) |

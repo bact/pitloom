@@ -7,14 +7,14 @@
 the autouse record check in ``tests/conftest.py``): does a log record, a
 source module or a quoted line still agree with :mod:`pitloom.messages`?
 
-See also: tests/messages/test_drift_records.py, test_drift_sources.py and
+See also: tests/_message_quotes.py (does a quoted line match the catalogue),
+tests/messages/test_drift_records.py, test_drift_sources.py and
 test_drift_quotes.py.
 """
 
 from __future__ import annotations
 
 import ast
-import functools
 import importlib
 import logging
 import re
@@ -22,17 +22,14 @@ from collections.abc import Iterator
 from datetime import datetime, timezone
 from pathlib import Path
 
-from pitloom.logging_config import CODE_ATTR, CODE_PATTERN, escape_controls
+from pitloom.logging_config import CODE_ATTR, escape_controls
 from pitloom.messages import (
-    FIELDS,
-    FRAMES,
     MESSAGES,
     TOPIC_TITLES,
     Message,
     code_of,
     trusted_message,
 )
-from pitloom.messages._templates import PLACEHOLDER
 from pitloom.messages.config import ConfigPlace
 from tests import _strict_uncoded
 from tests._docs_scan import REPO_ROOT
@@ -155,7 +152,7 @@ SAMPLES: dict[str, object] = {
     "refusal": "invalid choice: 'x'",
     "registry_part": "spdxId",
     "requirement": "pitloom[gguf]",
-    "seconds": 30,
+    "duration": 30,
     "setting": "url-credentials",
     "settings": ("tool.setuptools.cmdclass", "metadata.version"),
     "signal": "SIGTERM",
@@ -323,113 +320,6 @@ def families_said_by(texts: list[str], *, whole: bool = False) -> set[str]:
         for core in family_texts
         if core in piece or (not whole and piece in core)
     }
-
-
-#: What a quote leaves out or fills in: an ellipsis, ``<placeholder>``, a
-#: ``%s`` value, ``(N files)`` or ``byte(s)``, space around it too; or a bare
-#: ``N`` before a hyphen (``N-byte``).
-_WILD = re.compile(
-    r"\s*(?:\.\.\.|…|<[^<>]*>|%s|\(N [^)]*\)|byte\(s\))\s*|(?<![\w-])N(?=-)"
-)
-_LEVEL = re.compile(r"^(ERROR|WARNING|INFO): ")
-_CODE = re.compile(rf" \[({CODE_PATTERN})\]$")
-
-#: A quote's wildcard (:data:`_WILD`) as one token; a quote's other tokens
-#: are its characters.
-_ANY = object()
-
-
-def _quote_tokens(text: str) -> tuple[object, ...]:
-    """*text* as its characters, each wildcard of :data:`_WILD` one
-    :data:`_ANY`."""
-    tokens: list[object] = []
-    end = 0
-    for found in _WILD.finditer(text):
-        tokens += text[end : found.start()]
-        tokens.append(_ANY)
-        end = found.end()
-    return (*tokens, *text[end:])
-
-
-def _line_tokens(template: str) -> tuple[str, ...]:
-    """*template* as its characters, each ``%(name)s`` the field's name (a
-    token longer than one character)."""
-    tokens: list[str] = []
-    end = 0
-    for found in PLACEHOLDER.finditer(template):
-        tokens += template[end : found.start()]
-        tokens.append(found.group(1))
-        end = found.end()
-    return (*tokens, *template[end:])
-
-
-def _takes(name: str, run: tuple[object, ...], marker: str) -> bool:
-    """Whether field *name* can print as the quote's *run*, which starts
-    with text (:func:`_piece_of` reads a wildcard standing for the field):
-    the value as the reference shows it (``'<path>'``); for a free field,
-    any text without the family's *marker*, but never one placeholder in
-    quotes, which says the field prints quoted when it does not
-    (``'<key>'`` for ``<entity>``); for any other, text of its own shape."""
-    field = FIELDS[name]
-    if run == _quote_tokens(field.shown):
-        return True
-    text = "".join(t for t in run if isinstance(t, str))
-    if field.free:
-        return marker not in text and run != ("'", _ANY, "'")
-    return _ANY not in run and re.fullmatch(field.pattern, text) is not None
-
-
-def _piece_of(quote: tuple[object, ...], line: tuple[str, ...], marker: str) -> bool:
-    """Whether some printing of the template *line* holds *quote*, a
-    wildcard of it standing for any text."""
-    size, width = len(quote), len(line)
-
-    @functools.cache
-    def placed(i: int, j: int) -> bool:
-        """Whether ``quote[i:]`` is printed from ``line[j:]`` on."""
-        if i == size:
-            return True
-        if j == width:
-            return all(t is _ANY for t in quote[i:])
-        here, there = quote[i], line[j]
-        if here is _ANY:
-            return placed(i + 1, j) or placed(i, j + 1)
-        if len(there) > 1:  # a field
-            if re.fullmatch(FIELDS[there].pattern, "") and placed(i, j + 1):
-                return True
-            return any(
-                _takes(there, quote[i:k], marker) and placed(k, j + 1)
-                for k in range(i + 1, size + 1)
-            )
-        return here == there and placed(i + 1, j + 1)
-
-    return any(placed(0, j) for j in range(width))
-
-
-def quote_matches(quote: str, family: str, marker: str) -> bool:
-    """Whether *quote* (a backticked line or piece of one, optionally with
-    its ``LEVEL: `` and its `` [code]``) is part of a line of *family*, at
-    that line's level and with its entry's code, a frame of that level
-    before it or not (one that allows the entry's code at that level). A value
-    stands in the quote as a wildcard, as the
-    reference shows it, or as itself (``10000`` for ``<limit>``); a free
-    value never holds the family's *marker*, so a quote cannot be all
-    value."""
-    level = _LEVEL.match(quote)
-    text = quote[level.end() :] if level else quote
-    coded = _CODE.search(text)
-    tokens = _quote_tokens(text[: coded.start()] if coded else text)
-    return any(
-        _piece_of(tokens, _line_tokens(head + line.template), marker)
-        for entry in MESSAGES.values()
-        if entry.family == family and (coded is None or coded.group(1) == entry.code)
-        for line in entry.lines
-        if level is None or level.group(1) == line.level
-        for head in [
-            "",
-            *(f.template for f in FRAMES if f.allows(entry.code, line.level)),
-        ]
-    )
 
 
 def relative(path: Path) -> str:

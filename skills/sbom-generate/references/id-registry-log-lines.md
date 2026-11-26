@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-14
-Last-Modified: 2026-11-23
+Last-Modified: 2026-11-26
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -64,7 +64,7 @@ create and choose one), [messages.md](messages.md) (every line's code).
 - `INFO: ID registry: -e NAME stored as KEY` (said once the registry is
   written) / `stored by name: <why>` /
   `stored without a version: holds only a package that states none` --
-  `id generate -e` (see above). `INFO: ID registry: dataset|model X keyed by
+  `id generate -e` (see above). `INFO: ID registry: <kind> X keyed by
   its name: <why>` -- `id import`/`loom` kept a name key because no file
   below the root matched (`dataset X keyed by its path: KEY` only when `id
   import` found a path other than the name); `model X imported under its
@@ -113,8 +113,8 @@ create and choose one), [messages.md](messages.md) (every line's code).
   in a dataset directory; expected for a registry kept there, so relay it
   (once per directory per run). Suggest keeping the registry outside the
   dataset only if the user wants the line gone; do not move it for them.
-- `WARNING: ID registry: model X has no path=; looked up ungated: not hashed
-  [registry-hash-missing]` (or `... path= 'p' is not a file at exit ...`) --
+- `WARNING: ID registry: loom model X has no path=; looked up ungated: not
+  hashed [registry-hash-missing]` (or `... path= 'p' is not a file at exit ...`) --
   the model is looked up by name and gets no hash; add `path=` to the
   `set_model()`/`use_model()` call. With no registry loaded, a missing file is
   `WARNING: loom SDK: model X: path= 'p' is not a file at exit; not hashed

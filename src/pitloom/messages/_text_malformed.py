@@ -36,6 +36,7 @@ MODEL_LINE: Final = Line(
 LICENSE_LINE: Final = Line(
     level="WARNING",
     template="LICENSE=%(license)s: lone surrogates replaced with U+FFFD",
+    since="0.25.0",
 )
 
 TEXT_MALFORMED: Final = Message(

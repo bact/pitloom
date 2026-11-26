@@ -22,14 +22,13 @@ See also: :mod:`pitloom.extract.remote.huggingface_fetch` and
 from __future__ import annotations
 
 import logging
-import math
 import sys
 from typing import Final
 
 from pitloom.core.internal_error import InternalError
 from pitloom.extract.remote._http_errors import shown_url
 from pitloom.extract.remote._hub_files import hub_endpoint
-from pitloom.messages import emit
+from pitloom.messages import emit, whole_seconds
 from pitloom.messages.network import (
     DOWNLOAD_FAILED,
     DOWNLOAD_TIMEOUT,
@@ -92,8 +91,8 @@ def say_hub_failure(
     if isinstance(exc, OfflineModeIsEnabled):
         emit(log, OFFLINE_UNUSABLE, level, url=url, outcome=outcome)
     elif isinstance(exc, (TimeoutError, *_client_errors("TimeoutException"))):
-        shown = max(math.ceil(seconds), 1)
-        emit(log, DOWNLOAD_TIMEOUT, level, url=url, seconds=shown, outcome=outcome)
+        shown = whole_seconds(seconds)
+        emit(log, DOWNLOAD_TIMEOUT, level, url=url, duration=shown, outcome=outcome)
     elif isinstance(
         exc,
         (

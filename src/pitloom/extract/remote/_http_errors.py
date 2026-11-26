@@ -13,7 +13,6 @@ them) and :mod:`pitloom.extract.remote.errors` (the class).
 from __future__ import annotations
 
 import logging
-import math
 import urllib.error
 from typing import Any
 
@@ -25,6 +24,7 @@ from pitloom.messages import (
     Message,
     emit,
     url_text,
+    whole_seconds,
 )
 from pitloom.messages.files import OVER_CAP
 from pitloom.messages.network import (
@@ -120,7 +120,7 @@ def timeout_error(url: str, watch: Watch, route: str) -> RemoteSourceError:
         DOWNLOAD_TIMEOUT,
         DOWNLOAD_TIMEOUT_LINE,
         url=shown_url(url),
-        seconds=max(math.ceil(seconds), 1),
+        duration=whole_seconds(seconds),
     )
 
 

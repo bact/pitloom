@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-11-06
+Last-Modified: 2026-11-26
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -71,6 +71,11 @@ the Hatchling floor and latest = `Hook on Python X / Hatchling Y`
       `header.pitloom` may differ (it reads the *installed* package metadata,
       so run it from an environment whose `pitloom` is the version being
       released, or accept that line).
+- [ ] Released-lines snapshot of the message catalogue, in the bump PR:
+      `python scripts/generate_message_reference.py --snapshot <release>`
+      rewrites `tests/fixtures/message-catalogue/released-lines.tsv`, so a
+      line added after the release must say its own `since`
+      (`tests/messages/test_messages_line_since.py`).
 - [ ] `CHANGELOG.md`: every merged PR since the last tag either has an
       entry, or is a routine dependabot/CI-only/docs-only/test-only
       change that doesn't need one (cross-check `git log --oneline

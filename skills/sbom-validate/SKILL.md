@@ -1,6 +1,6 @@
 ---
 # Created: 2026-08-10
-# Last-Modified: 2026-11-23
+# Last-Modified: 2026-11-26
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -110,7 +110,8 @@ output.
 Exit code `0` means valid: stdout has one `FILE=<path> STATUS=valid` line
 per document and stderr `INFO: fragment validate: N document(s) valid`. A
 non-zero exit code means at least one schema or SHACL error (no stdout line),
-printed to stderr, each finding line `ERROR: spdx3-validate: <line>` (a SHACL
+printed to stderr, each finding line
+`ERROR: loom fragment validate: spdx3-validate: <line>` (a SHACL
 violation's Severity/Source Shape/Focus Node breakdown spans several lines, and
 a merged-graph failure is labelled `(merged)`), then one coded `[sbom-invalid]`
 `ERROR:` line per document (`not valid SPDX 3 (<number> finding(s) above)`; a

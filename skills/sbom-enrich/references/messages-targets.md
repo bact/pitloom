@@ -58,6 +58,8 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
   INFO: FILE=<file>: the downloaded sdist's own [tool.pitloom] settings are ignored (untrusted); --config or pitloom_config= applies [config-unsafe]
   ```
 
+- **Since**: 0.23.4; line 1: 0.25.0
+
 ### `config-unsafe/build-code`
 
 - **Level**: WARNING.
@@ -153,6 +155,8 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
   WARNING: <input> not found: '<path>' is not a file [input-not-found]
   ```
 
+- **Since**: 0.23.4; lines 5-13: 0.25.0
+
 ### `input-not-found/fragment`
 
 - **Level**: WARNING.
@@ -237,6 +241,8 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
   ERROR: No pyproject.toml, setup.cfg, or setup.py found in '<path>'; Python projects are in subfolders (<folders>); Pitloom reads the folder in the URL only [project-not-found]
   ```
 
+- **Since**: 0.23.4; lines 2-3: 0.25.0
+
 ### `project-not-found/model-files`
 
 - **Level**: ERROR. As an ERROR, the command stops for that input and writes
@@ -279,6 +285,8 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
   ERROR: '<path>': no Python project (pyproject.toml, setup.cfg or setup.py) and no AI model file of a supported format; Python projects are in subfolders (<folders>); give the URL of one of them [project-or-model-not-found]
   ERROR: '<path>': no Python project (pyproject.toml, setup.cfg or setup.py) and no AI model file of a supported format; Python projects are in subfolders (<folders>); Pitloom reads the folder in the URL only [project-or-model-not-found]
   ```
+
+- **Since**: 0.23.4; lines 2-3: 0.25.0
 
 ### `sbom-invalid`
 

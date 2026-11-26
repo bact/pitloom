@@ -55,3 +55,10 @@ SPDX-License-Identifier: CC0-1.0
     - Uncoded message sites per module in `src/pitloom`, for the message
       ratchet in `tests/test_message_ratchet.py`
     - [Details](./message-inventory/README.md)
+14. Released message lines (`message-catalogue/released-lines.tsv`)
+    - Every catalogued line the last release prints (code, level, template;
+      tab-separated, sorted, LF), after a `# released-lines <release>` line;
+      now v0.24.0's
+    - A line absent from it must say a later `since`
+      (`tests/messages/test_messages_line_since.py`); refreshed at each
+      release bump by `scripts/generate_message_reference.py --snapshot`

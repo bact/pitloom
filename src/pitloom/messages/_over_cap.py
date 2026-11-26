@@ -134,7 +134,7 @@ OVER_CAP: Final = Message(
         CLONE_LINE,
         GIT_OUTPUT_LINE,
         # Said again when a run re-reads its ID registry file to save.
-        Line(level="WARNING", template=SOURCE_LINE.template),
+        Line(level="WARNING", template=SOURCE_LINE.template, since="0.25.0"),
     ),
     summary="An input is larger than a cap Pitloom puts on what it reads or "
     "records, so that a crafted or unusually large input cannot exhaust time, "

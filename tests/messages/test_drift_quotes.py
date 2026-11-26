@@ -25,7 +25,8 @@ import pytest
 
 from pitloom.messages import MESSAGES
 from tests._docs_scan import CLI_DOC_FILES, read
-from tests._message_drift import quote_matches, relative
+from tests._message_drift import relative
+from tests._message_quotes import quote_matches
 
 #: The texts that mark a quote as saying a family's message: one, or one per
 #: line for a family whose lines share no core.
@@ -228,7 +229,7 @@ _MARKERS: dict[str, tuple[str, ...]] = {
     ),
     "interrupted": ("received SIGTERM", ": interrupted"),
     "json-malformed": (
-        "not valid JSON for ",
+        ": not valid JSON ",
         "byte order mark",
     ),
     "lfs-pointer": ("Git LFS pointer",),
@@ -279,7 +280,7 @@ _MARKERS: dict[str, tuple[str, ...]] = {
         "too deeply nested to parse",
     ),
     "metadata-no-effect": (
-        "not read: Poetry reads [project]",
+        "not read: Poetry reads",
         "does not read them",
         "setuptools does not accept",
     ),

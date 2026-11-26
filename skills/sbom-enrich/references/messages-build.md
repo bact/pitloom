@@ -48,10 +48,10 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
 - **Lines**:
 
   ```text
-  WARNING: DIR=<dir>: --allow-build runs a PEP 517 build for up to <seconds> seconds (--build-timeout), which executes the project's build code (build-backend <backend>, no discovery module for it) in an isolated build environment [build-code-unsafe]
-  WARNING: DIR=<dir>: --allow-build runs a PEP 517 build for up to <seconds> seconds (--build-timeout), which executes the project's build code (build-backend <backend>, its static discovery failed) in an isolated build environment [build-code-unsafe]
-  WARNING: DIR=<dir>: --allow-build runs a PEP 517 build for up to <seconds> seconds (--build-timeout), which executes the project's build code (build-backend <backend>, no discovery module for it) in Pitloom's own environment (no build isolation) [build-code-unsafe]
-  WARNING: DIR=<dir>: --allow-build runs a PEP 517 build for up to <seconds> seconds (--build-timeout), which executes the project's build code (build-backend <backend>, its static discovery failed) in Pitloom's own environment (no build isolation) [build-code-unsafe]
+  WARNING: DIR=<dir>: --allow-build runs a PEP 517 build for up to <duration> (--build-timeout), which executes the project's build code (build-backend <backend>, no discovery module for it) in an isolated build environment [build-code-unsafe]
+  WARNING: DIR=<dir>: --allow-build runs a PEP 517 build for up to <duration> (--build-timeout), which executes the project's build code (build-backend <backend>, its static discovery failed) in an isolated build environment [build-code-unsafe]
+  WARNING: DIR=<dir>: --allow-build runs a PEP 517 build for up to <duration> (--build-timeout), which executes the project's build code (build-backend <backend>, no discovery module for it) in Pitloom's own environment (no build isolation) [build-code-unsafe]
+  WARNING: DIR=<dir>: --allow-build runs a PEP 517 build for up to <duration> (--build-timeout), which executes the project's build code (build-backend <backend>, its static discovery failed) in Pitloom's own environment (no build isolation) [build-code-unsafe]
   ```
 
 ### `build-failed`
@@ -127,8 +127,8 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
 - **Lines**:
 
   ```text
-  WARNING: DIR=<dir>: the build timed out after <seconds> seconds (--build-timeout); its process tree was stopped [build-timeout]
-  WARNING: DIR=<dir>: the build timed out after <seconds> seconds (--build-timeout); could not confirm its process tree stopped [build-timeout]
+  WARNING: DIR=<dir>: the build timed out after <duration> (--build-timeout); its process tree was stopped [build-timeout]
+  WARNING: DIR=<dir>: the build timed out after <duration> (--build-timeout); could not confirm its process tree stopped [build-timeout]
   ```
 
 ### `hook-no-effect`

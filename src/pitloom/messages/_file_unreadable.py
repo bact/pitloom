@@ -56,11 +56,15 @@ HEADER_ERROR_LINE: Final = Line(level="ERROR", template=HEADER_LINE.template)
 #: A loom dataset directory whose card could not be read for a reason that
 #: names no file of it (the current directory gone while the run lasts).
 DIR_READ_LINE: Final = Line(
-    level="WARNING", template="DIR=%(dir)s: could not read %(use)s; %(failure)s"
+    level="WARNING",
+    template="DIR=%(dir)s: could not read %(use)s; %(failure)s",
+    since=_SINCE_SBOM,
 )
 #: The current directory gone (or not readable) where a path is resolved
 #: against it: ``DIR=.``.
-DIR_READ_ERROR_LINE: Final = Line(level="ERROR", template=DIR_READ_LINE.template)
+DIR_READ_ERROR_LINE: Final = Line(
+    level="ERROR", template=DIR_READ_LINE.template, since="0.25.0"
+)
 
 FILE_UNREADABLE: Final = Message(
     code="file-unreadable",
@@ -133,6 +137,7 @@ FILE_UNREADABLE: Final = Message(
 NOT_UTF8_ERROR_LINE: Final = Line(
     level="ERROR",
     template="FILE=%(file)s: could not read %(use)s; not UTF-8: %(failure)s",
+    since=_SINCE_SBOM,
 )
 
 FILE_UNREADABLE_NOT_UTF8: Final = Message(
@@ -242,7 +247,9 @@ DIR_LINE: Final = Line(
 )
 #: The same, where the listing raises (a directory named as a 'loom id
 #: generate' PATH).
-DIR_ERROR_LINE: Final = Line(level="ERROR", template=DIR_LINE.template)
+DIR_ERROR_LINE: Final = Line(
+    level="ERROR", template=DIR_LINE.template, since=_SINCE_SBOM
+)
 
 DIR_UNLISTABLE: Final = Message(
     code="dir-unlistable",
