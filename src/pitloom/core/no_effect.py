@@ -27,6 +27,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Iterable
 
+from pitloom.core.option_names import named_reason
 from pitloom.core.url_masking import masked_given_path
 from pitloom.messages.options import OPTIONS_PREFIX, warn_option_no_effect
 
@@ -53,7 +54,10 @@ def warn_no_effect(
     acts on, as opposed to a flag the user gave on its command line).
 
     *reason* follows "has no effect" with no trailing punctuation, e.g.
-    ``"without --allow-build"``.
+    ``"without {allow_build}"``: each ``{name}`` placeholder is written as
+    the surface that runs spells that option
+    (:func:`~pitloom.core.option_names.named_reason`). Each of *flags* is
+    already so spelt.
 
     *subject* may be a user-given URL or path, a ``Path`` that collapsed a
     URL's ``//`` included: credentials are masked here
@@ -68,13 +72,14 @@ def warn_no_effect(
             (:func:`~pitloom.messages.options.warn_option_no_effect`).
     """
     shown = masked_given_path(str(subject))
+    when = named_reason(reason)
     for flag in flags:
         warn_option_no_effect(
             log,
             build=build,
             subject=shown,
             option=flag,
-            when=reason,
+            when=when,
             level=level,
         )
 

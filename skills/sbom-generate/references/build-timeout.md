@@ -133,7 +133,8 @@ WARNING: Build: DIR=<dir>: the build timed out after <duration> (--build-timeout
 
 (or `...; could not confirm its process tree stopped [build-timeout]`, when the
 kill wasn't confirmed -- also warn the user a build process may still
-be running). The SBOM was still written -- the command exits 0 -- but
+be running). From the Python library the line names `BuildOptions.timeout`
+instead of `--build-timeout`. The SBOM was still written -- the command exits 0 -- but
 its file list came from static discovery, as without `--allow-build`
 (the backend's own, setuptools for a project declaring none, the
 Hatchling heuristic only when that fails; none at all when static

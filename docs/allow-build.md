@@ -128,6 +128,13 @@ of each, with a value in place of each `<name>`:
 | `temp-dir-unwritable` | `WARNING: Build: DIR=<dir>: could not be fully removed; left in the system temp directory [temp-dir-unwritable]` |
 | `library-missing` | `WARNING: Build: required library not installed: build; install pitloom[build] [library-missing]` |
 
+The lines quote the command line. A library call names its own options
+instead: `BuildOptions.allow runs a PEP 517 build for up to <duration>
+(BuildOptions.timeout), ...` and `the build timed out after <duration>
+(BuildOptions.timeout); ...`; a build option given without `allow` says
+`Build: <subject>: BuildOptions.timeout has no effect without
+BuildOptions.allow [option-no-effect]`.
+
 - The `build-code-unsafe` line comes before the build runs: for a backend no
   file discoverer of Pitloom reads (as above), or for a supported one whose
   static discovery failed (`... build-backend <backend>, its static discovery

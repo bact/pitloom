@@ -84,15 +84,14 @@ from pitloom.messages.pypi import (
     DIGEST_MISMATCH_LINE,
     FILE_AMBIGUOUS,
     FILE_SKIPPED_LINE,
-    GENERATE_WHEEL_LIBRARY_LINE,
-    GENERATE_WHEEL_LINE,
+    GENERATE_WHEEL_LINES,
     LATEST_LINE,
     LATEST_PRERELEASE_LINE,
     LATEST_YANKED_LINE,
-    NO_COMPATIBLE_WHEEL_LINE,
+    NO_COMPATIBLE_WHEEL_LINES,
     NO_DIGEST_LINE,
-    NO_SDIST_LINE,
-    NO_WHEEL_LINE,
+    NO_SDIST_LINES,
+    NO_WHEEL_LINES,
     PYPI_RESPONSE_INVALID,
     RELEASE_FILE_NOT_FOUND,
     RELEASE_FILE_NOT_FOUND_COMPATIBLE,
@@ -175,11 +174,11 @@ class _Pick:
     candidates: int
 
 
-def sdist_hint(url: str, *, library: bool = False) -> None:
-    """Say, as ``loom generate`` does after reading a release's wheel from
-    the PyPI URL *url*, that ``loom project`` reads its sdist; with
-    *library* (:func:`pitloom.assemble.generate`), that
-    :func:`pitloom.assemble.generate_pypi_sbom` with ``kind="sdist"`` does.
+def sdist_hint(url: str) -> None:
+    """Say, after ``loom generate`` or :func:`pitloom.assemble.generate`
+    read a release's wheel from the PyPI URL *url*, what reads its sdist on
+    the surface that runs: ``loom project``, or
+    :func:`pitloom.assemble.generate_pypi_sbom` with ``kind="sdist"``.
 
     Raises:
         CodedValueError: *url* is not a PyPI project or release URL (it is,
@@ -190,7 +189,7 @@ def sdist_hint(url: str, *, library: bool = False) -> None:
         log,
         FILE_AMBIGUOUS,
         logging.INFO,
-        line=GENERATE_WHEEL_LIBRARY_LINE if library else GENERATE_WHEEL_LINE,
+        line=GENERATE_WHEEL_LINES,
         name=target.canonical,
         url=target.project_url,
     )
@@ -221,7 +220,7 @@ def _pick(
             raise remote_error(
                 "pypi.no-sdist",
                 RELEASE_FILE_NOT_FOUND_SDIST,
-                NO_SDIST_LINE,
+                NO_SDIST_LINES,
                 url=url,
                 **names,
             )
@@ -229,14 +228,14 @@ def _pick(
     wheels = [f for f in files if f.kind == WHEEL]
     if not wheels:
         raise remote_error(
-            "pypi.no-wheel", RELEASE_FILE_NOT_FOUND, NO_WHEEL_LINE, url=url, **names
+            "pypi.no-wheel", RELEASE_FILE_NOT_FOUND, NO_WHEEL_LINES, url=url, **names
         )
     wheel = pick_wheel(wheels)
     if wheel is None:
         raise remote_error(
             "pypi.no-compatible-wheel",
             RELEASE_FILE_NOT_FOUND_COMPATIBLE,
-            NO_COMPATIBLE_WHEEL_LINE,
+            NO_COMPATIBLE_WHEEL_LINES,
             url=url,
             files=_names(wheels),
             **names,

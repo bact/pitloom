@@ -17,51 +17,74 @@ See also: :mod:`pitloom.messages._build_say` (the helpers),
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+from types import MappingProxyType
 from typing import Final
 
+from pitloom.messages._surface import SURFACE_CLI, SURFACE_LIBRARY, Twins
 from pitloom.messages._types import ASK_FIRST, Line, Message
 
 _SINCE: Final = "0.25.0"
 
-_RUNS: Final = (
-    "DIR=%(dir)s: --allow-build runs a PEP 517 build for up to %(duration)s "
-    "(--build-timeout), which executes the project's build code "
-    "(build-backend %(backend)s, "
+#: How each surface names the build switch, its isolation switch and its
+#: time limit (the hook never builds: its backend is Hatchling); the
+#: ``option-no-effect`` lines name them alike
+#: (:mod:`pitloom.core.option_names`).
+ALLOW_BUILD_NAMES: Final[Mapping[str, str]] = MappingProxyType(
+    {SURFACE_CLI: "--allow-build", SURFACE_LIBRARY: "BuildOptions.allow"}
 )
+NO_BUILD_ISOLATION_NAMES: Final[Mapping[str, str]] = MappingProxyType(
+    {SURFACE_CLI: "--no-build-isolation", SURFACE_LIBRARY: "BuildOptions.no_isolation"}
+)
+BUILD_TIMEOUT_NAMES: Final[Mapping[str, str]] = MappingProxyType(
+    {SURFACE_CLI: "--build-timeout", SURFACE_LIBRARY: "BuildOptions.timeout"}
+)
+
+
+def _runs(surface: str) -> str:
+    """The start of a ``build-code-unsafe`` line on *surface*."""
+    return (
+        f"DIR=%(dir)s: {ALLOW_BUILD_NAMES[surface]} runs a PEP 517 build for up to "
+        f"%(duration)s ({BUILD_TIMEOUT_NAMES[surface]}), which executes the project's "
+        "build code (build-backend %(backend)s, "
+    )
+
+
 _NO_MODULE: Final = "no discovery module for it) "
 _STATIC_FAILED: Final = "its static discovery failed) "
 _ISOLATED: Final = "in an isolated build environment"
 _SHARED: Final = "in Pitloom's own environment (no build isolation)"
 
+
+def _unsafe(tail: str) -> Twins[Line]:
+    """The ``build-code-unsafe`` line ending in *tail*, on each surface."""
+    return Twins.no_hook(
+        cli=Line(level="WARNING", template=_runs(SURFACE_CLI) + tail),
+        library=Line(level="WARNING", template=_runs(SURFACE_LIBRARY) + tail),
+    )
+
+
 #: A build for a backend no discoverer reads, in a build environment of its
 #: own.
-UNSAFE_NO_MODULE_LINE: Final = Line(
-    level="WARNING", template=f"{_RUNS}{_NO_MODULE}{_ISOLATED}"
-)
+UNSAFE_NO_MODULE_LINES: Final = _unsafe(f"{_NO_MODULE}{_ISOLATED}")
 #: A build after the backend's own discoverer failed, isolated.
-UNSAFE_STATIC_FAILED_LINE: Final = Line(
-    level="WARNING", template=f"{_RUNS}{_STATIC_FAILED}{_ISOLATED}"
-)
+UNSAFE_STATIC_FAILED_LINES: Final = _unsafe(f"{_STATIC_FAILED}{_ISOLATED}")
 #: A build for a backend no discoverer reads, in Pitloom's environment
 #: (``--no-build-isolation``).
-UNSAFE_NO_MODULE_SHARED_LINE: Final = Line(
-    level="WARNING", template=f"{_RUNS}{_NO_MODULE}{_SHARED}"
-)
+UNSAFE_NO_MODULE_SHARED_LINES: Final = _unsafe(f"{_NO_MODULE}{_SHARED}")
 #: A build after the backend's own discoverer failed, in Pitloom's
 #: environment.
-UNSAFE_STATIC_FAILED_SHARED_LINE: Final = Line(
-    level="WARNING", template=f"{_RUNS}{_STATIC_FAILED}{_SHARED}"
-)
+UNSAFE_STATIC_FAILED_SHARED_LINES: Final = _unsafe(f"{_STATIC_FAILED}{_SHARED}")
 
 #: A real build about to run.
 BUILD_CODE_UNSAFE: Final = Message(
     code="build-code-unsafe",
     condition="unsafe",
     lines=(
-        UNSAFE_NO_MODULE_LINE,
-        UNSAFE_STATIC_FAILED_LINE,
-        UNSAFE_NO_MODULE_SHARED_LINE,
-        UNSAFE_STATIC_FAILED_SHARED_LINE,
+        *UNSAFE_NO_MODULE_LINES.members,
+        *UNSAFE_STATIC_FAILED_LINES.members,
+        *UNSAFE_NO_MODULE_SHARED_LINES.members,
+        *UNSAFE_STATIC_FAILED_SHARED_LINES.members,
     ),
     summary="--allow-build lists a project's files by running a real PEP 517 "
     "build of its wheel, which executes the project's own build code (its "
@@ -141,24 +164,36 @@ BUILD_FAILED: Final = Message(
     since=_SINCE,
 )
 
-_TIMED_OUT: Final = (
-    "DIR=%(dir)s: the build timed out after %(duration)s (--build-timeout); "
-)
+
+def _timed_out_head(surface: str) -> str:
+    """The start of a ``build-timeout`` line on *surface*."""
+    limit = BUILD_TIMEOUT_NAMES[surface]
+    return f"DIR=%(dir)s: the build timed out after %(duration)s ({limit}); "
+
+
+def _timed_out(tail: str) -> Twins[Line]:
+    """The ``build-timeout`` line ending in *tail*, on each surface."""
+    return Twins.no_hook(
+        cli=Line(level="WARNING", template=_timed_out_head(SURFACE_CLI) + tail),
+        library=Line(level="WARNING", template=_timed_out_head(SURFACE_LIBRARY) + tail),
+    )
+
+
 #: A build stopped at its deadline, every process of it gone.
-BUILD_TIMED_OUT_LINE: Final = Line(
-    level="WARNING", template=f"{_TIMED_OUT}its process tree was stopped"
-)
+BUILD_TIMED_OUT_LINES: Final = _timed_out("its process tree was stopped")
 #: The same, a process of it perhaps still running.
-BUILD_TIMED_OUT_UNCONFIRMED_LINE: Final = Line(
-    level="WARNING",
-    template=f"{_TIMED_OUT}could not confirm its process tree stopped",
+BUILD_TIMED_OUT_UNCONFIRMED_LINES: Final = _timed_out(
+    "could not confirm its process tree stopped"
 )
 
 #: A build that did not end within --build-timeout.
 BUILD_TIMEOUT: Final = Message(
     code="build-timeout",
     condition="timeout",
-    lines=(BUILD_TIMED_OUT_LINE, BUILD_TIMED_OUT_UNCONFIRMED_LINE),
+    lines=(
+        *BUILD_TIMED_OUT_LINES.members,
+        *BUILD_TIMED_OUT_UNCONFIRMED_LINES.members,
+    ),
     summary="The --allow-build build ran longer than --build-timeout allows "
     "(a slow build, or one waiting for the network or for input). Its "
     "process tree was stopped; on the second line Pitloom could not "

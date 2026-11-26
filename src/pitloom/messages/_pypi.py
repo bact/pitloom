@@ -20,9 +20,12 @@ from __future__ import annotations
 
 from typing import Final
 
+from pitloom.messages._surface import Twins
 from pitloom.messages._types import ASK_FIRST, Line, Message
 
 _SINCE: Final = "0.24.0"
+#: The release of a library twin of a line that names a command.
+_TWIN_SINCE: Final = "0.25.0"
 
 #: The URL is not a PyPI project or release page.
 PYPI_URL_FORM_LINE: Final = Line(
@@ -137,30 +140,40 @@ RELEASE_NOT_FOUND: Final = Message(
     since=_SINCE,
 )
 
+_RELEASE: Final = "PYPI=%(name)s VERSION=%(version)s: "
+_NO_WHEEL: Final = f"{_RELEASE}the release has no wheel; "
+_NO_COMPATIBLE: Final = (
+    f"{_RELEASE}no wheel matches this Python and platform (wheels: %(files)s); "
+)
+_NO_SDIST: Final = f"{_RELEASE}the release has no sdist; "
+#: What reads the sdist, or a wheel, of the release: a command, or a call.
+_SDIST_CLI: Final = "'loom project %(url)s' reads its sdist"
+_SDIST_LIBRARY: Final = "generate_pypi_sbom('%(url)s', kind='sdist') reads its sdist"
+_WHEEL_CLI: Final = "'loom wheel %(url)s' reads a wheel"
+_WHEEL_LIBRARY: Final = "generate_pypi_sbom('%(url)s') reads a wheel"
+
+
+def _twins(head: str, cli: str, library: str) -> Twins[Line]:
+    """The ``ERROR`` line *head* ended by the command *cli* or the call
+    *library* that reads the release's other file (the hook reads no URL)."""
+    return Twins.no_hook(
+        cli=Line(level="ERROR", template=head + cli),
+        library=Line(level="ERROR", template=head + library, since=_TWIN_SINCE),
+    )
+
+
 #: The release has no wheel.
-NO_WHEEL_LINE: Final = Line(
-    level="ERROR",
-    template="PYPI=%(name)s VERSION=%(version)s: the release has no wheel; "
-    "'loom project %(url)s' reads its sdist",
-)
+NO_WHEEL_LINES: Final = _twins(_NO_WHEEL, _SDIST_CLI, _SDIST_LIBRARY)
 #: The release has no wheel for this Python and platform.
-NO_COMPATIBLE_WHEEL_LINE: Final = Line(
-    level="ERROR",
-    template="PYPI=%(name)s VERSION=%(version)s: no wheel matches this Python "
-    "and platform (wheels: %(files)s); 'loom project %(url)s' reads its sdist",
-)
+NO_COMPATIBLE_WHEEL_LINES: Final = _twins(_NO_COMPATIBLE, _SDIST_CLI, _SDIST_LIBRARY)
 #: The release has no sdist.
-NO_SDIST_LINE: Final = Line(
-    level="ERROR",
-    template="PYPI=%(name)s VERSION=%(version)s: the release has no sdist; "
-    "'loom wheel %(url)s' reads a wheel",
-)
+NO_SDIST_LINES: Final = _twins(_NO_SDIST, _WHEEL_CLI, _WHEEL_LIBRARY)
 
 #: The release has no wheel at all.
 RELEASE_FILE_NOT_FOUND: Final = Message(
     code="release-file-not-found",
     condition="not-found",
-    lines=(NO_WHEEL_LINE,),
+    lines=NO_WHEEL_LINES.members,
     summary="The release the URL names has no wheel for 'loom wheel' to read.",
     did="Wrote no SBOM. The error code is pypi.no-wheel.",
     effect="not-written",
@@ -175,7 +188,7 @@ RELEASE_FILE_NOT_FOUND: Final = Message(
 RELEASE_FILE_NOT_FOUND_COMPATIBLE: Final = Message(
     code="release-file-not-found/compatible-wheel",
     condition="not-found",
-    lines=(NO_COMPATIBLE_WHEEL_LINE,),
+    lines=NO_COMPATIBLE_WHEEL_LINES.members,
     summary="The release the URL names has wheels, but none whose tags this "
     "Python and platform accept.",
     did="Wrote no SBOM. The error code is pypi.no-compatible-wheel.",
@@ -193,7 +206,7 @@ RELEASE_FILE_NOT_FOUND_COMPATIBLE: Final = Message(
 RELEASE_FILE_NOT_FOUND_SDIST: Final = Message(
     code="release-file-not-found/sdist",
     condition="not-found",
-    lines=(NO_SDIST_LINE,),
+    lines=NO_SDIST_LINES.members,
     summary="The release the URL names has no sdist for 'loom project' to read.",
     did="Wrote no SBOM. The error code is pypi.no-sdist.",
     effect="not-written",
@@ -279,26 +292,37 @@ EMBED_URL_LINE: Final = Line(
     template="URL=%(url)s: --embed writes into a wheel file, and a PyPI URL "
     "has none to keep; nothing fetched",
 )
-#: ``loom model`` was given a PyPI URL.
-MODEL_URL_LINE: Final = Line(
-    level="ERROR",
-    template="URL=%(url)s: a PyPI page is not a model; 'loom wheel' reads "
-    "its wheel, 'loom project' its sdist; nothing fetched",
+_NOT_A_MODEL: Final = "URL=%(url)s: a PyPI page is not a model; "
+_FETCHED_NOTHING: Final = "; nothing fetched"
+#: ``loom model`` or ``generate_model_sbom()`` was given a PyPI URL.
+MODEL_URL_LINES: Final = Twins.no_hook(
+    cli=Line(
+        level="ERROR",
+        template=f"{_NOT_A_MODEL}'loom wheel' reads its wheel, 'loom project' "
+        f"its sdist{_FETCHED_NOTHING}",
+    ),
+    library=Line(
+        level="ERROR",
+        template=f"{_NOT_A_MODEL}generate_pypi_sbom() reads its wheel, "
+        f"generate_pypi_sbom(kind='sdist') its sdist{_FETCHED_NOTHING}",
+        since=_TWIN_SINCE,
+    ),
 )
 
-#: The Git route (``generate_git_sbom()``) was given a PyPI URL.
+#: The Git route (``generate_git_sbom()``, a library call only: the command
+#: line reads a PyPI URL before it) was given a PyPI URL.
 GIT_PYPI_URL_LINE: Final = Line(
     level="ERROR",
     template="URL=%(url)s: a PyPI page is not a Git repository; "
-    "generate_pypi_sbom(), 'loom wheel' or 'loom project' reads it; "
-    "nothing fetched",
+    f"generate_pypi_sbom() reads it{_FETCHED_NOTHING}",
+    since=_TWIN_SINCE,
 )
 
 #: A command that cannot take a PyPI URL was given one.
 PYPI_URL_UNUSABLE: Final = Message(
     code="pypi-url-unusable",
     condition="unusable",
-    lines=(EMBED_URL_LINE, MODEL_URL_LINE, GIT_PYPI_URL_LINE),
+    lines=(EMBED_URL_LINE, *MODEL_URL_LINES.members, GIT_PYPI_URL_LINE),
     summary="A PyPI URL was given to a command or option that cannot use it: "
     "loom wheel --embed (it would write into a temporary copy of the wheel), "
     "loom model or generate_model_sbom() (a release is not a model), or a "

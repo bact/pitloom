@@ -22,6 +22,7 @@ from pitloom.extract.remote.errors import RemoteSourceError
 from pitloom.messages import (
     Line,
     Message,
+    Twins,
     emit,
     url_text,
     whole_seconds,
@@ -67,10 +68,11 @@ def shown_url(url: str) -> str:
 
 
 def remote_error(
-    code: str, message: Message, line: Line, **values: object
+    code: str, message: Message, line: Line | Twins[Line], **values: object
 ) -> RemoteSourceError:
     """A :class:`RemoteSourceError` *code* whose text is *message*'s ``ERROR``
-    *line* written from *values*, its ``pitloom_code`` *message*'s code. The
+    *line* (twins: the surface's wording) written from *values*, its
+    ``pitloom_code`` *message*'s code. The
     error keeps *message* and *values* (:attr:`RemoteSourceError.said`), so a
     caller that goes on without the file says it as a ``WARNING:``
     (:func:`warn_instead`).

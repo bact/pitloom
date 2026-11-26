@@ -228,7 +228,7 @@ def _generate_remote(
             build_options=build_options,
             check_url=check_url,
         )
-        sdist_hint(target, library=True)
+        sdist_hint(target)
         return sbom
     return generate_git_sbom(
         target,

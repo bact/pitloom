@@ -205,7 +205,7 @@ def test_forward_settles_a_declared_dropped_option_once(
             inert_options.WHEEL, "w", _callee, {"enrich": False, "pretty": None}
         )
     assert forwarded == {"pretty": None}
-    assert count_naming(logged_warnings(caplog), "--enrich") == 1
+    assert count_naming(logged_warnings(caplog), "enrich") == 1
 
 
 def test_forward_passes_everything_to_a_var_keyword_callee(
@@ -256,7 +256,8 @@ def test_settle_warning_order_does_not_follow_the_mapping_order(
         runs.append(logged_warnings(caplog))
     assert runs[0] == runs[1]
     assert len(runs[0]) == len(params) > 1
-    expected = [flag for param, flag in PARAM_TO_FLAG.items() if param in params]
+    # In flag-table order, each named as the library names it.
+    expected = [param for param in PARAM_TO_FLAG if param in params]
     assert [w.split(": ")[2].split(" has no effect")[0] for w in runs[0]] == expected
 
 
@@ -377,7 +378,8 @@ def test_every_option_reaches_or_is_declared_inert(
     warned = logged_warnings(caplog)
     assert len(warned) == len(set(options) - accepted)
     for param in set(options) - accepted:
-        assert count_naming(warned, PARAM_TO_FLAG[param].split("/")[0]) == 1, param
+        # A library call: each named by its parameter.
+        assert count_naming(warned, param) == 1, param
 
 
 def test_generate_options_cover_every_cli_option() -> None:
@@ -436,5 +438,5 @@ def test_trust_model_files_with_a_project_dir_says_why() -> None:
     """``embed-wheel --project-dir`` reads its models from the project; the
     reason must not claim the target reads no wheel."""
     reason = INERT[inert_options.EMBED_PROJECT]["trust_model_files"]
-    assert "--project-dir" in reason
+    assert "{project_dir}" in reason
     assert "not the wheel" in reason

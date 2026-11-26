@@ -25,7 +25,7 @@ from pitloom.extract.remote import git, pypi
 from pitloom.extract.remote._git_run import GitRunner
 from pitloom.messages import Line
 from pitloom.messages.pypi import (
-    MODEL_URL_LINE,
+    MODEL_URL_LINES,
     PYPI_URL_INVALID,
     PYPI_URL_UNUSABLE,
 )
@@ -73,7 +73,7 @@ def test_a_command_refuses_another_pypi_host(
     assert run(monkeypatch, tmp_path, command, url, *offline, *extra) == 1
     err = capsys.readouterr().err
     if command == "model":
-        line, code = MODEL_URL_LINE, PYPI_URL_UNUSABLE.code
+        line, code = MODEL_URL_LINES.cli, PYPI_URL_UNUSABLE.code
     else:
         code = PYPI_URL_INVALID.code
     errors = [e for e in err.splitlines() if e.startswith("ERROR: ")]

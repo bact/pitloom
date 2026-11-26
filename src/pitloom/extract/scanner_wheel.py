@@ -63,7 +63,7 @@ from pitloom.messages.files import (
 from pitloom.messages.models import (
     READER_UNSAFE,
     READER_UNSAFE_REMOTE,
-    USAGE_SETTING_WHEEL,
+    USAGE_TARGET_WHEEL,
 )
 
 log = logging.getLogger(__name__)
@@ -391,7 +391,7 @@ def scan_wheel_for_ai_models(
                 _wheel_sources(zf, members),
                 scan_usage=scan_usage,
                 usage_hint=usage_hint,
-                usage_setting=USAGE_SETTING_WHEEL,
+                usage_target=USAGE_TARGET_WHEEL,
             )
         finally:
             scratch.remove()

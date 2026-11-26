@@ -339,14 +339,3 @@ def test_require_project_root_rejects_another_root(tmp_path: Path) -> None:
     ) as caught:
         registry.require_project_root(tmp_path / "build")
     assert code_of(caught.value) == "option-conflict"
-
-
-def test_require_namespace_names_both_namespaces(tmp_path: Path) -> None:
-    registry = _saved_registry(tmp_path)
-
-    registry.require_namespace(registry.namespace)  # the same one: no-op
-    with pytest.raises(
-        ValueError, match="is not --namespace urn:other; delete it"
-    ) as caught:
-        registry.require_namespace("urn:other")
-    assert code_of(caught.value) == "option-conflict"

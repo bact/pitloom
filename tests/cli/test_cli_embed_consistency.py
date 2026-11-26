@@ -21,9 +21,15 @@ import pytest
 
 from pitloom import __main__
 from pitloom.core.build_options import EXTERNAL_SBOM_REASON
+from pitloom.core.option_names import named_reason
+from pitloom.messages import SURFACE_CLI, advice_surface
 from tests.assemble.conftest import _make_dummy_wheel
 from tests.assemble.embed_surfaces_shared import demo_project
 from tests.warning_helpers import count_naming, stderr_warnings
+
+#: The reason as the command line says it, ``--sbom`` named as a flag.
+with advice_surface(SURFACE_CLI):
+    _EXTERNAL_SBOM_REASON = named_reason(EXTERNAL_SBOM_REASON)
 
 
 def _loom(argv: list[str], monkeypatch: pytest.MonkeyPatch) -> int:
@@ -94,7 +100,7 @@ def test_external_sbom_options_warn_with_the_external_reason(
 
     named = [w for w in stderr_warnings(capsys.readouterr().err) if flag in w]
     assert len(named) == 1
-    assert named[0].endswith(f"{EXTERNAL_SBOM_REASON} [option-no-effect]")
+    assert named[0].endswith(f"{_EXTERNAL_SBOM_REASON} [option-no-effect]")
 
 
 @pytest.mark.parametrize(
@@ -171,7 +177,7 @@ def test_embed_external_sbom_does_not_read_config_or_project(
     err = capsys.readouterr().err
     named = [w for w in stderr_warnings(err) if f" {flag} has no effect" in w]
     assert len(named) == 1 and named[0].endswith(
-        f"{EXTERNAL_SBOM_REASON} [option-no-effect]"
+        f"{_EXTERNAL_SBOM_REASON} [option-no-effect]"
     )
     assert "ERROR:" not in err
     # Non-vacuous: without --sbom the same missing path is an error.

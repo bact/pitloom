@@ -44,12 +44,16 @@ from tests.assemble.test_scan_model_usage import (
 )
 from tests.warning_helpers import count_naming, logged_warnings
 
-# A wheel reads no implicit config, so its hint names a --config file.
-_WHEEL_HINT_ONE = (
-    "Found 1 AI model file(s); pass --scan-model-usage (or set "
-    "scan-model-usage = true in a --config file or pitloom_config) to also "
-    "record which Python files reference them."
-)
+# A wheel reads no implicit config, so its hint names a --config file on
+# the command line and pitloom_config in the library.
+_WHEEL_HINT_ONE = {
+    "cli": "Found 1 AI model file(s); pass --scan-model-usage (or set "
+    "scan-model-usage = true in a --config file) to also record which Python "
+    "files reference them.",
+    "lib": "Found 1 AI model file(s); pass scan_model_usage=True (or set "
+    "scan-model-usage = true in pitloom_config) to also record which Python "
+    "files reference them.",
+}
 _MEMBERS = {
     f"demo/{_MODEL}": safetensors_bytes(),
     "demo/use.py": (
@@ -257,7 +261,8 @@ def test_wheel_usage_pass_default_flag_config_and_cascade(
         expected = [("demo/use.py", f"demo/{_MODEL}")] if edges else []
         assert _usage(sboms[name]) == expected, name
         unset = usage is None and flag is None
-        assert _hints(caplog) == ([_WHEEL_HINT_ONE] if unset else []), name
+        hint = _WHEEL_HINT_ONE[surface.split("-", 1)[0]]
+        assert _hints(caplog) == ([hint] if unset else []), name
         assert not [w for w in logged_warnings(caplog) if "has no effect" in w], name
     assert sboms["config"] != sboms["default"]  # not vacuous
     assert sboms["config"] == sboms["flag"]

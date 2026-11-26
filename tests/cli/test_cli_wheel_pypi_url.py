@@ -21,7 +21,7 @@ import pytest
 
 from pitloom.assemble import generate_pypi_sbom
 from pitloom.extract.remote import git as git_module
-from pitloom.messages.pypi import MODEL_URL_LINE, PYPI_URL_UNUSABLE
+from pitloom.messages.pypi import MODEL_URL_LINES, PYPI_URL_UNUSABLE
 from tests._fake_pypi_server import FakePypi
 from tests.assemble._pypi_dists import (
     URL,
@@ -140,7 +140,7 @@ def test_model_refuses_a_pypi_url_without_a_fetch(
     [line] = err.splitlines()
     assert line.startswith("ERROR: ")
     assert line.endswith(
-        f"{MODEL_URL_LINE.render({'url': URL})} [{PYPI_URL_UNUSABLE.code}]"
+        f"{MODEL_URL_LINES.cli.render({'url': URL})} [{PYPI_URL_UNUSABLE.code}]"
     )
     assert_clean_stderr(err)
     _no_fetch(fake)

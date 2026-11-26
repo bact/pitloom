@@ -34,9 +34,12 @@ from pitloom.core._models_wheel_types import (
     validate_build_timeout,
 )
 from pitloom.core.no_effect import warn_no_effect
+from pitloom.core.option_names import option_name
 from pitloom.core.project import is_sdist_archive
 
-_ALLOW_FLAG = "--allow-build"
+#: Why a build flag has no effect without ``allow``: the reason's
+#: placeholder is written as the surface spells the option.
+_WITHOUT_ALLOW = "without {allow_build}"
 
 #: Reasons passed to :meth:`BuildOptions.settle_not_applicable` for a
 #: target that never reaches file discovery -- shared by the CLI handlers
@@ -54,7 +57,7 @@ REMOTE_REPOSITORY_REASON = (
     "for a remote repository (it is untrusted: its build backend is never run)"
 )
 EXTERNAL_SBOM_REASON = (
-    "for an externally-supplied --sbom (embedded verbatim, never rescanned)"
+    "for an externally-supplied {sbom} (embedded verbatim, never rescanned)"
 )
 NO_PROJECT_DIR_REASON = "with no project directory to rescan"
 
@@ -123,15 +126,15 @@ class BuildOptions:
 
     @property
     def given(self) -> tuple[str, ...]:
-        """CLI spellings of the explicitly given flags, in CLI order."""
-        flags: list[str] = []
-        if self.allow:
-            flags.append(_ALLOW_FLAG)
-        if self.no_isolation:
-            flags.append("--no-build-isolation")
-        if self.timeout is not None:
-            flags.append("--build-timeout")
-        return tuple(flags)
+        """The explicitly given options, in CLI order, each as the surface
+        that runs spells it (``--build-timeout``, ``BuildOptions.timeout``:
+        :func:`~pitloom.core.option_names.option_name`)."""
+        given = (
+            ("allow_build", self.allow),
+            ("no_build_isolation", self.no_isolation),
+            ("build_timeout", self.timeout is not None),
+        )
+        return tuple(option_name(name) for name, on in given if on)
 
     def settings(self) -> BuildSettings | None:
         """The resolved settings for a real build, or ``None`` when
@@ -160,7 +163,7 @@ class BuildOptions:
         """
         if self.allow or not self.given:
             return self
-        warn_no_effect(subject, self.given, f"without {_ALLOW_FLAG}", build=True)
+        warn_no_effect(subject, self.given, _WITHOUT_ALLOW, build=True)
         return BuildOptions()
 
     def settle_target(self, target: Path) -> BuildOptions:

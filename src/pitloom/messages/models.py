@@ -50,6 +50,7 @@ from pitloom.messages._model_stub import (
     READER_UNSAFE_PYPI_LINE,
     READER_UNSAFE_REMOTE,
     READER_UNSAFE_REMOTE_LINE,
+    READER_UNSAFE_TWINS,
 )
 from pitloom.messages._usage_unparseable import (
     USAGE_UNPARSEABLE,
@@ -57,8 +58,8 @@ from pitloom.messages._usage_unparseable import (
 )
 from pitloom.messages._usage_unusable import (
     USAGE_HINTS,
-    USAGE_SETTING_PROJECT,
-    USAGE_SETTING_WHEEL,
+    USAGE_TARGET_PROJECT,
+    USAGE_TARGET_WHEEL,
     USAGE_UNUSABLE,
 )
 
@@ -93,9 +94,10 @@ __all__ = [
     "READER_UNSAFE_PYPI_LINE",
     "READER_UNSAFE_REMOTE",
     "READER_UNSAFE_REMOTE_LINE",
+    "READER_UNSAFE_TWINS",
     "USAGE_HINTS",
-    "USAGE_SETTING_PROJECT",
-    "USAGE_SETTING_WHEEL",
+    "USAGE_TARGET_PROJECT",
+    "USAGE_TARGET_WHEEL",
     "USAGE_UNPARSEABLE",
     "USAGE_UNPARSEABLE_MENTION",
     "USAGE_UNUSABLE",

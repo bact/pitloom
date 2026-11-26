@@ -47,7 +47,7 @@ from pitloom.messages.file_discovery import (
     NO_STATIC_LINE,
     NOT_AWARE_LINE,
     NOT_AWARE_NO_PROJECT_LINE,
-    UV_OVERRIDES_LINE,
+    UV_OVERRIDES_LINES,
     warn_discovery,
 )
 
@@ -239,7 +239,7 @@ def _discover_with_no_static_module(
     # Hatchling-branded error for a project that has nothing to do with it.
     warn_discovery(log, line, dir=project_dir, backend=backend)
     if _uv_overrides_unseen(backend, pyproject_data, allow_build=build is not None):
-        warn_discovery(log, UV_OVERRIDES_LINE, dir=project_dir)
+        warn_discovery(log, UV_OVERRIDES_LINES, dir=project_dir)
     if not has_project:
         return [], _noop_cleanup
     return None

@@ -20,8 +20,8 @@ from typing import Any
 from spdx_python_model.bindings import v3_0_1 as spdx3_bindings
 
 from pitloom.core.given_path import TypedPath
-from pitloom.core.inert_options import PARAM_TO_FLAG
 from pitloom.core.no_effect import warn_no_effect
+from pitloom.core.option_names import option_name
 from pitloom.export.hashes import sha256_of
 from pitloom.export.spdx3_json import Spdx3JsonExporter
 from pitloom.id_registry import (
@@ -64,8 +64,7 @@ def archive_project_dir(
     if not is_input_dir(path):
         raise input_not_found("project directory", TypedPath(project_dir))
     if registry is None:
-        flag = PARAM_TO_FLAG["project_dir"]
-        warn_no_effect(subject, (flag,), _PROJECT_DIR_NO_REGISTRY)
+        warn_no_effect(subject, (option_name("project_dir"),), _PROJECT_DIR_NO_REGISTRY)
         return None
     return path
 

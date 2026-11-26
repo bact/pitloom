@@ -276,8 +276,11 @@ def test_the_library_says_a_timeout_on_the_log(
         "file-discovery-needs-build",
     ]
     said = {getattr(r, CODE_ATTR): r.getMessage() for r in caplog.records}
-    assert "build for up to 1 second (--build-timeout), " in said["build-code-unsafe"]
-    assert "timed out after 1 second (--build-timeout); " in said["build-timeout"]
+    # A library call names the library's limit.
+    unsafe = said["build-code-unsafe"]
+    assert "BuildOptions.allow runs a PEP 517 build for up to 1 second " in unsafe
+    assert "(BuildOptions.timeout), " in unsafe
+    assert "timed out after 1 second (BuildOptions.timeout); " in said["build-timeout"]
 
 
 def test_the_library_says_nothing_of_a_build_it_was_not_asked_for(

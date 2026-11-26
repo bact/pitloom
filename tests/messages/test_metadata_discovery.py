@@ -268,11 +268,11 @@ def test_a_backend_without_a_discoverer_says_so_with_its_hint_and_build_failure(
         assert part in message
         assert not message.startswith("Build: ")
     assert sum(_UV_HINT in m for _, m in said) == (_UV_HINT in parts[-1])
-    # --allow-build's own line (build-code-unsafe) keeps its prefix: only
-    # the discovery lines lose it.
+    # The build's own line (build-code-unsafe) keeps its prefix: only the
+    # discovery lines lose it. A library call names the library's switch.
     invoked = [m for c, m in coded(caplog) if c == "build-code-unsafe"]
     assert all(m.startswith("Build: ") for m in invoked)
-    assert all("--allow-build runs a PEP 517 build" in m for m in invoked)
+    assert all("BuildOptions.allow runs a PEP 517 build" in m for m in invoked)
     assert bool(invoked) is allow_build
 
 

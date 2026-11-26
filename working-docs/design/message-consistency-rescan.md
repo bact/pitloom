@@ -134,23 +134,108 @@ need inputs the CLI probe could not build here (a package that ships the
 model, a non-UTF-8 name on APFS); their tests assert the new text and fail on
 main.
 
-## 6. PR 2: per-surface advice twins (planned)
+## 6. PR 2: per-surface advice twins
 
-A line's action names a CLI flag on every surface. Generalise the surface
-context (`credential_advice()`) and add library and hook twins:
+A line's action named a CLI flag on every surface (`BuildOptions(timeout=5)`
+from the library said `--build-timeout`). The surface that runs now picks the
+wording through one mechanism; no call site chooses.
 
-1. `option-no-effect`: the hook names a `[tool.pitloom]` key by its CLI flag;
-   the library by its flag (`BuildOptions(timeout=5)` says `--build-timeout`).
-2. `reader-unsafe`, `/remote`: `trust_model_files=True`.
-3. `file-discovery-needs-build`: `build_options=BuildOptions(allow=True)`.
-4. `wheel-sbom-ambiguous`: `sbom_filename=`.
-5. `target-wrong-format`: `generate_model_sbom()`.
-6. `pypi-url-unusable` (model line): `generate_pypi_sbom()`.
-7. `release-file-not-found` and its two variants: `kind=`.
-8. `project-not-found/model-files`: `generate_git_sbom()`.
-9. `IdRegistry.require_namespace()`: private or a twin.
-10. `build-code-unsafe`, `build-timeout`: `BuildOptions(...)` wording.
-11. The usage hint (uncoded summary) on the hook and library (K2).
+### 6.1 Mechanism (as built)
+
+- `pitloom.messages._surface` (new): the surfaces `cli`, `hook`, `library`;
+  a `ContextVar` (default `library`) set by `advice_surface(surface)`, which
+  replaces `credential_advice()`. Entry points open it: `__main__.main()`
+  and `cli_error_handler` (`cli`, so a handler called without `main()` says
+  the CLI's wording too; the GitHub Action runs the CLI) and
+  `PitloomBuildHook.initialize()` (`hook`); a library call, `loom.run()`
+  included, keeps the default.
+- `Twins(cli=, library=, hook=)`: one wording per surface, of `Line` or
+  `Summary`, all members of one level and one field set (checked when
+  built), so one call says any of them. `Twins.no_hook(cli, library)` marks
+  a line the hook cannot reach: the hook gets the library's wording, and
+  resolving it there raises `InternalError` only under `strict_surfaces()`,
+  which the test suite opens for every test (`tests/conftest.py`); a user's
+  build never fails over a line's wording. `emit()`, `CodedValueError`,
+  `Message.line_for()`, `say_summary()`, `remote_error()` and
+  `warn_discovery()` take a `Twins` and resolve it; no call site picks a
+  member (a test walks `src/` for `<NAME>_LINES.cli` and the like).
+- Option names: `pitloom.core.option_names` (new; `PARAM_TO_FLAG` moved
+  there) names an option as the surface spells it: `option_name(param)`
+  gives `--use-lockfile/--no-use-lockfile` (CLI) or `use_lockfile`
+  (library, also under the hook, which settles configured keys only). A
+  `[tool.pitloom]` setting (`settle_inert(..., configured=True)`, an explicit
+  source, not the log level) is named by its TOML key on every surface,
+  `tool.pitloom.describe-relationship`: the `option` field is one token.
+  A reason that names an option holds a placeholder (`without
+  {allow_build}`, `for an externally-supplied {sbom}`, `without
+  {enrich_project_dir}`), written when the warning is said
+  (`named_reason()`), never at import. `BuildOptions.given` names
+  `BuildOptions.allow`, `.no_isolation`, `.timeout` in the library.
+- The build switch spellings live once in the catalogue
+  (`ALLOW_BUILD_NAMES`, `NO_BUILD_ISOLATION_NAMES`, `BUILD_TIMEOUT_NAMES`);
+  the build lines and `option_names` read them.
+- Library wording rule: a condition names the attribute or parameter as
+  given (`BuildOptions.timeout ... without BuildOptions.allow`); an action
+  names a form to copy that fits any carrier (`pass BuildOptions(allow=True)`,
+  `set trust_model_files=True`).
+- The credentials triple keeps its branch (its lines take other fields per
+  surface: `option=`, `setting=`, none); it reads `current_surface()`.
+- A `ContextVar` does not reach a `threading.Thread` (unless
+  `sys.flags.thread_inherit_context`): no twinned line is said off the
+  thread that entered the surface (checked: the Git size watcher and drain,
+  the redirect probe, the `_usage_parse` thread, the PyPI dependency pool;
+  signal handlers run on the main thread; the PEP 517 build is a
+  subprocess). A test pins the behaviour.
+- `IdRegistry.require_namespace()` moved to the CLI (`cli/id.py`), its only
+  caller: no library call gives a second namespace.
+
+### 6.2 Surface x message matrix
+
+`-` the surface cannot reach the line (verified at the entry point; its
+twin is the library's, named explicitly). Probe: a library call, `loom`,
+and a Hatchling build.
+
+| Code (line) | CLI | Library | Hook |
+| --- | --- | --- | --- |
+| `option-no-effect` WARNING (`%(option)s`) | `--use-lockfile/--no-use-lockfile` | `use_lockfile` | - (the hook settles config keys only) |
+| `option-no-effect` INFO (config key) | `tool.pitloom.describe-relationship` (`embed-wheel`) | same (`embed_wheel_sbom()`) | same (was the flag) |
+| `option-no-effect` `Build:` | `--build-timeout`, `--no-build-isolation` `... without --allow-build` | `BuildOptions.timeout`, `BuildOptions.no_isolation` `... without BuildOptions.allow` | - (no build option) |
+| reasons naming an option (`without --project-dir`, `with --project-dir`, `--sbom`) | the flag | `project_target` (`enrich_model()`), `project_dir`, `sbom_path` | - |
+| `reader-unsafe` | `pass --trust-model-files` | `set trust_model_files=True` (a keyword, or `ConfigOverrides` for `embed_wheel_sbom()`) | - (the hook reads the project directory, not a wheel) |
+| `reader-unsafe/remote` (Git, PyPI lines) | `pass --trust-model-files` | `set trust_model_files=True` | - |
+| `file-discovery-needs-build` (uv overrides) | `pass --allow-build` | `pass BuildOptions(allow=True)` (`build_options=`, or `ConfigOverrides.build_options` for `embed_wheel_sbom()`) | - (the hook assumes Hatchling) |
+| `wheel-sbom-ambiguous` | `pass --sbom-filename` | `pass sbom_filename` (`find_embedded_sbom()`) | - |
+| `target-wrong-format` (Hub model) | `use 'loom model'` | `use generate_model_sbom()` | - |
+| `pypi-url-unusable` (model line) | `'loom wheel' reads its wheel, 'loom project' its sdist` | `generate_pypi_sbom() reads its wheel, generate_pypi_sbom(kind='sdist') its sdist` | - |
+| `release-file-not-found` | `'loom project <url>' reads its sdist` | `generate_pypi_sbom('<url>', kind='sdist') reads its sdist` | - |
+| `release-file-not-found/compatible-wheel` | as above | as above | - |
+| `release-file-not-found/sdist` | `'loom wheel <url>' reads a wheel` | `generate_pypi_sbom('<url>') reads a wheel` | - |
+| `project-not-found/model-files` | `use 'loom model <url>' or 'loom generate <url>'` | `use generate_git_sbom(url, sbom_kind='model') or generate(url)` | - |
+| `option-conflict` (namespace) | `--namespace` | - (`IdRegistry.require_namespace()` moved to the CLI: no library caller gives a second namespace) | - |
+| `build-code-unsafe` (4 lines) | `--allow-build runs ... (--build-timeout)` | `BuildOptions.allow runs ... (BuildOptions.timeout)` | - |
+| `build-timeout` (2 lines) | `(--build-timeout)` | `(BuildOptions.timeout)` | - |
+| usage hint, project (summary) | `pass --scan-model-usage (or set scan-model-usage = true)` | `pass scan_model_usage=True (or set ...)` | `set scan-model-usage = true in [tool.pitloom]` |
+| usage hint, wheel (summary) | `... in a --config file` | `... in pitloom_config` | - |
+| `pypi-url-unusable` (Git line, library only) | - | `generate_pypi_sbom() reads it` (was `generate_pypi_sbom(), 'loom wheel' or 'loom project' reads it`) | - |
+| `file-ambiguous` (generate line), existing twin | `loom generate reads the wheel` | `generate() reads the wheel` | - |
+| `credentials-unsafe/refused`, `/written`, existing triple | flag | `CredentialPolicy` | `pyproject.toml` list |
+
+The last two rows were picked per call site (`sdist_hint(library=)`, a
+branch in each `say_*`); they move to the mechanism.
+
+Found while building it, recorded (not fixed here): for a Git URL's
+`uv_build` project with overrides, the uv-overrides line says `pass
+--allow-build` (or `BuildOptions(allow=True)`), but a build never runs for
+a remote repository (`REMOTE_REPOSITORY_REASON`); the hint should be left
+out in a remote clone. `checked_embed_basename(where=)` is another
+per-call-site choice of a surface's spelling (argument validation, section
+7).
+
+Out of scope, recorded: `config-unsafe` says `--config or pitloom_config=`
+on both surfaces (one merged line); `option-missing` `pass --id-registry
+FILE` and `PATH ... outside --project-dir` are CLI-only; the GitHub Action
+names its input (`trust-model-files`) only in the advice prose; `-v/--verbose`,
+`--embed`, `--allow-signed-wheel` reasons are CLI-only.
 
 ## 7. PR 3: library argument validation (planned)
 

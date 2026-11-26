@@ -42,12 +42,18 @@ from tests.assemble.embed_surfaces_shared import run_cli
 from tests.extract.conftest import make_hook
 
 _MODEL = "tiny.safetensors"
-_HINT = "(or set scan-model-usage = true) to also record which Python files"
-_HINT_ONE = (
-    "Found 1 AI model file(s); pass --scan-model-usage "
-    "(or set scan-model-usage = true) to also record which Python files "
-    "reference them."
-)
+_HINT = " to also record which Python files"
+_HINT_TAIL = " to also record which Python files reference them."
+#: The hint for one model file, by the surface a runner's name starts with:
+#: each names its own way to turn the scan on.
+_HINT_ONE = {
+    "cli": "Found 1 AI model file(s); pass --scan-model-usage "
+    f"(or set scan-model-usage = true){_HINT_TAIL}",
+    "lib": "Found 1 AI model file(s); pass scan_model_usage=True "
+    f"(or set scan-model-usage = true){_HINT_TAIL}",
+    "hatch": "Found 1 AI model file(s); set scan-model-usage = true in "
+    f"[tool.pitloom]{_HINT_TAIL}",
+}
 _PYPROJECT = (
     '[build-system]\nrequires = ["hatchling"]\nbuild-backend = "hatchling.build"\n'
     '[project]\nname = "demo"\nversion = "1.0.0"\nrequires-python = ">=3.10"\n'
@@ -246,7 +252,8 @@ def test_usage_pass_default_flag_config_and_cascade(
         expected = [("demo/use.py", f"demo/{_MODEL}")] if edges else []
         assert _usage(sboms[name]) == expected, name
         unset = usage is None and flag is None
-        assert _hints(caplog) == ([_HINT_ONE] if unset else []), name
+        hint = _HINT_ONE[surface.split("-", 1)[0]]
+        assert _hints(caplog) == ([hint] if unset else []), name
     assert sboms["config"] != sboms["default"]  # not vacuous
     if surface != "hatch-hook":
         assert sboms["config"] == sboms["flag"]
@@ -350,13 +357,12 @@ def test_multi_wheel_embed_hints_at_most_once_per_run(
         assert bool(_usage(_embedded(wheel))) is edges
 
 
-def test_hint_text_has_one_source() -> None:
+@pytest.mark.parametrize(
+    "said", ["pass --scan-model-usage", "pass scan_model_usage=True"]
+)
+def test_hint_text_has_one_source(said: str) -> None:
     root = Path(pitloom_file).parent
-    hits = [
-        p
-        for p in root.rglob("*.py")
-        if "AI model file(s); pass --scan-model-usage" in p.read_text(encoding="utf-8")
-    ]
+    hits = [p for p in root.rglob("*.py") if said in p.read_text(encoding="utf-8")]
     assert [p.name for p in hits] == ["_usage_unusable.py"]  # the catalogue
 
 

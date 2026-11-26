@@ -224,7 +224,7 @@ def test_a_local_target_warns_the_cap_has_no_effect_once(
     lines = [
         line
         for line in capsys.readouterr().err.splitlines()
-        if "--max-download-bytes has no effect" in line
+        if "max_download_bytes has no effect" in line
     ]
     assert len(lines) == 1 and lines[0].startswith("WARNING: Options: ")
     assert "only a PyPI URL, a Git URL or a Hugging Face target downloads" in lines[0]
@@ -249,20 +249,20 @@ def test_a_git_url_forwards_the_cap_to_its_fetch(
 # --- options a download cannot use ----------------------------------------
 
 
-def _warned(err: str, flag: str) -> list[str]:
-    """The lines saying *flag* (either spelling) has no effect."""
-    said = re.compile(rf": {re.escape(flag)}(/--no-\S+)? has no effect ")
+def _warned(err: str, name: str) -> list[str]:
+    """The lines saying the option *name* has no effect."""
+    said = re.compile(rf": {re.escape(name)} has no effect ")
     return [line for line in err.splitlines() if said.search(line)]
 
 
 @pytest.mark.loopback
 @pytest.mark.parametrize(
-    ("kind", "options", "flags"),
+    ("kind", "options", "names"),
     [
         (
             "wheel",
             {"enrich": True, "project_dir": "p", "use_lockfile": False},
-            ["--enrich", "--project-dir", "--use-lockfile"],
+            ["enrich", "project_dir", "use_lockfile"],
         ),
         (
             SDIST,
@@ -273,10 +273,10 @@ def _warned(err: str, flag: str) -> list[str]:
                 "project_dir": "p",
             },
             [
-                "--scan-model-usage",
-                "--trust-model-files",
-                "--max-model-extract-bytes",
-                "--project-dir",
+                "scan_model_usage",
+                "trust_model_files",
+                "max_model_extract_bytes",
+                "project_dir",
             ],
         ),
     ],
@@ -286,7 +286,7 @@ def test_each_inert_option_warns_once_against_the_url(
     capsys: pytest.CaptureFixture[str],
     kind: str,
     options: dict[str, Any],
-    flags: list[str],
+    names: list[str],
 ) -> None:
     del fake
     generate_pypi_sbom(
@@ -297,10 +297,10 @@ def test_each_inert_option_warns_once_against_the_url(
         **options,
     )
     err = capsys.readouterr().err
-    for flag in flags:
-        (line,) = _warned(err, flag)
+    for name in names:
+        (line,) = _warned(err, name)
         assert line.startswith(f"WARNING: Options: {URL}: ")
-    (build,) = _warned(err, "--allow-build")
+    (build,) = _warned(err, "BuildOptions.allow")
     assert build.startswith(f"WARNING: Build: {URL}: ")
     assert "for a PyPI URL target" in build
 

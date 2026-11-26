@@ -56,7 +56,7 @@ _GATED = {
     "pytorch/example-model.pt": "pytorch",
     "pytorch/example-model.pth": "pytorch",
 }
-_TRUST = "--trust-model-files"
+_TRUST_LIBRARY = "; set trust_model_files=True for a wheel you trust"
 
 
 def fixture_bytes(name: str) -> bytes:
@@ -219,7 +219,7 @@ def test_a_hostile_hdf5_is_listed_not_opened(tmp_path: Path, fixture: str) -> No
     )
     assert done.returncode == 0, done.stderr
     assert done.stdout.strip() == "['hdf5', 'safetensors']"
-    assert _TRUST in done.stderr
+    assert _TRUST_LIBRARY in done.stderr  # a library call
 
 
 def test_a_local_project_scan_is_not_gated(
@@ -280,8 +280,8 @@ def test_a_project_scan_in_a_git_clone_is_gated(
         ("safetensors", True),
     ]
     (info,) = remote_gate_infos(caplog)  # seven gated models, one line
-    assert ": fasttext, gguf, hdf5, onnx, pytorch; pass --trust-model-files " in info
-    assert "--trust-model-files for a repository you trust" in info
+    gated = ": fasttext, gguf, hdf5, onnx, pytorch; "
+    assert f"{gated}set trust_model_files=True for a repository you trust" in info
     assert not gate_infos(caplog)  # not the wheel's line
 
 

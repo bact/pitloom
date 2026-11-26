@@ -43,7 +43,7 @@ from pitloom.messages import (
 )
 from pitloom.messages.pypi import (
     GIT_PYPI_URL_LINE,
-    MODEL_URL_LINE,
+    MODEL_URL_LINES,
     PYPI_URL_INVALID,
     PYPI_URL_UNUSABLE,
 )
@@ -163,5 +163,5 @@ def test_the_model_call_refuses_a_pypi_url_as_loom_model_does(
     with pytest.raises(ValueError) as info:
         generate_model_sbom(url, offline=offline)
     assert code_of(info.value) == PYPI_URL_UNUSABLE.code
-    assert str(info.value) == MODEL_URL_LINE.render({"url": url})
+    assert str(info.value) == MODEL_URL_LINES.library.render({"url": url})
     assert [r for r in caplog.records if r.levelno >= logging.INFO] == []

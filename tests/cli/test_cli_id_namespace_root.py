@@ -163,6 +163,41 @@ def test_namespace_on_an_existing_registry(
 
 
 @pytest.mark.parametrize(
+    ("given", "error"),
+    [
+        (
+            "https://h/other",
+            "namespace https://h/ns is not --namespace https://h/other; delete it",
+        ),
+        (
+            # A code value a namespace keeps is masked in a message: the two
+            # are told apart in words, never as "X is not X".
+            "https://h/ns?code=B",
+            "(they differ in masked credentials); delete it",
+        ),
+    ],
+    ids=["other", "alike-once-masked"],
+)
+def test_a_namespace_conflict_names_the_flag_and_never_reads_x_is_not_x(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    given: str,
+    error: str,
+) -> None:
+    held = "https://h/ns?code=A" if "code=" in given else "https://h/ns"
+    project = _project(tmp_path)
+    registry = tmp_path / "reg.json"
+    assert _generate(monkeypatch, project, registry, "--namespace", held) == 0
+    capsys.readouterr()
+
+    assert _generate(monkeypatch, project, registry, "--namespace", given) == 1
+    (line,) = _errors(capsys)
+    assert line.startswith(f"ERROR: loom id generate: ID registry: FILE={registry}: ")
+    assert error in line and line.endswith(" [option-conflict]")
+
+
+@pytest.mark.parametrize(
     ("registry_dir", "stored"),
     [("", "."), ("build", ".."), ("../out", "../proj")],
     ids=["beside", "in-build", "elsewhere"],

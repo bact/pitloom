@@ -23,6 +23,7 @@ from types import MappingProxyType
 from typing import Final
 
 from pitloom.messages._summary import Summary
+from pitloom.messages._surface import Twins
 from pitloom.messages._types import ASK_FIRST, Line, Message
 
 USAGE_UNUSABLE: Final = Message(
@@ -51,42 +52,76 @@ USAGE_UNUSABLE: Final = Message(
 
 ENTRIES: Final = (USAGE_UNUSABLE,)
 
-#: The setting a project's hint names: its own configuration.
-USAGE_SETTING_PROJECT: Final = "scan-model-usage = true"
-#: The setting a wheel's hint names: a wheel reads no configuration
-#: implicitly, so the setting needs one named.
-USAGE_SETTING_WHEEL: Final = (
-    "scan-model-usage = true in a --config file or pitloom_config"
-)
-
+#: The target a usage hint is for: a project (a sdist or an installed
+#: environment too), whose own configuration is read, or a wheel, which
+#: reads a configuration only when one is named.
+USAGE_TARGET_PROJECT: Final = "project"
+USAGE_TARGET_WHEEL: Final = "wheel"
 
 #: What the hint says the scan records, after the setting.
-_HINT_START: Final = "Found %(number)s AI model file(s); pass --scan-model-usage"
-_HINT_END: Final = "to also record which Python files reference them."
+_HINT_START: Final = "Found %(number)s AI model file(s); "
+_HINT_END: Final = " to also record which Python files reference them."
 _HINT_MEANING: Final = (
     "Models were found and the usage scan is off: it reads every Python file "
-    "for references to them only on request. Said once per run."
+    "for references to them only on request. Said once per run, naming the "
+    "flag, the library parameter or the [tool.pitloom] key of the surface "
+    "that runs."
 )
+#: How each surface turns the scan on.
+_PASS_FLAG: Final = "pass --scan-model-usage"
+_PASS_PARAMETER: Final = "pass scan_model_usage=True"
+_SETTING: Final = "scan-model-usage = true"
 
-#: The hint of a project, a sdist or an installed environment.
-USAGE_HINT_PROJECT: Final = Summary(
-    template=f"{_HINT_START} (or set {USAGE_SETTING_PROJECT}) {_HINT_END}",
+#: A project's hint (a sdist or an installed environment too) on each
+#: surface: the project's own configuration is read.
+USAGE_HINT_PROJECT_CLI: Final = Summary(
+    template=f"{_HINT_START}{_PASS_FLAG} (or set {_SETTING}){_HINT_END}",
     meaning=_HINT_MEANING,
     topic="models",
 )
-#: The hint of a wheel.
-USAGE_HINT_WHEEL: Final = Summary(
-    template=f"{_HINT_START} (or set {USAGE_SETTING_WHEEL}) {_HINT_END}",
+USAGE_HINT_PROJECT_LIBRARY: Final = Summary(
+    template=f"{_HINT_START}{_PASS_PARAMETER} (or set {_SETTING}){_HINT_END}",
+    meaning=_HINT_MEANING,
+    topic="models",
+)
+USAGE_HINT_PROJECT_HOOK: Final = Summary(
+    template=f"{_HINT_START}set {_SETTING} in [tool.pitloom]{_HINT_END}",
+    meaning=_HINT_MEANING,
+    topic="models",
+)
+#: A wheel's hint: a wheel reads a configuration only when one is named.
+USAGE_HINT_WHEEL_CLI: Final = Summary(
+    template=f"{_HINT_START}{_PASS_FLAG} (or set {_SETTING} in a --config file)"
+    f"{_HINT_END}",
+    meaning=_HINT_MEANING,
+    topic="models",
+)
+USAGE_HINT_WHEEL_LIBRARY: Final = Summary(
+    template=f"{_HINT_START}{_PASS_PARAMETER} (or set {_SETTING} in "
+    f"pitloom_config){_HINT_END}",
     meaning=_HINT_MEANING,
     topic="models",
 )
 
-#: The usage hint, by the setting it names.
-USAGE_HINTS: Final[Mapping[str, Summary]] = MappingProxyType(
+#: The hint, by target, worded for each surface.
+USAGE_HINTS: Final[Mapping[str, Twins[Summary]]] = MappingProxyType(
     {
-        USAGE_SETTING_PROJECT: USAGE_HINT_PROJECT,
-        USAGE_SETTING_WHEEL: USAGE_HINT_WHEEL,
+        USAGE_TARGET_PROJECT: Twins(
+            cli=USAGE_HINT_PROJECT_CLI,
+            library=USAGE_HINT_PROJECT_LIBRARY,
+            hook=USAGE_HINT_PROJECT_HOOK,
+        ),
+        # The hook reads its own project, never a wheel.
+        USAGE_TARGET_WHEEL: Twins.no_hook(
+            cli=USAGE_HINT_WHEEL_CLI, library=USAGE_HINT_WHEEL_LIBRARY
+        ),
     }
 )
 
-SUMMARIES: Final = (USAGE_HINT_PROJECT, USAGE_HINT_WHEEL)
+SUMMARIES: Final = (
+    USAGE_HINT_PROJECT_CLI,
+    USAGE_HINT_PROJECT_LIBRARY,
+    USAGE_HINT_PROJECT_HOOK,
+    USAGE_HINT_WHEEL_CLI,
+    USAGE_HINT_WHEEL_LIBRARY,
+)

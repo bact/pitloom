@@ -82,6 +82,7 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
 
   ```text
   ERROR: ARCHIVE='<archive>': <number> SBOMs under .dist-info/sboms/ (<members>); pass --sbom-filename [wheel-sbom-ambiguous]
+  ERROR: ARCHIVE='<archive>': <number> SBOMs under .dist-info/sboms/ (<members>); pass sbom_filename [wheel-sbom-ambiguous]
   ```
 
 ### `wheel-sbom-conflict`

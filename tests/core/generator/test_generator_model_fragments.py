@@ -81,7 +81,7 @@ def test_enrich_model_use_lockfile_warns_without_project_target(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     """An explicit use_lockfile has no effect without
-    --project-dir (no base document identity is ever computed), so passing
+    project_target (no base document identity is ever computed), so passing
     it must log a WARNING: instead of silently discarding the caller's
     explicit instruction -- matching the sibling no-op cases (sdist
     archives, non-project generate() targets)."""
@@ -94,7 +94,7 @@ def test_enrich_model_use_lockfile_warns_without_project_target(
         with caplog.at_level(logging.WARNING):
             enrich_model(model_path, use_lockfile=False)
 
-        assert "has no effect without --project-dir" in caplog.text
+        assert "has no effect without project_target" in caplog.text
 
 
 def test_enrich_model_no_readme_produces_empty_fragment() -> None:

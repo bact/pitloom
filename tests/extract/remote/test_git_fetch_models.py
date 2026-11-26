@@ -284,8 +284,8 @@ def test_neither_with_projects_below_names_them(
 def test_a_project_only_of_a_model_folder_says_to_ask_for_a_model(
     tmp_path: Path,
 ) -> None:
-    """``loom project`` on a folder of model files: ``git.no-project`` naming
-    the files (escaped, at most five) and ``loom model``."""
+    """A project asked of a folder of model files: ``git.no-project`` naming
+    the files (escaped, at most five) and the call that reads a model."""
     names = [f"m{i}.keras" for i in range(6)] + ["a\nb.npy"]
     url = _repo(tmp_path / "o", dict.fromkeys(names, b"x"))
     with pytest.raises(RemoteSourceError) as excinfo:
@@ -293,7 +293,8 @@ def test_a_project_only_of_a_model_folder_says_to_ask_for_a_model(
     text = str(excinfo.value)
     assert excinfo.value.code == "git.no-project"
     assert "'a\\nb.npy', m0.keras" in text and "and 2 more" in text
-    assert "loom model <url>" in text and "\n" not in text
+    assert "generate_git_sbom(url, sbom_kind='model')" in text
+    assert "\n" not in text
 
 
 @pytest.mark.parametrize(

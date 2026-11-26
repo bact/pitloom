@@ -488,7 +488,7 @@ def test_a_model_from_a_git_url_is_read_only_in_safe_formats(
     assert len(unsafe) == gated
     if gated:
         assert (
-            f"downloaded file: {fmt}; pass --trust-model-files "
+            f"downloaded file: {fmt}; set trust_model_files=True "
             in unsafe[0].getMessage()
         )
         assert not meta.provenance

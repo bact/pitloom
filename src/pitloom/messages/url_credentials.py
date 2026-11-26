@@ -25,10 +25,6 @@ from __future__ import annotations
 import functools
 import logging
 import os
-from collections.abc import Iterator
-from contextlib import contextmanager
-from contextvars import ContextVar
-from typing import Final
 
 from pitloom.core.internal_error import InternalError
 from pitloom.core.url_masking import masked_given_path
@@ -38,6 +34,7 @@ from pitloom.messages._options import (
     OPTION_NO_EFFECT,
     STALE_FINGERPRINT_LINE,
 )
+from pitloom.messages._surface import SURFACE_CLI, SURFACE_HOOK, current_surface
 from pitloom.messages._url_credentials import (
     ACCEPT_OPTION,
     ACCEPT_SETTING,
@@ -74,9 +71,6 @@ from pitloom.messages._url_credentials_git import (
 )
 
 __all__ = [
-    "ADVICE_CLI",
-    "ADVICE_CONFIG",
-    "ADVICE_LIBRARY",
     "CREDENTIALS_UNSAFE",
     "CREDENTIALS_UNSAFE_ACCEPTED",
     "CREDENTIALS_UNSAFE_GIT_LINE_BREAK",
@@ -88,7 +82,6 @@ __all__ = [
     "GIT_LINE_BREAK_LINE",
     "GIT_USERINFO_LINE",
     "HTTP_CLEAR_LINE",
-    "credential_advice",
     "refused_error",
     "registry_file_refused_error",
     "registry_key_credentials_error",
@@ -105,36 +98,6 @@ __all__ = [
 
 #: Where the helpers that take no logger say their lines.
 _log = logging.getLogger(__name__)
-
-#: The surfaces whose way of accepting a value (a refusal) or of refusing it
-#: (a warning) a line names: the command line (its options), the Hatchling
-#: build hook (``pyproject.toml`` only) and the library (``loom.Run`` too),
-#: the default.
-ADVICE_CLI: Final = "cli"
-ADVICE_CONFIG: Final = "config"
-ADVICE_LIBRARY: Final = "library"
-_ADVICE: ContextVar[str] = ContextVar(
-    "pitloom_credential_advice", default=ADVICE_LIBRARY
-)
-
-
-@contextmanager
-def credential_advice(surface: str) -> Iterator[None]:
-    """Within the block, a refused value names how *surface*
-    (:data:`ADVICE_CLI`, :data:`ADVICE_CONFIG`, :data:`ADVICE_LIBRARY`)
-    accepts it, and a value written how it refuses it. Each surface's entry
-    point opens it; the previous one returns on exit, also on an exception.
-
-    Raises:
-        pitloom.core.internal_error.InternalError: *surface* is none of them.
-    """
-    if surface not in (ADVICE_CLI, ADVICE_CONFIG, ADVICE_LIBRARY):
-        raise InternalError(f"no credential advice for surface {surface!r}")
-    token = _ADVICE.set(surface)
-    try:
-        yield
-    finally:
-        _ADVICE.reset(token)
 
 
 def warn_registry_key_credentials_skipped(log: logging.Logger, url: str) -> None:
@@ -206,7 +169,8 @@ def say_refused(url: str, element: str, pointer: str, fingerprint: str) -> None:
     value *url* (shown masked) of the SBOM that holds a credential: the
     element *element* (its spdxId, masked) and its field *pointer* that hold
     the value, and the *fingerprint* that would accept it, the way the
-    surface that runs accepts it (:func:`credential_advice`). Said every
+    surface that runs accepts it
+    (:func:`~pitloom.messages.advice_surface`). Said every
     time, never once per process: each refused run names each value. The
     caller raises :func:`refused_error` after the last one.
 
@@ -216,8 +180,8 @@ def say_refused(url: str, element: str, pointer: str, fingerprint: str) -> None:
     """
     shown = masked_given_path(url)
     at = masked_given_path(pointer)
-    advice = _ADVICE.get()
-    if advice == ADVICE_CLI:
+    surface = current_surface()
+    if surface == SURFACE_CLI:
         emit(
             _log,
             CREDENTIALS_UNSAFE_REFUSED,
@@ -229,7 +193,7 @@ def say_refused(url: str, element: str, pointer: str, fingerprint: str) -> None:
             fingerprint=fingerprint,
             option=ACCEPT_OPTION,
         )
-    elif advice == ADVICE_CONFIG:
+    elif surface == SURFACE_HOOK:
         emit(
             _log,
             CREDENTIALS_UNSAFE_REFUSED,
@@ -276,7 +240,8 @@ def say_written(url: str, element: str, pointer: str, fingerprint: str) -> None:
     *url* (shown masked), which holds a credential, as written (the ``warn``
     mode): the element *element* (its spdxId, masked) and its field
     *pointer* that hold it, its *fingerprint*, and how the surface that runs
-    turns the ``refuse`` mode on (:func:`credential_advice`). Said every
+    turns the ``refuse`` mode on
+    (:func:`~pitloom.messages.advice_surface`). Said every
     time, never once per process: each SBOM that holds the value names it
     (the check says each distinct value of one SBOM once).
 
@@ -294,10 +259,10 @@ def say_written(url: str, element: str, pointer: str, fingerprint: str) -> None:
         pointer=masked_given_path(pointer),
         fingerprint=fingerprint,
     )
-    advice = _ADVICE.get()
-    if advice == ADVICE_CLI:
+    surface = current_surface()
+    if surface == SURFACE_CLI:
         say(line=WRITTEN_LINE, option=REFUSE_OPTION)
-    elif advice == ADVICE_CONFIG:
+    elif surface == SURFACE_HOOK:
         say(line=WRITTEN_CONFIG_LINE, setting=MODE_SETTING)
     else:
         say(line=WRITTEN_LIBRARY_LINE)

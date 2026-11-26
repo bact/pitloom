@@ -18,16 +18,17 @@ from collections.abc import Mapping
 from pitloom.core.internal_error import InternalError
 from pitloom.messages._build import (
     BUILD_FAILED,
-    BUILD_TIMED_OUT_LINE,
-    BUILD_TIMED_OUT_UNCONFIRMED_LINE,
+    BUILD_TIMED_OUT_LINES,
+    BUILD_TIMED_OUT_UNCONFIRMED_LINES,
     INTERRUPTED_AFTER_LINE,
     INTERRUPTED_DURING_LINE,
-    UNSAFE_NO_MODULE_LINE,
-    UNSAFE_NO_MODULE_SHARED_LINE,
-    UNSAFE_STATIC_FAILED_LINE,
-    UNSAFE_STATIC_FAILED_SHARED_LINE,
+    UNSAFE_NO_MODULE_LINES,
+    UNSAFE_NO_MODULE_SHARED_LINES,
+    UNSAFE_STATIC_FAILED_LINES,
+    UNSAFE_STATIC_FAILED_SHARED_LINES,
 )
 from pitloom.messages._frames import Frame
+from pitloom.messages._surface import Twins
 from pitloom.messages._types import Line
 
 
@@ -58,21 +59,26 @@ def build_error(line: Line, **values: object) -> BuildFailedError:
     return BuildFailedError(shape.render(values), shape, values)
 
 
-def unsafe_line(*, static_failed: bool, isolated: bool) -> Line:
+def unsafe_line(*, static_failed: bool, isolated: bool) -> Twins[Line]:
     """The ``build-code-unsafe`` line of a build run after the backend's own
     discoverer failed (*static_failed*), else for a backend with none, in a
-    build environment of its own (*isolated*) or in Pitloom's."""
+    build environment of its own (*isolated*) or in Pitloom's, worded for
+    each surface."""
     if static_failed:
         return (
-            UNSAFE_STATIC_FAILED_LINE if isolated else UNSAFE_STATIC_FAILED_SHARED_LINE
+            UNSAFE_STATIC_FAILED_LINES
+            if isolated
+            else UNSAFE_STATIC_FAILED_SHARED_LINES
         )
-    return UNSAFE_NO_MODULE_LINE if isolated else UNSAFE_NO_MODULE_SHARED_LINE
+    return UNSAFE_NO_MODULE_LINES if isolated else UNSAFE_NO_MODULE_SHARED_LINES
 
 
-def timeout_line(*, tree_terminated: bool) -> Line:
+def timeout_line(*, tree_terminated: bool) -> Twins[Line]:
     """The ``build-timeout`` line: the build's process tree stopped, or not
-    confirmed to have."""
-    return BUILD_TIMED_OUT_LINE if tree_terminated else BUILD_TIMED_OUT_UNCONFIRMED_LINE
+    confirmed to have, worded for each surface."""
+    return (
+        BUILD_TIMED_OUT_LINES if tree_terminated else BUILD_TIMED_OUT_UNCONFIRMED_LINES
+    )
 
 
 def interrupted_line(*, in_hold: bool) -> Line:

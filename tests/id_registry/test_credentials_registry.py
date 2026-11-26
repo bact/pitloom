@@ -66,15 +66,6 @@ def test_the_constructor_refuses_a_credentialed_namespace(namespace: str) -> Non
         assert code_of(e.value) == _REGISTRY and _SECRET not in str(e.value)
 
 
-def test_namespaces_kept_alike_once_masked_say_so() -> None:
-    """A ``code`` value a namespace keeps is masked in a message, so two
-    that differ only there are told apart in words."""
-    registry = IdRegistry(namespace="https://h/ns?code=A")
-    with pytest.raises(ValueError, match="differ in masked credentials") as e:
-        registry.require_namespace("https://h/ns?code=B")
-    assert code_of(e.value) == "option-conflict"
-
-
 @pytest.mark.parametrize(
     ("type_name", "name", "refused"),
     [

@@ -230,13 +230,13 @@ def test_an_option_a_model_cannot_use_warns_once_with_the_models_reason(
             project_metadata=ProjectMetadata(name="p", version="1"),
         )
     warnings = logged_warnings(caplog)
-    for flag in (
-        "--content-type",
-        "--scan-model-usage",
-        "--use-lockfile",
-        "--update-id-registry",
+    for param in (
+        "content_type",
+        "scan_model_usage",
+        "use_lockfile",
+        "update_id_registry",
     ):
-        assert count_naming(warnings, flag) == 1, flag
+        assert count_naming(warnings, param) == 1, param
     assert sum("project_metadata has no effect" in w for w in warnings) == 1
     assert any("for a model target (there are no Python files" in w for w in warnings)
     assert all("SECRET" not in w and str(tmp_path) not in w for w in warnings)
@@ -248,13 +248,14 @@ def test_a_project_only_of_a_model_folder_is_refused_with_a_hint(
     fetched: dict[str, object], tmp_path: Path
 ) -> None:
     """``generate_git_project_sbom()`` stays project-only: a folder of model
-    files and no project is ``git.no-project`` naming ``loom model``."""
+    files and no project is ``git.no-project`` naming ``generate_git_sbom()``."""
     model = _copy(AiModelFormat.NUMPY, tmp_path / "c" / "models")
     fetched.update(folder=model.parent, file=model.name)
     with pytest.raises(RemoteSourceError) as excinfo:
         generate_git_project_sbom(_URL)
     assert excinfo.value.code == "git.no-project"
-    assert model.name in str(excinfo.value) and "loom model" in str(excinfo.value)
+    assert model.name in str(excinfo.value)
+    assert "generate_git_sbom(url, sbom_kind='model')" in str(excinfo.value)
 
 
 def test_an_unknown_sbom_kind_is_refused_before_the_fetch(

@@ -273,8 +273,10 @@ _GENERAL: Final[Mapping[str, Field]] = MappingProxyType(
             "<option>",
             "a command-line option as the command names it (`--allow-build`, "
             "`-o/--output`, `--pretty/--no-pretty`), a positional argument as "
-            "argparse names it (`command`), or a library parameter "
-            "(`project_metadata`)",
+            "argparse names it (`command`), a library parameter "
+            "(`project_metadata`, `BuildOptions.timeout`), or a "
+            "`[tool.pitloom]` setting by its TOML key "
+            "(`tool.pitloom.describe-relationship`)",
         ),
         "other": Field(
             r"\S+",

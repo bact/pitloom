@@ -40,7 +40,7 @@ from pitloom.core.wheel_dist_info import (
     require_wheel_path,
 )
 from pitloom.logging_config import print_error, print_traceback
-from pitloom.messages import CodedValueError, code_of
+from pitloom.messages import SURFACE_CLI, CodedValueError, advice_surface, code_of
 from pitloom.messages.files import SBOM_USE, file_unreadable_error
 from pitloom.messages.models import (
     LIBRARY_MISSING,
@@ -66,12 +66,15 @@ def cli_error_handler(func: Callable[..., int]) -> Callable[..., int]:
     exception is one ``ERROR:`` line (its text, else its class name, then
     its code) and exit status 1. The line starts with the frame of the
     command (:func:`pitloom.logging_config.print_error`), set once for the
-    run."""
+    run. A line said within names a command-line flag
+    (:func:`pitloom.messages.advice_surface`), also for a handler called
+    without :func:`pitloom.__main__.main`."""
 
     @wraps(func)
     def wrapper(args: Any, *pargs: Any, **kwargs: Any) -> int:
         try:
-            return func(args, *pargs, **kwargs)
+            with advice_surface(SURFACE_CLI):
+                return func(args, *pargs, **kwargs)
         # pylint: disable-next=broad-exception-caught
         except Exception as e:
             print_error(str(e) or type(e).__name__, code=code_of(e))

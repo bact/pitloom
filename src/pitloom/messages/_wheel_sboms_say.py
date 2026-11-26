@@ -49,7 +49,7 @@ from pitloom.messages._wheel_sboms import (
     SBOM_NAME_CONFLICT,
     SBOM_PART_MISSING_LINE,
     SBOM_VERSION_INVALID_LINE,
-    SEVERAL_SBOMS_LINE,
+    SEVERAL_SBOMS_LINES,
     SUBJECT_NOT_PACKAGE_LINE,
     UNKNOWN_FORMAT_LINE,
     WHEEL_PART_MISSING_LINE,
@@ -257,7 +257,7 @@ def wheel_sbom_ambiguous(archive: Archive, members: Sequence[str]) -> CodedValue
     two or more) and no ``--sbom-filename`` (``wheel-sbom-ambiguous``)."""
     return CodedValueError(
         WHEEL_SBOM_AMBIGUOUS,
-        line=SEVERAL_SBOMS_LINE,
+        line=SEVERAL_SBOMS_LINES,
         archive=archive,
         number=len(members),
         members=tuple(members),

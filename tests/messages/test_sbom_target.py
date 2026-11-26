@@ -31,7 +31,7 @@ from pitloom.messages import (
 from pitloom.messages.targets import (
     MODEL_AMBIGUOUS,
     MODEL_AMBIGUOUS_OVER_CAP,
-    MODEL_FILES_LINE,
+    MODEL_FILES_LINES,
     NO_SBOM_TARGET,
     ONE_MODEL_LINE,
     PROJECT_NOT_FOUND,
@@ -172,7 +172,7 @@ def test_the_errors_name_the_directory_quoted() -> None:
         absent, PROJECT_NOT_FOUND
     )
     assert str(absent) == f"'m d': {_NO_PROJECT}"
-    hint = MODEL_FILES_LINE.render({"path": "u", "files": "a\nb.gguf"})
+    hint = MODEL_FILES_LINES.cli.render({"path": "u", "files": "a\nb.gguf"})
     assert "('a\\nb.gguf')" in hint and "\n" not in hint
 
 
@@ -184,7 +184,7 @@ def test_the_errors_name_the_directory_quoted() -> None:
         (TARGET_AMBIGUOUS, {"file": "a"}, "name of its INFO lines"),
         (
             TARGET_AMBIGUOUS,
-            {"file": "a", "line": MODEL_FILES_LINE},
+            {"file": "a", "line": MODEL_FILES_LINES.cli},
             "not one of its INFO lines",
         ),
     ],

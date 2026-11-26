@@ -41,7 +41,9 @@ from pitloom.messages import (
     HOOK_FRAME,
     HOOK_PREFIX,
     HOOK_STEP_FRAME,
+    SURFACE_HOOK,
     CodedValueError,
+    advice_surface,
     code_of,
     emit,
     say_summary,
@@ -57,7 +59,6 @@ from pitloom.messages.models import (
     HATCHLING_VERSION_UNKNOWN_LINE,
     LIBRARY_UNUSABLE_HATCHLING,
 )
-from pitloom.messages.url_credentials import ADVICE_CONFIG, credential_advice
 from pitloom.messages.wheel_sboms import sbom_name_conflict
 from pitloom.plugins._hatch_base import PitloomBuildHookBase
 from pitloom.plugins._hatch_config import validate_config
@@ -227,9 +228,10 @@ class PitloomBuildHook(PitloomBuildHookBase):
         configure_logging()
         try:
             # Each ERROR line said while the SBOM is made carries the hook's
-            # frame (the configured handler writes it), and a refused URL
-            # value names the pyproject.toml list that accepts it.
-            with error_frame(HOOK_FRAME.render({})), credential_advice(ADVICE_CONFIG):
+            # frame (the configured handler writes it), and a line's action
+            # names what pyproject.toml can change (a refused URL value,
+            # the list that accepts it).
+            with error_frame(HOOK_FRAME.render({})), advice_surface(SURFACE_HOOK):
                 self._generate(version, build_data)
         # pylint: disable-next=broad-exception-caught
         except Exception as exc:
@@ -289,7 +291,7 @@ class PitloomBuildHook(PitloomBuildHookBase):
             HOOK,
             project_dir,
             configured_options(pitloom_config),
-            level=logging.INFO,
+            configured=True,
         )
         sbom_filename: str = (
             sbom_file_name(pitloom_config.sbom_basename)

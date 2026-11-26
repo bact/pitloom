@@ -37,6 +37,11 @@ LEVEL: [FRAME: ][SUBJECT=value: ]CONDITION[; ACTION] [code]
 - `SUBJECT=value` names what the line is about (`FILE=models/m.gguf`), when it
   has one.
 - `CONDITION` says what happened; `; ACTION` is what the reader can do next.
+  It names what the user can change where Pitloom ran: a flag on the command
+  line (`pass --trust-model-files`), a parameter in the library (`set
+  trust_model_files=True`, `BuildOptions.timeout`), a `[tool.pitloom]` key in
+  the Hatchling hook (`set scan-model-usage = true in [tool.pitloom]`). The
+  code is the same on every surface; the reference pages list each wording.
 - `[code]` is the last token. `DEBUG` lines carry no code.
 - `FRAME` starts every `ERROR:` line the CLI prints: the command, as in
   `ERROR: loom generate: ...` (`ERROR: loom: ...` before the command is

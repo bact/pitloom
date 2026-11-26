@@ -86,8 +86,9 @@ from pitloom.messages.files import (
 )
 from pitloom.messages.models import (
     READER_UNSAFE,
+    READER_UNSAFE_TWINS,
     USAGE_HINTS,
-    USAGE_SETTING_PROJECT,
+    USAGE_TARGET_PROJECT,
     USAGE_UNUSABLE,
 )
 
@@ -146,10 +147,18 @@ class ReaderGate:
         named = [str(fmt) for fmt in sorted(self.met, key=str) if self.announce(fmt)]
         if not named:
             return
+        line = READER_UNSAFE_TWINS[(self.message.code, self.file is not None)]
         if self.file is None:
-            emit(log, self.message, logging.INFO, formats=named)
+            emit(log, self.message, logging.INFO, line=line, formats=named)
         else:
-            emit(log, self.message, logging.INFO, file=self.file, formats=named)
+            emit(
+                log,
+                self.message,
+                logging.INFO,
+                line=line,
+                file=self.file,
+                formats=named,
+            )
 
 
 @dataclass(frozen=True)
@@ -450,20 +459,21 @@ def scan_ai_models(
     *,
     scan_usage: bool,
     usage_hint: Callable[[], bool],
-    usage_setting: str = USAGE_SETTING_PROJECT,
+    usage_target: str = USAGE_TARGET_PROJECT,
 ) -> list[AiModelMetadata]:
     """Discover AI models, then attach their usages if *scan_usage*.
 
     Discovery always runs. The usage pass reads every Python source, so it
     runs only on request. Otherwise, with models found, *usage_hint* is
     called -- only then, so it may claim a once-per-run slot -- and when it
-    returns true one ``INFO:`` line names the setting, spelt *usage_setting*
-    (a key of :data:`~pitloom.messages.models.USAGE_HINTS`).
+    returns true one ``INFO:`` line names how the surface that runs turns
+    the scan on for *usage_target* (a key of
+    :data:`~pitloom.messages.models.USAGE_HINTS`).
     Order: see :func:`discover_ai_models`.
     """
     models = discover_ai_models(candidates)
     if scan_usage:
         attach_usage_references(models, sources)
     elif models and usage_hint():
-        say_summary(log, USAGE_HINTS[usage_setting], number=len(models))
+        say_summary(log, USAGE_HINTS[usage_target], number=len(models))
     return models

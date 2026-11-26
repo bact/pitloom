@@ -515,9 +515,8 @@ def test_usage_hint_is_asked_only_when_it_would_print(
     with patch(_READ, autospec=True, return_value=_meta()):
         scan_ai_models(candidates, [], scan_usage=usage, usage_hint=hint)
     assert hint.called is asked
-    assert any("pass --scan-model-usage" in r.getMessage() for r in caplog.records) is (
-        printed
-    )
+    said = [r.getMessage() for r in caplog.records]
+    assert any("pass scan_model_usage=True" in m for m in said) is printed
 
 
 def test_a_hint_answering_no_stays_silent(caplog: pytest.LogCaptureFixture) -> None:

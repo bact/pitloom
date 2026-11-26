@@ -101,7 +101,7 @@ def test_sdist_with_explicit_config_does_not_warn_about_use_lockfile(
     sdist = _make_sdist(tmp_path)
     with caplog.at_level(logging.WARNING):
         generate_project_sbom(sdist, pitloom_config=PitloomConfig())
-    assert count_naming(logged_warnings(caplog), "--use-lockfile") == 0
+    assert count_naming(logged_warnings(caplog), "use_lockfile") == 0
 
 
 @pytest.mark.parametrize("value", [True, False])
@@ -113,7 +113,7 @@ def test_sdist_enrich_warns_once(
     sdist = _make_sdist(tmp_path)
     with caplog.at_level(logging.WARNING):
         generate_project_sbom(sdist, enrich=value)
-    assert count_naming(logged_warnings(caplog), "--enrich") == 1
+    assert count_naming(logged_warnings(caplog), "enrich") == 1
 
 
 def test_sdist_does_not_search_for_a_registry_beside_it(
@@ -172,8 +172,8 @@ def test_embed_batch_warns_once_per_batch(
                 file_cache=cache,
             )
     warnings = logged_warnings(caplog)
-    assert count_naming(warnings, "--pretty") == 1
-    assert count_naming(warnings, "--max-model-extract-bytes") == int(project)
+    assert count_naming(warnings, "pretty") == 1
+    assert count_naming(warnings, "max_model_extract_bytes") == int(project)
 
 
 def test_embed_without_a_batch_still_warns_per_call(
@@ -191,7 +191,7 @@ def test_embed_without_a_batch_still_warns_per_call(
                 creation_metadata=_PINNED,
                 overrides=ConfigOverrides(pretty=True),
             )
-    assert count_naming(logged_warnings(caplog), "--pretty") == 2
+    assert count_naming(logged_warnings(caplog), "pretty") == 2
 
 
 @pytest.mark.parametrize("explicit", [False, True], ids=["own", "explicit"])
@@ -253,7 +253,7 @@ def test_embed_external_sbom_inert_byte_cap_warns_once(
             allow_mismatch=True,
         )
     warnings = logged_warnings(caplog)
-    assert count_naming(warnings, "--" + field.replace("_", "-")) == 1
+    assert count_naming(warnings, field) == 1
     assert len(warnings) == 1
 
 
@@ -279,7 +279,7 @@ def test_generate_warns_once_about_an_inert_model_cap(
             creation_metadata=_PINNED,
             max_model_extract_bytes=4096,
         )
-    assert count_naming(logged_warnings(caplog), "--max-model-extract-bytes") == 1
+    assert count_naming(logged_warnings(caplog), "max_model_extract_bytes") == 1
 
 
 def test_sdist_relative_registry_resolves_as_for_a_wheel(
@@ -359,7 +359,7 @@ def test_enrich_against_an_sdist_warns_about_use_lockfile_once(
             output_path=tmp_path / "frag.json",
             use_lockfile=value,
         )
-    assert count_naming(logged_warnings(caplog), "--use-lockfile") == 1
+    assert count_naming(logged_warnings(caplog), "use_lockfile") == 1
 
 
 def test_standalone_embed_uses_the_config_id_registry(
@@ -404,7 +404,7 @@ def test_embed_external_sbom_warns_about_a_project_dir(
             output_path=tmp_path / "out.whl",
             allow_mismatch=True,
         )
-    assert count_naming(logged_warnings(caplog), "--project-dir") == 1
+    assert count_naming(logged_warnings(caplog), "project_dir") == 1
 
 
 def test_standalone_embed_warns_about_file_scan_options(
@@ -426,7 +426,7 @@ def test_standalone_embed_warns_about_file_scan_options(
             overrides=overrides,
         )
     warnings = logged_warnings(caplog)
-    for flag in ("--enrich", "--content-type", "--extract-file-header"):
-        named = [w for w in warnings if f" {flag}/" in w]
-        assert len(named) == 1, (flag, warnings)
+    for name in ("enrich", "content_type", "extract_file_header"):
+        named = [w for w in warnings if f": {name} has no effect" in w]
+        assert len(named) == 1, (name, warnings)
         assert "no project directory" in named[0]

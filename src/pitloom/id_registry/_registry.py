@@ -77,7 +77,6 @@ from pitloom.messages.id_registry_ids import (
 from pitloom.messages.options import (
     OPTION_CONFLICT,
     PROJECT_ROOT_CONFLICT_LINE,
-    namespace_conflict_line,
 )
 from pitloom.messages.targets import (
     SBOM_INVALID,
@@ -346,19 +345,6 @@ class IdRegistry:
         """The registry file as a message names it: :attr:`path` (as
         given), or ``(no file)`` for a registry that has none."""
         return "(no file)" if self.path is None else self.path
-
-    def require_namespace(self, namespace: str) -> None:
-        """Raise ``ValueError`` unless this registry's namespace is
-        *namespace* (``id generate --namespace`` on an existing registry:
-        silently keeping the old one would ignore the flag)."""
-        if namespace != self.namespace:
-            raise CodedValueError(
-                OPTION_CONFLICT,
-                line=namespace_conflict_line(self.namespace, namespace),
-                file=self._named(),
-                namespace=self.namespace,
-                given_namespace=namespace,
-            )
 
     def require_project_root(self, project_root: Path) -> None:
         """Raise ``ValueError`` unless this registry's project root

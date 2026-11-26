@@ -27,6 +27,7 @@ from __future__ import annotations
 from typing import Final
 
 from pitloom.messages._summary import Summary
+from pitloom.messages._surface import Twins
 from pitloom.messages._types import ASK_FIRST, Line, Message
 
 _SINCE: Final = "0.25.0"
@@ -62,16 +63,19 @@ WHEEL_SBOM_MISSING: Final = Message(
     since=_SINCE,
 )
 
-SEVERAL_SBOMS_LINE: Final = Line(
-    level="ERROR",
-    template=f"{_ARCHIVE}: %(number)s SBOMs under {_SBOMS} (%(members)s); pass "
-    "--sbom-filename",
+_SEVERAL_SBOMS: Final = (
+    f"{_ARCHIVE}: %(number)s SBOMs under {_SBOMS} (%(members)s); pass "
+)
+#: Several SBOMs and none named (the hook checks no wheel).
+SEVERAL_SBOMS_LINES: Final = Twins.no_hook(
+    cli=Line(level="ERROR", template=f"{_SEVERAL_SBOMS}--sbom-filename"),
+    library=Line(level="ERROR", template=f"{_SEVERAL_SBOMS}sbom_filename"),
 )
 
 WHEEL_SBOM_AMBIGUOUS: Final = Message(
     code="wheel-sbom-ambiguous",
     condition="ambiguous",
-    lines=(SEVERAL_SBOMS_LINE,),
+    lines=SEVERAL_SBOMS_LINES.members,
     summary="A wheel holds several SBOMs under its own .dist-info/sboms/ "
     "(PEP 770 allows any number) and the command was not told which one to "
     "check.",

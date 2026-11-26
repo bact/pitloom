@@ -40,7 +40,9 @@ pytestmark = pytest.mark.platform
 _MODEL = "https://huggingface.co/owner/model"
 _WRONG = "target-wrong-format"
 _INVALID = "hf-url-invalid"
-_NOT_PROJECT = ": a Hugging Face model, not a project; use 'loom model'"
+_NOT_PROJECT = ": a Hugging Face model, not a project; use "
+#: What each surface names to read the model instead.
+_USE = {"cli": "'loom model'", "library": "generate_model_sbom()"}
 _NOT_HUB = ": not a valid Hugging Face URL or model ID"
 
 #: A URL, the code a project route refuses it with (``None``: not refused as
@@ -115,18 +117,27 @@ def test_the_command_line_and_the_library_classify_alike(
 ) -> None:
     """``loom project``, ``generate_project_sbom`` and
     ``generate_git_project_sbom`` refuse the same URLs with the same line,
-    credentials masked; a Space, a dataset and a ``git+`` URL are no model
-    to any of them."""
+    credentials masked, each naming what reads a model on its surface; a
+    Space, a dataset and a ``git+`` URL are no model to any of them."""
     monkeypatch.chdir(tmp_path)
-    expected = None
-    if code is not None:
-        expected = (code, f"URL={named}{_NOT_PROJECT if code == _WRONG else _NOT_HUB}")
+
+    def expected(surface: str) -> tuple[str, str] | None:
+        if code is None:
+            return None
+        if code == _WRONG:
+            return (code, f"URL={named}{_NOT_PROJECT}{_USE[surface]}")
+        return (code, f"URL={named}{_NOT_HUB}")
+
     said = {
         "cli": _cli(url, monkeypatch, capsys),
         "project": _library(generate_project_sbom, url),
         "git-project": _library(generate_git_project_sbom, url),
     }
-    assert said == dict.fromkeys(said, expected)
+    assert said == {
+        "cli": expected("cli"),
+        "project": expected("library"),
+        "git-project": expected("library"),
+    }
     assert "SECRET" not in str(said)
 
 

@@ -3,14 +3,15 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Count ``WARNING: Options: ...`` lines naming one CLI option.
+"""Count ``WARNING: Options: ...`` lines naming one option.
 
-A no-effect warning names an option by its spelling in
-:data:`pitloom.core.inert_options.PARAM_TO_FLAG` -- both halves of a
+A no-effect warning on the command line names an option by its spelling in
+:data:`pitloom.core.option_names.PARAM_TO_FLAG` -- both halves of a
 ``BooleanOptionalAction`` (``--pretty/--no-pretty``) or a glob for a
-group (``--creator-*/--creation-*``). :func:`names_option` decides whether
-one such spelling covers one option string as typed, so a test can count
-warnings per option without restating the table.
+group (``--creator-*/--creation-*``); from the library, by its parameter
+(``pretty``). :func:`names_option` decides whether one such spelling covers
+one option string as typed, so a test can count warnings per option without
+restating the table.
 
 See also: :mod:`tests.cli.test_cli_option_reach` and
 :mod:`tests.cli.test_cli_no_implicit_config`, the two users.
@@ -25,7 +26,7 @@ from collections.abc import Iterable
 
 import pytest
 
-_OPTIONS_WARNING = re.compile(r"Options: .*?: (-\S+) has no effect ")
+_OPTIONS_WARNING = re.compile(r"Options: .*?: (\S+) has no effect ")
 # ``FILE=<path>: `` -- the path may hold a Windows drive colon (``C:\x``), so
 # the terminator is a colon followed by a space.
 _FILE_FIELD = re.compile(r"FILE=(\S+): ")
@@ -34,7 +35,10 @@ _FILE_FIELD = re.compile(r"FILE=(\S+): ")
 def names_option(spelling: str, option: str) -> bool:
     """Whether the warning *spelling* (e.g. ``--pretty/--no-pretty``) names
     *option* as typed. A ``--no-`` option matches a glob for its positive
-    form, so ``--no-creation-tool`` is covered by ``--creation-*``."""
+    form, so ``--no-creation-tool`` is covered by ``--creation-*``. A
+    library parameter (``pretty``) is named by itself only."""
+    if not option.startswith("-"):
+        return spelling == option
     positive = f"--{option[5:]}" if option.startswith("--no-") else option
     return any(
         fnmatch.fnmatchcase(option, part) or fnmatch.fnmatchcase(positive, part)
@@ -43,7 +47,8 @@ def names_option(spelling: str, option: str) -> bool:
 
 
 def option_warning_spellings(messages: Iterable[str]) -> list[str]:
-    """The flag spelling of every ``Options:`` no-effect message."""
+    """The option spelling of every ``Options:`` no-effect message: a flag,
+    a library parameter or a ``[tool.pitloom]`` setting's TOML key."""
     return [m.group(1) for m in map(_OPTIONS_WARNING.search, messages) if m]
 
 

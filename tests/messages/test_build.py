@@ -37,6 +37,7 @@ from pitloom.messages import (
     Frame,
     Line,
     Message,
+    Twins,
     code_of,
     emit,
     trusted_message,
@@ -48,8 +49,8 @@ from pitloom.messages.build import (
     BUILD_FAILED,
     BUILD_INTERPRETER_LINE,
     BUILD_PROCESSES_UNSAFE,
-    BUILD_TIMED_OUT_LINE,
-    BUILD_TIMED_OUT_UNCONFIRMED_LINE,
+    BUILD_TIMED_OUT_LINES,
+    BUILD_TIMED_OUT_UNCONFIRMED_LINES,
     BUILD_TIMEOUT,
     BUILD_UNUSABLE_LINE,
     BUILD_WHEEL_COUNT_LINE,
@@ -58,10 +59,10 @@ from pitloom.messages.build import (
     INTERRUPTED_DURING_LINE,
     PROCESSES_KILLED_LINE,
     TEMP_DIR_UNWRITABLE,
-    UNSAFE_NO_MODULE_LINE,
-    UNSAFE_NO_MODULE_SHARED_LINE,
-    UNSAFE_STATIC_FAILED_LINE,
-    UNSAFE_STATIC_FAILED_SHARED_LINE,
+    UNSAFE_NO_MODULE_LINES,
+    UNSAFE_NO_MODULE_SHARED_LINES,
+    UNSAFE_STATIC_FAILED_LINES,
+    UNSAFE_STATIC_FAILED_SHARED_LINES,
     BuildFailedError,
     build_error,
     interrupted_line,
@@ -92,7 +93,8 @@ _ENTRIES = [
     (
         BUILD_CODE_UNSAFE,
         ("build-code-unsafe", "unsafe", "none", "user", "DIR"),
-        _shapes(_UNSAFE, _UNSAFE, _UNSAFE, _UNSAFE),
+        # Four lines, each worded for the command line and the library.
+        _shapes(*[_UNSAFE] * 8),
     ),
     (
         BUILD_FAILED,
@@ -108,7 +110,7 @@ _ENTRIES = [
     (
         BUILD_TIMEOUT,
         ("build-timeout", "timeout", "weaker", "user", "DIR"),
-        _shapes(("WARNING", "dir duration"), ("WARNING", "dir duration")),
+        _shapes(*[("WARNING", "dir duration")] * 4),
     ),
     (
         BUILD_PROCESSES_UNSAFE,
@@ -237,36 +239,38 @@ def test_the_code_and_the_frame_ride_on_the_record(
 @pytest.mark.parametrize(
     ("static_failed", "isolated", "line", "words"),
     [
-        (False, True, UNSAFE_NO_MODULE_LINE, ("no discovery module", "isolated")),
+        (False, True, UNSAFE_NO_MODULE_LINES, ("no discovery module", "isolated")),
         (
             True,
             True,
-            UNSAFE_STATIC_FAILED_LINE,
+            UNSAFE_STATIC_FAILED_LINES,
             ("static discovery failed", "isolated"),
         ),
         (
             False,
             False,
-            UNSAFE_NO_MODULE_SHARED_LINE,
+            UNSAFE_NO_MODULE_SHARED_LINES,
             ("no discovery module", "Pitloom"),
         ),
         (
             True,
             False,
-            UNSAFE_STATIC_FAILED_SHARED_LINE,
+            UNSAFE_STATIC_FAILED_SHARED_LINES,
             ("static discovery", "no build"),
         ),
     ],
     ids=["no-module", "static-failed", "no-module-shared", "static-failed-shared"],
 )
 def test_unsafe_line_is_chosen_by_both_flags(
-    static_failed: bool, isolated: bool, line: Line, words: tuple[str, str]
+    static_failed: bool, isolated: bool, line: Twins[Line], words: tuple[str, str]
 ) -> None:
     chosen = unsafe_line(static_failed=static_failed, isolated=isolated)
-    assert chosen is line and line in BUILD_CODE_UNSAFE.lines
-    assert all(word in line.template for word in words)
+    assert chosen is line
+    for member in line.members:
+        assert member in BUILD_CODE_UNSAFE.lines
+        assert all(word in member.template for word in words)
     texts = {
-        unsafe_line(static_failed=s, isolated=i).template
+        unsafe_line(static_failed=s, isolated=i).cli.template
         for s in (False, True)
         for i in (False, True)
     }
@@ -275,15 +279,16 @@ def test_unsafe_line_is_chosen_by_both_flags(
 
 @pytest.mark.parametrize(
     ("tree_terminated", "line"),
-    [(True, BUILD_TIMED_OUT_LINE), (False, BUILD_TIMED_OUT_UNCONFIRMED_LINE)],
+    [(True, BUILD_TIMED_OUT_LINES), (False, BUILD_TIMED_OUT_UNCONFIRMED_LINES)],
     ids=["terminated", "unconfirmed"],
 )
 def test_timeout_line_is_chosen_by_the_confirmation(
-    tree_terminated: bool, line: Line
+    tree_terminated: bool, line: Twins[Line]
 ) -> None:
     assert timeout_line(tree_terminated=tree_terminated) is line
-    assert ("its process tree was stopped" in line.template) is tree_terminated
-    assert ("could not confirm" in line.template) is not tree_terminated
+    for member in line.members:
+        assert ("its process tree was stopped" in member.template) is tree_terminated
+        assert ("could not confirm" in member.template) is not tree_terminated
 
 
 @pytest.mark.parametrize(
@@ -332,7 +337,7 @@ def test_build_error_carries_its_line_values_and_code(
     [
         (BUILD_EXIT_LINE, {"dir": Path("p")}),  # a value missing
         (BUILD_EXIT_LINE, {"dir": Path("p"), "exit_code": 1, "output": "x", "y": 1}),
-        (BUILD_TIMED_OUT_LINE, {"dir": Path("p"), "duration": 1}),  # another entry's
+        (BUILD_TIMED_OUT_LINES.cli, {"dir": Path("p"), "duration": 1}),  # another
         (BUILD_WHEEL_COUNT_LINE, {"dir": Path("p"), "number": -1}),
         (BUILD_EXIT_LINE, {"dir": Path("p"), "exit_code": "1", "output": "x"}),
     ],

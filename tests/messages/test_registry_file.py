@@ -143,20 +143,16 @@ def test_id_generate_names_the_registry_as_typed(
 def test_a_conflict_names_the_registry_file_or_none(
     tmp_path: Path, saved: bool
 ) -> None:
-    """The namespace and project-root conflicts name the registry's own
-    file, ``(no file)`` only for one never saved."""
+    """A project-root conflict names the registry's own file, ``(no
+    file)`` only for one never saved."""
     path = tmp_path / "r.json"
     registry = IdRegistry.new("proj", path if saved else None, project_root=tmp_path)
     named = path if saved else "(no file)"
 
-    with pytest.raises(ValueError) as namespace:
-        registry.require_namespace("urn:other")
-    assert str(namespace.value).startswith(f"ID registry: FILE={named}: namespace ")
-    if saved:
-        with pytest.raises(ValueError) as root:
-            registry.require_project_root(tmp_path / "elsewhere")
-        assert str(root.value).startswith(f"ID registry: FILE={named}: project root ")
-        assert code_of(root.value) == "option-conflict"
+    with pytest.raises(ValueError) as root:
+        registry.require_project_root(tmp_path / "elsewhere")
+    assert str(root.value).startswith(f"ID registry: FILE={named}: project root ")
+    assert code_of(root.value) == "option-conflict"
 
 
 def test_a_duplicate_key_with_a_control_character_is_one_line(tmp_path: Path) -> None:
