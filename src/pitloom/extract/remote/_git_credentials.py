@@ -25,6 +25,7 @@ from dataclasses import dataclass, field
 from typing import NoReturn
 from urllib.parse import SplitResult, unquote, urlsplit, urlunsplit
 
+from pitloom.core.internal_error import reraise_internal
 from pitloom.core.quote_source import quote_source
 from pitloom.core.url_masking import sanitize_url, split_userinfo
 from pitloom.extract.remote.errors import RemoteSourceError
@@ -184,7 +185,8 @@ def _split(arg: str) -> tuple[str, GitCredentials | None]:
     try:
         parts = urlsplit(rest)
         origin = _origin(parts)
-    except ValueError:
+    except ValueError as exc:
+        reraise_internal(exc)
         _refuse(arg)
     netloc = origin.partition("://")[2]
     plain = urlunsplit((parts.scheme, netloc, parts.path, parts.query, parts.fragment))

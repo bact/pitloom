@@ -19,6 +19,7 @@ from collections.abc import Sequence
 from typing import NamedTuple
 from zipfile import ZipFile
 
+from pitloom.core.internal_error import reraise_internal
 from pitloom.extract.ai_model._stated_text import stated_text
 from pitloom.extract.ai_model.archive_member import read_archive_member
 from pitloom.extract.ai_model.limits import ModelLimitExceeded
@@ -146,6 +147,7 @@ def read_pt2_graph(
         raise
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
+        reraise_internal(exc)
         lost = ("inputs", "outputs", "framework_version")
         warn_pt2_unread(log, PT2_GRAPH_LINE, exc, lost, entry=model_json_path)
         return Pt2Graph([], [])
@@ -237,6 +239,7 @@ def read_pt2_parameter_count(
         raise
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
+        reraise_internal(exc)
         warn_pt2_unread(log, PT2_VERSION_LINE, exc, ("parameter_count",), entry=path)
         return None
     return derived_parameter_count(

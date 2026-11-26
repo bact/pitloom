@@ -20,7 +20,7 @@ from pitloom.cli._parser_credentials import (
 )
 from pitloom.cli._path_args import non_empty_path
 from pitloom.cli.commands.utils import _print_sbom_output_path, cli_error_handler
-from pitloom.core.current_dir import current_dir
+from pitloom.core.current_dir import absolute_path, current_dir
 from pitloom.core.given_path import TypedPath
 from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
 from pitloom.logging_config import print_error
@@ -39,7 +39,7 @@ log = logging.getLogger(__name__)
 @cli_error_handler
 def _run_merge_command(args: argparse.Namespace) -> int:
     """Merge dynamic execution fragments into a combined SBOM."""
-    fragments_dir: Path = args.fragments_dir.resolve()
+    fragments_dir: Path = absolute_path(args.fragments_dir).resolve()
     if not is_input_dir(fragments_dir, shown=args.fragments_dir):
         say_input_not_found("fragments directory", args.fragments_dir)
         return 1

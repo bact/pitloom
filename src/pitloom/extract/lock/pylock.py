@@ -34,6 +34,7 @@ from typing import Any
 from packaging.markers import InvalidMarker
 from packaging.utils import canonicalize_name
 
+from pitloom.core.internal_error import reraise_internal
 from pitloom.core.pep508 import parse_marker
 from pitloom.extract.lock.common import (
     find_first_present_key,
@@ -366,6 +367,7 @@ def _group_marker_excludes(
         tree = parse_marker(marker_str)._markers  # noqa: SLF001
         return _evaluate_group_node(tree, environment) is False
     except (InvalidMarker, TypeError, ValueError) as exc:
+        reraise_internal(exc)
         say_lock_entry(
             log,
             MARKER_LINE,

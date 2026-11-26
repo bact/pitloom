@@ -241,7 +241,5 @@ def test_id_registry_save_empty_is_option_invalid(
     with pytest.raises(CodedValueError) as caught:
         registry.save(given)  # type: ignore[arg-type]
     assert code_of(caught.value) == "option-invalid"
-    assert str(caught.value) == (
-        "path: must be a non-empty string, got a string ''"
-    )
-    assert list(tmp_path.iterdir()) == []
+    assert str(caught.value) == ("path: must be a non-empty string, got a string ''")
+    assert not list(tmp_path.iterdir())

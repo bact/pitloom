@@ -29,11 +29,11 @@ import pytest
 
 from pitloom.core._models_wheel_hatchling import discover as discover_hatchling
 from pitloom.core._models_wheel_types import (
+    BackendPieceMissingError,
     has_uv_build_backend_overrides,
     warn_discovery_failed,
 )
 from pitloom.core.clone_mark import reading_remote_clone
-from pitloom.core.internal_error import InternalError
 from pitloom.logging_config import configure_logging
 
 _MULTI_LINE = "first line\n\n  second line\r\nthird"
@@ -102,7 +102,10 @@ def test_pitloom_own_failure_text_is_said_in_a_clone(
 ) -> None:
     with caplog.at_level(logging.WARNING), reading_remote_clone(str(tmp_path)):
         warn_discovery_failed(
-            logging.getLogger("pitloom.t"), "Flit", tmp_path, InternalError("mine")
+            logging.getLogger("pitloom.t"),
+            "Flit",
+            tmp_path,
+            BackendPieceMissingError("mine"),
         )
     assert caplog.records[0].getMessage().endswith("; mine")
 

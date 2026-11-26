@@ -26,6 +26,7 @@ from pitloom.core.ai_metadata import (
     SourceMetadata,
     source_metadata,
 )
+from pitloom.core.internal_error import reraise_internal
 from pitloom.core.provenance import provenance_segment, provenance_source
 from pitloom.core.quote_source import quote_source
 from pitloom.extract.ai_model import archive_member
@@ -154,6 +155,7 @@ def _bounded_pickle(pkl_file: IO[bytes]) -> bytes | None:
     try:
         return first_pickle(data[:limit])
     except ValueError as exc:
+        reraise_internal(exc)
         if len(data) > limit:
             raise ModelOverCap(Cap(limit, "byte", "first-pickle")) from None
         _warn_type_unread(FICKLING_PARSE_LINE, exc)
@@ -193,12 +195,14 @@ def _fickling_get_top_class(pkl_file: IO[bytes]) -> str | None:
             pkl = Pickled.load(io.BytesIO(pickle_bytes))
         # pylint: disable-next=broad-exception-caught
         except Exception as exc:
+            reraise_internal(exc)
             failure = (FICKLING_PARSE_LINE, exc)
         else:
             try:
                 type_of_model = _top_class(pkl)
             # pylint: disable-next=broad-exception-caught
             except Exception as exc:
+                reraise_internal(exc)
                 failure = (FICKLING_WALK_LINE, exc)
     if failure is not None:
         _warn_type_unread(*failure)
@@ -258,6 +262,7 @@ def _read_pytorch_zip(
             raise
         # pylint: disable-next=broad-exception-caught
         except Exception as exc:
+            reraise_internal(exc)
             emit(
                 log,
                 MODEL_FIELD_UNREADABLE,

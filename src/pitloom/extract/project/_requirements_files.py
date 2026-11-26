@@ -47,6 +47,7 @@ from packaging.requirements import InvalidRequirement
 
 from pitloom.core.clone_mark import in_remote_clone
 from pitloom.core.file_identity import FileId, file_id
+from pitloom.core.internal_error import reraise_internal
 from pitloom.core.path_confine import open_inside
 from pitloom.core.path_probe import is_missing_errno
 from pitloom.core.pep508 import parse_requirement
@@ -293,6 +294,7 @@ class RequirementsFiles:
         try:
             handle = open_inside(written, self._project_dir)
         except (OSError, ValueError) as exc:
+            reraise_internal(exc)
             if self._first(written, seen):
                 self._warn_unreadable(name, key, _Unreadable(exc))
             return None

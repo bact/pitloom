@@ -39,6 +39,7 @@ from pathlib import Path
 
 from pitloom._toml_io import TOMLDecodeError, load_toml_file
 from pitloom.core.config import PitloomConfig
+from pitloom.core.internal_error import reraise_internal
 from pitloom.core.project import ProjectMetadata
 from pitloom.core.quote_source import quote_source
 from pitloom.extract._license import (
@@ -236,6 +237,7 @@ def _read_py_options(project_dir: Path, *, quiet: bool) -> SetupOptions:
     except FileNotFoundError:
         return {}
     except ValueError as exc:
+        reraise_internal(exc)
         relay_coded_warning(log, exc, quiet=quiet)
         return {}
 

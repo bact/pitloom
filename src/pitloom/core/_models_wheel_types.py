@@ -21,7 +21,6 @@ from typing import TYPE_CHECKING, NamedTuple, Protocol, TypedDict
 
 from pitloom.core.clone_mark import in_remote_clone
 from pitloom.core.content_type_config import ContentTypeOverride
-from pitloom.core.internal_error import InternalError
 from pitloom.logging_config import one_line
 from pitloom.messages import CodedValueError
 from pitloom.messages.file_discovery import FAILED_LINE, warn_discovery
@@ -47,13 +46,19 @@ class DiscoveryTimeoutError(Exception):
         self.pitloom_code = pitloom_code
 
 
+class BackendPieceMissingError(Exception):
+    """The installed build backend lacks a private piece a discovery calls
+    (a later setuptools without ``pyprojecttoml._apply``): a condition of
+    the environment, not a bug in Pitloom, so the discovery fails, says so
+    and the file list falls back. Its text is Pitloom's own."""
+
+
 def discovery_failure_text(exc: BaseException) -> str:
     """What a ``WARNING:`` says of *exc*, a file discovery's failure: its
     text, on one line; in a Git URL's clone its type alone, as a backend's
     text can quote a file it read (a ``.git/config``, a host file a setting
-    names), unless Pitloom wrote it (an
-    :class:`~pitloom.core.internal_error.InternalError`)."""
-    if not in_remote_clone() or isinstance(exc, InternalError):
+    names), unless Pitloom wrote it (a :class:`BackendPieceMissingError`)."""
+    if not in_remote_clone() or isinstance(exc, BackendPieceMissingError):
         return one_line(exc)
     return f"{type(exc).__name__} (text not shown for a downloaded repository)"
 

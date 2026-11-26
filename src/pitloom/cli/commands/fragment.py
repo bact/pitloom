@@ -32,9 +32,9 @@ from pitloom.cli.commands.utils import (
 )
 from pitloom.cli.kv_output import print_kv
 from pitloom.core.config import FragmentConfig, read_pitloom_config
-from pitloom.core.current_dir import current_dir
+from pitloom.core.current_dir import absolute_path, current_dir
 from pitloom.core.given_path import TypedPath
-from pitloom.core.internal_error import InternalError
+from pitloom.core.internal_error import InternalError, reraise_internal
 from pitloom.core.path_probe import is_missing_errno
 from pitloom.messages import emit, say_summary
 from pitloom.messages.fragments import (
@@ -88,7 +88,8 @@ def _graph_length(raw: bytes) -> int | None:
     reader refused still has its element count listed."""
     try:
         data = json.loads(raw)
-    except (ValueError, RecursionError):
+    except (ValueError, RecursionError) as exc:
+        reraise_internal(exc)
         # Not JSON (or nested too deep): the reader already said why this
         # fragment failed.
         return None
@@ -279,7 +280,7 @@ def _own_document_id(project_dir: Path) -> str | None:
 @cli_error_handler
 def _run_fragment_list(args: argparse.Namespace) -> int:
     """Run `loom fragment list`."""
-    project_dir: Path = (args.project_dir or current_dir()).resolve()
+    project_dir: Path = absolute_path(args.project_dir or current_dir()).resolve()
     if not is_input_dir(project_dir, shown=args.project_dir or project_dir):
         say_input_not_found("project directory", args.project_dir or project_dir)
         return 1

@@ -34,6 +34,7 @@ from dataclasses import dataclass
 
 from licenseid import DatabaseNotReadyError, Operand, Resolution, Step, resolve
 
+from pitloom.core.internal_error import reraise_internal
 from pitloom.core.provenance import provenance_segment
 from pitloom.extract._licenseid_relay import relay_licenseid_warnings, say
 from pitloom.logging_config import loggable
@@ -87,6 +88,7 @@ def resolve_declared_value(value: str) -> Resolution | None:
         return None
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
+        reraise_internal(exc)
         _logger.debug("Failed to resolve license value %r: %s", value, exc)
         return None
 

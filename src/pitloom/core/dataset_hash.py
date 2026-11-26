@@ -50,6 +50,7 @@ from pitloom.core.file_hash import (
     file_digests,
     sha256_read,
 )
+from pitloom.core.internal_error import reraise_internal
 from pitloom.core.lfs_pointer import LFS_POINTER_MAX_BYTES, LfsPointer
 from pitloom.core.model_extract_limit import MAX_DATASET_HASH_BYTES_KEY
 from pitloom.core.models import merkle_root
@@ -224,7 +225,8 @@ def hash_dataset(
     try:
         if is_regular_file(path):
             return _hash_file(where, max_bytes, sha512=sha512)
-    except ValueError:  # a NUL: a name, not a path
+    except ValueError as error:  # a NUL: a name, not a path
+        reraise_internal(error)
         return _unhashed(None, None, None)
     except OSError as exc:  # present, but stat() fails
         _warn_unreadable(where, exc)

@@ -32,6 +32,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from pitloom.core.internal_error import reraise_internal
 from pitloom.core.project import ProjectMetadata
 from pitloom.core.provenance import parse_provenance_value, provenance_source
 from pitloom.core.requirements import normalize_dependency_specifier
@@ -256,6 +257,7 @@ def _setup_options(project_dir: Path, quiet: bool) -> SetupOptions:
         except FileNotFoundError:
             return {}
         except ValueError as exc:
+            reraise_internal(exc)
             # The fields left unfilled are the entry's `did`.
             relay_coded_warning(log, exc, quiet=quiet)
             return {}

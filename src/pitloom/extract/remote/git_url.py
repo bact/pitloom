@@ -29,6 +29,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from urllib.parse import SplitResult, parse_qs, unquote, urlsplit, urlunsplit
 
+from pitloom.core.internal_error import reraise_internal
 from pitloom.extract.remote._http_errors import remote_error, shown_url
 from pitloom.extract.remote.errors import RemoteSourceError
 from pitloom.messages.git import (
@@ -113,7 +114,8 @@ def is_git_url(source: str) -> bool:
     try:
         parts = urlsplit(text)
         host = parts.hostname or ""
-    except ValueError:
+    except ValueError as exc:
+        reraise_internal(exc)
         return False
     if not host:
         return False
@@ -133,7 +135,8 @@ def is_hub_model_url(source: str) -> bool:
         return False
     try:
         host = urlsplit(text).hostname or ""
-    except ValueError:
+    except ValueError as exc:
+        reraise_internal(exc)
         return False
     return _HF_HOST.fullmatch(host) is not None and not is_git_url(text)
 
@@ -143,7 +146,8 @@ def scheme_allowed(url: str) -> bool:
     (:data:`ALLOWED_SCHEMES`)."""
     try:
         return urlsplit(url).scheme.lower() in ALLOWED_SCHEMES
-    except ValueError:
+    except ValueError as exc:
+        reraise_internal(exc)
         return False
 
 

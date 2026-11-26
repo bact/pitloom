@@ -35,6 +35,7 @@ from __future__ import annotations
 import json
 from typing import NamedTuple
 
+from pitloom.core.internal_error import reraise_internal
 from pitloom.core.quote_source import quote_source
 from pitloom.log_masking import masked_text
 from pitloom.logging_config import EXCERPT_CHARS
@@ -60,7 +61,8 @@ def _source(value: object) -> str:
     else:
         try:
             text = json.dumps(value, sort_keys=True, ensure_ascii=True)
-        except (TypeError, ValueError):
+        except (TypeError, ValueError) as exc:
+            reraise_internal(exc)
             text = repr(value)
     return masked_text(text)
 

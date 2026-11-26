@@ -26,6 +26,7 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.assemble.spdx3.provenance import ProvenanceEncoder, emit_provenance
 from pitloom.core._models_wheel_types import is_dist_info_path
+from pitloom.core.internal_error import reraise_internal
 from pitloom.core.models import generate_spdx_id
 from pitloom.core.provenance import (
     ProvenanceConfig,
@@ -179,6 +180,7 @@ def _resolve_remote_authors_file(
             content.decode("utf-8", errors="replace"),
         )
     except (URLError, http.client.HTTPException, OSError, ValueError) as exc:
+        reraise_internal(exc)
         close_http_error(exc)
         ctype, _ = guess_content_type(b"", filename, method="extension")
         return locator, ctype, None

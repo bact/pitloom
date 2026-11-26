@@ -35,6 +35,7 @@ from urllib.parse import quote, unquote, urlsplit
 
 from packaging.utils import canonicalize_name
 
+from pitloom.core.internal_error import reraise_internal
 from pitloom.core.pep440 import parse_version
 from pitloom.logging_config import loggable
 from pitloom.messages import (
@@ -158,7 +159,8 @@ def is_pypi_url(text: str) -> bool:
         return False
     try:
         hostname = urlsplit(stripped).hostname
-    except ValueError:
+    except ValueError as exc:
+        reraise_internal(exc)
         return False
     return _in_family(_host(hostname))
 
@@ -214,7 +216,8 @@ def parse_pypi_url(text: str) -> PypiTarget:
     try:
         parts = urlsplit(stripped)
         port = parts.port
-    except ValueError:
+    except ValueError as exc:
+        reraise_internal(exc)
         raise _refuse(stripped, PYPI_URL_FORM_LINE) from None
     scheme = parts.scheme.lower()
     if scheme == "http":

@@ -23,6 +23,8 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Final
 
+from pitloom.core.internal_error import reraise_internal
+
 __all__ = [
     "UsageModel",
     "after_first_separator",
@@ -121,7 +123,9 @@ def _named_arg(
     if head.isdecimal():
         try:
             position = int(head)
-        except ValueError:  # more digits than ``sys.set_int_max_str_digits`` allows
+        # more digits than ``sys.set_int_max_str_digits`` allows
+        except ValueError as exc:
+            reraise_internal(exc)
             return None
         return args[position] if position < len(args) else None
     return kwargs.get(head)
@@ -138,7 +142,8 @@ def format_template(
     an index, a conversion other than ``!s`` or a format spec."""
     try:
         fields = list(_FORMATTER.parse(template))
-    except ValueError:
+    except ValueError as exc:
+        reraise_internal(exc)
         return None
     out: list[str] = []
     index = 0

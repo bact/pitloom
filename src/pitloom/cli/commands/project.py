@@ -30,7 +30,7 @@ from pitloom.cli.options import (
 from pitloom.cli.options_config import add_archive_project_dir_argument, run_options
 from pitloom.cli.verbose import log_verbose_options
 from pitloom.core.build_options import BuildOptions
-from pitloom.core.current_dir import current_dir
+from pitloom.core.current_dir import absolute_path, current_dir
 from pitloom.core.given_path import TypedPath
 from pitloom.core.inert_options import (
     GIT,
@@ -138,7 +138,7 @@ def _run_project_command(args: argparse.Namespace) -> int:
     # generate_project_sbom()'s own settle then finds nothing left to warn
     # about.
     build_options = build_options_from_args(args).settle_target(
-        args.project_dir.resolve()
+        absolute_path(args.project_dir).resolve()
     )
 
     project_dir, _config_path = _resolve_project_paths(args)

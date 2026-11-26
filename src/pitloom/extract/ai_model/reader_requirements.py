@@ -19,6 +19,7 @@ from __future__ import annotations
 import importlib.util
 
 from pitloom.core.ai_metadata import AiModelFormat
+from pitloom.core.internal_error import reraise_internal
 from pitloom.core.optional_libraries import Requirement, import_failed, missing
 
 # Formats not listed (CRFsuite, Keras v3, PyTorch, PT2) read through the
@@ -47,7 +48,8 @@ def require_library(fmt: AiModelFormat) -> None:
         return
     try:
         found = importlib.util.find_spec(requirement.module) is not None
-    except ValueError:  # already imported, with no spec
+    except ValueError as exc:  # already imported, with no spec
+        reraise_internal(exc)
         found = True
     if not found:
         raise missing(requirement)

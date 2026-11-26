@@ -39,7 +39,7 @@ from pitloom.core.canonical_json import (
     canonical_json_bytes,
     json_safe,
 )
-from pitloom.core.internal_error import InternalError
+from pitloom.core.internal_error import InternalError, reraise_internal
 from pitloom.core.models import generate_spdx_id
 from pitloom.core.project import ConflictCandidate
 from pitloom.core.provenance import (
@@ -507,7 +507,8 @@ def annotation_fields_statement(
     anything), or is another statement is no provenance of fields."""
     try:
         statement = json.loads(annotation.statement or "")
-    except (ValueError, RecursionError):
+    except (ValueError, RecursionError) as exc:
+        reraise_internal(exc)
         return None
     if not isinstance(statement, dict) or (
         statement.get("schema") != PitloomV1Encoder.schema_url

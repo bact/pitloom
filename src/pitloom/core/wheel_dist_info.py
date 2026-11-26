@@ -39,6 +39,7 @@ from packaging.version import Version
 
 from pitloom.core.archive_member_names import zip_file_members
 from pitloom.core.given_path import TypedPath
+from pitloom.core.internal_error import reraise_internal
 from pitloom.core.path_probe import is_directory_error, is_missing_errno
 from pitloom.core.pep440 import parse_version
 from pitloom.messages import CodedOSError, code_of, recoded
@@ -246,6 +247,7 @@ def open_wheel_zip(path: Path, *, name: Path | str | None = None) -> zipfile.Zip
         raise
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
+        reraise_internal(exc)
         raise refuse_unopenable(given.name, exc) from exc
 
 

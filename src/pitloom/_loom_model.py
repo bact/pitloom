@@ -58,6 +58,7 @@ from pitloom._loom_dataset import name_key_reason
 from pitloom.assemble.spdx3.provenance import emit_provenance
 from pitloom.core.current_dir import current_dir
 from pitloom.core.file_hash import FileDigests, file_digests
+from pitloom.core.internal_error import reraise_internal
 from pitloom.core.lfs_pointer import UnreadPointers
 from pitloom.core.models import generate_spdx_id
 from pitloom.core.path_probe import is_missing_errno, is_regular_file
@@ -122,8 +123,8 @@ def _hash_model_file(
     try:
         if is_regular_file(Path(path)):
             return file_digests(path)
-    except ValueError:  # a NUL: a name, not a path
-        pass
+    except ValueError as error:  # a NUL: a name, not a path
+        reraise_internal(error)
     except OSError as exc:
         if not is_missing_errno(exc):
             warn_file_unreadable(log, exc, file=given, use="for the model hash")
@@ -321,6 +322,7 @@ class LoomModels:
         try:
             registry.rebase()
         except (OSError, ValueError) as exc:
+            reraise_internal(exc)
             log.debug("ID registry: not re-read before resolving models: %s", exc)
 
     def _spdx_id(self, declared: _Declaration, digest: str | None) -> str:

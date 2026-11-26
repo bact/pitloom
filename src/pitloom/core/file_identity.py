@@ -10,6 +10,8 @@ from __future__ import annotations
 import os
 from pathlib import PurePath
 
+from pitloom.core.internal_error import reraise_internal
+
 FileId = tuple[int, int]
 
 
@@ -25,7 +27,8 @@ def file_id(path: PurePath | str | int) -> FileId | None:
     """
     try:
         result = os.fstat(path) if isinstance(path, int) else os.stat(path)
-    except (OSError, ValueError):
+    except (OSError, ValueError) as exc:
+        reraise_internal(exc)
         return None
     return stat_id(result)
 

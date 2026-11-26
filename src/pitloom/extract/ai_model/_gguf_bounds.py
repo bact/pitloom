@@ -26,6 +26,7 @@ import os
 from pathlib import Path
 
 from pitloom.core.ai_metadata import model_cap
+from pitloom.core.internal_error import reraise_internal
 from pitloom.extract.ai_model.formats import FormatError, Limits
 from pitloom.extract.ai_model.formats.gguf_header import (
     DeclaredBeyondFile,
@@ -89,7 +90,8 @@ def _check_tensor_data(tensors: tuple[GgufTensor, ...], start: int, size: int) -
     for tensor in tensors:
         try:
             block, type_size = GGML_QUANT_SIZES[GGMLQuantizationType(tensor.ggml_type)]
-        except (ValueError, KeyError):
+        except (ValueError, KeyError) as exc:
+            reraise_internal(exc)
             continue
         if block > 1 and tensor.shape and tensor.shape[0] % block:
             raise ValueError(

@@ -19,6 +19,7 @@ from typing import Any
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom._sbom_format import read_given_sbom
+from pitloom.core.internal_error import reraise_internal
 from pitloom.id_registry._harvest import _sorted_by_spdx_id
 from pitloom.messages import CodedValueError, emit
 from pitloom.messages.targets import SBOM_INVALID, SBOM_UNREADABLE_LINE
@@ -60,6 +61,7 @@ def read_sbom_objects(sbom_path: Path) -> list[Any]:
     # cannot follow (an object with no type): all are the SBOM's.
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
+        reraise_internal(exc)
         raise CodedValueError(
             SBOM_INVALID, line=SBOM_UNREADABLE_LINE, file=sbom_path, failure=exc
         ) from exc

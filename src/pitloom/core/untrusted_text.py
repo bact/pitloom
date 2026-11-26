@@ -54,6 +54,7 @@ import re
 from typing import Any
 
 from pitloom.core.canonical_json import canonical_json
+from pitloom.core.internal_error import reraise_internal
 
 __all__ = [
     "DISPLAY_CONTROLS",
@@ -196,7 +197,8 @@ def escape_display_controls_in_json(text: str) -> str:
     stays, as a JSON parser keeps a repeated key."""
     try:
         data = json.loads(text, parse_int=_json_int)
-    except ValueError:
+    except ValueError as exc:
+        reraise_internal(exc)
         return escape_display_controls(text)
     shown = _escape_strings(data)
     if shown == data:

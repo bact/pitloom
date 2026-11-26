@@ -28,6 +28,7 @@ from pathlib import Path, PurePath
 
 from pitloom.core._models_wheel_types import IncludedFile
 from pitloom.core.clone_mark import in_remote_clone, remote_clone_root
+from pitloom.core.internal_error import reraise_internal
 from pitloom.core.path_confine import inside_clone_but_not_git
 from pitloom.messages import emit
 from pitloom.messages.files import FILE_UNREADABLE_OUTSIDE_REPOSITORY
@@ -50,7 +51,8 @@ def left_out(path: str, root: PurePath) -> bool:
     raises (a NUL, or a link loop on Windows, leaves it out)."""
     try:
         real = PurePath(os.path.realpath(path))
-    except (OSError, ValueError):
+    except (OSError, ValueError) as exc:
+        reraise_internal(exc)
         return True
     return not inside_clone_but_not_git(real, root)
 

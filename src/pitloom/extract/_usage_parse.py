@@ -39,6 +39,7 @@ from threading import Lock, getprofile, gettrace, stack_size
 from time import sleep
 from typing import Final, TypeVar
 
+from pitloom.core.internal_error import reraise_internal
 from pitloom.core.warning_capture import WARNINGS_LOCK
 
 __all__ = ["PARSE_ERRORS", "parse_python", "python_version", "stack_bytes"]
@@ -202,6 +203,7 @@ def _start_with_stack(work: Callable[[], None], size: int) -> bool:
         try:
             start()
         except (ValueError, RuntimeError) as exc:
+            reraise_internal(exc)
             log.debug("Usage scan: no parse thread with a %d-byte stack: %s", size, exc)
             return False
         finally:

@@ -20,6 +20,7 @@ from pitloom.core.ai_metadata import (
     source_metadata,
 )
 from pitloom.core.canonical_json import canonical_json
+from pitloom.core.internal_error import reraise_internal
 from pitloom.core.provenance import provenance_source
 from pitloom.core.quote_source import quote_source
 from pitloom.extract._extract_utils import record_dict_field_provenance
@@ -93,12 +94,14 @@ def _load_fasttext_model(model_path: Path) -> Any:
         import fasttext
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:  # a broken install raises more than ImportError
+        reraise_internal(exc)
         raise missing_library(AiModelFormat.FASTTEXT, exc) from exc
 
     try:
         return fasttext.load_model(str(model_path))
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
+        reraise_internal(exc)
         log.debug(
             "Failed to load fastText model from %s: %s",
             loggable(str(model_path)),
@@ -121,6 +124,7 @@ def _extract_fasttext_args(
         args = model.f.getArgs()
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
+        reraise_internal(exc)
         emit(
             log,
             MODEL_FIELD_UNREADABLE,
@@ -163,6 +167,7 @@ def _extract_fasttext_labels(model: Any) -> list[str]:
         labels = get_labels()
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
+        reraise_internal(exc)
         emit(
             log,
             MODEL_FIELD_UNREADABLE,

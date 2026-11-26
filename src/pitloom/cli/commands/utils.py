@@ -22,8 +22,9 @@ from pitloom.assemble import (
     find_embedded_sbom,
 )
 from pitloom.cli.kv_output import print_kv
+from pitloom.core.current_dir import absolute_path
 from pitloom.core.file_identity import FileId, file_id
-from pitloom.core.internal_error import InternalError
+from pitloom.core.internal_error import reraise_internal
 from pitloom.core.optional_libraries import (
     VALIDATE,
     import_failed,
@@ -209,7 +210,7 @@ def _given(path: str) -> Path:
     """*path* made absolute, not normalised: a symlink is not followed and a
     ``..`` is left as it is. POSIX reads it through a symlinked directory;
     Win32 collapses it textually, as ``GetFullPathName`` does."""
-    return Path(path).absolute()
+    return absolute_path(path)
 
 
 def report_error_line(exc: Exception) -> None:
@@ -232,10 +233,9 @@ def report_wheel_failure(exc: ValueError | OSError, wheel_path: Path) -> None:
     An :class:`~pitloom.core.internal_error.InternalError` (a ``ValueError``)
     is a bug in Pitloom, not a bad wheel: it is raised again, so it reaches
     the top handler and aborts the batch instead of being said as that
-    wheel's own failure. Every per-wheel ``except (ValueError, OSError)``
-    calls this first, which keeps that rule in one place."""
-    if isinstance(exc, InternalError):
-        raise exc
+    wheel's own failure (:func:`~pitloom.core.internal_error.reraise_internal`,
+    which each caller's handler also starts with)."""
+    reraise_internal(exc)
     if isinstance(exc, OSError) and code_of(exc) is None:
         name = wheel_path.name
         gone = is_missing_errno(exc) or (
@@ -306,6 +306,7 @@ def _locate_embedded_sbom_or_report(
     try:
         location = find_embedded_sbom(wheel_path, sbom_filename)
     except (ValueError, OSError) as exc:
+        reraise_internal(exc)
         report_wheel_failure(exc, wheel_path)
         return None
 
@@ -344,6 +345,7 @@ def _import_spdx3_validate() -> Any | None:
         import spdx3_validate
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:  # a broken install raises more than ImportError
+        reraise_internal(exc)
         if not_installed(VALIDATE, exc):
             print_error(str(missing(VALIDATE)), code=LIBRARY_MISSING.code)
         else:
@@ -375,7 +377,8 @@ def _stable_message(message: str) -> str:
             return message
         try:
             values = ast.literal_eval(message[begin : end + 1])
-        except (ValueError, SyntaxError, MemoryError, RecursionError):
+        except (ValueError, SyntaxError, MemoryError, RecursionError) as exc:
+            reraise_internal(exc)
             continue
         if isinstance(values, list) and all(isinstance(v, str) for v in values):
             return message[:begin] + repr(sorted(values)) + message[end + 1 :]

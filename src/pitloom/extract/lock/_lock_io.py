@@ -22,6 +22,7 @@ from typing import Any
 
 from pitloom._toml_io import load_toml_bytes
 from pitloom.core.given_file import FETCH_MAX_BYTES
+from pitloom.core.internal_error import reraise_internal
 from pitloom.core.path_probe import is_missing_errno
 from pitloom.logging_config import one_line
 from pitloom.messages import code_of, relay_extra
@@ -157,6 +158,7 @@ def _load_lock(lock_path: Path, parse: Callable[[bytes], Any]) -> dict[str, Any]
     except FileNotFoundError:
         return None
     except (OSError, ValueError, RecursionError, MemoryError) as exc:
+        reraise_internal(exc)
         # ValueError covers the format's decode errors, a bare
         # UnicodeDecodeError and LockFileRefusedError.
         warn_unreadable_lock_file(lock_path, exc)

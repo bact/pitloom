@@ -39,6 +39,7 @@ from typing import TYPE_CHECKING, Any, NamedTuple
 from pitloom._sbom_io import replace_text_lf
 from pitloom.core.canonical_json import canonical_json_indented
 from pitloom.core.given_file import read_given_bytes
+from pitloom.core.internal_error import reraise_internal
 from pitloom.core.iri import is_iri_segment, namespace_problem
 from pitloom.core.quote_source import quote_source
 from pitloom.id_registry._counters import MAX_ID_NUMBER, Counters
@@ -152,6 +153,7 @@ def _read_json(path: Path) -> Any:
             JSON_MALFORMED, file=path, use=REGISTRY_USE, failure=exc
         ) from exc
     except (ValueError, RecursionError) as exc:
+        reraise_internal(exc)
         raise CodedValueError(
             JSON_MALFORMED, file=path, use=REGISTRY_USE, failure=exc
         ) from exc
@@ -346,6 +348,7 @@ def _stored_project_root(target: Path, project_root: Path) -> str:
     try:
         text = Path(relpath(root, base)).as_posix()
     except ValueError as exc:
+        reraise_internal(exc)
         raise CodedValueError(
             REGISTRY_UNUSABLE,
             line=NO_RELATIVE_ROOT_LINE,

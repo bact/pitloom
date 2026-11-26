@@ -26,6 +26,7 @@ from pathlib import Path, PurePath, PurePosixPath
 from typing import TYPE_CHECKING, NamedTuple
 
 from pitloom.core.file_identity import file_id
+from pitloom.core.internal_error import reraise_internal
 from pitloom.core.path_confine import inside_ancestor
 from pitloom.core.project import project_relative_or_fallback
 from pitloom.core.walk_rules import fold_name, shortened_by
@@ -123,7 +124,8 @@ def _below_root(
         return found
     try:
         real = PurePath(os.path.realpath(lexical))
-    except ValueError:  # a NUL: no file to resolve
+    except ValueError as exc:  # a NUL: no file to resolve
+        reraise_internal(exc)
         return None
     return _below(real, root)
 
@@ -135,7 +137,8 @@ def _on_disk_name(directory: str, name: str) -> str:
     missing, or no identity)."""
     try:
         names = _listdir(directory)
-    except (OSError, ValueError):
+    except (OSError, ValueError) as exc:
+        reraise_internal(exc)
         return name
     if name in names:
         return name
@@ -217,7 +220,8 @@ def project_prefix(
     location."""
     try:
         real: str | None = os.path.realpath(project_dir)
-    except (OSError, ValueError):  # a NUL, or (on Windows) no current directory
+    except (OSError, ValueError) as exc:  # a NUL, or (on Windows) no current directory
+        reraise_internal(exc)
         real = None
     key = None if real is None else path_key(registry, real, on_disk=True)
     if key is None:

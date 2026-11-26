@@ -29,6 +29,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from urllib.parse import SplitResult, urljoin, urlsplit, urlunsplit
 
+from pitloom.core.internal_error import InternalError, reraise_internal
 from pitloom.extract.remote._http_errors import remote_error, shown_url
 from pitloom.extract.remote.git_url import scheme_allowed
 from pitloom.messages import GIT_FRAME, emit
@@ -93,7 +94,8 @@ def _probe_url(url: str) -> str:
         host = f"[{host}]"
     try:
         port = f":{parts.port}" if parts.port else ""
-    except ValueError:
+    except ValueError as exc:
+        reraise_internal(exc)
         # An authority whose port is no number may be user information with
         # its ``@`` forgotten (``user:password``): no mask can tell, so the
         # URL is shown without it, and *exc*, which quotes it, is dropped.
@@ -149,6 +151,7 @@ def _probe_once(probe_url: str) -> _Probe:
         OSError,
         ValueError,
     ) as exc:
+        reraise_internal(exc)
         # A ``URLError`` may carry a ``str`` as its reason: name the error then.
         reason = getattr(exc, "reason", exc)
         named = reason if isinstance(reason, BaseException) else exc
@@ -157,14 +160,28 @@ def _probe_once(probe_url: str) -> _Probe:
 
 def _probe_within(probe_url: str, seconds: float) -> _Probe:
     """:func:`_probe_once` with an overall limit: a probe still waiting after
-    *seconds* is given up on (its thread ends with its socket timeout)."""
-    answer: list[_Probe] = []
-    worker = threading.Thread(
-        target=lambda: answer.append(_probe_once(probe_url)), daemon=True
-    )
+    *seconds* is given up on (its thread ends with its socket timeout).
+
+    Raises:
+        pitloom.core.internal_error.InternalError: The probe's thread met a
+            bug in Pitloom within *seconds* (one met later is not seen).
+    """
+    answer: list[_Probe | InternalError] = []
+
+    def ask() -> None:
+        try:
+            answer.append(_probe_once(probe_url))
+        except InternalError as exc:  # raised again in the caller's thread
+            answer.append(exc)
+
+    worker = threading.Thread(target=ask, daemon=True)
     worker.start()
     worker.join(max(seconds, 0.0))
-    return answer[0] if answer else _Probe(failure="no answer in time")
+    if not answer:
+        return _Probe(failure="no answer in time")
+    if isinstance(answer[0], InternalError):
+        raise answer[0]
+    return answer[0]
 
 
 def resolve_git_url(url: str, check_url: Callable[[str], None] | None = None) -> str:
@@ -255,7 +272,8 @@ def _origin(parts: SplitResult) -> tuple[str, str, int | None] | None:
     is written) of *parts*, or ``None`` for a port that is no number."""
     try:
         port = parts.port
-    except ValueError:
+    except ValueError as exc:
+        reraise_internal(exc)
         return None
     default = {"http": 80, "https": 443}.get(parts.scheme.lower())
     return (

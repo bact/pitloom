@@ -65,6 +65,7 @@ from pitloom.core.ai_metadata import (
     source_metadata,
     value_text,
 )
+from pitloom.core.internal_error import reraise_internal
 from pitloom.core.provenance import provenance_source
 from pitloom.core.quote_source import quote_source
 from pitloom.core.scalar_text import scalar_type
@@ -167,6 +168,7 @@ def _read_attr(attrs: Any, name: str) -> _Attribute:
         value = attrs.get(name)
         text = _decode_h5_attr(value)
     except _READ_ERRORS as exc:
+        reraise_internal(exc)
         log_attribute_problem(name, exc)
         return _Attribute(None)
     return _Attribute(text, value if scalar_type(value) is not None else None)
@@ -182,7 +184,8 @@ def _keras_format_version(
     provenance["framework_version"] = f"{source} | Field: keras_version attribute"
     try:
         keras_major = int(keras_version.split(".")[0])
-    except (ValueError, IndexError):
+    except (ValueError, IndexError) as exc:
+        reraise_internal(exc)
         keras_major = 2
     provenance["format_version"] = (
         f"{source} | Field: keras_version attribute (major version)"
@@ -223,12 +226,14 @@ def read_hdf5(model_path: Path) -> AiModelMetadata:
         import h5py
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:  # a broken install raises more than ImportError
+        reraise_internal(exc)
         raise missing_library(AiModelFormat.HDF5, exc) from exc
 
     try:
         hf = h5py.File(str(model_path), "r")
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
+        reraise_internal(exc)
         log.debug(
             "Failed to open HDF5 file %s: %s",
             loggable(str(model_path)),

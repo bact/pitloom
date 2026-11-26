@@ -18,10 +18,12 @@ cap warns through).
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from typing import Final
 
 from pitloom.core.internal_error import InternalError
+from pitloom.messages._fields import FIELDS
 from pitloom.messages._templates import render
 from pitloom.messages._types import ASK_FIRST, Line, Message
 
@@ -71,10 +73,8 @@ class Cap:
         """A model's cap, named ``FORMAT=<model_format> FILE=<where>``; a
         *model_format* that has not the shape of a format (a library
         caller's own label) is left out, so the line names the file only."""
-        try:
-            return cls(limit, unit, purpose, model_format=model_format)
-        except InternalError:
-            return cls(limit, unit, purpose)
+        shaped = re.fullmatch(FIELDS["format"].pattern, model_format) is not None
+        return cls(limit, unit, purpose, model_format=model_format if shaped else None)
 
     def reason_values(self) -> dict[str, object]:
         """The values :data:`REASON` names."""

@@ -21,6 +21,7 @@ import re
 from typing import Any
 
 from pitloom.core.config import BOOL_KEYS, INT_KEYS
+from pitloom.core.internal_error import reraise_internal
 
 #: What separates the items of a list value: a comma, white space or a
 #: line break (an INI value has no array; no item of such a key holds one).
@@ -58,7 +59,8 @@ def coerce_cfg_value(table: str, key: str, raw: str) -> Any:
             return value
         try:
             return int(value, 10)
-        except ValueError:
+        except ValueError as exc:
+            reraise_internal(exc)
             return value
     return value
 

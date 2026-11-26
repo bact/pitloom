@@ -25,6 +25,7 @@ from pitloom.core._models_wheel_types import (
     warn_discovery_failed,
 )
 from pitloom.core.clone_mark import in_remote_clone
+from pitloom.core.internal_error import reraise_internal
 
 log = logging.getLogger(__name__)
 
@@ -115,5 +116,6 @@ def discover(
             ]
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
+        reraise_internal(exc)
         warn_discovery_failed(log, "Poetry", project_dir, exc)
         return None

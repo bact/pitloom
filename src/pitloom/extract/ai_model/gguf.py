@@ -20,6 +20,7 @@ from pitloom.core.ai_metadata import (
 )
 from pitloom.core.dataset_metadata import DatasetReference
 from pitloom.core.evidence import DECLARED, evidence_segment
+from pitloom.core.internal_error import reraise_internal
 from pitloom.core.model_originators import (
     ORIGINATORS_PROVENANCE_KEY,
     originator_names,
@@ -123,6 +124,7 @@ def _resolve_quantization(file_type_value: Any) -> str | None:
         name = str(LlamaFileType(int_val).name)
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
+        reraise_internal(exc)
         log.debug(
             "Failed to resolve GGUF quantization name for file_type=%r: %s",
             file_type_value,
@@ -298,6 +300,7 @@ def _load_fields(model_path: Path, source: str) -> _Loaded:
         import gguf  # noqa: F401  # quantisation names, tensor type sizes
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:  # a broken install raises more than ImportError
+        reraise_internal(exc)
         raise missing_library(AiModelFormat.GGUF, exc) from exc
 
     failed = f"Failed to read GGUF file {quote_source(model_path)}"
@@ -305,6 +308,7 @@ def _load_fields(model_path: Path, source: str) -> _Loaded:
         header = load_gguf_header(model_path, _DATASETS_KEEP)
         read = read_fields(header)
     except (OSError, ValueError) as exc:
+        reraise_internal(exc)
         log.debug("%s: %s", loggable(failed), loggable(str(exc)))
         raise ValueError(f"{failed}: {exc}") from exc
     if header.stop is not None:

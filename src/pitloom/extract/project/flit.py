@@ -26,6 +26,7 @@ import logging
 from pathlib import Path
 from typing import cast
 
+from pitloom.core.internal_error import reraise_internal
 from pitloom.extract.project._setup_cfg_directives import listed_file_readable
 from pitloom.messages import emit
 from pitloom.messages.metadata import DYNAMIC_FIELD_UNUSABLE, FLIT_FAILED_LINE
@@ -101,6 +102,7 @@ def resolve_flit_dynamic_metadata(
         docstring, version = get_docstring_and_version_via_ast(module)
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
+        reraise_internal(exc)
         if not quiet:
             emit(
                 log,

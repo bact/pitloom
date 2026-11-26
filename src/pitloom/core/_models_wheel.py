@@ -46,7 +46,7 @@ from pitloom.core.build_options import BuildOptions
 from pitloom.core.build_signals import TerminationGuard
 from pitloom.core.content_type_config import ContentTypeOverride
 from pitloom.core.file_hash import DigestHasher, sha256_digest
-from pitloom.core.internal_error import InternalError
+from pitloom.core.internal_error import InternalError, reraise_internal
 from pitloom.core.lfs_pointer import parse_lfs_pointer
 from pitloom.core.path_probe import is_missing_errno, stat_if_present
 from pitloom.core.project import (
@@ -126,7 +126,8 @@ def _physical_path(source: Path, project_dir: Path, *, built: bool) -> str:
         return source.as_posix()
     try:
         return source.relative_to(project_dir).as_posix()
-    except ValueError:
+    except ValueError as exc:
+        reraise_internal(exc)
         return source.as_posix()
 
 

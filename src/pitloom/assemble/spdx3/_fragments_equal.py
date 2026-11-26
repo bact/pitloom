@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import json
 
+from pitloom.core.internal_error import reraise_internal
 from pitloom.extract._extract_utils import json_nests_over
 
 
@@ -94,5 +95,6 @@ def same_json(old: str, new: str) -> bool:
                 for text in (old, new)
             )
         )
-    except (ValueError, RecursionError):
+    except (ValueError, RecursionError) as exc:
+        reraise_internal(exc)
         return False

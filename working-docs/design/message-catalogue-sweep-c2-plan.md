@@ -450,7 +450,7 @@ Branch `catalogue-sweep-c2b-wording`, cut from main 4bb8d266 (#544, #545,
 - **Left open.** A Hub model's `dataset-conflict` says `MODEL=<name>`
   while its other model lines fall back to the URL (ruling 6 as written;
   revisit at the rescan if one subject per model is wanted). A direct
-  library `read_gguf()` call names the model by its file name in the
-  conflict line and by its path in the reader's other warnings (every
-  production route relays and rewrites both to the stable path). Kept
-  as is by C1b: see [c1-as-built](message-catalogue-sweep-c1-as-built.md#c1b-as-built).
+  `read_gguf()` call names the model by its file name in both conflict
+  folds (the last `shown_path` fallback) and by its path in the reader's
+  over-cap line and read error; every production route rewrites to the
+  stable path. Kept: [C1b](message-catalogue-sweep-c1-as-built.md#c1b-as-built).

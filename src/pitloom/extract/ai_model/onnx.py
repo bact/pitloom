@@ -19,6 +19,7 @@ from pitloom.core.ai_metadata import (
     record_scalar_property,
     source_metadata,
 )
+from pitloom.core.internal_error import reraise_internal
 from pitloom.core.model_originators import (
     COMMA_LIST_METHOD,
     ORIGINATOR_PARTS_CAP,
@@ -108,7 +109,8 @@ def _dtype_name(elem_type: int, type_names: Any) -> str | None:
     ``UNDEFINED`` or a value the enum does not know."""
     try:
         name = str(type_names.Name(elem_type))
-    except ValueError:
+    except ValueError as exc:
+        reraise_internal(exc)
         return None
     if name == "UNDEFINED":
         return None
@@ -355,6 +357,7 @@ def read_onnx(model_path: Path) -> AiModelMetadata:
         import onnx
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:  # a broken install raises more than ImportError
+        reraise_internal(exc)
         raise missing_library(AiModelFormat.ONNX, exc) from exc
 
     try:
@@ -362,6 +365,7 @@ def read_onnx(model_path: Path) -> AiModelMetadata:
         model = onnx.load(str(model_path), load_external_data=False)
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
+        reraise_internal(exc)
         log.debug(
             "Failed to load ONNX model from %s: %s",
             loggable(str(model_path)),

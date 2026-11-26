@@ -27,7 +27,7 @@ from packaging.utils import canonicalize_name, canonicalize_version
 
 from pitloom.core.file_hash import stated_sha256_hex
 from pitloom.core.given_path import given_spelling
-from pitloom.core.internal_error import InternalError
+from pitloom.core.internal_error import InternalError, reraise_internal
 from pitloom.core.path_probe import is_missing_errno, stat_if_present
 from pitloom.core.pep440 import parse_version
 from pitloom.core.walk_rules import IGNORED_DIR_NAMES, SameFile
@@ -221,7 +221,8 @@ def _shown(path: str | os.PathLike[str], project_root: Path) -> str:
     given (a path outside the project)."""
     try:
         return Path(path).relative_to(project_root).as_posix()
-    except ValueError:
+    except ValueError as exc:
+        reraise_internal(exc)
         return os.fspath(path)
 
 
@@ -288,7 +289,8 @@ def _skipped_name_in(root: Path, project_root: Path, is_dir: bool) -> str | None
     indexes nothing."""
     try:
         parts = root.relative_to(project_root).parts
-    except ValueError:
+    except ValueError as exc:
+        reraise_internal(exc)
         return None
     return next(
         (part for part in parts[: None if is_dir else -1] if part in IGNORED_DIR_NAMES),

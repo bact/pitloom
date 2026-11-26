@@ -41,6 +41,7 @@ from pitloom.core.dataset_names import (
     distinct_dataset_names,
 )
 from pitloom.core.frontmatter import opens_frontmatter, split_frontmatter
+from pitloom.core.internal_error import reraise_internal
 from pitloom.core.path_probe import is_missing_errno
 from pitloom.core.provenance import provenance_segment, provenance_source
 from pitloom.core.untrusted_text import escape_lone_surrogates_in
@@ -176,6 +177,7 @@ def _parse_frontmatter(
     # nesting exhausts the recursion limit.
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
+        reraise_internal(exc)
         emit(
             log,
             CARD_MALFORMED,

@@ -19,6 +19,7 @@ import tokenize
 from collections.abc import Iterator
 from pathlib import Path
 
+from pitloom.core.internal_error import reraise_internal
 from pitloom.core.path_confine import open_inside
 from pitloom.core.path_probe import is_missing_errno
 from pitloom.core.project import project_relative_or_fallback
@@ -68,7 +69,8 @@ def _read_listed_bytes(
             return False, None
         _warn_unread(path, name, what, exc)
         return True, None
-    except ValueError:
+    except ValueError as error:
+        reraise_internal(error)
         # An embedded NUL names no file; os.path.isfile is False too.
         return False, None
     if len(raw) > MAX_LISTED_FILE_BYTES:
@@ -290,7 +292,8 @@ def _assigned_string(line: str, attr_name: str, name: str, what: str) -> str | N
     with one ``WARNING:``."""
     try:
         tree = ast.parse(line)
-    except (SyntaxError, ValueError):  # ValueError: a NUL, before 3.12
+    except (SyntaxError, ValueError) as exc:  # ValueError: a NUL, before 3.12
+        reraise_internal(exc)
         return None
     except (RecursionError, MemoryError):
         emit(

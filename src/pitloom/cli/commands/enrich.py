@@ -22,7 +22,7 @@ from pitloom.cli.commands.utils import (
 from pitloom.cli.kv_output import log_verbose
 from pitloom.cli.options import add_use_lockfile_argument
 from pitloom.cli.options_config import explicit_config_and_options
-from pitloom.core.current_dir import current_dir
+from pitloom.core.current_dir import absolute_path, current_dir
 from pitloom.core.given_path import TypedPath
 from pitloom.core.inert_options import ENRICH, forward_options
 from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
@@ -44,7 +44,7 @@ def _run_enrich_command(args: argparse.Namespace) -> int:
     # The path as given goes to the generator, so its log lines name the
     # file as the user wrote it.
     given_path = TypedPath(target)
-    model_path: Path = given_path.resolve()
+    model_path: Path = absolute_path(given_path).resolve()
     opened_path = existing_model_path(given_path)
     if opened_path is None:
         print_error(

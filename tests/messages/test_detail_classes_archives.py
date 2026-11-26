@@ -6,8 +6,10 @@
 """``DETAIL_EXC`` cases said from a wheel or a model file: a member name
 given twice, a ``METADATA`` header block over its caps, a model member that
 cannot be read or copied, one over the extraction ceiling, a file whose
-header is no model, a tensor dimension that is no count; through ``loom
-verify-wheel``, ``loom wheel`` and ``loom model``.
+header is no model, a tensor dimension that is no count, a setuptools
+without a private piece a Git URL clone's discovery calls; through ``loom
+verify-wheel``, ``loom wheel``, ``loom model`` and the setuptools
+discovery.
 
 See also: tests/messages/test_detail_classes.py (the harness and the
 meta-tests).
@@ -22,6 +24,8 @@ from typing import Any, cast
 import pytest
 
 from pitloom.core import wheel_dist_info
+from pitloom.core._models_wheel_setuptools import discover
+from pitloom.core.clone_mark import reading_remote_clone
 from pitloom.core.model_parameters import MAX_PARAMETER_COUNT, PARAMETER_COUNT_CAP
 from pitloom.extract import scanner_wheel
 from pitloom.extract.remote.huggingface_field import hub_producer_and_count
@@ -154,6 +158,21 @@ def _header_case(function: str, trigger: Trigger, tag: str) -> Case:
     )
 
 
+def _setuptools_piece_gone(env: Env) -> Outcome:
+    pytest.importorskip("setuptools")
+    # pylint: disable-next=import-outside-toplevel
+    from setuptools.config import pyprojecttoml
+
+    (env.tmp / "pyproject.toml").write_bytes(
+        b'[build-system]\nrequires = ["setuptools"]\n'
+        b'build-backend = "setuptools.build_meta"\n'
+        b'[project]\nname = "demo"\nversion = "1"\n'
+    )
+    env.monkeypatch.delattr(pyprojecttoml, "_apply")
+    with reading_remote_clone(str(env.tmp)):
+        return call(env, lambda: discover(env.tmp))
+
+
 _LONG_LINE = b"Metadata-Version: 2.1\nName: demo\nVersion: 1.0\nSummary: " + b"x" * 99
 _MANY = b"Metadata-Version: 2.1\nName: demo\nVersion: 1.0\nSummary: s\n\n"
 
@@ -245,6 +264,14 @@ CASES = [
         "detail",
         _negative_dimension,
         code="parameter-count-invalid",
+    ),
+    Case(
+        "BackendPieceMissingError",
+        ("pitloom.core._models_wheel_types", "BackendPieceMissingError"),
+        ("src/pitloom/core/_models_wheel_setuptools_clone.py", "_private"),
+        "detail",
+        _setuptools_piece_gone,
+        code="file-discovery-unusable",
     ),
 ]
 

@@ -39,6 +39,7 @@ from pitloom.core.ai_metadata import (
     AiModelMetadata,
     source_metadata,
 )
+from pitloom.core.internal_error import reraise_internal
 from pitloom.core.provenance import provenance_source
 from pitloom.core.quote_source import quote_source
 from pitloom.extract.ai_model.archive_member import (
@@ -127,6 +128,7 @@ def read_keras(model_path: Path) -> AiModelMetadata:
         ) from exc
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
+        reraise_internal(exc)
         log.debug(
             "Failed to read Keras file %s: %s",
             loggable(str(model_path)),

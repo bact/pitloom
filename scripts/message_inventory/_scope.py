@@ -74,6 +74,7 @@ DETAIL_EXC = frozenset(
         "_MarkersTypeError",
         "_NonJsonConstant",
         "_NotComparableJson",
+        "BackendPieceMissingError",
     }
 )
 #: Exception classes that are programming errors or process control.

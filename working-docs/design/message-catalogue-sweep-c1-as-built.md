@@ -62,6 +62,9 @@ marked):
 
 ### Follow-ups (not in C1a)
 
+Done in C1b: the relative path with the cwd gone, blank `generate("   ")`,
+`IdRegistry.load("")`/`save("")`.
+
 - A RELATIVE path with the current directory removed still fails uncoded
   where it is resolved before any probe: `cli/id.py`
   (`_normalized_absolute`, a relative `--project-dir`, `id import`'s
@@ -82,6 +85,112 @@ marked):
   uncoded `ValueError`; `Path("")` cannot be told from `.` anywhere.
 - `NAME_MAX_BYTES` counts bytes: an APFS name of 128-255 non-ASCII
   characters inside a path past PATH_MAX would read as missing.
+
+## C1b as built
+
+PR #550, 2026-11-26. Ruling Q7 (a), one PR. Re-measured at 785a40db: 214 broad handlers (141
+swallow, 47 convert, 3 mixed, 11 re-raise, 12 guarded) in 110 files, plus 4
+broad `contextlib.suppress` calls and 2 handlers catching a module constant
+holding `ValueError` (`_usage_attach.PARSE_ERRORS`, `hdf5._READ_ERRORS`) that
+a name-only probe misses. Size close to the plan, so no split.
+
+- **Helper**: `core/internal_error.reraise_internal(exc)`; 162 handlers in 99
+  files start with it (a re-runnable conversion script, kept out of the repo:
+  adds `as exc` where missing, puts the call right after the `except` line,
+  sorts the import).
+- **Lint** `tests/core/test_internal_error_reraised.py`: resolves each
+  `except` type in its module's namespace (a constant or an import is seen
+  through; a local name falls back to its spelling). Only the first clause of
+  a `try` that catches an `InternalError` is checked (a later one never sees
+  one). Exemptions: starts with `reraise_internal(<name>)`; ends in bare
+  `raise`/`raise <name>`; ends in `raise InternalError(...)` (it adds
+  context: `provenance.build_provenance_annotation`, `_http_errors.warn_instead`,
+  `Cap.__post_init__`); `extract/ai_model/formats/` (imports nothing of
+  Pitloom's); an allowlist by (file, function) with a reason, 24 entries:
+  the CLI's catch-all, `log_masking`'s 6 functions (never raise on the
+  logging path), the build kill path's 4 (held, raised later), 2 thread
+  entries that re-raise in the caller, `_usage_parse._hooked_call` (runs
+  while a trace hook may be set: a Python call there is one a hook can
+  abort), `rmtree_quietly`, `_remove_work_dir`,
+  `_isolated_sys_modules`, the unlistable audit hook, `build_signals._arm`
+  and `_restore`, and 4 argparse `type=` callables (argparse turns any
+  `ValueError` into "invalid value", exit 2). `suppress`: 2 entries in
+  `build_signals` (signal handler, cleanups); a stale entry fails.
+- **Not swallowed, but not plain insertion** (Opus classification):
+  - setuptools' missing private piece (`_models_wheel_setuptools_clone._private`)
+    raised `InternalError` as control flow for an environment condition: now
+    `BackendPieceMissingError` (`_models_wheel_types`), the discovery still
+    warns and falls back; in the ratchet's `DETAIL_EXC` with its proof case.
+  - `Cap.of_model` caught `InternalError` to drop a library caller's label:
+    now checks the `format` field's shape first.
+  - `_git_redirect._probe_within`'s thread hands an `InternalError` back to
+    the caller's thread, which raises it (before: an untagged traceback from
+    `threading.excepthook` and "no answer in time").
+  - `_license_detect._shown` and `_pyproject_license._as_written`:
+    `suppress(ValueError)` around `relative_to` became `is_relative_to`.
+- **Route tests** `tests/core/test_internal_error_routes.py` (fail on base):
+  the PyPI prefetch future, the Safetensors reader (was `Failed to read`),
+  the embed's project authors (was "authors unread") and the redirect probe.
+- **C1a follow-ups done**: a relative path with the cwd removed is the coded
+  `DIR=.` line on every route probed (`core/current_dir.absolute_path`, used
+  by `loom id`, `embed-wheel`, `project`, `generate`, `merge`, `enrich`,
+  `fragment`, `wheel`, the wheel checks, `--id-registry`, the Git URL
+  route's `id_registry`, `IdRegistry.save` and the `-o` write; the input
+  probe and `read_project` check the cwd for a relative path that is not
+  there): `tests/test_cwd_gone_relative_paths.py`, 31 cases, POSIX only. Blank
+  `generate("   ")` is `input-not-found` naming `'   '`, as the CLI says;
+  `IdRegistry.load("")` names `''`, `IdRegistry.save("")` is
+  `option-invalid` `non-empty` (and no longer writes to the registry's own
+  path). `Path("")` still cannot be told from `.`.
+- **#548 delta points**: a drift guard pins one `FILE=` for a model's
+  `over-cap` line and its `dataset-conflict` line
+  (`tests/messages/test_dataset_conflict_sites.py`). GGUF naming kept as is
+  (plan C2 section 11), on two fresh Opus opinions that agree: while a reader
+  runs only `file_name` is set, so `shown_path` there is `file_name` (a
+  no-op); passing the path as handed would split the reader's line from the
+  assembler's in a direct `read_gguf()` call and move a wheel's rewrite from
+  the field-aware `named_stably` to `scrub`'s free-text replace; every relayed
+  route already prints one `FILE=` per model; no SBOM change either way.
+- **Rulings from the parent session** (the user asked for no stops): no
+  split, GGUF as above; the cwd follow-up widened to every CLI site the probe
+  reached, as the same bug.
+
+- **`report_wheel_failure`** keeps its own guard as a `reraise_internal`
+  call (its callers' handlers start with one too, so its old `if` was dead).
+- **Gates.** Two fresh Opus review rounds (round 1: `_hooked_call`'s
+  insertions reverted, as a trace hook can abort a Python call there;
+  allowlist keyed by qualified name; "ends in raise" refuses an early exit
+  and a rebound name; the Git route's `id_registry`, `IdRegistry.save` and
+  the `-o` write with the cwd gone; round 2: counts, CHANGELOG, one
+  wrapped `except`). 56 mutants: all killed but equivalents (a second
+  `absolute_path` on a path already checked; `Path(x)` where the input
+  probe says `DIR=.` first). Full suite 30738 passed, 99.97% (changed files:
+  three uncovered lines, all untouched ones); every CI linter; manual
+  checks `-j 8` 620 pass, 0 fail; Windows dry run by both reviewers (the
+  cwd tests skip on Windows by one module constant). No `SKILL.md` changed.
+
+### Follow-ups (not in C1b)
+
+- Both top-level reporters (`cli_error_handler`, the hook's failure report)
+  print an `InternalError` as a plain uncoded `ERROR:` line, the traceback
+  only under `-v`: nothing says it is a bug in Pitloom.
+- An `InternalError` in an argparse `type=` callable is said as "invalid
+  value" (exit 2): a carrier that `main()` unwraps would keep it.
+- A reader-relayed line on a local route double-quotes a path holding a
+  control character (`FILE=''sub/a\x1bb.gguf''`): `named_stably` writes the
+  stable value quoted, then `scrub` finds the escaped path inside it again.
+- `message-catalogue-sweep-c2-plan.md` is 34.6 KB, over the file-size cap.
+- A relative `-o` with the cwd gone says `DIR=.` only at the write, after
+  the whole run; an up-front check would fail fast.
+- `discovery_chdir` (`core/_models_wheel_guard.py`) reads the cwd even for
+  an absolute project: with the cwd gone, setuptools discovery warns `DIR=.`
+  and falls back (the SBOM of a trivial project is unchanged).
+- Library `generate(" ./ ")` strips the target and reads the project; the
+  CLI says `' ./ '` is not found (as on 785a40db).
+- `extract/remote/_git_run.py` `_watch_size`'s thread has no handler: a
+  `tree_bytes` failure stops the size cap with only a thread traceback.
+- `_probe_within`: an `InternalError` its thread meets after the join's
+  limit is kept in `answer` and never raised (the probe was given up on).
 
 ## Plan section 9: overlap, as planned
 

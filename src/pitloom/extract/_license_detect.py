@@ -15,7 +15,6 @@ import json
 import logging
 import re
 from collections.abc import Iterable, Mapping
-from contextlib import suppress
 from pathlib import Path
 
 from pitloom.core.lfs_pointer import log_pointer_not_read, parse_lfs_pointer
@@ -225,9 +224,8 @@ def _shown(path: Path, root: Path | None) -> str:
     """*path* as a warning names it: below *root* as spelled, relative to
     it (a project's ``LICENSE``); else as given, unless absolute (a
     directory of this machine's), then its name."""
-    if root is not None:
-        with suppress(ValueError):
-            return path.relative_to(root).as_posix()
+    if root is not None and path.is_relative_to(root):
+        return path.relative_to(root).as_posix()
     return project_relative_or_fallback(str(path), path.name)
 
 

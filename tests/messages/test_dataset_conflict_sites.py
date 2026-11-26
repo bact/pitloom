@@ -165,7 +165,7 @@ def test_the_model_is_named_by_its_first_stated_path(
         {"physical_path": "p/m.gguf", "file_name": "m.gguf"},
         {"file_path_relative": "r/m.gguf", "file_name": "m.gguf"},
         {"file_name": "m.gguf"},
-        {"physical_path": "p q/m\n.gguf", "url": "https://x.org/m"},
+        {"physical_path": "p q/m\n.gguf"},
     ],
     ids=["physical", "relative", "file-name", "hostile"],
 )
@@ -173,14 +173,15 @@ def test_a_conflict_names_the_model_as_its_own_warnings_do(
     caplog: pytest.LogCaptureFixture, paths: dict[str, Any]
 ) -> None:
     """Drift guard: the ``dataset-conflict`` line and the model's own
-    ``over-cap`` line (``_model_where``) give one ``FILE=`` value."""
-    url = paths.pop("url", None)
+    ``over-cap`` line (``_model_where``) give one ``FILE=`` value. A model
+    with no file is left out: its conflict says ``MODEL=<name>`` where its
+    other lines fall back to the URL, by design."""
     info = AiModelFormatInfo(model_format=AiModelFormat.GGUF, **paths)
-    model = _two_releases(format_info=info, url=url)
+    model = _two_releases(format_info=info)
     long_name = "d" * (MAX_MODEL_NAME_CHARS + 1)
     model.datasets = [
-        DatasetReference(ref.role, DatasetMetadata(name=long_name, version=v))
-        for ref, v in zip(model.datasets, ("1", "2"))
+        DatasetReference("trainedOn", DatasetMetadata(name=long_name, version=v))
+        for v in ("1", "2")
     ]
     with caplog.at_level(logging.WARNING):
         build_model(model, _CREATED)

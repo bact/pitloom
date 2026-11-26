@@ -25,6 +25,7 @@ from uuid import uuid4
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
+from pitloom.core.current_dir import absolute_path
 from pitloom.core.given_path import keep_spelling
 from pitloom.core.iri import doc_namespace, iri_segment, namespace_problem
 from pitloom.core.walk_rules import same_path
@@ -625,15 +626,18 @@ class IdRegistry:
         Raises:
             pitloom.messages.CodedValueError: *path* (else :attr:`path`) is
                 given as empty (``option-invalid``, ``non-empty``), which
-                :class:`pathlib.Path` would read as the current directory.
+                :class:`pathlib.Path` would read as the current directory;
+                or it is relative and the current directory is gone
+                (``file-unreadable``, ``DIR=.``).
         """
         target = self.path if path is None else path
         if target is None:
             raise ValueError("No path given and registry has no default path")
         if is_empty_input(target):
             raise invalid_value(Parameter("path"), "non-empty", got="")
+        where = absolute_path(target)  # a gone cwd is DIR=., not a failed write
         root = (
-            self.project_root if self.project_root is not None else registry_dir(target)
+            self.project_root if self.project_root is not None else registry_dir(where)
         )
         self._reserve_held()
         write_registry_file(

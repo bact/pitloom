@@ -31,6 +31,7 @@ from collections.abc import Sequence
 
 from licenseid import DatabaseNotReadyError, Detection, LicenseDetector
 
+from pitloom.core.internal_error import reraise_internal
 from pitloom.extract._license_detect import (
     _looks_like_spdx_license_expression,
     _looks_like_spdx_license_id,
@@ -116,6 +117,7 @@ def _detector(*, declared: bool = False) -> LicenseDetector | None:
         return _get_detector()
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
+        reraise_internal(exc)
         _database_unusable(exc, declared=declared)
         return None
 
@@ -332,5 +334,6 @@ def detect_license_from_text(
         return None
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
+        reraise_internal(exc)
         _logger.debug("licenseid detection failed: %s", exc)
         return None

@@ -65,6 +65,7 @@ from pitloom.core._models_wheel_clone import clone_root
 from pitloom.core._models_wheel_types import DiscoveryTimeoutError
 from pitloom.core.clone_mark import in_remote_clone
 from pitloom.core.current_dir import current_dir
+from pitloom.core.internal_error import reraise_internal
 from pitloom.core.path_confine import is_inside
 from pitloom.messages.files import (
     OVER_CAP,
@@ -130,7 +131,8 @@ def _kept_entry(entry: object, root: PurePath) -> bool:
         return False
     try:
         return not is_inside(PurePath(os.path.realpath(path)), root)
-    except (OSError, ValueError):  # a NUL, or a link loop on Windows
+    except (OSError, ValueError) as exc:  # a NUL, or a link loop on Windows
+        reraise_internal(exc)
         return False
 
 

@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
 
+from pitloom.core.internal_error import reraise_internal
 from pitloom.messages.files import Cap
 from pitloom.messages.model_fields import (
     DIMENSION_REASON,
@@ -83,7 +84,8 @@ def _bounded_repr(value: object) -> str:
     try:
         text = repr(value)
     # pylint: disable-next=broad-exception-caught
-    except Exception:
+    except Exception as exc:
+        reraise_internal(exc)
         return f"<{type(value).__name__}>"
     return text if len(text) <= _REPR_CHARS else text[:_REPR_CHARS] + "..."
 

@@ -25,6 +25,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, NamedTuple
 
+from pitloom.core.internal_error import reraise_internal
 from pitloom.id_registry._types import RegistryEntry
 from pitloom.messages import emit, say_summary
 from pitloom.messages.id_registry import (
@@ -205,6 +206,7 @@ def persist_registry(registry: IdRegistry, new_ids: int, changed: bool) -> None:
     try:
         rebased = save_registry(registry)
     except (OSError, ValueError) as exc:
+        reraise_internal(exc)
         say_save_failure(log, exc, file=registry.path, fatal=False)
         return
     if not rebased.pending:

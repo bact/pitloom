@@ -9,7 +9,6 @@ the target."""
 from __future__ import annotations
 
 import argparse
-from pathlib import Path
 from typing import Any
 
 from pitloom.assemble import (
@@ -40,6 +39,7 @@ from pitloom.cli.options_config import (
     warn_verbose_no_effect,
 )
 from pitloom.core.build_options import NON_PROJECT_TARGET_REASON
+from pitloom.core.current_dir import absolute_path
 from pitloom.core.wheel_dist_info import looks_like_wheel_path
 from pitloom.extract.model_target import AUTO
 from pitloom.extract.remote.pypi import WHEEL as WHEEL_FILE
@@ -57,7 +57,7 @@ def _run_project_target(args: argparse.Namespace) -> int:
     project` settles before its check), so the build-flag WARNING: precedes
     any metadata WARNING:. A missing target is named as typed (read_project
     would name the resolved path)."""
-    target_path = Path(args.target).resolve()
+    target_path = absolute_path(args.target).resolve()
     if not input_exists(target_path, shown=args.target):
         say_input_not_found("project path", args.target)
         return 1

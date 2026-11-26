@@ -47,7 +47,7 @@ from typing import Final
 from urllib.parse import quote, urlsplit
 
 from pitloom.core.fetch_policy import RemoteFetchPolicy
-from pitloom.core.internal_error import InternalError
+from pitloom.core.internal_error import InternalError, reraise_internal
 from pitloom.core.model_extract_limit import MAX_DOWNLOAD_BYTES_KEY
 from pitloom.core.quote_source import quote_source
 from pitloom.core.temp_dirs import temp_dir
@@ -212,7 +212,8 @@ def _is_default_hub(base: str) -> bool:
     try:
         parts = urlsplit(base)
         port = parts.port
-    except ValueError:
+    except ValueError as exc:
+        reraise_internal(exc)
         return False
     return (
         parts.scheme.lower() == "https"

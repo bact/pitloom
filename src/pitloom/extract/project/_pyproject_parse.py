@@ -19,6 +19,7 @@ from typing import Any
 
 from pyproject_metadata import ConfigurationError, StandardMetadata
 
+from pitloom.core.internal_error import reraise_internal
 from pitloom.core.pep440 import MAX_VERSION_NUMBER_DIGITS, has_overlong_number
 from pitloom.extract._core_metadata import license_from_classifiers
 from pitloom.extract._license import classify_license
@@ -185,7 +186,9 @@ def parse_standard_metadata_with_retry(
             )
         # pylint: disable-next=broad-exception-caught
         except Exception as retry_exc:
+            reraise_internal(retry_exc)
             raise _invalid_project(pyproject_path, retry_exc) from retry_exc
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
+        reraise_internal(exc)
         raise _invalid_project(pyproject_path, exc) from exc

@@ -39,6 +39,7 @@ from pitloom.assemble.spdx3.dataset import (
 )
 from pitloom.core.ai_metadata import MODEL_NAME_CAP, cap_model_name
 from pitloom.core.dataset_metadata import FOLLOWER_FIELDS, DatasetMetadata
+from pitloom.core.internal_error import reraise_internal
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.core.url_masking import URL_AS_PATH_RE
 from pitloom.enrich.readme import DATASET_CARD
@@ -165,6 +166,7 @@ def _optional_card(name: str) -> DatasetMetadata | None:
         return read_dataset_card(Path(name), label=label)
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
+        reraise_internal(exc)
         emit(
             log,
             FILE_UNREADABLE,

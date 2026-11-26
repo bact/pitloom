@@ -32,7 +32,7 @@ from typing import Final
 
 from pitloom.core.current_dir import current_dir
 from pitloom.core.given_path import given_spelling
-from pitloom.core.internal_error import InternalError
+from pitloom.core.internal_error import InternalError, reraise_internal
 from pitloom.core.path_probe import stat_if_present
 from pitloom.logging_config import print_error
 from pitloom.messages._emit import CodedFileNotFoundError, emit
@@ -120,7 +120,8 @@ def _input_stat(
         return None
     try:
         found = stat_if_present(path)
-    except ValueError:
+    except ValueError as error:
+        reraise_internal(error)
         return None
     except OSError as exc:
         named = path if shown is None else shown

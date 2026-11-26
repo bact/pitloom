@@ -25,6 +25,7 @@ from typing import BinaryIO
 
 from pitloom.core.clone_mark import in_remote_clone, remote_clone_root
 from pitloom.core.file_identity import file_id
+from pitloom.core.internal_error import reraise_internal
 
 #: Opens a FIFO without waiting for a writer (no such flag on Windows).
 _NONBLOCK = getattr(os, "O_NONBLOCK", 0)
@@ -138,7 +139,8 @@ def regular_file_inside(root: str | os.PathLike[str], relative: str) -> bool:
     try:
         real_root = os.path.realpath(root)
         target = os.path.realpath(os.path.join(real_root, relative))
-    except (OSError, ValueError):  # a NUL, or a link loop on Windows
+    except (OSError, ValueError) as exc:  # a NUL, or a link loop on Windows
+        reraise_internal(exc)
         return False
     return (
         inside_clone_but_not_git(PurePath(target), PurePath(real_root))

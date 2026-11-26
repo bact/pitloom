@@ -27,6 +27,7 @@ from urllib.parse import urlsplit
 
 from pitloom.core.canonical_json import MAX_SAFE_INTEGER
 from pitloom.core.dataset_metadata import is_placeholder
+from pitloom.core.internal_error import reraise_internal
 from pitloom.messages.datasets import (
     NOT_A_COUNT,
     NOT_A_URL,
@@ -180,7 +181,8 @@ def stated_url(value: object, source: str, field: str) -> str | None:
     try:
         parts = urlsplit(text)
         valid = bool(parts.netloc) and _URL_SCHEME.fullmatch(parts.scheme) is not None
-    except ValueError:
+    except ValueError as exc:
+        reraise_internal(exc)
         valid = False
     if not valid or any(c.isspace() or not c.isprintable() for c in text):
         warn_dataset_field(log, NOT_A_URL, source, field)

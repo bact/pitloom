@@ -43,7 +43,7 @@ from pitloom.core.ai_metadata import (
     model_cap,
     model_file_suffixes,
 )
-from pitloom.core.internal_error import InternalError
+from pitloom.core.internal_error import InternalError, reraise_internal
 from pitloom.core.lfs_pointer import LfsPointer
 from pitloom.core.model_usage import merge_usages
 from pitloom.core.path_probe import is_missing_errno
@@ -433,6 +433,7 @@ def attach_usage_references(
             text = raw.decode("utf-8")
         # pylint: disable-next=broad-exception-caught
         except Exception as e:
+            reraise_internal(e)
             if not (isinstance(e, OSError) and is_missing_errno(e)):
                 warn_file_unreadable(
                     log, e, file=source.physical_path, use="for usage scanning"
