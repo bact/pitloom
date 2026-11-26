@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-08
-Last-Modified: 2026-11-23
+Last-Modified: 2026-11-26
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -21,7 +21,7 @@ machine-readable JSON keyed by field name -- with the original human-readable
 `comment` form kept alongside for back-compat. The `format`, `detail`,
 `preserve-source-metadata` and `max-source-metadata-bytes` keys of
 `[tool.pitloom.provenance]` control it; their values, defaults and flags are
-in [Configuration](configuration.md#toolpitloomprovenance).
+in [Configuration](configuration-subtables.md#toolpitloomprovenance).
 
 By default (`detail = "minimal"`), a field only gets a provenance
 Annotation when it adds something the native SPDX value can't already
@@ -267,7 +267,7 @@ PURL is PEP 503.
 ## See also
 
 `[tool.pitloom.provenance]` is read the same way regardless of entry
-point -- see [Command line](cli.md#configuration), [Hatchling build
+point -- see [Command line flags](cli-flags.md#configuration), [Hatchling build
 hook](hatchling-build-hook.md), and [Python API](python-api.md) for where
 to set it.
 

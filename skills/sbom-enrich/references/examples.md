@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-05
-Last-Modified: 2026-11-23
+Last-Modified: 2026-11-26
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -208,7 +208,7 @@ no one to answer it.
 
 Pitloom records a model's producer as a generic `Agent` (name only) in
 the `ai_AIPackage`'s `originatedBy`, never as a `Person` or `Organization`
-(see `minimum-elements.md`, G7 "Model producer"). When the model card says
+(see `minimum-elements-g7.md`, "Model producer"). When the model card says
 which it is, or names a producer the file does not, add the typed agent
 and restate the package with its base `spdxId` and `name`, copied exactly
 (here `probe-net`):

@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-08
-Last-Modified: 2026-11-24
+Last-Modified: 2026-11-26
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -10,7 +10,7 @@ SPDX-License-Identifier: CC0-1.0
 
 See also: [Metadata provenance](metadata-provenance.md) for the
 artifact-metadata annotation, and [AI model scan
-limits](ai-model-scan-limits.md#size-and-count-caps) for every cap.
+limits](ai-model-scan-limits-caps.md#size-and-count-caps) for every cap.
 
 A value read from a model file or a Hugging Face card passes through
 several layers before it is in the SBOM. This page lists them in the order

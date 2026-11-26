@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-25
-Last-Modified: 2026-11-25
+Last-Modified: 2026-11-26
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -182,3 +182,18 @@ change for the user to decide.
   found in CPython 3.14.8/3.14.10 or coverage 7.17.5 binaries; the parse
   thread takes `threading.getprofile()`/`gettrace()`, never the cap's
   `sys.setprofile` hook, so the two share no code path. (read, measured)
+
+## Roadmap entry (moved 2026-11-26)
+
+- [ ] **Unexplained CI hang** (2026-11-21, PR #507's first 3.14 ubuntu run):
+  two xdist workers stopped for 23 minutes in `tests/core/models_wheel`
+  (`test_models_wheel_guard.py::test_a_link_loop_in_a_clone_is_stopped_by_the_cap[setuptools-find]`
+  and `test_models_wheel_build_timeout.py::test_allow_build_settings_reach_build_and_read_registered_backend`),
+  then passed on a re-run of the same commit; the diff touched neither. Not
+  reproduced on macOS 3.14 (full suite, coverage on, `-n 4`). Cause of the
+  first test: a generator `close()` swallowed the guard's stop; fixed in #538
+  (see [ci-hang-link-loop-guard.md](../implementation/ci-hang-link-loop-guard.md)).
+  Open: the second test (`..._reach_build_and_read_registered_backend`) is
+  unexplained, and the audit-hook persistent stop is deferred (it would also
+  cover generator cleanup that calls and generator-only loops). A repeat hang:
+  run with `-o faulthandler_timeout=300` for the stack.

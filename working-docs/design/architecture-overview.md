@@ -1,6 +1,6 @@
 ---
 Created: 2026-02-06
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-26
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -208,4 +208,5 @@ subtle import-path bugs and make the development environment mirror
 production (Ghadge 2025).
 
 See [working-docs/implementation/file-map.md](../implementation/file-map.md)
-for the canonical, up-to-date project tree.
+for the canonical, up-to-date project tree, and
+[file-map-src.md](../implementation/file-map-src.md) for its `src/` part.

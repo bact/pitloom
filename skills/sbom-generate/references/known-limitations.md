@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-29
-Last-Modified: 2026-11-24
+Last-Modified: 2026-11-26
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -258,7 +258,7 @@ from a scan and from `loom model FILE` (exit 0). Beyond that:
   single-file dataset keeps its size, from `stat()`.
 
 Every cap and its value (the single source of truth):
-<https://bact.github.io/pitloom/ai-model-scan-limits/#size-and-count-caps>.
+<https://bact.github.io/pitloom/ai-model-scan-limits-caps/#size-and-count-caps>.
 
 ## Unsupported build backend
 

@@ -159,7 +159,7 @@ again. Every line is in [Message codes: SBOM
 fragments](message-codes-fragments.md).
 
 `merge`, `fragment`, and `id` each take only their own small flag set,
-not the [common options](cli.md#useful-flags) -- e.g.
+not the [common options](cli-flags.md#useful-flags) -- e.g.
 `--offline`/`-v`/`--config`/`--enrich` don't apply to any of them (`id
 generate`/`id import` do take `-o`/`--id-registry`, as an alias for their
 own target-file flag -- not in the common-options sense). `merge`'s own

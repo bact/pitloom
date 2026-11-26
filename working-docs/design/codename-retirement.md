@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-15
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-26
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -8,7 +8,7 @@ SPDX-License-Identifier: CC0-1.0
 
 # Retire the letter-number use-case codename taxonomy
 
-See also: [roadmap.md](roadmap.md) ("Needs systematic rules": "Retire the
+See also: [roadmap-backlog.md](roadmap-backlog.md) ("Needs systematic rules": "Retire the
 use-case codenames"),
 [use-case-catalog.md](../implementation/provenance/use-case-catalog.md) (the
 catalogue this taxonomy comes from).

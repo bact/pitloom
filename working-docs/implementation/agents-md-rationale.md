@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-15
-Last-Modified: 2026-11-24
+Last-Modified: 2026-11-26
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -15,7 +15,8 @@ See also: [AGENTS.md](../../AGENTS.md) (the compact rules, which link here),
 [recurring-bug-patterns-review-rounds.md](recurring-bug-patterns-review-rounds.md)
 (the detail behind the bug-pattern one-liners).
 
-`AGENTS.md` was compacted on 2026-10-15 to stay under the 30 KB hard limit.
+`AGENTS.md` was compacted on 2026-10-15 and again on 2026-11-26 to stay under
+the 30 KB hard limit.
 The original wording of the rules that lost explanatory prose is kept
 here, unchanged, under the same headings. Where the two differ, the rule in
 `AGENTS.md` governs and this page explains it.
@@ -53,6 +54,10 @@ Pitloom is invoked from several usage surfaces (CLI, the Hatchling build hook, t
 
 - **Untyped third-party dependency**: before adding an `ignore_missing_imports`/`ignore-missing-imports` override (mypy `[[tool.mypy.overrides]]`, `[tool.pyrefly] ignore-missing-imports`, etc.), check PyPI for a legitimate, trusted `types-<package>` stub package (the typeshed-maintained ones, e.g. `types-PyYAML`, `types-setuptools`). Add it to the `typecheck` dependency group instead -- real stubs catch genuine type errors an `Any`-blanket override would hide, and (unlike a suppression) don't need re-verifying every time a type checker changes how it treats an unresolvable/stub-less import (e.g. pyrefly 1.2 vs 1.3 disagreeing on whether `ignore-missing-imports` still applies once a module is merely stub-incomplete rather than fully unresolvable). Only fall back to a suppression override when no such stub package exists.
 
+## Linting and formatting
+
+- Pylint suppressions go on the preceding line as `# pylint: disable-next=<msg>` (a bare `# pylint: disable=` before an `except` stopped working in pylint 4.1).
+
 ## Tests, platform and CI
 
 - **Why Windows and macOS run a subset on a PR**: the full suite (about 20,000 tests) on three systems was the main CI cost. `tests/_platform.py` marks a file `platform` when it is under `tests/cli/` or `tests/scripts/`, matches `OS_USE` (processes, signals, permissions, links, home and temp locations, stream encodings, path spelling, Windows drive and UNC literals), or imports a `tests.*` helper that does. About 60% of tests are marked. A push to `main` runs everything; so does the PR label `test-all-os` (create it once with `gh label create test-all-os`). After a skipped duplicate push, Windows and macOS still run in full on `main`; only the Linux legs are skipped.
@@ -61,3 +66,12 @@ Pitloom is invoked from several usage surfaces (CLI, the Hatchling build hook, t
 - **Merge readiness**: the PR check list shows green for the platform-subset run, so "all checks pass" does not mean Windows and macOS ran the full suite. The label `test-all-os` makes `test.yml` rerun (the `labeled` event cancels the subset run in the same concurrency group) with every test on all systems. An agent must confirm that run, on the current head SHA, before calling the PR ready; a later push without the label returns to the subset.
 - **Classifying a new test**: the rule has no list to update, so a missed file is silent. Marking a pure-logic file costs only Windows/macOS run time; leaving an OS-dependent file unmarked costs a post-merge failure. Hence "unsure: mark it". Typical misses: CRLF through `write_text` plus a digest, case-insensitive paths, a Pitloom helper that touches the file system behind a plain-string argument.
 
+The AGENTS.md wording of these rules before the 2026-11-26 compaction:
+
+- **OS coverage in CI is partial on a PR**: Linux runs all tests; Windows and macOS run only `-m platform` (rule `tests/_platform.py`, a source regex). A Windows/macOS-only bug in an unmarked test shows only after merge (push to `main` runs all) or with the PR label `test-all-os`: add `pytestmark = pytest.mark.platform` to such a test, and apply the label to a PR touching paths, processes, encodings or packaging. Why: [rationale](#tests-platform-and-ci).
+- **New or changed test: classify it**: run `pytest <file> -m platform --collect-only -q`; if the test exercises OS-dependent behaviour (paths, files, processes, encodings, line ends, permissions, packaging) and nothing is collected, add `pytestmark = pytest.mark.platform`, or extend `OS_USE` in `tests/_platform.py` when the missed token recurs (add a case to `tests/test_platform_rule.py`). Unsure: mark it (cost is run time only).
+- **Green CI on a PR is not merge-ready until the full tests ran on every OS**: before saying "ready to merge", check `gh pr view <n> --json labels` for `test-all-os` and that the `Unit tests` and `Build wheels` runs for the current head SHA ran after the label was added (re-run if not). Without that, report "green on the platform subset only", name the missing label, and ask the user (or add the label if told to). Treat green from `Unit tests` alone as partial; the push-to-`main` run is not a substitute.
+
+## Writing style
+
+- **No invisible or uncommon characters in source**: never type a zero-width, no-break or other invisible space, a BOM, a bidirectional mark or a control character into code, tests or scripts; write the escape (`\u200b`, `\ufeff`, `\x1b`) so review and pylint (`invalid-character-*`) see it. No em dash, en dash, curly quote, ellipsis character or arrow in comments and docstrings either (use `--`, `-`, straight quotes, `...`, `->`): they defeat grep. Non-ASCII only in human-language messages and diagrams.

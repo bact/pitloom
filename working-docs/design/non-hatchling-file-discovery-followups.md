@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-06
-Last-Modified: 2026-11-06
+Last-Modified: 2026-11-26
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -12,7 +12,7 @@ See also:
 [non-hatchling-file-discovery.md](../implementation/non-hatchling-file-discovery.md)
 (the built backend-agnostic discovery, the backend priority table and the
 dependency packaging strategy these follow-ups refer to),
-[roadmap.md](roadmap.md) (Open follow-ups by area: "File discovery"),
+[roadmap-backlog.md](roadmap-backlog.md) (Open follow-ups by area: "File discovery"),
 [build-backend-improvements.md](build-backend-improvements.md),
 [allow-build-validation.md](../implementation/allow-build-validation.md).
 

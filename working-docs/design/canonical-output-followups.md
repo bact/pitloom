@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-20
-Last-Modified: 2026-11-14
+Last-Modified: 2026-11-26
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -8,7 +8,7 @@ SPDX-License-Identifier: CC0-1.0
 
 # Canonical output: open questions
 
-See also: [roadmap.md](roadmap.md) (the "Canonical output" bullet),
+See also: [roadmap-backlog.md](roadmap-backlog.md) (the "Canonical output" bullet),
 [known-bugs.md](known-bugs.md) (reproduced bugs of the same theme),
 [id-registry-followups.md](id-registry-followups.md) (id scheme), "SBOM
 output" in [AGENTS.md](../../AGENTS.md) (bit-for-bit determinism, RFC 8785,

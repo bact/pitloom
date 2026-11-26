@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-30
-Last-Modified: 2026-11-24
+Last-Modified: 2026-11-26
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -256,3 +256,20 @@ PR 2a). The rest of the evidence plan (model over the cap, `Evidence:
 declared` on pointers, Hub failures, directory sizes) and the roadmap items
 that 0.23.0 left open (`loom` SDK dataset provenance, `pkg:git` identifiers,
 support-tier gaps, `contentIdentifier`) are unscheduled.
+
+## Done so far (moved from the roadmap, 2026-11-26)
+
+Catalogue PRs done, from the roadmap's "Catalogue PR 17" item:
+
+Done: lock files (10, 11, #496), config (8, 9, #497), licence (18, #498),
+project metadata and file discovery (12, #501; ratchet 211 to 154), Git
+source (13, #503; ratchet 154 to 132, frames by exact code, relays dropped),
+build, temporary directories and signals (14a, #506), the Hub timeout
+(#507), Hub and PyPI relay (14b, #508), hook lines (14c, #511; ratchet 132
+to 108), SBOM fragments and merge (15, #513; ratchet 108 to 85), wheels and
+embedding (16, #515; ratchet 85 to 44), library misuse and scope rules
+(17a, #524; ratchet 44 to 27), authors, the loom SDK and the SBOM base name
+(17b, #527 guessed; ratchet 27 to 15), the generated values page (#499),
+sweep A (#536: library raises coded or `InternalError`, `file-unwritable`
+for `-o` and hook writes, LicenseID 0.9.2 pinned; merged 2026-11-25, ratchet
+0). The consistency re-check of the merged families is done (#494).

@@ -416,7 +416,7 @@ modified_wheel, arcname, removed, floored = embed_sbom_in_wheel(
 
 `removed` lists any prior Pitloom-embedded SBOM entries cleaned up as part
 of the embed; `floored` is `True` when the wheel's ZIP entry timestamp had
-to be floored to 1980-01-01 (see [Configuration](configuration.md#toolpitloomcreation)).
+to be floored to 1980-01-01 (see [Configuration](configuration-subtables.md#toolpitloomcreation)).
 
 With `sbom_path=` (form 2, the equivalent of the CLI's `embed-wheel --sbom`),
 the SBOM's declared subject name/version (PEP 503/440-normalised) is

@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-21
-Last-Modified: 2026-11-21
+Last-Modified: 2026-11-26
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -138,7 +138,7 @@ declined or fixed entry with its outcome.
 - Why imprecise: the mapping treats the two roles as one
 - Proposal: decide with the mapping's owner whether `publishedBy` counts, or
   add a way to state "publisher, originator unknown"
-- Evidence: [roadmap.md](roadmap.md) ("G7 dataset creator")
+- Evidence: [roadmap-backlog.md](roadmap-backlog.md) ("G7 dataset creator")
 - Status: noted
 - Date: 2026-10-21
 

@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-10
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-26
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -157,7 +157,7 @@ relies on it, to confirm this is cosmetic and not a real restore attempt.
 | Per-array shape/dtype | Same, per leaf -> `AiModelMetadata.inputs` | Reliable |
 | Framework | Hardcoded `"jax"` / `"orbax"` | Reliable |
 | Model name / architecture / version | `StepMetadata.custom_metadata`, *iff* the training code populated it via `.save(custom_metadata=...)` | Not guaranteed -- same "open properties bag" situation as GGUF `general.*` / Safetensors `__metadata__`, not a structural guarantee |
-| Performance metrics (loss/accuracy/etc, G7 "Model properties") | `CheckpointManager.metrics(step)` / `<step>/metrics/metrics`, *iff* `best_fn` tracking was enabled **and** metrics were passed at save time | Double-conditional -- likely absent in most real checkpoints; when present, this is a genuine, currently-unique-among-extractors way to close a G7 gap flagged elsewhere as **not automatable** (see `skills/sbom-enrich/references/minimum-elements.md`'s "Operational performance KPIs" row) |
+| Performance metrics (loss/accuracy/etc, G7 "Model properties") | `CheckpointManager.metrics(step)` / `<step>/metrics/metrics`, *iff* `best_fn` tracking was enabled **and** metrics were passed at save time | Double-conditional -- likely absent in most real checkpoints; when present, this is a genuine, currently-unique-among-extractors way to close a G7 gap flagged elsewhere as **not automatable** (see `skills/sbom-enrich/references/minimum-elements-g7.md`'s KPI cluster) |
 | Checkpoint init/commit timestamps | `_CHECKPOINT_METADATA.init_timestamp_nsecs`/`commit_timestamp_nsecs` | Reliable, but informational provenance only -- must not feed `CreationInfo.created` (the SBOM's own build timestamp) or any other "when was this generated" field; these describe the checkpoint's own history, not the SBOM's |
 
 ### Error handling / graceful degradation

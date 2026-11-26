@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-10
-Last-Modified: 2026-11-24
+Last-Modified: 2026-11-26
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -13,6 +13,7 @@ See also: [recurring-bug-patterns-platform.md](recurring-bug-patterns-platform.m
 [recurring-bug-patterns-test-harness.md](recurring-bug-patterns-test-harness.md)),
 [recurring-bug-patterns-platform-windows.md](recurring-bug-patterns-platform-windows.md)
 (Windows-only findings), [recurring-bug-patterns.md](recurring-bug-patterns.md),
+[recurring-bug-patterns-review-rounds-pr359-378.md](recurring-bug-patterns-review-rounds-pr359-378.md),
 [CLAUDE.md](../../CLAUDE.md) ("Recurring bug patterns" -- the short summary),
 [model-sbom-from-git.md](model-sbom-from-git.md) (the feature round).
 
