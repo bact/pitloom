@@ -34,18 +34,17 @@ entries stay in the last section for history.
 
 ### Found in review rounds, not yet prioritised
 
-- [ ] **A credential URL after a leading `!` is neither warned nor refused
-  (S).** `[project.urls] Homepage = "!https://u:S3CRET@h/x"` (or a
-  dependency `x @ !https://u:S3CRET@h/x.whl`) is written to the SBOM as is,
-  with no `credentials-unsafe` line, and `--refuse-url-credentials` does not
-  refuse it: `find_url_credentials` reads a value as a URL only after what
-  `urllib` strips (C0 controls, space), so it finds nothing. The log masker
-  and `masked_given_path` do mask it (`!https://***:***@h/x`), so the finder
-  and the maskers disagree. Decide whether the finder leans to over-reporting
-  (as the maskers do) before pinning either reading in a test; the surviving
-  mutant (`_hits.py`, the `0x21` bound) is left until then.
-  *Found 2026-11-26, mutation backfill
-  ([mutation-backfill.md](../../implementation/mutation-backfill.md)).*
+- [ ] **A URL-field value is read for credentials from its first word only
+  (S).** In a URL field or a provenance note, a URL, PURL or scp-style
+  address after the first white space (`! https://u:S3CRET@h/x`), an access
+  token that is the whole value (`ghp_...` as a home page) and a PURL
+  qualifier with no `=` (`pkg:pypi/x?a=1&https://u:S3CRET@h/x`) are written
+  to the SBOM with no `credentials-unsafe` line and not refused; the log
+  masker masks each. Planned closure for the URL fields (`URL_FIELDS`, not
+  notes or `embed-wheel --sbom` prose): read them as identifiers are
+  (`IDENTIFIER_READING`: a URL or token anywhere, percent-decoded), and read
+  a PURL qualifier with no `=` as a value.
+  *Found 2026-11-26, the first-word ruling (Opus second opinion).*
 - [ ] **`file-unreadable` is not in the generated model table (S), decided
   2026-10-30: later (not done in 0.22.x or 0.23.0).** The model header line
   drops the model, and the model hash leaves no `verifiedUsing`; add the code
@@ -149,6 +148,37 @@ release ships.
 
 ### Fixed, Found in review rounds, not yet prioritised
 
+- [x] **A credential URL after a leading `!` was neither warned nor refused
+  (S), fixed (PR pending, 2026-11-26).** `[project.urls] Homepage =
+  "!https://u:S3CRET@h/x"` or a dependency `x @ !https://u:S3CRET@h/x.whl`
+  was written to the SBOM as is on `loom generate`, the library and the
+  Hatchling hook, with no `credentials-unsafe` line and not refused in the
+  `refuse` mode: the detector read a URL only at the value's start, after
+  what `urllib` strips, while the maskers read free text. Ruling (Opus
+  second opinion): what a value is starts in its first word (to the first
+  white space), where the masker would read it. A URL is read from where it
+  starts there (`!`, `(`, DEL, `é`, a combining mark, `Docs:https://...`,
+  `urn:x:https://...`), a PURL from a `pkg:` after no letter or digit and
+  before any URL start, an scp-style address from where the masker's
+  pattern starts (`!u:p@h:x`, `,a:p@cc:d`), the earliest start deciding
+  (a PURL on a tie with a URL; `u:p@h:o/pkg:x` is an address). What
+  follows white space (Python's `\s`, the ASCII separators `\x1c` to
+  `\x1f` included) stays prose (`see https://u:p@h`). An scp-style address
+  in a PURL subpath is now found twice, by two views of it (after a `#` in
+  the last qualifier and in the subpath); no secret shows in either. One helper
+  in `_hits.py` gates every reading (URL fields, notes, `embed-wheel
+  --sbom` strings, requirements, PURL qualifiers, decoded query values).
+  Rejected: stripping more leading characters in `normalised` (a guess
+  that breaks `urllib` parity and misses letters and marks), and a finding
+  wherever the masker changes a value (the masker hides a `git@` account
+  the detector calls weak, and reads prose). The residual is the open
+  entry "read from its first word only". The `_URLLIB_LEADING` (`0x21`)
+  mutant is killed by a boundary test on `normalised`; of 21 hand mutants
+  of the new helpers, 19 are killed and 2 are equivalent (the first word's
+  end moved past its white space, and a URL and an scp address that cannot
+  start at one index).
+  *Found 2026-11-26, mutation backfill
+  ([mutation-backfill.md](../../implementation/mutation-backfill.md)).*
 - [x] **The export-site test survived `repr(min(changed))` (S), fixed
   (mutation-backfill PR, 2026-11-26).** The mutant is equivalent only for a
   name that holds the lone surrogate and is otherwise ASCII (`ascii()` then

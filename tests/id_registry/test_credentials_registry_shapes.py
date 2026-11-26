@@ -167,13 +167,17 @@ def test_a_file_key_is_no_scp_address(type_name: str, held: bool) -> None:
 
 @pytest.mark.parametrize(
     "key",
-    ["urn:x:https://u:S3CRET@h/ns", "src/https:/u:S3CRET@h/x", "a/ghp_" + _TOKEN],
+    [
+        "urn:x:https:%2F%2Fu:S3CRET@h/ns",
+        "src/a b/https:/u:S3CRET@h/x",
+        "a/ghp_" + _TOKEN,
+    ],
     ids=["urn", "file-path", "token"],
 )
 def test_a_url_inside_a_registry_value_is_refused(key: str) -> None:
     """A registry value is an identifier, never prose: a URL or a token
-    anywhere in it is read, though a URL-typed value elsewhere is read only
-    as a whole."""
+    anywhere in it is read, percent-decoded too, though a URL-typed value
+    elsewhere is read only from its first word."""
     assert key_holds_credentials("software_File", key)
     assert not holds_url_credentials(key)
 

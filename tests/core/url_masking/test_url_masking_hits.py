@@ -41,11 +41,12 @@ def test_an_scp_address_is_looked_for_only_when_asked(text: str, scp: bool) -> N
 
 @pytest.mark.parametrize(
     "text",
-    [",a:S3CRET@cc:d,b:T0KEN@ee:f", "a:S3CRET@cc:d b:T0KEN@ee:f", "x a:S3CRET@cc:d"],
-    ids=["comma-run", "two-words", "sentence"],
+    ["a:S3CRET@cc:d b:T0KEN@ee:f", "x a:S3CRET@cc:d"],
+    ids=["two-words", "sentence"],
 )
 def test_text_holding_scp_addresses_is_no_address(text: str) -> None:
-    """Only a value that is one address, with no white space, is one."""
+    """Only a value with no white space is an address (one after a comma
+    is: test_url_masking_detect.py)."""
     assert not find_url_credentials(text)
 
 
@@ -205,9 +206,12 @@ _SCP = "alice:S3CRET@host:o/r"
 def test_a_nested_value_is_read_in_every_container(text: str, kind: str) -> None:
     """A URL, an scp-style address or a token nested in a URL's query, a
     PURL qualifier or a PURL subpath (as written or encoded) is found, and
-    the masker hides it."""
+    the masker hides it. An scp-style address in a subpath is found twice,
+    by two views of it: after a ``#`` in the last qualifier and in the
+    subpath, or as written after a ``%`` and decoded."""
     found = find_url_credentials(text)
-    assert [f.kind for f in found] == [kind]
+    twice = kind == "scp" and text.startswith("pkg:") and "#" in text
+    assert [f.kind for f in found] == [kind] * (2 if twice else 1)
     assert "S3CRET" not in masked_given_path(text)
     assert _GHP[4:] not in masked_given_path(text)
     assert not any("S3CRET" in f.shown or _GHP[4:] in f.shown for f in found)
@@ -241,17 +245,17 @@ def test_one_enclosing_pair_is_not_part_of_the_value(
 @pytest.mark.parametrize(
     "text",
     [
-        "urn:x:https://u:S3CRET@h/x",
-        "src/https:/u:S3CRET@h/x",
+        "urn:x https://u:S3CRET@h/x",
+        "src/a b/https:/u:S3CRET@h/x",
         "pkg:g/x?note=see%20https%3A%2F%2Fu%3AS3CRET%40h",
         "pkg:pypi/x@1#sub/x",
     ],
     ids=["urn", "file-key", "qualifier-prose", "clean-subpath"],
 )
 def test_a_url_inside_a_value_of_no_kind_is_not_read(text: str) -> None:
-    """Accepted by the whole-value ruling: a URL inside a value that is no
-    URL, requirement, scp-style address or PURL, or inside a PURL qualifier
-    value that is prose, is not found."""
+    """Accepted by the whole-value ruling: a URL after the first word of a
+    value that is no URL, requirement, scp-style address or PURL, or inside
+    a PURL qualifier value that is prose, is not found."""
     assert not find_url_credentials(text)
 
 

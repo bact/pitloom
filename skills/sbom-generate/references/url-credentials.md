@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-16
-Last-Modified: 2026-11-17
+Last-Modified: 2026-11-26
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -28,10 +28,13 @@ and exit 0. In the `refuse` mode (`[tool.pitloom] url-credentials =
   percent-decoded), a field that refers to another element by id
   (`createdBy`, `suppliedBy`, `from`, `to`, `subject`, ...), and every string
   of Pitloom's own provenance (annotation statement and `Metadata
-  provenance:` comment). A name, a description, README text or any other
-  prose is never read. A file given to `embed-wheel --sbom` is the
-  exception: every string of it is read as a whole value (a `name` that is
-  a credentialed URL counts; a sentence holding one does not).
+  provenance:` comment). A value's kind starts in its first word, so a
+  character in front of it hides nothing (`!https://user:pass@host` is
+  found); a URL after the first white space is prose. A name, a
+  description, README text or any other prose is never read. A file given
+  to `embed-wheel --sbom` is the exception: every string of it is read as a
+  whole value (a `name` that is a credentialed URL counts; a sentence
+  holding one does not).
 - **A credential** (`written` or `refused`, by mode): a user name and
   password (`https://user:pass@host`), a query parameter named like a secret
   (`token=`, `api_key=`, `password=`, ...), an access token's shape
