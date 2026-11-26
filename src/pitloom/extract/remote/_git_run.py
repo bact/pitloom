@@ -40,7 +40,7 @@ from pitloom.extract.remote._git_size import SizeCap, tree_bytes
 from pitloom.extract.remote._http_errors import remote_error
 from pitloom.extract.remote.errors import RemoteSourceError
 from pitloom.log_masking import masked_lines
-from pitloom.logging_config import collapsed, escaped_literal, loggable
+from pitloom.logging_config import collapsed, escaped_literal
 from pitloom.messages import say_summary, whole_seconds
 from pitloom.messages.files import (
     CLONE_LINE,
