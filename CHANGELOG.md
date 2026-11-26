@@ -238,6 +238,8 @@ and this project adheres to
   time ([#503], [#526], [#543], [#544])
 - Log lines mask listed API-key headers, cookie values, a quoted credential, and
   a text before it is put on one line, split or escaped ([#544])
+- A URL credential behind a leading character (`!https://user:pw@host`) in a URL
+  field or a direct reference is warned of and refused ([#555])
 
 [#481]: https://github.com/bact/pitloom/pull/481
 [#482]: https://github.com/bact/pitloom/pull/482
@@ -281,6 +283,7 @@ and this project adheres to
 [#550]: https://github.com/bact/pitloom/pull/550
 [#551]: https://github.com/bact/pitloom/pull/551
 [#553]: https://github.com/bact/pitloom/pull/553
+[#555]: https://github.com/bact/pitloom/pull/555
 
 ## [0.24.0] - 2026-11-11
 
