@@ -157,17 +157,20 @@ entries come first; fixed entries stay in the last section for history.
   paths for the licence; reusing it here changes the copyright text of
   such packages, so it needs a before/after sweep.
   *Found 2026-11-27, review of the dependency licence-file fallback.*
-- [ ] **A G2 conflict on a dependency whose short licence name names its
-  file's licence by usage (S, upstream).** With #569 a dependency's stated
-  licence text stays declared and its licence file's detection is
-  concluded, as for a project. A short name LicenseID reads as nothing
-  (`Apache Software License` vs `Apache-2.0`, `BSD License`/`BSD` vs
-  `BSD-3-Clause`, `Expat license` vs `MIT`, `PSFL` vs `PSF-2.0`) still gets
-  a conflict annotation: 10 of 14 such packages in Pitloom's own
-  environment. Waits on LicenseID reading names by usage (its
-  `trovenames` reads `BSD License` and `Apache Software License` as no
-  licence and defers reading by usage): a "consistent with id X" answer,
-  not a resolution to one id.
+- [ ] **A G2 conflict where a generic licence name narrows to its file's
+  licence (S, upstream).** With #569 a dependency's stated licence text
+  stays declared and its licence file's detection is concluded, as for a
+  project. A generic trove classifier name the file narrows to one member
+  of (`BSD License` -> `BSD-3-Clause`, `Apache Software License` ->
+  `Apache-2.0`) is no conflict but still gets a conflict annotation: 10 of
+  14 such packages in Pitloom's own environment, 4 stated by the
+  classifier, 6 by a short `License` header (`BSD`, `Apache Software
+  License`, `Expat license`, `PSFL`) whose package's classifier narrows
+  the same way or, for mccabe, names `MIT`. Waits on LicenseID relation API
+  (narrowing): `trovenames` reads these generic names as `none` today.
+  Narrowing then needs a Pitloom record (perhaps `Relation: narrowing` in
+  provenance, not decided); widening (`-only` stated, `-or-later`
+  detected) and a different family stay conflicts.
   *Found 2026-11-27, before/after sweep of the #569 G2 change.*
 
 ## Fixed
