@@ -255,6 +255,8 @@ def test_every_expected_id_has_a_case() -> None:
     # A remote generator's choice argument
     # (tests/assemble/test_generators_remote_arguments.py).
     library_only |= {"one-of-pypi-kind", "one-of-sbom-kind"}
+    # IdRegistry.generate()'s paths (tests/core/test_library_argument_types.py).
+    library_only |= {"list-of-paths"}
     # Said by the project metadata readers (metadata-invalid), not config.
     metadata_only = {"array-of-strings", "string-or-array"}
     not_config = library_only | metadata_only

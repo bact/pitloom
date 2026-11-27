@@ -270,6 +270,7 @@ EXPECTED: Final[Mapping[str, str]] = MappingProxyType(
         "local-model": "a local model file, not a Hugging Face model",
         "path": "a path (a str or an os.PathLike)",
         "list-of-strings": "a list or tuple of strings",
+        "list-of-paths": "a list or tuple of paths",
         "mapping-of-strings": "a mapping of strings to strings",
         "one-of-dataset-type": "one of audio, categorical, graph, image, "
         "noAssertion, numeric, other, sensor, structured, syntactic, text, "

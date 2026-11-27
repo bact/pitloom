@@ -179,6 +179,7 @@ TYPE_EXPECTED: Final = frozenset(
         "creation-metadata",
         "credential-policy",
         "integer",
+        "list-of-paths",
         "list-of-strings",
         "mapping-of-strings",
         "path",

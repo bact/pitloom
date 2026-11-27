@@ -33,6 +33,11 @@ GIT_URL_SCHEME_LINE: Final = Line(
     template="URL=%(url)s: only http and https URLs are fetched (not ssh, git, "
     "file or scp-style addresses); nothing fetched",
 )
+#: A URL that names no host (``https://``, ``https:///o/r``,
+#: ``https://u@/o/r``, ``https://:443/o/r``).
+GIT_URL_HOST_LINE: Final = Line(
+    level="ERROR", template="URL=%(url)s: the URL names no host; nothing fetched"
+)
 #: A URL whose port is no number.
 GIT_URL_PORT_LINE: Final = Line(
     level="ERROR", template="URL=%(url)s: the port is not a number; nothing fetched"
@@ -48,10 +53,16 @@ GIT_URL_PATH_LINE: Final = Line(
 GIT_URL_INVALID: Final = Message(
     code="git-url-invalid",
     condition="invalid",
-    lines=(GIT_URL_SCHEME_LINE, GIT_URL_PORT_LINE, GIT_URL_PATH_LINE),
+    lines=(
+        GIT_URL_SCHEME_LINE,
+        GIT_URL_HOST_LINE,
+        GIT_URL_PORT_LINE,
+        GIT_URL_PATH_LINE,
+    ),
     summary="A Git URL is not one Pitloom fetches: its scheme is not http or "
-    "https (ssh://, git://, file:// or an scp-style user@host:path), its port "
-    "is not a number, or a part of its path, once decoded, is ., .., empty, "
+    "https (ssh://, git://, file:// or an scp-style user@host:path), it names "
+    "no host (https:///o/r, https://:443/o/r), its port is not a number, or a "
+    "part of its path, once decoded, is ., .., empty, "
     "or holds a backslash, a NUL or .git, which would read outside the "
     "checkout or git's own files.",
     did="Started no git process, fetched nothing and wrote no SBOM (git.url-invalid).",
