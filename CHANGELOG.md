@@ -148,6 +148,8 @@ advice for the surface that ran (CLI, library or build hook); see
 - `loom fragment validate A B` is documented to fail the merged check for two
   valid SBOMs whose `created` differ (an spdx3-validate limit); `--no-merge`
   checks each ([#562])
+- Agent Skills require `pitloom>=0.25.0`: they quote 0.25.0 message codes and
+  flags ([#564])
 
 ### Fixed
 
@@ -259,6 +261,7 @@ advice for the surface that ran (CLI, library or build hook); see
 [#561]: https://github.com/bact/pitloom/pull/561
 [#562]: https://github.com/bact/pitloom/pull/562
 [#563]: https://github.com/bact/pitloom/pull/563
+[#564]: https://github.com/bact/pitloom/pull/564
 
 ## [0.24.0] - 2026-11-11
 

@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-24
-Last-Modified: 2026-11-24
+Last-Modified: 2026-11-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -256,3 +256,49 @@ that hides or causes the failure it is meant to catch.
   socket before it raises, and `tests/test_loopback_marker.py` asserts
   `sock.fileno() == -1` after a refused `connect`, `connect_ex` and
   `socket.create_connection` (#528).
+
+## From the 0.25.0 release (#556 to #563)
+
+- **A fresh `contextvars.Context()` starts from the defaults.** A test that
+  runs code "in a clean context" to check a non-default state must enter that
+  state inside the context. #559's hook leg of a surface test ran on the
+  library default, so it was vacuous: replacing the fallback line with `pass`
+  still gave "5 passed".
+- **A text-pattern mutant stops applying after the formatter reflows the
+  code.** In #561 five mutant patterns no longer matched once ruff rewrapped a
+  set literal, and "all killed" was overstated. The harness must fail when a
+  pattern is not found.
+- **A mutant survives when every internal caller pre-normalises the input.**
+  `read_huggingface` is public and can get a padded URL, but every generator
+  strips it first, so a "no strip" mutant lived (#561). Test the public
+  function directly.
+- **A negative substring check over a message that embeds a temporary path
+  breaks on the path.** `assert "argument" not in file_err`
+  (`tests/test_byte_cap_surfaces.py`) fails under any basetemp holding
+  "argument", such as a worktree of that name (#560); `assert "--" not in
+  text` also scanned an archive path (#559). Strip the path first, or assert
+  on the exact field.
+- **`configure_logging()` added to a constructor lets earlier steps' `INFO:`
+  records reach `caplog`.** Four `test_persist_registry.py` tests failed
+  (#560). Clear `caplog` before each `at_level` block, or assert only on
+  records made inside it.
+- **A docs-example test parses a flag inside a prose code span as a CLI
+  example.** #556's "`--build-timeout has no effect`" failed the full suite;
+  name only the flag inside the span.
+- **A before/after sweep proves only the fields it recorded.** The LicenseID
+  0.9.3 vs 0.9.4 probe read `r.texts`, an attribute the reading type lacks:
+  `None` for all 339 files, "0 differ", while 6 files had changed (#563). Read
+  typed attributes (no `getattr` default) and assert each recorded column has
+  a value for some input in each run; count the provenance method the sweep
+  is about (the 13 wheel SBOMs held no `licenseid_detection` at all).
+- **A broad `except` around a third-party call hides a fake's missing
+  method.** Three hand-written LicenseID fakes lacked `texts()`; the
+  `AttributeError` went to a debug log and gave the expected "no reading"
+  (#563). Spec fakes on the real class (`create_autospec(..., instance=True)`).
+- **Do not edit the tree while a full or coverage run is going.** Docs-example
+  tests read `docs/` at collection, so a docs edit gave xdist "Different tests
+  were collected", and coverage mixed old data with edited source (#556,
+  #557). Freeze the tree or run on a `git archive` copy.
+- **Mark only the tests that touch files `platform`, not a whole slow
+  module.** Marking `test_license_detection_corpus.py` added 41 tests of about
+  1 s each to every Windows and macOS PR leg; #563 narrowed it to the Hub test.

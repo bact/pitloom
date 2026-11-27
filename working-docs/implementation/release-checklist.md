@@ -87,9 +87,11 @@ the Hatchling floor and latest = `Hook on Python X / Hatchling Y`
       move the `[Unreleased]` entries under the new version heading, sorted
       per section by lowest PR number, add the `[X.Y.Z]:` compare link, and
       leave the archive alone). Include the version-bump PR itself when it
-      carries more than version strings (0.18.1's bump PR also lowered a
-      dependency floor and changed the skills, and had no entry until this
-      check caught it).
+      carries more than version strings, and give it a title that names that
+      change, not only "Prepare X.Y.Z release" (maintainer ruling 2026-11-27;
+      0.18.1's bump PR also lowered a dependency floor and changed the
+      skills, and had no entry until this check caught it; 0.25.0's #564
+      raised the skills' Pitloom floor and had none).
 - [ ] `python -m build --wheel` succeeds locally; the built wheel embeds
       `<name>-<version>.dist-info/sboms/<name>-<version>.spdx3.json` (PEP 770).
 - [ ] Run the `Fuzz` workflow (`workflow_dispatch`, all three targets) for a

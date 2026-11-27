@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-10
-Last-Modified: 2026-11-26
+Last-Modified: 2026-11-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -44,3 +44,18 @@ format of the platform list.
   forcing `RecursionError` with a stub on the module under test. Take the
   patch versions from the CI log, and read the cancelled legs: fail-fast hid
   the 3.10 and 3.11 results of the first failure.
+- **A dependency's new answer shape can switch a rule off with every test
+  green.** LicenseID 0.9.4 (inside `>=0.9.3,<0.10`) returns no match for a
+  file of several licence texts and lists them through a new `texts()`;
+  #554's rule read them off the first match and never fired again. The suite
+  passed because its case used a text 0.9.4 still flagged, every fixture
+  project had one licence file and the fakes lacked `texts()` (fixed in
+  #563). On an upgrade, run a before/after sweep through the real library
+  over multi-input cases, and make fakes answer every call the code makes.
+- **A workflow's event payload is a snapshot.** A push and the `test-all-os`
+  label within a second started two runs in one concurrency group; the push's
+  run, queued last, cancelled the labelled one and, its payload predating the
+  label, ran only the `platform` subset: #563 was green with about 21,000
+  tests on macOS and Windows instead of 31,000. #566 reads the labels from
+  the API at job time, failing open. Read mutable state when the job runs,
+  and check each leg's test count before calling a PR merge-ready.

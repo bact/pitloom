@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-17
-Last-Modified: 2026-11-26
+Last-Modified: 2026-11-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -381,3 +381,42 @@ shape described, not just the module where each was first found.
 - **A fix added in a review round is itself reviewed in the next.** Round 3
   found the shared-ref bug in code round 2 had added; review the delta of
   each round, not only the original diff.
+
+## Arguments, surfaces and docs claims (0.25.0, #556 to #562)
+
+- **`Path("")` is `Path(".")`.** An empty-string path argument read the current
+  directory: 3 of the 5 pre-release blockers (`project_dir=""`,
+  `add_dataset("")`, empty `IdRegistry` paths). Check the raw `str` before
+  converting, with one shared helper at every entry point, before anything is
+  read (#557, #560).
+- **Check every argument's type at the entry, before any side effect.**
+  `embed_wheel_sbom(w, output_path=5)` embedded the SBOM and then raised a bare
+  `TypeError`; `generate_project_sbom(..., output_path=5,
+  update_id_registry=True)` rewrote the registry first. One
+  `require_path_argument()` fixed 14 probes (#557). A new emptiness guard on a
+  value of unchecked type adds its own bare exception (`os.fspath(5)`): type
+  first.
+- **A fallback retry under a guessed identity must not commit side effects
+  before it succeeds.** A one-part Hub retry named the output file and the
+  `INFO:` line after a model it then did not read (#561). Mirror of "a guard
+  before a side-effecting step drops that effect".
+- **A per-call context does not reach import-time text, new threads or inner
+  handlers called directly.** #556's surface ContextVar: module-constant
+  reason strings had to render when said; a `threading.Thread` does not
+  inherit the context (unless `sys.flags.thread_inherit_context`); 15 test
+  files calling CLI handlers directly got library wording. Coded errors
+  render at creation, so they survive the context.
+- **A drift test over one selection mechanism misses lines picked by
+  another.** #559's test scanned `Twins` and `set <field>=` only; credential
+  lines chosen by `current_surface()` branches still advised
+  `credentials=...` on the embed route. Every module branching on the
+  surface must be covered or listed with a reason.
+- **An earlier refusal makes cases of a later message unreachable.** After the
+  no-host Git URL check (#560, #561), `https://u:p@/o/r` is `git-url-invalid`,
+  yet the `credentials-unsafe/git-userinfo` summary still lists "an empty
+  host". Grep the later message's summary, docs and skill quotes.
+- **A docs sentence that puts several functions under one rule was wrong for
+  some, four times in #562** (`IdRegistry` empty paths: `ValueError` for
+  `load`/`new`/`save`, `FileNotFoundError` for `generate([""])`;
+  `read_wheel("")` is `NotAWheelError`; `sbom_kind=` only on
+  `generate_git_sbom`). Run every function x argument the sentence covers.
