@@ -20,6 +20,7 @@ import pytest
 
 from pitloom.assemble import generate_project_sbom
 from pitloom.assemble.spdx3 import deps_installed
+from pitloom.assemble.spdx3._document_deployed import build_deployed
 from pitloom.assemble.spdx3.document import build
 from pitloom.core.creation import CreationMetadata, Creator
 from pitloom.core.document import DocumentModel
@@ -221,10 +222,9 @@ def test_authors_minted_last_and_shared_with_dependency(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A dependency originator's Agent id is the same with or without the
-    project's authors; an author who is that originator is that Agent (also
-    when an SBOM creator has the same name and address: the creator's Agent
-    is not merged into it after the fact); a new author's Agent comes after
-    every other one."""
+    project's authors; an SBOM creator of the same type, name and address as
+    that originator is that Agent, and so is an author who is both; a new
+    author's Agent comes after every other one."""
     originators = {"alpha": f"{_DEP_AUTHOR} <{_DEP_EMAIL}>", "beta": "Tee <t@x.org>"}
     monkeypatch.setattr(
         deps_installed,
@@ -249,15 +249,85 @@ def test_authors_minted_last_and_shared_with_dependency(
         return int(spdx_id.rsplit("-", 1)[1])
 
     before, after = people(without), people(with_authors)
+    # no author: the creator still is the dependency's originator
+    [creator] = next(e for e in without if e["type"] == "CreationInfo")["createdBy"]
+    assert _package(without, "alpha")["originatedBy"] == [creator]
+    assert [n for n, _ in before].count(_DEP_AUTHOR) == 1
     assert before < after
     [(name, zed)] = after - before
     assert name == "Zed"
     assert number(zed) == max(number(i) for _, i in after)
     originated_by = _package(with_authors, "demo")["originatedBy"]
     assert originated_by[0] == zed
-    assert originated_by[1] in _package(with_authors, "alpha")["originatedBy"]
     creation_info = next(e for e in with_authors if e["type"] == "CreationInfo")
-    assert originated_by[1] not in creation_info["createdBy"]
+    assert creation_info["createdBy"] == [originated_by[1]]
+    assert _package(with_authors, "alpha")["originatedBy"] == [originated_by[1]]
+    assert [n for n, _ in after].count(_DEP_AUTHOR) == 1
+
+
+def test_first_of_two_same_creators_is_the_originator(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Two creators of one identity: a dependency originator who is that
+    identity is the first creator's Agent."""
+    monkeypatch.setattr(
+        deps_installed,
+        "get_pkg_metadata",
+        lambda name: _FakeMetadata({"Author-email": f"{_DEP_AUTHOR} <{_DEP_EMAIL}>"}),
+    )
+    same = Creator(name=_DEP_AUTHOR, email=_DEP_EMAIL)
+    graph = _sbom(tmp_path, [], dependencies=("alpha",), creators=(same, same))
+    created_by = next(e for e in graph if e["type"] == "CreationInfo")["createdBy"]
+    assert len(created_by) == 2
+    assert _package(graph, "alpha")["originatedBy"] == [created_by[0]]
+
+
+def _project_route(doc: DocumentModel) -> Any:
+    return build(doc, offline=True)
+
+
+def _environment_route(doc: DocumentModel) -> Any:
+    tree = [
+        {"package": {"key": "alpha", "package_name": "alpha", "installed_version": "1"}}
+    ]
+    return build_deployed(doc, tree, offline=True)
+
+
+@pytest.mark.parametrize(
+    "route", [_project_route, _environment_route], ids=["project", "environment"]
+)
+@pytest.mark.parametrize(
+    ("dependency_author", "persons"),
+    [(f"{_DEP_AUTHOR} <{_DEP_EMAIL}>", 1), (_DEP_AUTHOR, 2)],
+    ids=["same-email", "no-email"],
+)
+def test_creator_is_dependency_originator_on_every_route(
+    monkeypatch: pytest.MonkeyPatch,
+    route: Any,
+    dependency_author: str,
+    persons: int,
+) -> None:
+    """On the project and the environment route alike, a creator is the
+    Agent of a dependency originator with the same name and address, and
+    not of one with the same name and no address."""
+    monkeypatch.setattr(
+        deps_installed,
+        "get_pkg_metadata",
+        lambda name: _FakeMetadata({"Author-email": dependency_author}),
+    )
+    doc = DocumentModel(
+        project=ProjectMetadata(name="demo", version="1.0", dependencies=["alpha"]),
+        creation_metadata=CreationMetadata(
+            creators=[Creator(name=_DEP_AUTHOR, email=_DEP_EMAIL)],
+            creation_datetime="2024-05-01T00:00:00Z",
+        ),
+    )
+    graph = json.loads(route(doc).to_json(pretty=False))["@graph"]
+    named = [e for e in graph if e["type"] == "Person" and e["name"] == _DEP_AUTHOR]
+    assert len(named) == persons
+    [creator] = next(e for e in graph if e["type"] == "CreationInfo")["createdBy"]
+    shared = _package(graph, "alpha")["originatedBy"] == [creator]
+    assert shared is (persons == 1)
 
 
 def test_blank_author_entry_is_skipped() -> None:

@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-02
-Last-Modified: 2026-11-09
+Last-Modified: 2026-11-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -142,6 +142,17 @@ entries stay in the last section for history.
   C and is lost if a library swallows `BaseException` (dropping folder links is
   the main loop guard). A licence file pointing into `.git` now fails to read.
   `fetch_git_project(file:///C:/...)` is untested on Windows.
+- [ ] **A Git URL with no repository path is cloned, not refused (S).**
+  `loom model https://github.com/` prints `read as repository
+  https://github.com` (`[target-ambiguous/git-page]`), runs `git clone`, and
+  only `git`'s refusal stops it (`[git-repository-unusable]`, exit 1, no
+  SBOM). `parse_git_page` (`extract/remote/git_url.py`) returns the URL as a
+  repository when the path has no segment; the redirect probe and the clone
+  both reach the network. Fix: refuse an empty path with `git.url-invalid`
+  before any request. Open question: a server may serve a repository at the
+  host root (`git http-backend`), so the refusal may need to apply only to
+  known forges.
+  *Found 2026-11-27, post-publish verification of 0.25.0.*
 
 ## Fixed
 

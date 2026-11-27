@@ -44,7 +44,7 @@ from pitloom.assemble.spdx3._document_locked_deps import (
     _prefetch_combined_release_info,
 )
 from pitloom.assemble.spdx3._document_main_package import (
-    build_creation_bundle,
+    add_creation_bundle,
     build_main_package,
 )
 from pitloom.assemble.spdx3._document_model import (
@@ -124,21 +124,6 @@ def _with_recorded_keys(
     exporter.registry_keys.update(session.recorded_keys())
     exporter.registry_hashes.update(session.recorded_hashes())
     return exporter
-
-
-def _add_creation_bundle(
-    exporter: Spdx3JsonExporter,
-    creation_info: spdx3.CreationInfo,
-    agents: list[spdx3.Agent],
-    tools: list[spdx3.Tool],
-) -> None:
-    """Add the creation info, its creator agents and its tools to
-    *exporter*."""
-    exporter.add_creation_info(creation_info)
-    for agent in agents:
-        exporter.add_agent(agent)
-    for tool in tools:
-        exporter.object_set.add(tool)
 
 
 def _prepared(doc: DocumentModel) -> DocumentModel:
@@ -239,9 +224,7 @@ def build(
     )
 
     # --- Creation info, creator agents, and creation tools ---
-    spdx_ci, agents, tools = build_creation_bundle(doc, doc_uuid)
-
-    _add_creation_bundle(exporter, spdx_ci, agents, tools)
+    spdx_ci, agents = add_creation_bundle(exporter, doc, doc_uuid)
 
     # --- Main package ---
     main_package = build_main_package(
@@ -413,12 +396,6 @@ def build(
     add_main_package_originators(
         main_package,
         metadata,
-        # A named creator per Agent; none: the one SoftwareAgent "Pitloom".
-        (
-            list(zip(doc.creation_metadata.creators, agents, strict=True))
-            if doc.creation_metadata.creators
-            else []
-        ),
         spdx_ci,
         doc_uuid,
         exporter,

@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-02
-Last-Modified: 2026-11-26
+Last-Modified: 2026-11-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -201,6 +201,23 @@ the one list.
   parse thread's stack is committed, up to 128 MiB for a 1 MiB file on Python
   3.10. Noted, not measured further.
   *Found 2026-11-03, review of the 0.22.1 release.*
+- [ ] **An optional dependency absent from the build environment gets the
+  latest PyPI release's licence and authors, with version `unknown` (S-M).**
+  `_enrich_from_pypi` (`assemble/spdx3/deps.py`) turns version `unknown`
+  into `None`, so `pypi_json_url` asks for the project, not a release: the
+  answer describes whatever release is newest at build time. The published
+  0.25.0 wheel's SBOM records seven such packages (fickling, gguf, h5py,
+  huggingface-hub, onnx, safetensors, fasttext-community) with
+  `software_packageVersion` `unknown`, a PURL with no version, and a
+  `hasConcludedLicense` plus `originatedBy` from that lookup; the provenance
+  says "PyPI JSON API" but not that no release was named. Two consequences:
+  a licence concluded for an unnamed release, and a release build whose SBOM
+  depends on the network at build time (the same tag can rebuild to other
+  bytes). Options: skip the lookup when no version is known; record the
+  release the answer came from (a declared value with its source, not a
+  conclusion); or weaken it to declared. Also check whether the placeholder
+  `unknown` belongs in `software_packageVersion` at all.
+  *Found 2026-11-27, post-publish verification of 0.25.0.*
 
 ## Fixed
 
