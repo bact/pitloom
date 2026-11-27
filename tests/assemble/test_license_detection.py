@@ -392,7 +392,6 @@ _BODY = "Permission is hereby granted, free of charge, to any person. " * 3
 _NOTICE = "Copyright (c) 2020 Acme\n"
 
 
-# pylint: disable-next=too-few-public-methods
 class _FakeDetector:
     """Scores the text as written and without its notice differently."""
 
@@ -401,6 +400,10 @@ class _FakeDetector:
 
     def detect(self, text: str = "") -> list[dict[str, object]]:
         return [{"expression": i, "score": s} for i, s in self._by_text[text]]
+
+    def texts(self, text: str = "") -> None:
+        """Holds no List text (asked when a reading matches nothing)."""
+        del text
 
 
 @pytest.mark.parametrize(

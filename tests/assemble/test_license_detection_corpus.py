@@ -228,6 +228,7 @@ def test_a_project_concludes_no_licence_from_a_file_after_several_texts(
     assert not {"license", "license_concluded"} & set(metadata.provenance)
 
 
+@pytest.mark.platform  # licence files written and read back
 @pytest.mark.parametrize("several", _SEVERAL_FILES, ids=_SEVERAL_IDS)
 def test_a_hub_repository_gives_no_licence_from_a_file_after_several_texts(
     tmp_path: Path, several: str

@@ -271,7 +271,6 @@ def test_detection_relays_the_warning_of_building_the_detector(
     """Detector construction is inside the relay too (a database an older
     LicenseID built warns there)."""
 
-    # pylint: disable-next=too-few-public-methods
     class _Outdated:
         def __init__(self) -> None:
             _outdated()
@@ -279,6 +278,9 @@ def test_detection_relays_the_warning_of_building_the_detector(
         def detect(self, text: str) -> list[object]:
             del text
             return []
+
+        def texts(self, text: str) -> None:
+            del text
 
     monkeypatch.setattr(
         "pitloom.extract._license_text_match.LicenseDetector", _Outdated
@@ -327,11 +329,13 @@ def test_no_licence_in_a_short_text_is_quiet(
     lookup, never raised to ``WARNING`` (a stub, so any LicenseID)."""
     short = "version https://git-lfs.github.com/spec/v1 " + "x" * 200
 
-    # pylint: disable-next=too-few-public-methods
     class _TooShort:
         def detect(self, text: str) -> list[object]:
             warn_from_pitloom("input", "too few words for text", f"not found: {text}")
             return []
+
+        def texts(self, text: str) -> None:
+            del text
 
     monkeypatch.setattr(
         "pitloom.extract._license_text_match.LicenseDetector", _TooShort

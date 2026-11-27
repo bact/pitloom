@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-23
-Last-Modified: 2026-11-26
+Last-Modified: 2026-11-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -111,7 +111,7 @@ Merged into one AGENTS.md line on 2026-11-26:
 - **A textual "under the project" check misses on a case-insensitive file system**: fall back to a `(st_dev, st_ino)` ancestor match (`st_ino == 0` = no identity).
 - **Compare a linter's error count to HEAD with the same interpreter** (`pyrefly --python-interpreter`).
 - **`# type: ignore` against a library that changed its types** is unused on one version and needed on another: an `Any` view plus `cast`; check the lowest supported version in a second environment (`mypy --python-executable`).
-- **Read a linter's messages and exit code, not its score**; run CI's exact command. Build the licence database first (`licenseid update --source packaged`, `licenseid` >= 0.9.3; rebuild after an upgrade): without it, or stale, tests fail on `main`. In another degraded sandbox compare failing test-id sets against a baseline.
+- **Read a linter's messages and exit code, not its score**; run CI's exact command. Build the licence database first (`licenseid update --source packaged`, `licenseid` >= 0.9.4; rebuild after an upgrade): without it, or stale, tests fail on `main`. In another degraded sandbox compare failing test-id sets against a baseline.
 - **GitHub Actions substitutes `${{ }}` even in `run:` shell comments**: put such examples above `env:`.
 - **pip's `--no-build-isolation` is invocation-global**: never mix a self-referential local install with unrelated packages in one `pip install`.
 - **A Markdown line starting with `<tag>` is an HTML block, even inside a code span that continues from the previous line**: never start a wrapped code-span line with `<`.

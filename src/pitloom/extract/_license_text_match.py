@@ -276,7 +276,9 @@ def _held_texts(
     """The List texts LicenseID finds whole in *text*, in file order: the
     ``texts`` its matches *results* carry (the same list on each), or, with
     no match, :meth:`licenseid.LicenseDetector.texts`, as LicenseID answers
-    no match for a text of several licences; ``None`` when it finds none."""
+    no match for a text of several licences; ``None`` when it finds none. A
+    match that is not a text match (an ``SPDX-License-Identifier`` tag, a
+    name) carries none and is not asked again: what it names stands."""
     if results:
         held: object = results[0].get("texts")
     else:
