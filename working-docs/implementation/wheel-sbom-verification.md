@@ -299,7 +299,9 @@ lightweight and points at `7c555774` (the merge of #456).
 
 ## Verification of v0.23.0 (2026-11-06)
 
-Same method as [v0.22.1](wheel-sbom-verification-history.md#verification-of-v0221-2026-11-03), against
+Same method as
+[v0.22.1](wheel-sbom-verification-history.md#verification-of-v0221-2026-11-03),
+against
 `https://pypi.org/pypi/pitloom/0.23.0/json` (wheel uploaded 2026-11-06
 00:29:28 UTC, sdist 00:29:30 UTC, neither file yanked). The GitHub Release
 (not a prerelease) was published at 00:23:06 UTC; the tag `v0.23.0` is

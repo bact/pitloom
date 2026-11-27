@@ -21,16 +21,47 @@ from pitloom.assemble.spdx3.creation_info import (
 )
 from pitloom.core.document import DocumentModel
 from pitloom.core.models import build_pypi_purl, generate_spdx_id
-from pitloom.export.spdx3_json import sha256_hash
+from pitloom.export.spdx3_json import Spdx3JsonExporter, agent_key, sha256_hash
 from pitloom.extract.copyright_notices import COPYRIGHT_NOASSERTION
 from pitloom.messages.config import Parameter
 
+#: Creator Agent types a dependency originator or an author can be.
+_KEYED_CREATORS = (spdx3.Person, spdx3.Organization)
 
-def build_creation_bundle(
-    doc: DocumentModel, doc_uuid: str
-) -> tuple[spdx3.CreationInfo, list[spdx3.Agent], list[spdx3.Tool]]:
-    """Create shared SPDX creation objects for the document."""
-    return build_creation_info(doc.creation_metadata, doc.project.name, doc_uuid)
+
+def add_creation_bundle(
+    exporter: Spdx3JsonExporter, doc: DocumentModel, doc_uuid: str
+) -> tuple[spdx3.CreationInfo, list[spdx3.Agent]]:
+    """Build the creation info, its creator Agents and its tools, add them
+    to *exporter*, and return the creation info and the Agents.
+
+    A named Person or Organization creator (one Agent per creator, in order)
+    is registered under its :func:`~pitloom.export.spdx3_json.agent_key`
+    before any other Agent is minted, so a dependency originator or a
+    main-package author of the same type, name and address is that Agent, not
+    a second one. (Every Organization an originator route mints today is a
+    contributor group, keyed with its package as scope, so only a Person
+    merges until another route mints an unscoped Organization.) A generic
+    Agent or SoftwareAgent creator is registered under no key: an AI-model
+    originator is keyed on its name alone and stays apart. With no named
+    creator the one Agent is the SoftwareAgent "Pitloom".
+    """
+    creators = doc.creation_metadata.creators
+    spdx_ci, agents, tools = build_creation_info(
+        doc.creation_metadata, doc.project.name, doc_uuid
+    )
+    exporter.add_creation_info(spdx_ci)
+    if not creators:
+        for agent in agents:
+            exporter.add_agent(agent)
+    for creator, agent in zip(creators, agents, strict=bool(creators)):
+        key = agent_key(type(agent), creator.name, creator.email)
+        # Two creators of one identity: the first keeps the key.
+        keyed = isinstance(agent, _KEYED_CREATORS) and not exporter.find_agent(key)
+        exporter.add_agent(agent, key=key if keyed else None)
+    for tool in tools:
+        exporter.object_set.add(tool)
+    return spdx_ci, agents
 
 
 def build_main_package(

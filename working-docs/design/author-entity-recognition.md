@@ -36,12 +36,16 @@ User rulings after the 0.25.0 post-publish verification:
   entry.
 - **A Person merges with a Person of the same name and email**, across
   routes: the SBOM creator and a dependency originator were two agents in
-  0.25.0 (fixed with this ruling; `_add_creation_bundle` in
-  `assemble/spdx3/document.py` registers Person and Organization creators
-  first).
+  0.25.0. Fixed with this ruling: `add_creation_bundle`
+  (`assemble/spdx3/_document_main_package.py`), called by the project and
+  the environment route, registers Person and Organization creators before
+  any other Agent. Only a Person merges today: every Organization an
+  originator route mints is a contributor group, keyed with its package.
 
-Ground truth, the 31 agents of the published 0.25.0 SBOM under these rules
-(the 20 personal names become `Agent` unless their source types them):
+Ground truth, the published 0.25.0 SBOM under these rules: 30 agent
+elements (29 `Person`, 1 `Organization`), 29 distinct once the creator's
+duplicate merges. Of the 20 personal names, the creator stays as
+configured, so 19 become `Agent` unless their source types them:
 
 | Rule | Type | Agents |
 | - | - | - |

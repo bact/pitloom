@@ -20,6 +20,7 @@ import pytest
 
 from pitloom.assemble import generate_project_sbom
 from pitloom.assemble.spdx3 import deps_installed
+from pitloom.assemble.spdx3._document_deployed import build_deployed
 from pitloom.assemble.spdx3.document import build
 from pitloom.core.creation import CreationMetadata, Creator
 from pitloom.core.document import DocumentModel
@@ -279,6 +280,54 @@ def test_first_of_two_same_creators_is_the_originator(
     created_by = next(e for e in graph if e["type"] == "CreationInfo")["createdBy"]
     assert len(created_by) == 2
     assert _package(graph, "alpha")["originatedBy"] == [created_by[0]]
+
+
+def _project_route(doc: DocumentModel) -> Any:
+    return build(doc, offline=True)
+
+
+def _environment_route(doc: DocumentModel) -> Any:
+    tree = [
+        {"package": {"key": "alpha", "package_name": "alpha", "installed_version": "1"}}
+    ]
+    return build_deployed(doc, tree, offline=True)
+
+
+@pytest.mark.parametrize(
+    "route", [_project_route, _environment_route], ids=["project", "environment"]
+)
+@pytest.mark.parametrize(
+    ("dependency_author", "persons"),
+    [(f"{_DEP_AUTHOR} <{_DEP_EMAIL}>", 1), (_DEP_AUTHOR, 2)],
+    ids=["same-email", "no-email"],
+)
+def test_creator_is_dependency_originator_on_every_route(
+    monkeypatch: pytest.MonkeyPatch,
+    route: Any,
+    dependency_author: str,
+    persons: int,
+) -> None:
+    """On the project and the environment route alike, a creator is the
+    Agent of a dependency originator with the same name and address, and
+    not of one with the same name and no address."""
+    monkeypatch.setattr(
+        deps_installed,
+        "get_pkg_metadata",
+        lambda name: _FakeMetadata({"Author-email": dependency_author}),
+    )
+    doc = DocumentModel(
+        project=ProjectMetadata(name="demo", version="1.0", dependencies=["alpha"]),
+        creation_metadata=CreationMetadata(
+            creators=[Creator(name=_DEP_AUTHOR, email=_DEP_EMAIL)],
+            creation_datetime="2024-05-01T00:00:00Z",
+        ),
+    )
+    graph = json.loads(route(doc).to_json(pretty=False))["@graph"]
+    named = [e for e in graph if e["type"] == "Person" and e["name"] == _DEP_AUTHOR]
+    assert len(named) == persons
+    [creator] = next(e for e in graph if e["type"] == "CreationInfo")["createdBy"]
+    shared = _package(graph, "alpha")["originatedBy"] == [creator]
+    assert shared is (persons == 1)
 
 
 def test_blank_author_entry_is_skipped() -> None:
