@@ -8,9 +8,10 @@ SPDX-License-Identifier: CC0-1.0
 
 # LicenseID floor 0.9.4: licence-answer sweep
 
-The 0.25.0 bump raises the floor from `licenseid>=0.9.3,<0.10` to
-`>=0.9.4,<0.10`. Before the raise, every licence answer Pitloom gives on its
-fixtures was compared under both versions. Result: **one regression**,
+#563 raised the floor from `licenseid>=0.9.3,<0.10` to `>=0.9.4,<0.10`;
+the 0.25.0 bump (#564) updates the docs and examples that quote it. Before
+the raise, every licence answer Pitloom gives on its fixtures was compared
+under both versions. Result: **one regression**,
 found by a second-opinion review, not by the sweep: under 0.9.4 Pitloom
 no longer sees that a licence file holds several texts (#554's rule), so a
 later licence file can give the package a licence. Every other answer is

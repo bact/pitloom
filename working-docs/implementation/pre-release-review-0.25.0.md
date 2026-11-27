@@ -467,7 +467,8 @@ and the sweep's removals, in [docs-batch-done.md](pre-release-review-0.25.0/docs
 
 Branch `release-0-25-0`: SKL-1, SKL-2 (37 floor lines to 0.25.0; the
 "0.24.0 or later" PyPI-URL lines and the history pins kept), HOOK-6, the
-bump cautions, `licenseid>=0.9.4,<0.10` after a licence-answer sweep
+bump cautions, the docs and examples quoting `licenseid>=0.9.4,<0.10`
+(#563 raised it) after a licence-answer sweep
 ([floor-0-9-4-sweep.md](licenseid/floor-0-9-4-sweep.md): under 0.9.4 a
 file of several texts was no longer seen as one; fixed by #563),
 and `tests/test_licenseid_floor_docs.py` reads "LicenseID 0.x.y",
