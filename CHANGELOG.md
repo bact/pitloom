@@ -22,6 +22,13 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Changed
+
+- A dependency whose metadata names no SPDX licence gets the one its installed
+  licence files name; its licence classifier breaks a near-tie ([#569])
+
+[#569]: https://github.com/bact/pitloom/pull/569
+
 ### Fixed
 
 - CI reads the `test-all-os` label when it runs: a push and the label within
