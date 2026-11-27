@@ -14,7 +14,7 @@ fixtures was compared under both versions. Result: **one regression**,
 found by a second-opinion review, not by the sweep: under 0.9.4 Pitloom
 no longer sees that a licence file holds several texts (#554's rule), so a
 later licence file can give the package a licence. Every other answer is
-unchanged. The fix is open; see "Several texts" below.
+unchanged. #563 fixed it before the release; see "Several texts" below.
 
 See also: [README.md](README.md), [adoption-built.md](adoption-built.md)
 (the 0.22.1 to 0.23.0 sweep this one follows),
@@ -95,7 +95,8 @@ still flags, and the numpy test asserts only `None`.
 Every fixture project holds one licence file, so a lost refusal looked like
 "no licence" there; that is why the SBOM sweep missed it.
 
-`licenseid>=0.9.3` already installs 0.9.4, so this reaches users whatever
-the floor. Fix (open, the user's call): ask `texts()` when `detect()` gives
-nothing (needs the 0.9.4 floor), with a regression test of a several-texts
-file followed by a one-licence file.
+`licenseid>=0.9.3` already installs 0.9.4, so this reached users whatever
+the floor. #563 fixed it: with no match, Pitloom asks
+`LicenseDetector.texts()` (hence the 0.9.4 floor). On the merged bump tree
+the six files are flagged under both versions, and the two-file project
+above gets no licence under both.

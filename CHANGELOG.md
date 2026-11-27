@@ -103,7 +103,7 @@ and this project adheres to
 - Requires `licenseid>=0.9.4,<0.10`: a bare `GPL-2.0` tag stays as written, not
   `GPL-2.0-only`; a full GPL text without a variant is still `-only`; rebuild
   the database with `licenseid update --source packaged` ([#502], [#536], [#551],
-  [#564])
+  [#563], [#564])
 - Git URL messages say `URL=` and a code after `Git source: `; a Git or PyPI
   refusal is no longer printed twice, and every `git.*` error has a
   `pitloom_code` ([#503])
@@ -178,7 +178,8 @@ and this project adheres to
 - Messages reworded for one shape: lower-case conditions, `directory` not `folder`,
   `ELEMENT=`, a quoted `MODEL=`, an sdist member as `FILE=` ([#553])
 - A licence file holding several licence texts (numpy's `LICENSE.txt`) gives no
-  detected licence, stated or not, and no later licence file is read ([#554])
+  detected licence, stated or not, and no later licence file is read ([#554],
+  [#563])
 - A message's advice names the flag, library parameter (`BuildOptions.timeout`)
   or `[tool.pitloom]` key of the surface that ran; `embed_wheel_sbom()` names
   `ConfigOverrides` fields, a signed wheel `allow_signed_wheel=True` ([#556],
@@ -328,6 +329,7 @@ and this project adheres to
 [#560]: https://github.com/bact/pitloom/pull/560
 [#561]: https://github.com/bact/pitloom/pull/561
 [#562]: https://github.com/bact/pitloom/pull/562
+[#563]: https://github.com/bact/pitloom/pull/563
 [#564]: https://github.com/bact/pitloom/pull/564
 
 ## [0.24.0] - 2026-11-11

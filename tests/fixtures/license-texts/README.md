@@ -39,8 +39,9 @@ A newer LicenseID may score them differently: a changed `unstated` from
 
 Two files hold the texts of several licences, and no licence is detected
 from either, stated or not (`test_a_file_of_several_licence_texts_gives_no_licence`;
-LicenseID 0.9.3 and later list their texts in `Detection.texts`), nor from a licence
-file after one (`test_a_file_of_several_licence_texts_ends_the_search`):
+LicenseID lists their texts in `Detection.texts`, or, from 0.9.4, with no match
+in `LicenseDetector.texts()`), nor from a licence file after one
+(`test_a_file_of_several_licence_texts_ends_the_search`):
 
 | File | Copied from | Texts it holds |
 | --- | --- | --- |

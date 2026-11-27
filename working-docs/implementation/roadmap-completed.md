@@ -396,7 +396,7 @@ codes 0.25.0 introduced); Pitloom requires `licenseid>=0.9.4,<0.10`.
   See [id-namespace-mixing.md](id-namespace-mixing.md).
 - [x] **Readers and fixes**: model readers (#483, #509, #517: Pitloom's own
   GGUF header reader), config errors (#497), LicenseID 0.9 (#502) and one
-  licence file of several texts giving no licence (#554), the Hub timeout
+  licence file of several texts giving no licence (#554, #563), the Hub timeout
   (#507) and "not found" (#561), the usage-scan hang (#539), the GGUF
   provenance source (#540). `CHANGELOG.md` lists the rest.
 - [x] **Pre-release review** and its fixes (#558 to #562); the bump (#564)

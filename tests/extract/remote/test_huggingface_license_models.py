@@ -8,9 +8,10 @@
 from __future__ import annotations
 
 import json
-from unittest.mock import MagicMock, patch
+from unittest.mock import create_autospec, patch
 
 import pytest
+from licenseid import LicenseDetector
 
 from pitloom.assemble.spdx3.document import build_model
 from pitloom.core.ai_metadata import AiModelMetadata
@@ -121,7 +122,7 @@ def test_blip_vqa_bsd_license_normalized() -> None:
 def test_card_licence_is_recorded_as_stated(card: str, expected: str) -> None:
     """The card value is kept (stripped) and the LicenseID detector is not
     asked, so the result cannot depend on whether its database is present."""
-    detector = MagicMock(spec=["detect"])
+    detector = create_autospec(LicenseDetector, instance=True)
     with patch("pitloom.extract._license_text_match._detector", return_value=detector):
         value, _ = _resolve_license(
             fake_hub(), {"card_data": {"license": card}}, "o/m", {}
@@ -134,7 +135,7 @@ def test_card_licence_is_recorded_as_stated(card: str, expected: str) -> None:
 def test_a_card_gpl_3_is_the_deprecated_id_in_the_sbom(matched: str | None) -> None:
     """From card to document: ``gpl-3.0`` becomes the deprecated ``GPL-3.0``
     (never ``GPL-3.0-only``), with or without a LicenseID answer."""
-    detector = MagicMock(spec=["detect"])
+    detector = create_autospec(LicenseDetector, instance=True)
     detector.detect.return_value = [{"expression": matched}] if matched else []
     with patch("pitloom.extract._license_text_match._detector", return_value=detector):
         value, _ = _resolve_license(

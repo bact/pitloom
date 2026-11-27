@@ -173,7 +173,6 @@ def test_a_declared_text_and_no_database_on_every_surface(
         assert warned[0].getMessage().startswith(_INFO)
 
 
-# pylint: disable-next=too-few-public-methods
 class _OutdatedDetector:
     """A detector on a database an older LicenseID built: it warns as
     LicenseID does, through :mod:`warnings`, and detects nothing."""
@@ -189,6 +188,10 @@ class _OutdatedDetector:
     def detect(self, text: str) -> list[object]:
         del text
         return []
+
+    def texts(self, text: str) -> None:
+        """Holds no List text."""
+        del text
 
 
 @pytest.mark.parametrize("surface", [_library, _cli, _hook], ids=lambda f: f.__name__)
