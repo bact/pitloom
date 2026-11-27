@@ -91,7 +91,7 @@ def test_configured_options_reads_only_what_is_set(tmp_path: Path) -> None:
 
 def test_the_hook_row_notes_at_info(caplog: pytest.LogCaptureFixture) -> None:
     with caplog.at_level(logging.INFO):
-        settle_inert(HOOK, "p", {"update_id_registry": True}, level=logging.INFO)
+        settle_inert(HOOK, "p", {"update_id_registry": True}, configured=True)
     assert [r.levelno for r in caplog.records] == [logging.INFO]
 
 

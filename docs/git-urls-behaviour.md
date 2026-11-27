@@ -202,7 +202,7 @@ Every URL that is changed, refused or not followed is said, never silently:
 | `WARNING:` | `FILE=<entry>: outside the downloaded repository; not read [file-unreadable/outside-repository]` | a build file list entry, as written, names a path outside the repository (one line per entry) |
 | `WARNING:` | `DIR=<dir>: larger than the 60-second file-discovery cap; file list not read [over-cap]` | file discovery in a clone ran over its time cap |
 | `WARNING:` | `listed files outside the downloaded repository<count>; not read [file-unreadable/outside-repository]` | files found outside after discovery (counted, not named) |
-| `WARNING:` | `Build: <url>: --allow-build has no effect for a remote repository ...` | a build flag |
+| `WARNING:` | `Build: <url>: --allow-build has no effect for a remote repository ...` | a build flag (from the library, `BuildOptions.allow`) |
 | `ERROR:` | `ERROR: loom <command>: ...` | the run could not finish (the command names itself; any Git `ERROR:` above, and any other) |
 
 The `Git source: ` in front of an `INFO:` or `WARNING:` line is a frame: it

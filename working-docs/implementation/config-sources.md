@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-21
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-26
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -53,12 +53,14 @@ only a project directory's own `pyproject.toml` was reachable.
   `ENRICH_STANDALONE`, `EMBED_PROJECT`, `EMBED_STANDALONE`,
   `EMBED_SBOM`), not by CLI
   subcommand, so `loom wheel`, `loom generate x.whl` and
-  `generate("x.whl")` share one row and one wording. `PARAM_TO_FLAG`
-  gives each library parameter's CLI spelling for the warning; a
-  `BooleanOptionalAction` flag names both spellings since either one may
-  be the one given. `settle_inert()` warns in `PARAM_TO_FLAG` order, not
-  the caller's mapping order, so the warning sequence is deterministic
-  regardless of which dict a caller happened to build.
+  `generate("x.whl")` share one row and one reason. The option is named
+  as the surface that runs spells it (`core/option_names.py`): on the
+  command line `PARAM_TO_FLAG` gives the flag (a `BooleanOptionalAction`
+  flag names both spellings, since either one may be the one given); in
+  the library the parameter; a `[tool.pitloom]` setting its TOML key.
+  `settle_inert()` warns in `PARAM_TO_FLAG` order, not the caller's
+  mapping order, so the warning sequence is deterministic regardless of
+  which dict a caller happened to build.
 - **The deepest layer that drops a parameter warns about it, exactly
   once**: `forward_options()` reads the callee's signature to decide
   what it accepts; what it doesn't accept and `INERT` declares inert for
@@ -151,7 +153,8 @@ only a project directory's own `pyproject.toml` was reachable.
 
 - `tests/cli/test_cli_option_reach.py` -- every `INERT` row reachable
   from its CLI subcommand warns with the right flag spelling and
-  reason.
+  reason; `tests/messages/test_surface_lines.py` checks the library and
+  hook spellings.
 - `tests/cli/test_cli_no_implicit_config.py` -- CLI-level: no
   `wheel`/`env`/`model`/`enrich`/`embed-wheel` invocation reads a decoy
   `pyproject.toml`/`loom-id-registry.json` from the current directory.

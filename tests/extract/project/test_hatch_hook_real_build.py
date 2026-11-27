@@ -250,7 +250,8 @@ def test_a_true_key_the_hook_does_not_act_on_is_one_info(
     found = [line for line in tagged(lines, "INFO") if "has no effect" in line]
     assert len(found) == notes
     if notes:
-        assert "--" + key.split(" ", maxsplit=1)[0] in found[0]
+        setting = key.split(" ", maxsplit=1)[0]
+        assert f": tool.pitloom.{setting} has no effect " in found[0]
         assert found[0].startswith("INFO: Options: ")
     with zipfile.ZipFile(wheels[0]) as zf:
         graph = json.loads(zf.read(sbom_members(wheels[0])[0]))["@graph"]

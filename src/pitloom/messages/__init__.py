@@ -41,7 +41,8 @@ reference (:data:`TOPIC_TITLES`, a hyphen spelt ``_``):
 :mod:`~pitloom.messages.fragments`, :mod:`~pitloom.messages.wheels` and
 :mod:`~pitloom.messages.wheel_sboms`.
 A :class:`Summary` (:func:`say_summary`) is an ``INFO:`` line with no
-condition, so no code.
+condition, so no code. A :class:`Twins` words a line (or summary) for each
+surface; the entry point that runs opens :func:`advice_surface`.
 
 This package imports only :mod:`pitloom.logging_config`,
 :mod:`pitloom.core.quote_source`, :mod:`pitloom.core.internal_error`,
@@ -103,6 +104,17 @@ from pitloom.messages._line_kind import LINE_KINDS, line_kind
 from pitloom.messages._lines import LINE_RE, LONGEST_LINE, says, trusted_message
 from pitloom.messages._relays import RELAY_EXTRA, RELAY_PREFIXES
 from pitloom.messages._summary import Summary, say_summary
+from pitloom.messages._surface import (
+    SURFACE_CLI,
+    SURFACE_HOOK,
+    SURFACE_LIBRARY,
+    SURFACES,
+    Twins,
+    advice_surface,
+    current_surface,
+    strict_surfaces,
+    unreachable_on_hook,
+)
 from pitloom.messages._topics import FAMILY_TOPICS, TOPIC_TITLES, topic_of
 from pitloom.messages._types import (
     ACTOR_HEADINGS,
@@ -157,6 +169,10 @@ __all__ = [
     "RESERVED_FAMILIES",
     "SCAN_FRAME",
     "SUMMARIES",
+    "SURFACES",
+    "SURFACE_CLI",
+    "SURFACE_HOOK",
+    "SURFACE_LIBRARY",
     "TOPIC_TITLES",
     "TOP_FRAME",
     "CodedFileNotFoundError",
@@ -170,8 +186,11 @@ __all__ = [
     "Line",
     "Message",
     "Summary",
+    "Twins",
+    "advice_surface",
     "code_extra_of",
     "code_of",
+    "current_surface",
     "emit",
     "escaped_name",
     "line_kind",
@@ -180,6 +199,8 @@ __all__ = [
     "say_summary",
     "says",
     "size_text",
+    "strict_surfaces",
+    "unreachable_on_hook",
     "topic_of",
     "trusted_message",
     "url_text",

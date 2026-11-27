@@ -22,6 +22,7 @@ from __future__ import annotations
 
 from typing import Final
 
+from pitloom.messages._surface import Twins
 from pitloom.messages._types import ASK_FIRST, Line, Message
 
 #: The release that first prints these codes.
@@ -294,16 +295,26 @@ PROJECT_NOT_FOUND: Final = Message(
 
 #: A folder whose project was asked for, holding no project config and
 #: files whose names could be models (a Git URL only).
-MODEL_FILES_LINE: Final = Line(
-    level="ERROR",
-    template=f"{_NO_PROJECT_HEAD}; it holds files that may be AI models "
-    "(%(files)s): use 'loom model <url>' or 'loom generate <url>'",
-    since=_REWORDED_SINCE,
+_MODEL_FILES_HEAD: Final = (
+    f"{_NO_PROJECT_HEAD}; it holds files that may be AI models (%(files)s): use "
+)
+MODEL_FILES_LINES: Final = Twins.no_hook(
+    cli=Line(
+        level="ERROR",
+        template=f"{_MODEL_FILES_HEAD}'loom model <url>' or 'loom generate <url>'",
+        since=_REWORDED_SINCE,
+    ),
+    library=Line(
+        level="ERROR",
+        template=f"{_MODEL_FILES_HEAD}generate_git_sbom(url, sbom_kind='model') "
+        "or generate(url)",
+        since=_REWORDED_SINCE,
+    ),
 )
 PROJECT_NOT_FOUND_MODEL_FILES: Final = Message(
     code="project-not-found/model-files",
     condition="not-found",
-    lines=(MODEL_FILES_LINE,),
+    lines=MODEL_FILES_LINES.members,
     summary="A project SBOM was asked for a directory of a Git URL that holds no "
     "Python project (pyproject.toml, setup.cfg or setup.py) but files whose "
     "names could be AI models.",

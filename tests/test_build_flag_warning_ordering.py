@@ -35,6 +35,7 @@ from tests.assemble.conftest import _make_dummy_wheel
 _METADATA_WARNING_SUBSTRING = "pinned to several versions"
 _BUILD_WARNING_SUBSTRING = "--build-timeout has no effect"
 _NON_PROJECT_BUILD_WARNING_SUBSTRING = "--build-timeout has no effect for this target"
+_LIBRARY_BUILD_WARNING_SUBSTRING = "BuildOptions.timeout has no effect"
 _SDIST_MEMBER_METADATA_WARNING_SUBSTRING = "pyproject.toml: not valid TOML"
 _SIBLING_CONFIG_METADATA_WARNING_SUBSTRING = "could not read project config"
 
@@ -160,7 +161,7 @@ def test_library_generate_project_sbom_build_flag_warning_precedes_metadata_warn
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
     """Library API: ``generate_project_sbom()`` settles/warns about a stray
-    ``--build-timeout`` before its own ``resolve_project_with_lockfile()``."""
+    ``BuildOptions.timeout`` before its own ``resolve_project_with_lockfile()``."""
     project = _make_conflicting_pins_project(tmp_path)
 
     with caplog.at_level(logging.WARNING, logger="pitloom"):
@@ -169,7 +170,7 @@ def test_library_generate_project_sbom_build_flag_warning_precedes_metadata_warn
         )
 
     messages = [r.getMessage() for r in caplog.records if r.levelno == logging.WARNING]
-    assert _first_index(messages, _BUILD_WARNING_SUBSTRING) < _first_index(
+    assert _first_index(messages, _LIBRARY_BUILD_WARNING_SUBSTRING) < _first_index(
         messages, _METADATA_WARNING_SUBSTRING
     )
 

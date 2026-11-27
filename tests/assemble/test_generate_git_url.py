@@ -195,9 +195,9 @@ def test_an_option_a_remote_repository_cannot_use_warns_once(
             build_options=BuildOptions(allow=True),
         )
     text = "\n".join(r.getMessage() for r in caplog.records)
-    assert text.count("--max-model-extract-bytes has no effect for this target") == 1
-    assert text.count("--project-dir has no effect for a remote repository") == 1
-    assert text.count("--allow-build has no effect for a remote repository") == 1
+    assert text.count("max_model_extract_bytes has no effect for this target") == 1
+    assert text.count("project_dir has no effect for a remote repository") == 1
+    assert text.count("BuildOptions.allow has no effect for a remote repository") == 1
     assert seen["url"] == _URL
 
 

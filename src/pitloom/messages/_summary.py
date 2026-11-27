@@ -19,6 +19,7 @@ import logging
 from dataclasses import dataclass
 
 from pitloom.logging_config import KIND_ATTR, SUMMARY_KIND
+from pitloom.messages._surface import Twins
 from pitloom.messages._templates import shown, template_names, written
 from pitloom.messages._topics import TOPIC_TITLES
 from pitloom.messages._types import template_problem
@@ -65,15 +66,21 @@ class Summary:
         return shown(self.template)
 
 
-def say_summary(log: logging.Logger, summary: Summary, **values: object) -> None:
+def say_summary(
+    log: logging.Logger, summary: Summary | Twins[Summary], **values: object
+) -> None:
     """Log *summary* at ``INFO`` on *log*, each value written by its field,
     with no code on the record, its kind
-    (:data:`~pitloom.logging_config.KIND_ATTR`) a summary.
+    (:data:`~pitloom.logging_config.KIND_ATTR`) a summary. A
+    :class:`~pitloom.messages._surface.Twins` says the wording of the
+    surface that runs.
 
     Raises:
         ValueError: *values* names other fields than the template, or a
             value does not have its field's shape.
     """
+    if isinstance(summary, Twins):
+        summary = summary.current()
     texts = written(summary.template, values)
     args: tuple[object, ...] = (texts,) if texts else ()
     log.info(summary.template, *args, extra={KIND_ATTR: SUMMARY_KIND})

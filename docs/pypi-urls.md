@@ -280,6 +280,13 @@ brackets, for example `[pypi-url-invalid]`. A script or an agent should key on
 that trailing code. The `ERROR:` rows below quote the part after the frame and
 before the code.
 
+The rows quote the command line's wording. Where a line names what to run
+instead, a library call names a call: `generate_pypi_sbom('<url>',
+kind='sdist') reads its sdist`, `generate_pypi_sbom('<url>') reads a wheel`
+and, for `generate_model_sbom()`, `generate_pypi_sbom() reads its wheel,
+generate_pypi_sbom(kind='sdist') its sdist`. The
+[message reference](message-codes-pypi.md) lists both wordings of each line.
+
 | Level | Message | When |
 | :---- | :------ | :--- |
 | `INFO:` | `PYPI=<name> VERSION=<version>: no version given; using the latest release` | the URL has no version ([`release-unpinned`](message-codes-pypi.md#release-unpinned)) |
@@ -330,7 +337,7 @@ code):
 - `URL=<url>: only pypi.org is read; another index is not supported yet` `[pypi-url-invalid]`
 - `URL=<url>: pypi.python.org is PyPI's old address; give https://pypi.org/project/<name>/` `[pypi-url-invalid]`
 - `URL=<url>: a file link is not read yet; give the project or release page https://pypi.org/project/<name>/<version>/` `[pypi-url-invalid]`
-- `URL=<url>: a PyPI page is not a Git repository; generate_pypi_sbom(), 'loom wheel' or 'loom project' reads it; nothing fetched` `[pypi-url-unusable]` (the library Git route)
+- `URL=<url>: a PyPI page is not a Git repository; generate_pypi_sbom() reads it; nothing fetched` `[pypi-url-unusable]` (the library Git route)
 - `INFO: PYPI=<name>: generate() reads the wheel; generate_pypi_sbom('<url>', kind='sdist') reads the sdist` `[file-ambiguous]` (library `generate()`; the CLI line names `loom project <url>`)
 
 A URL in a message is shown without credentials and with control characters

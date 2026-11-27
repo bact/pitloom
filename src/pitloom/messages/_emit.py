@@ -27,6 +27,7 @@ from pitloom.logging_config import CODE_ATTR, escape_controls, log_once
 from pitloom.messages._catalogue import MESSAGES
 from pitloom.messages._frames import Frame
 from pitloom.messages._lines import says
+from pitloom.messages._surface import Twins
 from pitloom.messages._templates import written
 from pitloom.messages._types import Line, Message
 
@@ -38,7 +39,7 @@ def emit(
     message: Message,
     level: int,
     *,
-    line: Line | None = None,
+    line: Line | Twins[Line] | None = None,
     once: str | None = None,
     extra: Mapping[str, object] | None = None,
     frame: Frame | None = None,
@@ -46,7 +47,9 @@ def emit(
     **values: object,
 ) -> None:
     """Log *message* at *level* on *log*, its code on the record: its line
-    at that level that names *values* (*line*, when several do), each value
+    at that level that names *values* (*line*, when several do; a
+    :class:`~pitloom.messages._surface.Twins` says the wording of the
+    surface that runs), each value
     written by its field. *once*: through
     :func:`~pitloom.logging_config.log_once` with that key (``DEBUG``, and
     no printed code, after the first time). *extra*: more attributes for
@@ -143,7 +146,12 @@ class _CodedError(Exception):
     """
 
     def __init__(
-        self, message: Message, /, *, line: Line | None = None, **values: object
+        self,
+        message: Message,
+        /,
+        *,
+        line: Line | Twins[Line] | None = None,
+        **values: object,
     ) -> None:
         super().__init__(message.line_for("ERROR", values, line).render(values))
         #: The catalogued code (:data:`~pitloom.logging_config.CODE_ATTR`).

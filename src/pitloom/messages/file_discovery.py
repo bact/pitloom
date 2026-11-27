@@ -33,7 +33,7 @@ from pitloom.messages._file_discovery import (
     NOT_AWARE_LINE,
     NOT_AWARE_NO_PROJECT_LINE,
     PACKAGES_AMBIGUOUS_LINE,
-    UV_OVERRIDES_LINE,
+    UV_OVERRIDES_LINES,
     WHEEL_PATH_LINE,
 )
 from pitloom.messages._metadata_say import warn_discovery
@@ -56,7 +56,7 @@ __all__ = [
     "NO_STATIC_HEURISTIC_LINE",
     "NO_STATIC_LINE",
     "PACKAGES_AMBIGUOUS_LINE",
-    "UV_OVERRIDES_LINE",
+    "UV_OVERRIDES_LINES",
     "WHEEL_PATH_LINE",
     "warn_discovery",
 ]

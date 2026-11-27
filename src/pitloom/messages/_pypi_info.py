@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from typing import Final
 
+from pitloom.messages._surface import Twins
 from pitloom.messages._types import ASK_FIRST, Line, Message
 
 _SINCE: Final = "0.24.0"
@@ -56,16 +57,18 @@ SDIST_PICK_LINE: Final = Line(
 )
 
 #: ``loom generate`` read the wheel; ``loom project`` reads the sdist.
-GENERATE_WHEEL_LINE: Final = Line(
-    level="INFO",
-    template="PYPI=%(name)s: loom generate reads the wheel; "
-    "'loom project %(url)s' reads the sdist",
-)
-#: ``generate()`` read the wheel; ``generate_pypi_sbom()`` reads the sdist.
-GENERATE_WHEEL_LIBRARY_LINE: Final = Line(
-    level="INFO",
-    template="PYPI=%(name)s: generate() reads the wheel; "
-    "generate_pypi_sbom('%(url)s', kind='sdist') reads the sdist",
+GENERATE_WHEEL_LINES: Final = Twins.no_hook(
+    cli=Line(
+        level="INFO",
+        template="PYPI=%(name)s: loom generate reads the wheel; "
+        "'loom project %(url)s' reads the sdist",
+    ),
+    # generate() read the wheel; generate_pypi_sbom() reads the sdist.
+    library=Line(
+        level="INFO",
+        template="PYPI=%(name)s: generate() reads the wheel; "
+        "generate_pypi_sbom('%(url)s', kind='sdist') reads the sdist",
+    ),
 )
 #: A redirect followed.
 REDIRECT_LINE: Final = Line(
@@ -165,8 +168,7 @@ FILE_AMBIGUOUS: Final = Message(
     lines=(
         WHEEL_PICK_LINE,
         SDIST_PICK_LINE,
-        GENERATE_WHEEL_LINE,
-        GENERATE_WHEEL_LIBRARY_LINE,
+        *GENERATE_WHEEL_LINES.members,
     ),
     summary="The release has several wheels that fit the Python and platform "
     "Pitloom runs on, or several sdists, or (loom generate, generate()) both "

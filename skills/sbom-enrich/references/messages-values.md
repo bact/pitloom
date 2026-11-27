@@ -107,7 +107,7 @@ holds the value there. The table lists every name a line or a prefix uses.
 | `<new-id>` | the spdxId the element is given instead, a URL's credentials masked; in quotes, escaped, when it holds a control character |
 | `<number>` | a whole number: a count, or a length in characters |
 | `<oid>` | the SHA-256 the pointer states, in hex |
-| `<option>` | a command-line option as the command names it (`--allow-build`, `-o/--output`, `--pretty/--no-pretty`), a positional argument as argparse names it (`command`), or a library parameter (`project_metadata`) |
+| `<option>` | a command-line option as the command names it (`--allow-build`, `-o/--output`, `--pretty/--no-pretty`), a positional argument as argparse names it (`command`), a library parameter (`project_metadata`, `BuildOptions.timeout`), or a `[tool.pitloom]` setting by its TOML key (`tool.pitloom.describe-relationship`) |
 | `<other>` | the option given before, which the one named first cannot be given with, as argparse names it (`--pretty`) |
 | `<other-digest>` | the SHA-256 the other element of that name states, in hex, on one line, a URL's credentials masked, cut to 120 characters (`...` after it when cut), in quotes, escaped when it holds a control character |
 | `<outcome>` | what Pitloom kept, and what it did not read or record |

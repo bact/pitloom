@@ -17,9 +17,18 @@ applies), :mod:`pitloom.messages._model_limits` (the bound-check reasons) and
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+from types import MappingProxyType
 from typing import Final
 
+from pitloom.messages._surface import Twins
 from pitloom.messages._types import ASK_FIRST, Line, Message
+
+#: The release of a library twin of a line that names a flag.
+_TWIN_SINCE: Final = "0.25.0"
+#: How each surface lifts the reader gate, after ``; ``.
+_TRUST_CLI: Final = "pass --trust-model-files"
+_TRUST_LIBRARY: Final = "set trust_model_files=True"
 
 #: What a model whose read stopped is, in the SBOM.
 _STUB: Final = (
@@ -130,18 +139,27 @@ LIBRARY_UNUSABLE: Final = Message(
     since="0.23.0",
 )
 
+_WHEEL_GATED: Final = (
+    "AI models in a wheel in these formats are listed without metadata, their "
+    "reader not being run on a wheel's files: %(formats)s; "
+)
+#: A wheel scan's line, as each surface lifts the gate.
+READER_UNSAFE_LINES: Final = Twins.no_hook(
+    cli=Line(
+        level="INFO", template=f"{_WHEEL_GATED}{_TRUST_CLI} for a wheel you trust"
+    ),
+    library=Line(
+        level="INFO",
+        template=f"{_WHEEL_GATED}{_TRUST_LIBRARY} for a wheel you trust",
+        since=_TWIN_SINCE,
+    ),
+)
+
 #: The formats a wheel scan does not read: one line per scan.
 READER_UNSAFE: Final = Message(
     code="reader-unsafe",
     condition="unsafe",
-    lines=(
-        Line(
-            level="INFO",
-            template="AI models in a wheel in these formats are listed without "
-            "metadata, their reader not being run on a wheel's files: "
-            "%(formats)s; pass --trust-model-files for a wheel you trust",
-        ),
-    ),
+    lines=READER_UNSAFE_LINES.members,
     summary="A wheel holds AI models in formats whose reader Pitloom does not "
     "run on a wheel's files (fastText, GGUF, HDF5, ONNX, PyTorch .pt and "
     ".pth): a hostile file could crash or hang it, or exhaust its memory.",
@@ -156,23 +174,41 @@ READER_UNSAFE: Final = Message(
     f"file can set it. Do not add the flag or generate again for them; {ASK_FIRST}",
 )
 
+_GIT_GATED: Final = (
+    "AI models from a Git URL in these formats are listed without metadata, "
+    "their reader not being run on a downloaded file: %(formats)s; "
+)
+_PYPI_GATED: Final = (
+    "FILE=%(file)s: AI models in these formats are listed without metadata, "
+    "their reader not being run on a downloaded file: %(formats)s; "
+)
 #: The Git URL's line: a model file of its temporary clone, named on its own
 #: or found in a project's build file list. One line per SBOM.
-READER_UNSAFE_REMOTE_LINE: Final = Line(
-    level="INFO",
-    template="AI models from a Git URL in these formats are listed "
-    "without metadata, their reader not being run on a downloaded "
-    "file: %(formats)s; pass --trust-model-files for a repository "
-    "you trust",
+_READER_UNSAFE_REMOTE_LINE: Final = Line(
+    level="INFO", template=f"{_GIT_GATED}{_TRUST_CLI} for a repository you trust"
 )
-
 #: The same for the models of a wheel downloaded from a PyPI URL, named by
 #: its file (so a call naming no file says the Git URL's line).
-READER_UNSAFE_PYPI_LINE: Final = Line(
-    level="INFO",
-    template="FILE=%(file)s: AI models in these formats are listed without "
-    "metadata, their reader not being run on a downloaded file: %(formats)s; "
-    "pass --trust-model-files for a release you trust",
+_READER_UNSAFE_PYPI_LINE: Final = Line(
+    level="INFO", template=f"{_PYPI_GATED}{_TRUST_CLI} for a release you trust"
+)
+#: The Git URL's line, as each surface lifts the gate.
+READER_UNSAFE_REMOTE_LINES: Final = Twins.no_hook(
+    cli=_READER_UNSAFE_REMOTE_LINE,
+    library=Line(
+        level="INFO",
+        template=f"{_GIT_GATED}{_TRUST_LIBRARY} for a repository you trust",
+        since=_TWIN_SINCE,
+    ),
+)
+#: The PyPI URL's line, as each surface lifts the gate.
+READER_UNSAFE_PYPI_LINES: Final = Twins.no_hook(
+    cli=_READER_UNSAFE_PYPI_LINE,
+    library=Line(
+        level="INFO",
+        template=f"{_PYPI_GATED}{_TRUST_LIBRARY} for a release you trust",
+        since=_TWIN_SINCE,
+    ),
 )
 
 #: The formats whose reader is not run on a downloaded model file: of a Git
@@ -180,7 +216,7 @@ READER_UNSAFE_PYPI_LINE: Final = Line(
 READER_UNSAFE_REMOTE: Final = Message(
     code="reader-unsafe/remote",
     condition="unsafe",
-    lines=(READER_UNSAFE_REMOTE_LINE, READER_UNSAFE_PYPI_LINE),
+    lines=(*READER_UNSAFE_REMOTE_LINES.members, *READER_UNSAFE_PYPI_LINES.members),
     summary="A model file or a project's model files read from a Git URL, or "
     "the models of a wheel downloaded from a PyPI URL, are in a format whose "
     "reader Pitloom does not run on a downloaded file (fastText, GGUF, HDF5, "
@@ -198,6 +234,16 @@ READER_UNSAFE_REMOTE: Final = Message(
     "honours the repository's own configuration and build file list. Do not "
     f"add the flag or generate again for them; {ASK_FIRST}",
     since="0.23.4",
+)
+
+#: The ``reader-unsafe`` line of a gate: its entry's code, and whether the
+#: line names the downloaded file (a PyPI URL's wheel).
+READER_UNSAFE_TWINS: Final[Mapping[tuple[str, bool], Twins[Line]]] = MappingProxyType(
+    {
+        (READER_UNSAFE.code, False): READER_UNSAFE_LINES,
+        (READER_UNSAFE_REMOTE.code, False): READER_UNSAFE_REMOTE_LINES,
+        (READER_UNSAFE_REMOTE.code, True): READER_UNSAFE_PYPI_LINES,
+    }
 )
 
 #: A reader that failed on a file whose header is a model format's.

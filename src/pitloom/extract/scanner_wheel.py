@@ -63,7 +63,7 @@ from pitloom.messages.files import (
 from pitloom.messages.models import (
     READER_UNSAFE,
     READER_UNSAFE_REMOTE,
-    USAGE_SETTING_WHEEL,
+    USAGE_TARGET_WHEEL,
 )
 
 log = logging.getLogger(__name__)
@@ -358,7 +358,8 @@ def scan_wheel_for_ai_models(
 
     A model in a :data:`WHEEL_GATED_FORMATS` format is not read unless
     *trust*: it stays in the result without metadata, and one ``INFO:``
-    line per scan names the flag and lists the gated formats met that
+    line per scan names the switch as the surface spells it and lists the
+    gated formats met that
     *gate_hint* accepts (called once per format; a batch makes it claim a
     once-per-run slot for that format, so each format is named once). The
     line is ``reader-unsafe``'s, or for a wheel downloaded from a PyPI URL
@@ -391,7 +392,7 @@ def scan_wheel_for_ai_models(
                 _wheel_sources(zf, members),
                 scan_usage=scan_usage,
                 usage_hint=usage_hint,
-                usage_setting=USAGE_SETTING_WHEEL,
+                usage_target=USAGE_TARGET_WHEEL,
             )
         finally:
             scratch.remove()

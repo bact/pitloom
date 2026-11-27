@@ -218,7 +218,7 @@ def test_embed_file_cache_settles_once_per_block(
         assert first == BuildOptions()
         lines = [r.getMessage() for r in caplog.records]
         assert len(lines) == 1, lines
-        assert "wheel-a: --build-timeout has no effect" in lines[0]
+        assert "wheel-a: BuildOptions.timeout has no effect" in lines[0]
 
 
 def test_embed_file_cache_settle_outside_its_block_raises() -> None:
@@ -408,4 +408,4 @@ def test_settle_project_build_options_only_for_a_project(
         result = _settle_project_build_options(options, None, target)
 
     assert (result is not options) is settled
-    assert ("--no-build-isolation has no effect" in caplog.text) is settled
+    assert ("BuildOptions.no_isolation has no effect" in caplog.text) is settled

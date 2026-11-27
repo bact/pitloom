@@ -23,7 +23,7 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
 | [`option-invalid`](#option-invalid) | ERROR | The command line holds an option or a value the command does not take: an unknown option, a value of the wrong form or out of range, an unknown subcommand, an option out of order (a creator's type or email before its name), or a 'loom id generate' PATH outside --project-dir (the library: a path outside the project root given to IdRegistry.generate). Or a library caller gave a value of the wrong type or shape (the must-be line, as config-invalid says it of a setting: a byte cap of 0, a creation_datetime that is no ISO 8601 date, an empty SBOM given to embed_sbom_in_wheel). Or a document namespace given as --namespace or to IdRegistry is not an absolute IRI without a '#' (the namespace lines, also the detail of 'argument --namespace:'); one holding a credential is credentials-unsafe/registry on both. Or a URL credential fingerprint given to the library is not one; the line never shows the value, which may be a credential pasted by mistake. Or PitloomConfig.url_credentials is neither warn nor refuse, or CredentialPolicy(refuse=...) is no bool. The same faults in [tool.pitloom] are config-invalid. An option given without its value is option-missing; two options argparse refuses together are option-conflict. | 0.25.0 |
 | [`option-missing`](#option-missing) | ERROR | The command line lacks an argument or option the command needs (a subcommand, -o/--output for 'loom generate', an ID registry for 'loom id'), or the value of an option given (-o with nothing after it). The loom SDK line is a call that needs one made before it in the run. | 0.25.0 |
 | [`option-missing/project-dir`](#option-missingproject-dir) | INFO | 'loom embed-wheel' ran without --project-dir in a directory holding a pyproject.toml: it never reads a project it is not given, so the SBOM it embeds is built from the wheel's own files and METADATA. | 0.25.0 |
-| [`option-no-effect`](#option-no-effect) | WARNING, INFO | An option or setting was given that the target or command cannot act on (a build flag without --allow-build, --use-lockfile for a wheel given to 'loom generate', a library parameter a URL target ignores); the line says why. The INFO: line is a [tool.pitloom] setting the build hook or 'embed-wheel' never acts on, named by its flag. The FINGERPRINT= line is a fingerprint accepted (--accept-url-credential, accept-url-credentials in [tool.pitloom]) that no URL value of the SBOM it names (its document id) has: a value since removed, or a fingerprint mistyped. The DIR= line is 'loom id generate' or 'loom id import' given -o and --project-dir, whose project config could not be read (a bare setup(), an invalid setting): its url-credentials is not applied. The FILE= line is a --config file (loom.run's pitloom_config) with no [tool.pitloom] table: a wrong file, most often. | 0.25.0 |
+| [`option-no-effect`](#option-no-effect) | WARNING, INFO | An option or setting was given that the target or command cannot act on (a build flag without --allow-build, --use-lockfile for a wheel given to 'loom generate', a library parameter a URL target ignores); the line says why, naming each option as the surface that ran spells it: a flag on the command line (--build-timeout), a parameter in the library (BuildOptions.timeout, use_lockfile). The INFO: line is a [tool.pitloom] setting the build hook or 'embed-wheel' never acts on, named by its TOML key (tool.pitloom.describe-relationship). The FINGERPRINT= line is a fingerprint accepted (--accept-url-credential, accept-url-credentials in [tool.pitloom]) that no URL value of the SBOM it names (its document id) has: a value since removed, or a fingerprint mistyped. The DIR= line is 'loom id generate' or 'loom id import' given -o and --project-dir, whose project config could not be read (a bare setup(), an invalid setting): its url-credentials is not applied. The FILE= line is a --config file (loom.run's pitloom_config) with no [tool.pitloom] table: a wrong file, most often. | 0.25.0 |
 | [`sbom-name-invalid`](#sbom-name-invalid) | WARNING | An SBOM base name (sbom-basename in a configuration file, --sbom-basename, a library caller's sbom_basename) has white space around it or ends in .spdx3.json (any case), which every writer adds itself. Said once per value and process. | 0.25.0 |
 
 ### `option-conflict`
@@ -157,15 +157,18 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
 - **Means**: An option or setting was given that the target or command cannot
   act on (a build flag without --allow-build, --use-lockfile for a wheel given
   to 'loom generate', a library parameter a URL target ignores); the line says
-  why. The INFO: line is a [tool.pitloom] setting the build hook or
-  'embed-wheel' never acts on, named by its flag. The FINGERPRINT= line is a
-  fingerprint accepted (--accept-url-credential, accept-url-credentials in
-  [tool.pitloom]) that no URL value of the SBOM it names (its document id) has:
-  a value since removed, or a fingerprint mistyped. The DIR= line is 'loom id
-  generate' or 'loom id import' given -o and --project-dir, whose project config
-  could not be read (a bare setup(), an invalid setting): its url-credentials is
-  not applied. The FILE= line is a --config file (loom.run's pitloom_config)
-  with no [tool.pitloom] table: a wrong file, most often.
+  why, naming each option as the surface that ran spells it: a flag on the
+  command line (--build-timeout), a parameter in the library
+  (BuildOptions.timeout, use_lockfile). The INFO: line is a [tool.pitloom]
+  setting the build hook or 'embed-wheel' never acts on, named by its TOML key
+  (tool.pitloom.describe-relationship). The FINGERPRINT= line is a fingerprint
+  accepted (--accept-url-credential, accept-url-credentials in [tool.pitloom])
+  that no URL value of the SBOM it names (its document id) has: a value since
+  removed, or a fingerprint mistyped. The DIR= line is 'loom id generate' or
+  'loom id import' given -o and --project-dir, whose project config could not be
+  read (a bare setup(), an invalid setting): its url-credentials is not applied.
+  The FILE= line is a --config file (loom.run's pitloom_config) with no
+  [tool.pitloom] table: a wrong file, most often.
 - **SBOM effect**: none: the SBOM states what the input holds.
 - **Pitloom did**: Ran as if it were not given; the run goes on.
 - **The caller may fix**: The caller may drop the option from its command, or

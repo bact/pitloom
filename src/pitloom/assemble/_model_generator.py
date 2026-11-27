@@ -61,7 +61,7 @@ from pitloom.messages.config import Parameter, invalid_value
 from pitloom.messages.files import warn_file_unreadable
 from pitloom.messages.id_registry_ids import info_name_key
 from pitloom.messages.pypi import (
-    MODEL_URL_LINE,
+    MODEL_URL_LINES,
     PYPI_URL_UNUSABLE,
 )
 from pitloom.messages.targets import MODEL_FILE_KIND, refuse_empty_input
@@ -223,7 +223,7 @@ def _refuse_pypi_url(source: Path | str) -> None:
         return
     error = CodedValueError(
         PYPI_URL_UNUSABLE,
-        line=MODEL_URL_LINE,
+        line=MODEL_URL_LINES,
         url=url_text(source.strip()),
     )
     raise error

@@ -21,6 +21,7 @@ from typing import Final
 from pitloom.core.internal_error import InternalError, reraise_internal
 from pitloom.logging_config import CODE_LIKE_END, CODE_PATTERN
 from pitloom.messages._fields import FIELDS
+from pitloom.messages._surface import Twins
 from pitloom.messages._templates import (
     PLACEHOLDER,
     render,
@@ -320,15 +321,22 @@ class Message:
         return frozenset(line.level for line in self.lines)
 
     def line_for(
-        self, level: str, names: Collection[str], line: Line | None = None
+        self,
+        level: str,
+        names: Collection[str],
+        line: Line | Twins[Line] | None = None,
     ) -> Line:
         """Its line at *level* that names exactly *names*: *line*, which
-        must be one of them, else the only one.
+        must be one of them, else the only one. A :class:`Twins` *line* is
+        its wording on the surface that runs
+        (:func:`~pitloom.messages._surface.current_surface`).
 
         Raises:
             pitloom.core.internal_error.InternalError: No line does, *line* is
                 not one, or several do and *line* does not say which.
         """
+        if isinstance(line, Twins):
+            line = line.current()
         wanted = frozenset(names)
         found = [ln for ln in self.lines if ln.level == level and ln.fields == wanted]
         if line is not None and line in found:

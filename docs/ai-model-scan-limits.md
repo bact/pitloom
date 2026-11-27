@@ -164,7 +164,8 @@ different gated format gets its own line:
 INFO: AI models in a wheel in these formats are listed without metadata, their reader not being run on a wheel's files: gguf, onnx; pass --trust-model-files for a wheel you trust
 ```
 
-To read them, for a wheel you trust:
+A library call ends the line with `set trust_model_files=True for a wheel
+you trust`. To read them, for a wheel you trust:
 
 | Surface | How |
 | :------ | :-- |
@@ -193,6 +194,9 @@ downloaded wheel):
 INFO: AI models from a Git URL in these formats are listed without metadata, their reader not being run on a downloaded file: gguf; pass --trust-model-files for a repository you trust
 INFO: FILE=demo-1.0-py3-none-any.whl: AI models in these formats are listed without metadata, their reader not being run on a downloaded file: gguf; pass --trust-model-files for a release you trust
 ```
+
+A library call ends each line with `set trust_model_files=True for a ...
+you trust` instead.
 
 An sdist from a PyPI URL is not scanned for models, as a local sdist archive
 is not, so `--trust-model-files` has no effect on `loom project` with a PyPI

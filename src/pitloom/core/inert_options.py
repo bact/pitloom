@@ -39,6 +39,7 @@ from typing import TYPE_CHECKING, Any
 from pitloom.core.build_options import EXTERNAL_SBOM_REASON, NO_PROJECT_DIR_REASON
 from pitloom.core.internal_error import InternalError
 from pitloom.core.no_effect import warn_no_effect
+from pitloom.core.option_names import PARAM_TO_FLAG, option_name
 
 if TYPE_CHECKING:
     from pitloom.core.config import PitloomConfig
@@ -62,30 +63,6 @@ EMBED_PROJECT = "embed_project"
 EMBED_STANDALONE = "embed_standalone"
 EMBED_SBOM = "embed_sbom"
 HOOK = "hook"
-
-#: Library parameter name -> the CLI spelling a warning names. A
-#: ``BooleanOptionalAction`` flag names both spellings, since either one
-#: may be the one given.
-PARAM_TO_FLAG: dict[str, str] = {
-    "pretty": "--pretty/--no-pretty",
-    "describe_relationship": "--describe-relationship/--no-describe-relationship",
-    "enrich": "--enrich/--no-enrich",
-    "extract_file_header": "--extract-file-header/--no-extract-file-header",
-    "content_type": "--content-type/--no-content-type",
-    "scan_model_usage": "--scan-model-usage/--no-scan-model-usage",
-    "trust_model_files": "--trust-model-files",
-    "max_model_extract_bytes": "--max-model-extract-bytes",
-    "max_download_bytes": "--max-download-bytes",
-    "content_type_method": "--content-type-method",
-    "max_source_metadata_bytes": "--max-source-metadata-bytes",
-    "offline": "--offline/--no-offline",
-    "use_lockfile": "--use-lockfile/--no-use-lockfile",
-    "id_registry": "--id-registry",
-    "update_id_registry": "--update-id-registry/--no-update-id-registry",
-    "creation_metadata": "--creator-*/--creation-*",
-    "pitloom_config": "--config",
-    "project_dir": "--project-dir",
-}
 
 _NO_FILE_SCAN = (
     "for this target (file headers and content types are read from a "
@@ -118,7 +95,9 @@ _NO_LOCKFILE = (
     "model-file/Hugging-Face targets)"
 )
 _SDIST_NO_LOCKFILE = "for an sdist archive target (an archive has no lock/pin cascade)"
-_FRAGMENT_NO_LOCKFILE = "without --project-dir (no base document identity is computed)"
+_FRAGMENT_NO_LOCKFILE = (
+    "without {enrich_project_dir} (no base document identity is computed)"
+)
 _NO_HARVEST = "for this target (it never writes ids back to a registry)"
 _MODEL_NO_DEPENDENCIES = (
     "for a model file (no files or dependencies here for a content-type "
@@ -170,7 +149,7 @@ _NOT_AN_ARCHIVE = (
     "project directory only)"
 )
 _EMBED_PROJECT_MODELS = (
-    "with --project-dir (AI models are read from the project, not the wheel)"
+    "with {project_dir} (AI models are read from the project, not the wheel)"
 )
 
 _FILE_SCAN = ("extract_file_header", "content_type")
@@ -331,11 +310,14 @@ def settle_inert(
     subject: object,
     given: Mapping[str, object],
     *,
-    level: int = logging.WARNING,
+    configured: bool = False,
 ) -> frozenset[str]:
     """Warn once per parameter in *given* that *kind* cannot act on, and
-    return their names so the caller drops them. *level* is ``logging.INFO``
-    for config keys (:func:`configured_options`), not command-line flags.
+    return their names so the caller drops them, each named as the surface
+    that runs spells it (:func:`~pitloom.core.option_names.option_name`).
+    *configured*: *given* holds ``[tool.pitloom]`` keys
+    (:func:`configured_options`), said at ``INFO`` and named by their TOML key,
+    not options the caller gave (a ``WARNING``).
 
     A value of ``None`` means "not given" and is skipped; ``False`` and
     ``0`` are explicit choices and count (AGENTS.md's ``None``/absent vs
@@ -356,16 +338,16 @@ def settle_inert(
     for param in inert:
         warn_no_effect(
             subject,
-            (PARAM_TO_FLAG[param],),
+            (option_name(param, configured=configured),),
             row[param],
-            level=level,
+            level=logging.INFO if configured else logging.WARNING,
         )
     return frozenset(inert)
 
 
 def configured_options(config: PitloomConfig) -> dict[str, object]:
     """The options *config* (``[tool.pitloom]``) sets to ``true`` that a
-    surface cannot act on, for :func:`settle_inert` at ``logging.INFO``.
+    surface cannot act on, for :func:`settle_inert` with ``configured``.
     Only a value the surface contradicts counts: ``false`` agrees with what
     it does, and an unset key (or the ``update-id-registry`` default) was
     never a choice."""

@@ -36,6 +36,7 @@ from pitloom.extract.remote.pypi import (
     sdist_hint,
 )
 from pitloom.logging_config import configure_logging
+from pitloom.messages import SURFACE_CLI, SURFACE_LIBRARY, advice_surface
 from pitloom.messages.pypi import (
     FILE_AMBIGUOUS,
     RELEASE_UNPINNED,
@@ -370,13 +371,28 @@ def test_stderr_never_names_the_download_directory(
     assert ("<download>" in err) is (not sha256)
 
 
-def test_sdist_hint_names_loom_project(caplog: pytest.LogCaptureFixture) -> None:
-    with caplog.at_level(logging.INFO):
+@pytest.mark.parametrize(
+    ("surface", "said"),
+    [
+        (
+            SURFACE_CLI,
+            "PYPI=x-y: loom generate reads the wheel; "
+            "'loom project https://pypi.org/project/x-y/1.0/' reads the sdist",
+        ),
+        (
+            SURFACE_LIBRARY,
+            "PYPI=x-y: generate() reads the wheel; generate_pypi_sbom("
+            "'https://pypi.org/project/x-y/1.0/', kind='sdist') reads the sdist",
+        ),
+    ],
+    ids=["cli", "library"],
+)
+def test_sdist_hint_names_what_reads_the_sdist(
+    surface: str, said: str, caplog: pytest.LogCaptureFixture
+) -> None:
+    with caplog.at_level(logging.INFO), advice_surface(surface):
         sdist_hint("https://pypi.org/project/X_y/1.0/?tab=files")
-    assert caplog.messages == [
-        "PYPI=x-y: loom generate reads the wheel; "
-        "'loom project https://pypi.org/project/x-y/1.0/' reads the sdist"
-    ]
+    assert caplog.messages == [said]
     assert _codes(caplog) == [FILE_AMBIGUOUS.code]
 
 

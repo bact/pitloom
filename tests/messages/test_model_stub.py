@@ -54,6 +54,7 @@ from pitloom.messages.models import (
     NOT_A_MODEL_LINE,
     READER_UNSAFE,
     READER_UNSAFE_REMOTE,
+    READER_UNSAFE_TWINS,
 )
 from tests._message_drift import SRC_ROOT, TEST_LOGGER_PREFIX, raised_as
 
@@ -301,12 +302,18 @@ def test_a_coded_import_error_without_its_line_is_refused() -> None:
     assert not isinstance(caught.value, ImportError)
 
 
-def test_the_gate_line_names_the_flag_and_every_gated_format() -> None:
+def test_the_gate_line_names_the_surface_s_switch_and_every_gated_format() -> None:
     flag = PARAM_TO_FLAG["trust_model_files"]
-    lines = [*READER_UNSAFE.lines, *READER_UNSAFE_REMOTE.lines]
-    assert len(lines) == 3  # a wheel's, a Git URL's, a PyPI URL's
-    for line in lines:
-        assert f"; pass {flag} for " in line.template
+    twins = list(READER_UNSAFE_TWINS.values())
+    assert len(twins) == 3  # a wheel's, a Git URL's, a PyPI URL's
+    assert [*READER_UNSAFE.lines, *READER_UNSAFE_REMOTE.lines] == [
+        line for pair in twins for line in pair.members
+    ]
+    for pair in twins:
+        assert f"; pass {flag} for " in pair.cli.template
+        assert "; set trust_model_files=True for " in pair.library.template
+        # The hook never meets a gate: its project is read in full.
+        assert not pair.hook_reachable
     for message in (READER_UNSAFE, READER_UNSAFE_REMOTE):
         summary = message.summary.lower()
         assert all(str(fmt) in summary for fmt in WHEEL_GATED_FORMATS)

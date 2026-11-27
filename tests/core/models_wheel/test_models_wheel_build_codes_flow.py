@@ -99,7 +99,8 @@ def test_a_build_says_the_unsafe_line_of_its_two_choices_first(
     lines = printed(caplog)
     assert len(lines) == 1
     line = lines[0]
-    text = unsafe_line(static_failed=static_failed, isolated=isolated).render(
+    # A library call: the library's wording.
+    text = unsafe_line(static_failed=static_failed, isolated=isolated).library.render(
         {"dir": tmp_path, "duration": 77, "backend": "mesonpy"}
     )
     assert line == f"WARNING: {_PREFIX}{text} [build-code-unsafe]"
@@ -197,7 +198,7 @@ def test_a_timeout_says_the_line_of_its_confirmation(
     line = lines[0]
     assert line == (
         f"WARNING: {_PREFIX}DIR={tmp_path}: the build timed out after 5 seconds "
-        f"(--build-timeout); {ending} [build-timeout]"
+        f"(BuildOptions.timeout); {ending} [build-timeout]"
     )
     assert "timed out after" in line and trusted_message(line) is BUILD_TIMEOUT
     assert not list(sys_tmp.iterdir())

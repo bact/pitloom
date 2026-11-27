@@ -23,6 +23,7 @@ from pitloom import logging_config
 from pitloom.extract._license import clear_resolution_cache
 from pitloom.extract._license_text_match import _get_detector
 from pitloom.logging_config import _WARNED_ONCE
+from pitloom.messages import strict_surfaces
 from tests._environ import environ_restored
 from tests._logger_state import pitloom_logger_unconfigured
 from tests._message_drift import record_problem
@@ -186,6 +187,15 @@ def _reset_license_matcher_cache() -> None:
     ``_get_detector``'s cache or the resolution cache."""
     _get_detector.cache_clear()
     clear_resolution_cache()
+
+
+@pytest.fixture(autouse=True)
+def _strict_surfaces() -> Iterator[None]:
+    """Fail a test in which the Hatchling hook says a line it was ruled
+    unable to reach (:meth:`pitloom.messages.Twins.no_hook`): outside the
+    suite the library's wording is said instead."""
+    with strict_surfaces():
+        yield
 
 
 @pytest.fixture(autouse=True)

@@ -128,6 +128,13 @@ of each, with a value in place of each `<name>`:
 | `temp-dir-unwritable` | `WARNING: Build: DIR=<dir>: could not be fully removed; left in the system temp directory [temp-dir-unwritable]` |
 | `library-missing` | `WARNING: Build: required library not installed: build; install pitloom[build] [library-missing]` |
 
+The lines quote the command line. A library call names its own options
+instead: `BuildOptions.allow runs a PEP 517 build for up to <duration>
+(BuildOptions.timeout), ...` and `the build timed out after <duration>
+(BuildOptions.timeout); ...`; a build option given without `allow` says
+`Build: <subject>: BuildOptions.timeout has no effect without
+BuildOptions.allow [option-no-effect]`.
+
 - The `build-code-unsafe` line comes before the build runs: for a backend no
   file discoverer of Pitloom reads (as above), or for a supported one whose
   static discovery failed (`... build-backend <backend>, its static discovery
@@ -264,11 +271,10 @@ or a non-`int` `timeout` raises `TypeError`; a `timeout` outside 1 to
 target other than a project directory, or `no_isolation`/`timeout`
 without `allow` -- logs one `WARNING: Build: ...` line per field
 (`[option-no-effect]`),
-naming the field by its CLI flag spelling (e.g. `--build-timeout`)
-followed by "has no effect" and the reason -- even when `BuildOptions`
-was constructed directly and no CLI flag was ever typed. Intentional:
-the same warning stays recognisable and grep-able regardless of which
-surface (CLI, library API, ...) triggered it. Logged as early as
+naming the field as the caller gave it (`BuildOptions.timeout has no
+effect without BuildOptions.allow`); the command line names its flags
+instead (`--build-timeout`, `--allow-build`). The code is the same on
+both. Logged as early as
 possible on every surface -- before any project-metadata or lock-file
 `WARNING:` a project directory target might also trigger -- so it's
 never buried later in a run's output.

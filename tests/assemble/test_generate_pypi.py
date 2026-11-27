@@ -154,7 +154,7 @@ def test_generate_forwards_every_option_to_the_pypi_generator(
         return "sbom"
 
     monkeypatch.setattr(assemble, "generate_pypi_sbom", _fake)
-    monkeypatch.setattr(assemble, "sdist_hint", lambda url, library: None)
+    monkeypatch.setattr(assemble, "sdist_hint", lambda url: None)
     names = [n for n in inspect.signature(generate).parameters if n != "target"]
     sentinels: dict[str, object] = {name: object() for name in names}
     # Checked before the dispatch, so a valid value of each.

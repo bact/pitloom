@@ -253,7 +253,7 @@ def _note_inert_config(
     }
 
     def note() -> None:
-        settle_inert(EMBED_PROJECT, proj_root, configured, level=logging.INFO)
+        settle_inert(EMBED_PROJECT, proj_root, configured, configured=True)
 
     if file_cache is None:
         note()

@@ -104,7 +104,7 @@ from pitloom.messages.network import (
 )
 from pitloom.messages.targets import (
     HF_URL_INVALID,
-    HUB_MODEL_NOT_PROJECT_LINE,
+    HUB_MODEL_NOT_PROJECT_LINES,
     TARGET_AMBIGUOUS_HF_URL,
     TARGET_WRONG_FORMAT,
 )
@@ -238,7 +238,7 @@ def refuse_hub_model_target(target: object) -> None:
     require_hf_model_id(target)
     raise CodedValueError(
         TARGET_WRONG_FORMAT,
-        line=HUB_MODEL_NOT_PROJECT_LINE,
+        line=HUB_MODEL_NOT_PROJECT_LINES,
         url=sanitize_url(target.strip()),
     )
 

@@ -51,11 +51,22 @@ from tests.assemble.conftest import _make_dummy_wheel, _make_sdist
 from tests.assemble.embed_surfaces_shared import run_cli as _run_cli
 from tests.extract.conftest import make_hook, write_pyproject
 
-_FLAGS = ("--allow-build", "--no-build-isolation", "--build-timeout")
-_STRAY = "without --allow-build"
+#: Each side's names for allow, no-isolation and timeout, and for the
+#: external SBOM: the command line's flags, the library's options.
+_NAMES = {
+    "cli": ("--allow-build", "--no-build-isolation", "--build-timeout", "--sbom"),
+    "lib": (
+        "BuildOptions.allow",
+        "BuildOptions.no_isolation",
+        "BuildOptions.timeout",
+        "sbom_path",
+    ),
+}
 _NOT_PROJECT = "for this target (no build-backend file discovery"
 _SDIST = "for an sdist archive target"
-_EXT_SBOM = "for an externally-supplied --sbom"
+#: A reason naming an option: written per side (``{0}`` allow, ``{3}`` sbom).
+_STRAY = "without {0}"
+_EXT_SBOM = "for an externally-supplied {3}"
 _NO_PROJECT = "with no project directory to rescan"
 _HF_URL = "https://huggingface.co/acme/demo-model"
 # Spec'd default, not read from the source, so a changed default fails here.
@@ -329,13 +340,31 @@ _CASES = [
 ]
 
 
-def _expected_warnings(options: BuildOptions, reason: str | None) -> dict[str, str]:
-    """Flag -> the reason its one warning must carry."""
+def _side(surface: str) -> str:
+    """The side of :data:`_NAMES` a runner of *surface* says its options on."""
+    return "cli" if surface.startswith("cli-") else "lib"
+
+
+def _given(options: BuildOptions, side: str) -> list[str]:
+    """The options given in *options*, as *side* names them, in CLI order."""
+    allow, isolation, timeout, _ = _NAMES[side]
+    on = (options.allow, options.no_isolation, options.timeout is not None)
+    return [
+        name
+        for name, given in zip((allow, isolation, timeout), on, strict=True)
+        if given
+    ]
+
+
+def _expected_warnings(
+    options: BuildOptions, reason: str | None, side: str
+) -> dict[str, str]:
+    """Option, as *side* names it -> the reason its one warning must carry."""
     if reason is not None:
-        return dict.fromkeys(options.given, reason)
+        return dict.fromkeys(_given(options, side), reason.format(*_NAMES[side]))
     if options.allow:
         return {}
-    return dict.fromkeys(options.given, _STRAY)
+    return dict.fromkeys(_given(options, side), _STRAY.format(*_NAMES[side]))
 
 
 def _expected_settings(
@@ -406,8 +435,8 @@ def test_build_flags_matrix(
         assert bool(discovery_settings) == kind.startswith("embed_project_sdist")
 
     messages = [r.getMessage() for r in caplog.records if r.levelno == logging.WARNING]
-    expected = _expected_warnings(options, reason)
-    for flag in _FLAGS:
+    expected = _expected_warnings(options, reason, _side(surface))
+    for flag in _NAMES[_side(surface)][:3]:
         lines = [m for m in messages if f"{flag} has no effect" in m]
         if flag not in expected:
             assert lines == []

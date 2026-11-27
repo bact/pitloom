@@ -119,7 +119,7 @@ def test_build_and_read_wheel_timeout_returns_none_and_cleans_up(
     assert result is None
     # BuildTimeoutError has no text of its own: check this branch's
     # wording and the generic one's absence.
-    assert "the build timed out after 42 seconds (--build-timeout)" in caplog.text
+    assert "the build timed out after 42 seconds (BuildOptions.timeout)" in caplog.text
     assert caplog.text.rstrip().endswith(outcome)
     assert "its wheel could not be read" not in caplog.text
     assert seen == TEMP_PREFIXES
@@ -244,7 +244,7 @@ def test_build_and_read_wheel_survives_raising_work_dir_cleanup(
 
     if outcome == "timeout":
         assert result is None
-        assert "timed out after 42 seconds (--build-timeout)" in caplog.text
+        assert "timed out after 42 seconds (BuildOptions.timeout)" in caplog.text
     else:
         assert result is not None
         assert result[0]

@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from typing import Final
 
+from pitloom.messages._surface import Twins
 from pitloom.messages._types import ASK_FIRST, Line, Message
 
 _SINCE: Final = "0.25.0"
@@ -107,10 +108,21 @@ BUILD_FAILED_LINE: Final = _line(f"build-and-read failed and {_NOT_AWARE}{_HEURI
 BUILD_FAILED_NO_PROJECT_LINE: Final = _line(
     f"build-and-read failed and {_NOT_AWARE}{_NO_PROJECT}"
 )
-#: uv_build overrides the heuristic does not read, without --allow-build.
-UV_OVERRIDES_LINE: Final = _line(
+_UV_OVERRIDES: Final = (
     "[tool.uv.build-backend] overrides the heuristic cannot see; pass "
-    "--allow-build for an exact file list from a real build"
+)
+_REAL_BUILD: Final = " for an exact file list from a real build"
+#: uv_build overrides the heuristic does not read, without --allow-build.
+_UV_OVERRIDES_LINE: Final = _line(f"{_UV_OVERRIDES}--allow-build{_REAL_BUILD}")
+#: The same, as each surface asks for a build (the hook never builds; it
+#: reads a Hatchling project).
+UV_OVERRIDES_LINES: Final = Twins.no_hook(
+    cli=_UV_OVERRIDES_LINE,
+    library=Line(
+        level="WARNING",
+        template=f"DIR=%(dir)s: {_UV_OVERRIDES}BuildOptions(allow=True){_REAL_BUILD}",
+        since="0.25.0",
+    ),
 )
 #: setup.py passes file-selection keywords imperatively.
 IMPERATIVE_LINE: Final = _line(
@@ -133,7 +145,7 @@ FILE_DISCOVERY_NEEDS_BUILD: Final = Message(
         NOT_AWARE_NO_PROJECT_LINE,
         BUILD_FAILED_LINE,
         BUILD_FAILED_NO_PROJECT_LINE,
-        UV_OVERRIDES_LINE,
+        *UV_OVERRIDES_LINES.members,
         IMPERATIVE_LINE,
         FLIT_EXTERNAL_DATA_LINE,
     ),

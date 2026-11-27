@@ -43,7 +43,12 @@ from pitloom.id_registry import (
 )
 from pitloom.messages import CodedValueError, say_summary
 from pitloom.messages.id_registry import HOLDS_IDS, say_save_failure
-from pitloom.messages.options import OPTION_INVALID, PATH_OUTSIDE_LINE
+from pitloom.messages.options import (
+    OPTION_CONFLICT,
+    OPTION_INVALID,
+    PATH_OUTSIDE_LINE,
+    namespace_conflict_line,
+)
 from pitloom.messages.targets import (
     INPUT_NOT_FOUND,
     NO_ID_PATHS_LINE,
@@ -223,8 +228,26 @@ def _open_generate_registry(
     if not is_new:
         registry.require_project_root(project_dir)
         if args.namespace is not None:
-            registry.require_namespace(args.namespace)
+            _require_namespace(registry, registry_path, args.namespace)
     return registry
+
+
+def _require_namespace(registry: IdRegistry, path: Path, namespace: str) -> None:
+    """Refuse ``--namespace`` *namespace* for the existing registry *path*
+    made with another one: silently keeping the old one would ignore the
+    flag (``option-conflict``, which names the flag).
+
+    Raises:
+        pitloom.messages.CodedValueError: The namespaces differ.
+    """
+    if namespace != registry.namespace:
+        raise CodedValueError(
+            OPTION_CONFLICT,
+            line=namespace_conflict_line(registry.namespace, namespace),
+            file=path,
+            namespace=registry.namespace,
+            given_namespace=namespace,
+        )
 
 
 def _register_entities(

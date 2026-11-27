@@ -30,6 +30,7 @@ from pitloom.core._models_wheel_types import BuildSettings
 from pitloom.core.build_options import SDIST_TARGET_REASON, BuildOptions
 from pitloom.core.models import get_wheel_files
 from pitloom.embed import ConfigOverrides
+from pitloom.messages import SURFACE_CLI, advice_surface
 
 
 def _build_warnings(caplog: pytest.LogCaptureFixture) -> list[str]:
@@ -102,7 +103,26 @@ def test_is_frozen() -> None:
 def test_given_lists_flags_in_cli_order(
     options: BuildOptions, expected: tuple[str, ...]
 ) -> None:
-    assert options.given == expected
+    """On the command line each flag; in the library each option."""
+    with advice_surface(SURFACE_CLI):
+        assert options.given == expected
+    library = {
+        "--allow-build": "BuildOptions.allow",
+        "--no-build-isolation": "BuildOptions.no_isolation",
+        "--build-timeout": "BuildOptions.timeout",
+    }
+    assert options.given == tuple(library[flag] for flag in expected)
+
+
+def test_settle_names_the_command_line_s_flags_there(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    with caplog.at_level(logging.WARNING, logger="pitloom"):
+        with advice_surface(SURFACE_CLI):
+            BuildOptions(timeout=5).settle("proj")
+    assert _build_warnings(caplog) == [
+        "Build: proj: --build-timeout has no effect without --allow-build",
+    ]
 
 
 @pytest.mark.parametrize(
@@ -129,8 +149,9 @@ def test_settle_warns_once_per_stray_flag_and_resets(
         settled = BuildOptions(no_isolation=True, timeout=5).settle("proj")
 
     assert _build_warnings(caplog) == [
-        "Build: proj: --no-build-isolation has no effect without --allow-build",
-        "Build: proj: --build-timeout has no effect without --allow-build",
+        "Build: proj: BuildOptions.no_isolation has no effect without "
+        "BuildOptions.allow",
+        "Build: proj: BuildOptions.timeout has no effect without BuildOptions.allow",
     ]
     assert settled == BuildOptions()
 
@@ -170,15 +191,17 @@ def test_settle_not_applicable_warns_every_given_flag_and_resets(
 ) -> None:
     """Unlike ``settle()``, ``allow`` is not exempt here: a target the
     caller already knows won't reach file discovery makes every given
-    flag ineffective, ``--allow-build`` included."""
+    flag ineffective, ``allow`` included."""
     with caplog.at_level(logging.WARNING, logger="pitloom"):
         settled = BuildOptions(allow=True, timeout=5).settle_not_applicable(
             "demo.tar.gz", "for an sdist archive target"
         )
 
     assert _build_warnings(caplog) == [
-        "Build: demo.tar.gz: --allow-build has no effect for an sdist archive target",
-        "Build: demo.tar.gz: --build-timeout has no effect for an sdist archive target",
+        "Build: demo.tar.gz: BuildOptions.allow has no effect for an sdist "
+        "archive target",
+        "Build: demo.tar.gz: BuildOptions.timeout has no effect for an sdist "
+        "archive target",
     ]
     assert settled == BuildOptions()
 
@@ -243,15 +266,17 @@ def test_settle_target_project_dir_settles_like_settle(
     caplog: pytest.LogCaptureFixture, tmp_path: Path
 ) -> None:
     """A directory settles exactly as ``settle()`` does: stray flags warn
-    "without --allow-build"; with ``allow`` nothing warns and the value
+    "without BuildOptions.allow"; with ``allow`` nothing warns and the value
     (timeout included) is kept."""
     with caplog.at_level(logging.WARNING, logger="pitloom"):
         stray = _STRAY.settle_target(tmp_path)
         allowed = _ALLOWED.settle_target(tmp_path)
 
     assert _build_warnings(caplog) == [
-        f"Build: {tmp_path}: --no-build-isolation has no effect without --allow-build",
-        f"Build: {tmp_path}: --build-timeout has no effect without --allow-build",
+        f"Build: {tmp_path}: BuildOptions.no_isolation has no effect without "
+        "BuildOptions.allow",
+        f"Build: {tmp_path}: BuildOptions.timeout has no effect without "
+        "BuildOptions.allow",
     ]
     assert stray == BuildOptions()
     assert allowed is _ALLOWED

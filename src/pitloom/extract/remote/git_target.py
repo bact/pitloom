@@ -31,6 +31,7 @@ from pitloom.extract.model_target import (
 )
 from pitloom.extract.remote._git_folder import checkout_has_file, subproject_hint
 from pitloom.extract.remote._git_say import no_target_hint_error
+from pitloom.extract.remote._http_errors import remote_error
 from pitloom.extract.remote.errors import RemoteSourceError
 from pitloom.extract.remote.git import GitCheckout
 from pitloom.extract.scanner import is_model_candidate_name
@@ -43,7 +44,7 @@ from pitloom.messages.targets import (
     GIT_FILE_IS_LINK_LINE,
     GIT_FILE_NOT_FOUND_LINE,
     INPUT_NOT_FOUND,
-    MODEL_FILES_LINE,
+    MODEL_FILES_LINES,
     NO_SBOM_TARGET,
     PROJECT_NOT_FOUND_MODEL_FILES,
 )
@@ -117,10 +118,12 @@ def _refuse_model_only_folder(checkout: GitCheckout, subject: str) -> None:
     more = len(names) - _NAMES_SHOWN
     if more > 0:
         shown += f" and {more} more"
-    raise RemoteSourceError(
+    raise remote_error(
         "git.no-project",
-        MODEL_FILES_LINE.render({"path": subject, "files": shown}),
-        pitloom_code=PROJECT_NOT_FOUND_MODEL_FILES.code,
+        PROJECT_NOT_FOUND_MODEL_FILES,
+        MODEL_FILES_LINES,
+        path=subject,
+        files=shown,
     )
 
 

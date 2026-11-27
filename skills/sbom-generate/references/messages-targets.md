@@ -260,9 +260,10 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
 
   ```text
   ERROR: '<path>': no Python project (pyproject.toml, setup.cfg or setup.py); it holds files that may be AI models (<files>): use 'loom model <url>' or 'loom generate <url>' [project-not-found/model-files]
+  ERROR: '<path>': no Python project (pyproject.toml, setup.cfg or setup.py); it holds files that may be AI models (<files>): use generate_git_sbom(url, sbom_kind='model') or generate(url) [project-not-found/model-files]
   ```
 
-- **Since**: 0.23.4; line 1: 0.25.0
+- **Since**: 0.23.4; lines 1-2: 0.25.0
 
 ### `project-or-model-not-found`
 
@@ -438,5 +439,6 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
 
   ```text
   ERROR: URL=<url>: a Hugging Face model, not a project; use 'loom model' [target-wrong-format]
+  ERROR: URL=<url>: a Hugging Face model, not a project; use generate_model_sbom() [target-wrong-format]
   ERROR: FILE=<file>: not a .whl file [target-wrong-format]
   ```

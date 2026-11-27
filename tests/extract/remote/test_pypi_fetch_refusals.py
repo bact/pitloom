@@ -164,7 +164,7 @@ def test_what_pypi_does_not_hold(
             [Dist("x-1.0.tar.gz")],
             WHEEL,
             ("pypi.no-wheel", RELEASE_FILE_NOT_FOUND.code),
-            f"'loom project {_PAGE}x/1.0/' reads its sdist",
+            f"generate_pypi_sbom('{_PAGE}x/1.0/', kind='sdist') reads its sdist",
         ),
         (
             [
@@ -180,7 +180,7 @@ def test_what_pypi_does_not_hold(
             [Dist(_ANY)],
             SDIST,
             ("pypi.no-sdist", RELEASE_FILE_NOT_FOUND_SDIST.code),
-            f"'loom wheel {_PAGE}x/1.0/' reads a wheel",
+            f"generate_pypi_sbom('{_PAGE}x/1.0/') reads a wheel",
         ),
     ],
     ids=["no-wheel", "no-compatible-wheel", "no-sdist"],

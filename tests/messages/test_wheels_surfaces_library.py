@@ -155,7 +155,7 @@ def test_find_embedded_sbom_returns_none_for_none_and_raises_for_several(
     assert find_embedded_sbom(make_wheel(tmp_path / "none")) is None
     sboms = {"a.spdx3.json": spdx3_sbom(), "b.spdx3.json": spdx3_sbom()}
     several = make_wheel(tmp_path / "several", sboms=sboms)
-    with pytest.raises(ValueError, match="pass --sbom-filename") as raised:
+    with pytest.raises(ValueError, match="; pass sbom_filename$") as raised:
         find_embedded_sbom(several)
     assert code_of(raised.value) == "wheel-sbom-ambiguous"
     assert find_embedded_sbom(several, "a.spdx3.json") is not None  # one named

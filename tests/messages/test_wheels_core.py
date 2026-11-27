@@ -341,7 +341,7 @@ def test_several_embedded_sboms_are_ambiguous(tmp_path: Path) -> None:
     assert str(caught.value) == (
         f"ARCHIVE='{_WHEEL}': 2 SBOMs under .dist-info/sboms/ "
         "('demo-1.0.dist-info/sboms/a.spdx3.json', "
-        "'demo-1.0.dist-info/sboms/b.json'); pass --sbom-filename"
+        "'demo-1.0.dist-info/sboms/b.json'); pass sbom_filename"
     )
     assert code_of(caught.value) == "wheel-sbom-ambiguous"
 

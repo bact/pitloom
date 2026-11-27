@@ -3,7 +3,7 @@ SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
 Created: 2026-11-15
-Last-Modified: 2026-11-17
+Last-Modified: 2026-11-26
 -->
 
 # Credentials: detect, warn or refuse, never rewrite
@@ -74,8 +74,8 @@ says "refused", read "refused in the `refuse` mode, warned of in `warn`".
   distinct value, in graph order, the end naming how the surface accepts it
   (CLI `with --accept-url-credential <fp>`, Hatchling hook `by listing it in
   [tool.pitloom] accept-url-credentials`, library `with
-  credentials=CredentialPolicy(accepted=["<fp>"])`; a `credential_advice`
-  context the entry point sets), then a closing count naming no URL (`<n>
+  credentials=CredentialPolicy(accepted=["<fp>"])`; the surface the entry
+  point opens, `advice_surface()`), then a closing count naming no URL (`<n>
   URL value(s) in the SBOM hold credentials; the SBOM is refused`, the same
   on every surface); exit 1, no SBOM written. The hook's lines start
   `Pitloom build hook: `. The raised error's text and `args` name no URL

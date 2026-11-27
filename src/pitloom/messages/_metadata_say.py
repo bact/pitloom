@@ -22,6 +22,7 @@ from pitloom.messages._file_discovery import (
     FILE_DISCOVERY_NEEDS_BUILD,
     FILE_DISCOVERY_UNUSABLE,
 )
+from pitloom.messages._surface import Twins
 from pitloom.messages._types import Line
 
 #: The entries :func:`warn_discovery` says, each named here so a check can
@@ -57,10 +58,12 @@ def relay_coded_warning(
         log.warning("%s", text, extra=extra)
 
 
-def warn_discovery(log: logging.Logger, line: Line, **values: object) -> None:
+def warn_discovery(
+    log: logging.Logger, line: Line | Twins[Line], **values: object
+) -> None:
     """The one ``WARNING:`` on *log* of the file discovery *line* (a line
-    of :mod:`pitloom.messages.file_discovery`), with *values*, carrying the
-    code of the entry that holds it.
+    of :mod:`pitloom.messages.file_discovery`; twins say the surface's
+    wording), with *values*, carrying the code of the entry that holds it.
 
     Raises:
         pitloom.core.internal_error.InternalError: *line* is no file
@@ -68,6 +71,8 @@ def warn_discovery(log: logging.Logger, line: Line, **values: object) -> None:
         ValueError: *values* are not the line's fields, or a value does not
             have its field's shape.
     """
+    if isinstance(line, Twins):
+        line = line.current()
     entry = next((e for e in _DISCOVERY_ENTRIES if line in e.lines), None)
     if entry is None:
         raise InternalError(f"{line.template!r} is no file discovery line")

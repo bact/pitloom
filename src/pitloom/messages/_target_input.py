@@ -17,14 +17,17 @@ from __future__ import annotations
 
 from typing import Final
 
+from pitloom.messages._surface import Twins
 from pitloom.messages._types import ASK_FIRST, Line, Message
 
 _SINCE: Final = "0.25.0"
 
-#: A Hugging Face model URL given to ``loom project``.
-HUB_MODEL_NOT_PROJECT_LINE: Final = Line(
-    level="ERROR",
-    template="URL=%(url)s: a Hugging Face model, not a project; use 'loom model'",
+_HUB_MODEL: Final = "URL=%(url)s: a Hugging Face model, not a project; use "
+#: A Hugging Face model URL given to ``loom project`` or a library call that
+#: reads a project (the hook reads its own project only).
+HUB_MODEL_NOT_PROJECT_LINES: Final = Twins.no_hook(
+    cli=Line(level="ERROR", template=f"{_HUB_MODEL}'loom model'"),
+    library=Line(level="ERROR", template=f"{_HUB_MODEL}generate_model_sbom()"),
 )
 #: A file given as a wheel that is not named ``.whl``.
 NOT_A_WHEEL_LINE: Final = Line(level="ERROR", template="FILE=%(file)s: not a .whl file")
@@ -32,7 +35,7 @@ NOT_A_WHEEL_LINE: Final = Line(level="ERROR", template="FILE=%(file)s: not a .wh
 TARGET_WRONG_FORMAT: Final = Message(
     code="target-wrong-format",
     condition="wrong-format",
-    lines=(HUB_MODEL_NOT_PROJECT_LINE, NOT_A_WHEEL_LINE),
+    lines=(*HUB_MODEL_NOT_PROJECT_LINES.members, NOT_A_WHEEL_LINE),
     summary="The target given is not of the kind the command reads: a Hugging "
     "Face model given to 'loom project', or a file not named .whl given as a "
     "wheel ('loom wheel', 'embed-wheel', 'verify-wheel', 'validate-wheel').",

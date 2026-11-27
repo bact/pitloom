@@ -41,7 +41,7 @@ from pitloom.extract.remote import (
 from pitloom.extract.remote.pypi_url import is_pypi_url
 from pitloom.logging_config import print_error
 from pitloom.messages.pypi import (
-    MODEL_URL_LINE,
+    MODEL_URL_LINES,
     PYPI_URL_UNUSABLE,
 )
 from pitloom.messages.targets import MODEL_FILE_KIND, say_input_not_found
@@ -125,7 +125,9 @@ def _run_model_command(args: argparse.Namespace) -> int:
     target: str = args.target
     if is_pypi_url(target):
         print_error(
-            MODEL_URL_LINE.render({"url": sanitize_url(target.strip())}),
+            PYPI_URL_UNUSABLE.line_for("ERROR", ("url",), MODEL_URL_LINES).render(
+                {"url": sanitize_url(target.strip())}
+            ),
             code=PYPI_URL_UNUSABLE.code,
         )
         return 1

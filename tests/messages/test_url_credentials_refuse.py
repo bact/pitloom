@@ -21,12 +21,15 @@ import pytest
 
 from pitloom.core.internal_error import InternalError
 from pitloom.logging_config import configure_logging
-from pitloom.messages import code_of, trusted_message
+from pitloom.messages import (
+    SURFACE_CLI,
+    SURFACE_HOOK,
+    SURFACE_LIBRARY,
+    advice_surface,
+    code_of,
+    trusted_message,
+)
 from pitloom.messages.url_credentials import (
-    ADVICE_CLI,
-    ADVICE_CONFIG,
-    ADVICE_LIBRARY,
-    credential_advice,
     refused_error,
     registry_file_refused_error,
     say_accepted,
@@ -70,10 +73,10 @@ def _one_line(lines: list[str], level: str, code: str) -> str:
 
 #: Each surface's way of accepting a value, as its refusal ends.
 _ADVICE_ENDS = {
-    ADVICE_CLI: f"accept this value with --accept-url-credential {_FINGERPRINT}",
-    ADVICE_CONFIG: "accept this value by listing it in [tool.pitloom] "
+    SURFACE_CLI: f"accept this value with --accept-url-credential {_FINGERPRINT}",
+    SURFACE_HOOK: "accept this value by listing it in [tool.pitloom] "
     "accept-url-credentials",
-    ADVICE_LIBRARY: "accept this value with "
+    SURFACE_LIBRARY: "accept this value with "
     f'credentials=CredentialPolicy(accepted=["{_FINGERPRINT}"])',
 }
 
@@ -84,7 +87,7 @@ def test_say_refused_masks_and_names_the_way_its_surface_accepts(
     capsys: pytest.CaptureFixture[str], url: str, advice: str
 ) -> None:
     def say() -> None:
-        with credential_advice(advice):
+        with advice_surface(advice):
             say_refused(
                 url,
                 f"https://bob:{_SECRET}@h/el",
@@ -101,9 +104,10 @@ def test_say_refused_masks_and_names_the_way_its_surface_accepts(
 
 #: Each surface's way of turning the refuse mode on, as its warning ends.
 _REFUSE_ENDS = {
-    ADVICE_CLI: "refuse such values with --refuse-url-credentials",
-    ADVICE_CONFIG: 'refuse such values with [tool.pitloom] url-credentials = "refuse"',
-    ADVICE_LIBRARY: "refuse such values with credentials=CredentialPolicy(refuse=True)",
+    SURFACE_CLI: "refuse such values with --refuse-url-credentials",
+    SURFACE_HOOK: 'refuse such values with [tool.pitloom] url-credentials = "refuse"',
+    SURFACE_LIBRARY: "refuse such values with "
+    "credentials=CredentialPolicy(refuse=True)",
 }
 
 
@@ -113,7 +117,7 @@ def test_say_written_every_time_names_the_way_its_surface_refuses(
     capsys: pytest.CaptureFixture[str], url: str, advice: str
 ) -> None:
     def twice() -> None:
-        with credential_advice(advice):
+        with advice_surface(advice):
             for _ in range(2):
                 say_written(
                     url,
@@ -153,15 +157,15 @@ def test_the_library_advice_is_the_default_and_restored_on_exit(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     def say() -> None:
-        with pytest.raises(KeyError), credential_advice(ADVICE_CLI):
+        with pytest.raises(KeyError), advice_surface(SURFACE_CLI):
             raise KeyError
         say_refused(_URL, "SPDXRef-a", "software_homePage", _FINGERPRINT)
 
     assert "CredentialPolicy(" in _lines(capsys, say)[0]
 
 
-def test_credential_advice_takes_only_a_known_surface() -> None:
-    with pytest.raises(InternalError), credential_advice("hook"):
+def test_advice_surface_takes_only_a_known_surface() -> None:
+    with pytest.raises(InternalError), advice_surface("config"):
         pass
 
 
@@ -180,13 +184,13 @@ def test_say_refused_takes_only_a_fingerprint() -> None:
         say_refused(_URL, "SPDXRef-a", "software_homePage", "sha256:0123")
 
 
-@pytest.mark.parametrize("advice", [ADVICE_CLI, ADVICE_LIBRARY])
+@pytest.mark.parametrize("advice", [SURFACE_CLI, SURFACE_LIBRARY])
 @pytest.mark.parametrize("url", [_URL, _BROKEN], ids=["plain", "line-break"])
 def test_say_accepted_every_time(
     capsys: pytest.CaptureFixture[str], url: str, advice: str
 ) -> None:
     def twice() -> None:
-        with credential_advice(advice):
+        with advice_surface(advice):
             say_accepted(url, _FINGERPRINT)
             say_accepted(url, _FINGERPRINT)
 

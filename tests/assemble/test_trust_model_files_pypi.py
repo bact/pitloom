@@ -153,7 +153,12 @@ def test_a_downloaded_wheels_model_is_gated_as_remote_input(
     assert not _hyperparameters(gated)
     (line,) = remote_gate_infos(caplog)
     assert line.startswith(f"FILE={WHEEL_NAME}: ")
-    assert ": fasttext; pass --trust-model-files for a release you trust" in line
+    switch = (
+        "pass --trust-model-files"
+        if surface.startswith("cli-")
+        else ("set trust_model_files=True")
+    )
+    assert f": fasttext; {switch} for a release you trust" in line
     assert gate_infos(caplog) == []  # not the local wheel's line
 
     caplog.clear()
@@ -181,7 +186,8 @@ def test_a_downloaded_sdists_model_is_not_read_and_the_flag_warns(
         assert _MODEL in sbom  # listed as a file of the sdist
         assert _ai_packages(sbom) == 0
         assert remote_gate_infos(caplog) == []
-        warned = count_naming(logged_warnings(caplog), _FLAG)
+        named = _FLAG if surface.startswith("cli-") else "trust_model_files"
+        warned = count_naming(logged_warnings(caplog), named)
         assert warned == (1 if trust else 0)
     spy.assert_not_called()
 
@@ -198,7 +204,7 @@ def _gated_and_read(
     with caplog.at_level(logging.INFO):
         run()
     (line,) = remote_gate_infos(caplog)
-    named = re.search(r": ([a-z0-9_, ]+); pass --trust-model-files ", line)
+    named = re.search(r": ([a-z0-9_, ]+); set trust_model_files=True ", line)
     assert named is not None, line
     return named.group(1).split(", "), sorted({str(fmt) for fmt, _path in read})
 

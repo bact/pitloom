@@ -153,8 +153,11 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
   ```text
   ERROR: URL=<url>: --embed writes into a wheel file, and a PyPI URL has none to keep; nothing fetched [pypi-url-unusable]
   ERROR: URL=<url>: a PyPI page is not a model; 'loom wheel' reads its wheel, 'loom project' its sdist; nothing fetched [pypi-url-unusable]
-  ERROR: URL=<url>: a PyPI page is not a Git repository; generate_pypi_sbom(), 'loom wheel' or 'loom project' reads it; nothing fetched [pypi-url-unusable]
+  ERROR: URL=<url>: a PyPI page is not a model; generate_pypi_sbom() reads its wheel, generate_pypi_sbom(kind='sdist') its sdist; nothing fetched [pypi-url-unusable]
+  ERROR: URL=<url>: a PyPI page is not a Git repository; generate_pypi_sbom() reads it; nothing fetched [pypi-url-unusable]
   ```
+
+- **Since**: 0.24.0; lines 3-4: 0.25.0
 
 ### `release-file-not-found`
 
@@ -170,7 +173,10 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
 
   ```text
   ERROR: PYPI=<name> VERSION=<version>: the release has no wheel; 'loom project <url>' reads its sdist [release-file-not-found]
+  ERROR: PYPI=<name> VERSION=<version>: the release has no wheel; generate_pypi_sbom('<url>', kind='sdist') reads its sdist [release-file-not-found]
   ```
+
+- **Since**: 0.24.0; line 2: 0.25.0
 
 ### `release-file-not-found/compatible-wheel`
 
@@ -189,7 +195,10 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
 
   ```text
   ERROR: PYPI=<name> VERSION=<version>: no wheel matches this Python and platform (wheels: <files>); 'loom project <url>' reads its sdist [release-file-not-found/compatible-wheel]
+  ERROR: PYPI=<name> VERSION=<version>: no wheel matches this Python and platform (wheels: <files>); generate_pypi_sbom('<url>', kind='sdist') reads its sdist [release-file-not-found/compatible-wheel]
   ```
+
+- **Since**: 0.24.0; line 2: 0.25.0
 
 ### `release-file-not-found/sdist`
 
@@ -205,7 +214,10 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
 
   ```text
   ERROR: PYPI=<name> VERSION=<version>: the release has no sdist; 'loom wheel <url>' reads a wheel [release-file-not-found/sdist]
+  ERROR: PYPI=<name> VERSION=<version>: the release has no sdist; generate_pypi_sbom('<url>') reads a wheel [release-file-not-found/sdist]
   ```
+
+- **Since**: 0.24.0; line 2: 0.25.0
 
 ### `release-not-found`
 

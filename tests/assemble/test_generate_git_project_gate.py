@@ -143,7 +143,8 @@ def test_a_gated_reader_never_runs_on_a_git_urls_project(
         f for f in FORMATS if f not in WHEEL_GATED_FORMATS and has_reader_library(f)
     ]
     (note,) = remote_gate_infos(caplog)  # five gated models, one line
-    assert f": {', '.join(_GATED_NAMES)}; pass --trust-model-files " in note
+    # A library call names the library's switch.
+    assert f": {', '.join(_GATED_NAMES)}; set trust_model_files=True " in note
     assert set(remote) == set(local) == {fixture_path(f).name for f in FORMATS}
     for fmt in FORMATS:
         name = fixture_path(fmt).name

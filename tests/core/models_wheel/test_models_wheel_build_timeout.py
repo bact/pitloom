@@ -95,7 +95,9 @@ def test_allow_build_security_warning_shows_timeout(
     with caplog.at_level(logging.WARNING):
         get_wheel_files(tmp_path, build_options=BuildOptions(allow=True, timeout=333))
 
-    assert "--allow-build runs a PEP 517 build for up to 333 seconds" in caplog.text
+    assert (
+        "BuildOptions.allow runs a PEP 517 build for up to 333 seconds" in caplog.text
+    )
     (record,) = [r for r in caplog.records if "PEP 517 build" in r.getMessage()]
     assert getattr(record, CODE_ATTR) == "build-code-unsafe"
 
