@@ -25,7 +25,7 @@ and this project adheres to
 ### Changed
 
 - A dependency's licence from its metadata, PyPI or licence files is
-  `hasDeclaredLicense`, its originator's claim, not concluded ([#569])
+  `hasDeclaredLicense`, not concluded; FSCT COMP-007 reports it missing ([#569])
 - A dependency whose metadata names no SPDX licence gets the one its installed
   licence files name; a differing stated text stays beside it ([#569])
 

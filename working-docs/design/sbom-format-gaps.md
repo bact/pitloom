@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-21
-Last-Modified: 2026-11-26
+Last-Modified: 2026-11-28
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -366,3 +366,26 @@ declined or fixed entry with its outcome.
 - Evidence: `tests/assemble/test_ai_package_comment.py`
 - Status: noted
 - Date: 2026-11-21
+
+### FG-17 FSCT counts only a concluded licence, and a dependency's is declared
+
+- Format and version: mapping FSCT 2024 (Framing Software Component
+  Transparency) to SPDX 3.0.1
+- Element or property: FSCT `COMP-007` License, mapped to
+  `hasConcludedLicense` only (not `NoAssertionLicense`)
+- Fact to record: a dependency's licence, read from its installed
+  metadata, its licence files or its PyPI record: the originator's
+  statement
+- Pitloom today: since #569, `hasDeclaredLicense` (asserter-licence.md:
+  Pitloom concludes nothing about a dependency), so `COMP-007` reports every
+  dependency as `missing`; the `sbom-enrich` skill's FSCT row says this is
+  expected, not a defect in the SBOM
+- Why imprecise: the mapping reads FSCT's licence element as concluded
+  only, so it undercounts declared licences
+- Proposal: decide whether FSCT accepts a declared licence for `COMP-007`;
+  if so, map it to `hasDeclaredLicense` or either relationship (the user
+  owns the mapping)
+- Evidence: `skills/sbom-enrich/references/minimum-elements.md` (FSCT
+  table), `tests/fixtures/conformance/fsct3-expected.tsv`
+- Status: noted (trade-off accepted by the user, 2026-11-28)
+- Date: 2026-11-28
