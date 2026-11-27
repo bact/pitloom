@@ -160,9 +160,9 @@ entries come first; fixed entries stay in the last section for history.
 - [ ] **A G2 conflict where a generic licence name narrows to its file's
   licence (S, upstream).** With #569 a dependency's stated licence text
   and its licence file's detection are both declared, the originator's
-  claims, with a conflict annotation when they differ. A generic trove classifier name the file narrows to one member
-  of (`BSD License` -> `BSD-3-Clause`, `Apache Software License` ->
-  `Apache-2.0`) is no conflict but still gets a conflict annotation: 10 of
+  claims, with a conflict annotation when they differ. A generic trove
+  classifier name the file narrows to one member of (`BSD License` ->
+  `BSD-3-Clause`, `Apache Software License` -> `Apache-2.0`) is no conflict but still gets a conflict annotation: 10 of
   14 such packages in Pitloom's own environment, 4 stated by the
   classifier, 6 by a short `License` header (`BSD`, `Apache Software
   License`, `Expat license`, `PSFL`) whose package's classifier narrows
@@ -174,6 +174,18 @@ entries come first; fixed entries stay in the last section for history.
   provenance, not decided); widening (`-only` stated, `-or-later`
   detected) and a different family stay conflicts.
   *Found 2026-11-27, before/after sweep of the #569 G2 change.*
+- [ ] **A licence with no source is concluded (S-M, to rule).**
+  `is_license_concluded` (`assemble/spdx3/_provenance_encoders.py`)
+  classes a licence whose provenance names no `Source:` as
+  `hasConcludedLicense`; since #569 that is its only concluded case. The
+  "Licence paths" table of
+  [asserter-licence.md](../provenance-taxonomy/asserter-licence.md) calls
+  such a value a bug at the reader, not a concluded licence. Start with an
+  inventory of the readers that can leave the source empty (a library
+  caller's value, a fragment, a dataset or model with no provenance), then
+  fix each reader rather than the class. Kept as is in #569 by the user's
+  ruling (2026-11-28): a separate follow-up.
+  *Found 2026-11-28, #569 dependency licences declared.*
 
 ## Fixed
 
