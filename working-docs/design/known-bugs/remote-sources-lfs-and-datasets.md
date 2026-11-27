@@ -168,7 +168,7 @@ release ships.
   before any request. Open question: a server may serve a repository at the
   host root (`git http-backend`), so the refusal may need to apply only to
   known forges.
-  *Found 2026-11-27, post-publish verification of 0.25.0.* Fixed: a URL
+  *Found 2026-11-27, post-publish verification of 0.25.0.* Fixed in #571: a URL
   whose path has no segment is refused in `_read_url` (`extract/remote/git.py`)
   before the redirect probe, any host alike; one segment is the server's to
   judge.
