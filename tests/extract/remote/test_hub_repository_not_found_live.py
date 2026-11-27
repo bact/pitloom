@@ -50,8 +50,9 @@ def test_a_missing_model_is_refused() -> None:
     [
         ("google/gemma-2b", "gemma-2b"),
         ("https://huggingface.co/gpt2/tree/main", "gpt2"),
+        ("https://huggingface.co/gpt2/settings", "gpt2"),
     ],
-    ids=["gated", "one-part-id-page"],
+    ids=["gated", "one-part-id-page", "one-part-id-bare-page"],
 )
 def test_a_model_the_hub_knows_is_read(target: str, name: str) -> None:
     with skip_on_network_error():

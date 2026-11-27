@@ -29,6 +29,7 @@ import sys
 from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import Any
+from unittest.mock import patch
 
 import huggingface_hub
 import pytest
@@ -37,6 +38,7 @@ from huggingface_hub.errors import HfHubHTTPError
 
 from pitloom import __main__
 from pitloom.assemble import generate, generate_model_sbom
+from pitloom.core.fetch_policy import RemoteFetchPolicy
 from pitloom.extract.remote import _hub_api, _hub_files
 from pitloom.extract.remote._hub_api import (
     REPOSITORY_NOT_FOUND,
@@ -44,6 +46,8 @@ from pitloom.extract.remote._hub_api import (
     repo_page_url,
 )
 from pitloom.extract.remote.errors import RemoteSourceError
+from pitloom.extract.remote.huggingface import read_huggingface
+from pitloom.extract.remote.huggingface_dataset import _load_dataset_info
 from pitloom.extract.remote.huggingface_fetch import _load_model_info
 from pitloom.logging_config import configure_logging
 from pitloom.messages import Line
@@ -54,6 +58,8 @@ from pitloom.messages.targets import (
     INPUT_NOT_FOUND_HUB,
 )
 from tests._message_drift import raised_as
+
+pytestmark = pytest.mark.platform  # the CLI's exit code, cwd and -o paths
 
 #: What an anonymous request for a missing (or private) model is answered.
 _ANONYMOUS = (401, {"X-Error-Message": "Invalid username or password."})
@@ -110,15 +116,16 @@ def test_another_exception_is_not_refused() -> None:
     assert not is_repository_not_found(TimeoutError("t"))
 
 
+def _fetched(*_args: object, **_kwargs: object) -> None:
+    raise AssertionError("a file was fetched")
+
+
 @pytest.fixture(name="answer")
 def _answer(monkeypatch: pytest.MonkeyPatch) -> Callable[[int, dict[str, str]], None]:
     """Make ``model_info()`` raise what the Hub's answer would raise, and
     fail any file download: a refusal fetches no file."""
 
-    def fetched(*_args: object, **_kwargs: object) -> None:
-        raise AssertionError("a file was fetched")
-
-    monkeypatch.setattr(_hub_files, "fetch_capped", fetched)
+    monkeypatch.setattr(_hub_files, "fetch_capped", _fetched)
 
     def set_answer(status: int, headers: dict[str, str]) -> None:
         def model_info(repo_id: str, **_kwargs: object) -> Any:
@@ -217,9 +224,12 @@ def test_the_cli_exits_1_and_writes_nothing(
     ("target", "line"),
     [
         ("h/nope", HUB_ID_NOT_FOUND_LINE),
+        (" h/nope ", HUB_ID_NOT_FOUND_LINE),
         ("https://hf.co/h/nope", HUB_URL_NOT_FOUND_LINE),
+        ("http://huggingface.co/h/nope", HUB_URL_NOT_FOUND_LINE),
+        (" HTTPS://huggingface.co/h/nope/tree/main ", HUB_URL_NOT_FOUND_LINE),
     ],
-    ids=["id", "url"],
+    ids=["id", "padded-id", "url", "http-url", "padded-upper-url"],
 )
 def test_the_library_raises_and_writes_nothing(
     refusing_hub: Path,
@@ -251,3 +261,123 @@ def test_loom_model_reads_a_url_as_a_url(
     err = capsys.readouterr().err
     assert "URL=https://huggingface.co/gpt2: the Hugging Face Hub knows" in err
     assert "model file not found" not in err and "local path" not in err
+
+
+def test_read_huggingface_reads_a_padded_url_as_a_url(refusing_hub: Path) -> None:
+    """``read_huggingface()`` is public and takes white space around a URL
+    (``parse_hf_model_id``): the refusal names the URL, no local path."""
+    del refusing_hub
+    with pytest.raises(RemoteSourceError) as raised:
+        read_huggingface("  https://huggingface.co/h/nope\n")
+    assert str(raised.value) == _text(HUB_URL_NOT_FOUND_LINE)
+
+
+def test_an_id_no_model_can_have_is_refused(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """``huggingface_hub`` refuses ``a/b--c`` before any request (the real
+    ``model_info()``; no socket is opened): no model has that id, and it is
+    no local path either."""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(_hub_files, "fetch_capped", _fetched)
+    with pytest.raises(RemoteSourceError) as raised:
+        generate_model_sbom("a/b--c")
+    assert str(raised.value) == _text(HUB_ID_NOT_FOUND_LINE, "a/b--c")
+
+
+@pytest.mark.parametrize(
+    ("found", "read"),
+    [({"gpt2"}, "gpt2"), (set(), None)],
+    ids=["one-part-found", "neither-found"],
+)
+def test_a_bare_page_url_is_read_as_its_one_part_id(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+    found: set[str],
+    read: str | None,
+) -> None:
+    """``https://huggingface.co/gpt2/settings`` is no model ``gpt2/settings``:
+    when the Hub knows none, its owner is read, with one ``INFO:``; when it
+    knows neither, the refusal names the one-part id it asked last."""
+    asked: list[str] = []
+
+    def model_info(repo_id: str, **_kwargs: object) -> Any:
+        asked.append(repo_id)
+        if repo_id in found:
+            raise TimeoutError("stands in for an answer: the read goes on")
+        raise _raised(repo_id, *_ANONYMOUS)
+
+    monkeypatch.setattr(huggingface_hub, "model_info", model_info)
+    monkeypatch.setattr(_hub_files, "fetch_capped", _fetched)
+    url = "https://huggingface.co/gpt2/settings"
+    with caplog.at_level(logging.INFO, logger="pitloom"):
+        if read is None:
+            with pytest.raises(RemoteSourceError) as raised:
+                read_huggingface(url)
+            assert str(raised.value) == _text(HUB_URL_NOT_FOUND_LINE, "gpt2")
+        else:
+            with pytest.raises(AssertionError, match="a file was fetched"):
+                read_huggingface(url)
+    assert asked == ["gpt2/settings", "gpt2"]
+    said = [r.getMessage() for r in caplog.records if r.name.startswith("pitloom")]
+    assert (
+        said[0] == f"URL={url}: read as Hugging Face model https://huggingface.co/gpt2"
+    )
+
+
+def test_an_id_spelt_as_such_is_not_read_again(
+    monkeypatch: pytest.MonkeyPatch, refusing_hub: Path
+) -> None:
+    """``gpt2/settings`` typed as an id is that id: no second request."""
+    del refusing_hub
+    asked: list[str] = []
+
+    def model_info(repo_id: str, **_kwargs: object) -> Any:
+        asked.append(repo_id)
+        raise _raised(repo_id, *_ANONYMOUS)
+
+    monkeypatch.setattr(huggingface_hub, "model_info", model_info)
+    with pytest.raises(RemoteSourceError):
+        read_huggingface("gpt2/settings")
+    assert asked == ["gpt2/settings"]
+
+
+def test_a_dataset_the_hub_does_not_know_still_warns(
+    answer: Callable[[int, dict[str, str]], None],
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Only the model a run reads is refused: a dataset its card lists that
+    the Hub does not know is left out with a ``WARNING:``."""
+    configure_logging()
+    answer(*_ANONYMOUS)
+
+    def dataset_info(repo_id: str, **_kwargs: object) -> Any:
+        raise _raised(repo_id, *_ANONYMOUS)
+
+    with patch("huggingface_hub.dataset_info", dataset_info):
+        assert _load_dataset_info("o/d") is None
+    assert f"[{DOWNLOAD_FAILED.code}]" in capsys.readouterr().err
+
+
+def test_only_not_found_reads_a_bare_page_url_again(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Any other error reading ``org/settings`` (here a caller's
+    ``check_url`` refusing its card) stands: the owner is not read
+    instead."""
+    monkeypatch.chdir(tmp_path)
+    asked: list[str] = []
+
+    def model_info(repo_id: str, **_kwargs: object) -> Any:
+        asked.append(repo_id)
+        raise TimeoutError("no answer: warned, and the files are read")
+
+    def refuse(url: str) -> None:
+        raise RemoteSourceError("caller.refused", f"refused {url}")
+
+    monkeypatch.setattr(huggingface_hub, "model_info", model_info)
+    policy = RemoteFetchPolicy(check_url=refuse)
+    with pytest.raises(RemoteSourceError) as raised:
+        read_huggingface("https://huggingface.co/org/settings", policy=policy)
+    assert raised.value.code == "caller.refused"
+    assert asked == ["org/settings"]

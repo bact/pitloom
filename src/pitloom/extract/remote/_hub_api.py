@@ -72,11 +72,19 @@ def is_repository_not_found(exc: BaseException) -> bool:
     repository, says the Hub knows no repository by that id that the
     request could read: a ``RepositoryNotFoundError`` (a 404, or the 401 an
     anonymous request gets for a missing or a private repository alike),
-    but not its subclass ``GatedRepoError`` (a gated repository is
-    found)."""
+    but not its subclass ``GatedRepoError`` (a gated repository is found);
+    or an ``HFValidationError``, an id no repository can have (``a/b--c``),
+    refused before any request. A mirror's 404 without the Hub's
+    ``RepoNotFound`` code is no such answer."""
     # pylint: disable-next=import-outside-toplevel
-    from huggingface_hub.errors import GatedRepoError, RepositoryNotFoundError
+    from huggingface_hub.errors import (
+        GatedRepoError,
+        HFValidationError,
+        RepositoryNotFoundError,
+    )
 
+    if isinstance(exc, HFValidationError):
+        return True
     return isinstance(exc, RepositoryNotFoundError) and not isinstance(
         exc, GatedRepoError
     )

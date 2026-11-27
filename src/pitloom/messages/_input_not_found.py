@@ -192,8 +192,8 @@ INPUT_NOT_FOUND_HUB: Final = Message(
     lines=(HUB_ID_NOT_FOUND_LINE, HUB_URL_NOT_FOUND_LINE),
     summary="A Hugging Face model id (owner/name, no local path) or Hub "
     "model URL names no model the Hub lets this run read: model_info() "
-    "answered not found. Without a token the Hub answers so for a private "
-    "model too; a gated model is found.",
+    "said not found, or no model can have the id. Without a token the Hub "
+    "answers so for a private model too; a gated model is found.",
     did="Fetched no file and wrote no SBOM: the command exits 1 (the Action "
     "step fails); generate and generate_model_sbom raise RemoteSourceError "
     "(huggingface.repository-not-found) carrying the code. Other Hub "

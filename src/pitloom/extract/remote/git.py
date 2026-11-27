@@ -313,8 +313,8 @@ def _host_as_typed(url: str) -> bool:
     another spelling (``pypi%2Eorg``, a full-width dot) to a host the URL's
     text does not name, which no check of that text (a PyPI host is never
     cloned) would see; a host holding ``=``, ``!`` or white space, or
-    starting with ``-``, names none; and a bracketed name (``[v1.x]``) would lose its
-    brackets in the clone URL and name a DNS host.
+    starting with ``-``, names none; and a bracketed name (``[v1.x]``)
+    would lose its brackets in the clone URL and name a DNS host.
 
     *url* is one :func:`scheme_allowed` accepted, so it parses: a URL
     ``urlsplit`` refuses never reaches here."""

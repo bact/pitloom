@@ -79,7 +79,9 @@ from pitloom.core.optional_libraries import HUB, import_failed
 from pitloom.core.url_masking import sanitize_url
 from pitloom.extract.ai_model.limits import settle_read_text
 from pitloom.extract.remote._http_errors import remote_error, shown_url
+from pitloom.extract.remote._hub_api import REPOSITORY_NOT_FOUND
 from pitloom.extract.remote._hub_files import ROUTE, HubFiles, hub_files
+from pitloom.extract.remote.errors import RemoteSourceError
 from pitloom.extract.remote.git_url import HUB_HOST_PATTERN, is_hub_model_url
 from pitloom.extract.remote.huggingface_dataset import add_hub_dataset_metadata
 from pitloom.extract.remote.huggingface_fetch import (
@@ -146,6 +148,7 @@ _PAGE_SEGMENTS: Final = frozenset(
         "edit",
         "raw",
         "resolve",
+        "settings",
         "tree",
     }
 )
@@ -190,7 +193,9 @@ def parse_hf_model_id(source: str) -> str | None:
 
     A page of a model with a one-part id (one the Hub keeps for a model it
     moved: ``https://huggingface.co/gpt2/tree/main``) names that id
-    (:func:`_legacy_page_id`).
+    (:func:`_legacy_page_id`); one with no part after the page kind
+    (``https://huggingface.co/gpt2/settings``) is read as such when the Hub
+    knows no model of the two parts (:func:`read_huggingface`).
     """
     source = source.strip()
     url_match = _HF_URL_RE.match(source)
@@ -317,7 +322,9 @@ def read_huggingface(
             Hub knows no model by that id that this run can read
             (``huggingface.repository-not-found``, ``input-not-found/hub``;
             a private model asked for without a token is answered so too),
-            before any of its files is fetched.
+            before any of its files is fetched. A URL whose name part is a
+            page kind (``https://huggingface.co/gpt2/settings``) is first
+            read again as the one-part id, with one ``INFO:``.
         Exception: Whatever the policy's ``check_url`` raises, unchanged.
     """
     try:
@@ -337,7 +344,34 @@ def read_huggingface(
     # An id is no local path either (parse_hf_model_id): a refusal says so.
     as_id = not source.strip().lower().startswith(("http://", "https://"))
     with hub_files(policy) as hub:
-        return _read_repository(hub, model_id, hf_url, as_id=as_id)
+        try:
+            return _read_repository(hub, model_id, hf_url, as_id=as_id)
+        except RemoteSourceError as exc:
+            one_part = _one_part_id(model_id, exc, as_id=as_id)
+            if one_part is None:
+                raise
+        # The page of a model with a one-part id: read as that model, said.
+        one_part_url = f"{_CANONICAL_PREFIX}{one_part}"
+        emit(
+            log,
+            TARGET_AMBIGUOUS_HF_URL,
+            logging.INFO,
+            url=shown_url(source.strip()),
+            target=one_part_url,
+        )
+        return _read_repository(hub, one_part, one_part_url, as_id=False)
+
+
+def _one_part_id(model_id: str, exc: RemoteSourceError, *, as_id: bool) -> str | None:
+    """The one-part id to read instead of *model_id*, read from a URL, that
+    the Hub knows no model for (*exc*): its owner, when its name is a page
+    kind (:data:`_PAGE_SEGMENTS`: ``https://huggingface.co/gpt2/settings``
+    is a page of ``gpt2``, not the model ``gpt2/settings``); else ``None``.
+    An id typed as such is read as typed."""
+    owner, _, name = model_id.partition("/")  # a one-part id has no name
+    if as_id or exc.code != REPOSITORY_NOT_FOUND or name not in _PAGE_SEGMENTS:
+        return None
+    return owner
 
 
 # pylint: disable-next=too-many-locals

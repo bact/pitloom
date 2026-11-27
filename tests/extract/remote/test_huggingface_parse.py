@@ -118,6 +118,13 @@ def test_parse_hf_model_id_invalid(source: str) -> None:
         ("https://huggingface.co/gpt2/resolve/0123abc/config.json", "gpt2"),
         ("https://huggingface.co/gpt2/commits/main?p=1", "gpt2"),
         ("https://huggingface.co/gpt2/discussions/12", "gpt2"),
+        ("https://huggingface.co/gpt2/commit/0123abc", "gpt2"),
+        ("https://huggingface.co/gpt2/raw/main/README.md", "gpt2"),
+        ("https://huggingface.co/gpt2/blame/main/README.md", "gpt2"),
+        ("https://huggingface.co/gpt2/edit/main/README.md", "gpt2"),
+        ("https://huggingface.co/gpt2/compare/main", "gpt2/compare"),
+        ("https://huggingface.co/org/tree/settings", "org/tree"),
+        ("https://huggingface.co/gpt2/settings", "gpt2/settings"),
         ("https://huggingface.co/org/name/tree/v1.0", "org/name"),
         ("https://huggingface.co/org/name/blob/main/README.md", "org/name"),
         ("https://huggingface.co/org/tree/tree/main", "org/tree"),
@@ -132,6 +139,13 @@ def test_parse_hf_model_id_invalid(source: str) -> None:
         "legacy-resolve",
         "legacy-query",
         "legacy-discussion",
+        "legacy-commit",
+        "legacy-raw",
+        "legacy-blame",
+        "legacy-edit",
+        "no-such-page",
+        "model-named-tree-settings",
+        "bare-page-read-later",
         "two-part-tree",
         "two-part-blob",
         "model-named-tree",
@@ -144,7 +158,8 @@ def test_parse_hf_model_id_invalid(source: str) -> None:
 def test_a_page_of_a_one_part_id_names_that_id(url: str, expected: str) -> None:
     """The Hub keeps a one-part id for a model it moved (``gpt2``, now
     ``openai-community/gpt2``): a page of it, ``<id>/<page>/<part>``, names
-    that id, so the model is read, not refused as unknown. A model named
+    that id, so the model is read, not refused as unknown (each page kind
+    measured on the Hub, 2026-11-27; ``compare`` is none). A model named
     like a page (``org/tree``) is read as two parts: the part after a page
     is never a page itself, and a page needs a part after it. The Hub's
     paths are case-sensitive."""
