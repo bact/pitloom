@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-11-27
+Last-Modified: 2026-11-28
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -193,10 +193,11 @@ and counts are in
 
 Seen in Pitloom's own published wheel SBOM. The first two are priority.
 
-- [ ] **Priority: a dependency's licence is declared, not concluded**: a
-  licence read from a dependency's metadata or licence file is the
-  originator's claim (`hasDeclaredLicense`); Pitloom concludes nothing about
-  it. The provenance taxonomy code stage. See
+- [x] **Priority: a dependency's licence is declared, not concluded**: done
+  in #569 (2026-11-28): PyPI, the installed copy and its licence files are
+  the originator's claims (`hasDeclaredLicense`); Pitloom concludes nothing
+  about a dependency. The project's own G2 path and a licence with no source
+  are not changed (not yet ruled). See
   [asserter-licence.md](provenance-taxonomy/asserter-licence.md).
 - [ ] **Priority: author typing (#170)**: an exact known list of
   organisation names and addresses gives `Organization`; an author not

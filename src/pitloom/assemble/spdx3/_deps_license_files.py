@@ -30,7 +30,12 @@ from pitloom.extract._core_metadata import (
     licence_classifier_names,
     license_from_classifiers,
 )
-from pitloom.extract._license import classify_license, license_from_candidates
+from pitloom.extract._license import (
+    classify_license,
+    license_from_candidates,
+    stated_text_agrees,
+)
+from pitloom.extract._license_classify import tag_license_normalization
 from pitloom.extract._license_detect import pick_license_names
 from pitloom.extract.copyright_notices import read_license_text
 
@@ -136,7 +141,7 @@ def license_from_dist_files(
     ]
     if not candidates:
         return None
-    return license_from_candidates(candidates, stated=classifier_expression(pkg_meta))
+    return license_from_candidates(candidates, stated=_classifier_expression(pkg_meta))
 
 
 def with_dist_license_files(
@@ -145,25 +150,32 @@ def with_dist_license_files(
     stated: tuple[str | None, str],
     source: str,
 ) -> tuple[str | None, str, tuple[str, str] | tuple[None, None]]:
-    """``(licence, provenance, (concluded, provenance))`` for *dist_name*
-    from its Core Metadata licence *stated* ``(licence, provenance)`` and
-    its licence files (:func:`license_from_dist_files`), by a project's own
-    rule (G2): stated text (``Apache Software License``) stays the declared
-    licence, the files' licence its concluded second opinion; an absent or
-    blank one, or ``UNKNOWN``/``NOASSERTION`` (a placeholder, no claim),
-    gives way to the files' licence. ``(None, None)`` when there is no
-    second opinion."""
+    """``(licence, provenance, (other, provenance))`` for *dist_name* from
+    its Core Metadata licence *stated* ``(licence, provenance)`` and its
+    licence files (:func:`license_from_dist_files`), each the originator's
+    declaration: an absent or blank licence, or ``UNKNOWN``/``NOASSERTION``
+    (a placeholder, no claim), gives way to the files' licence; stated text
+    LicenseID reads as the files' licence (a ``License`` header holding the
+    licence body, the classifiers' licence winning a near-tie:
+    :func:`~pitloom.extract._license.stated_text_agrees`) is that licence,
+    its provenance keeping the text as ``Normalized-From``; other stated
+    text (``Apache Software License``) stays, the files' licence a second
+    declared licence (``other``). ``(None, None)`` when there is none."""
     license_id, provenance = stated
     found = license_from_dist_files(dist_name, pkg_meta, license_id, source)
     if found is None:
         return license_id, provenance, (None, None)
     classified = classify_license(license_id, warn=False)
-    if classified is not None and classified.kind == "text":
-        return license_id, provenance, found
-    return found[0], found[1], (None, None)
+    if classified is None or classified.kind != "text":
+        return found[0], found[1], (None, None)
+    text = str(license_id)
+    if stated_text_agrees(text, found[0], hint=_classifier_expression(pkg_meta)):
+        noted = tag_license_normalization(found[1], text, found[0], resolver=False)
+        return found[0], noted, (None, None)
+    return license_id, provenance, found
 
 
-def classifier_expression(pkg_meta: CoreMetadata) -> str | None:
+def _classifier_expression(pkg_meta: CoreMetadata) -> str | None:
     """The SPDX expression the ``License ::`` classifiers of *pkg_meta*
     name, or ``None`` when they name none (``Apache Software License`` has
     no version)."""
@@ -174,7 +186,6 @@ def classifier_expression(pkg_meta: CoreMetadata) -> str | None:
 
 
 __all__ = [
-    "classifier_expression",
     "dist_license_files",
     "license_from_dist_files",
     "read_dist_info_text",

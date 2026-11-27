@@ -128,11 +128,9 @@ def stated_text_agrees(text: str, detected: str, *, hint: str | None = None) -> 
     (:func:`~pitloom.extract._license_names.same_licence`), *hint* (the
     licence the ``License ::`` classifiers name) winning a near-tie as for
     the file (:func:`read_license_text`). A name too short to be a licence
-    body (``Apache Software License``) is read as nothing: ``False``; so is
-    an id or expression, a claim of its own, never read as a body."""
-    classified = classify_license(text, warn=False)
-    if classified is None or classified.kind != "text":
-        return False
+    body (``Apache Software License``) is read as nothing: ``False``. The
+    caller passes text only: an id or expression is a claim of its own,
+    never read as a body."""
     reading = read_license_text(text, stated=hint)
     return reading.expression is not None and same_licence(reading.expression, detected)
 

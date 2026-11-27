@@ -322,108 +322,17 @@ def _licence_of(element: dict[str, Any]) -> str:
     )
 
 
-@pytest.mark.usefixtures("licenseid_db_path")
-@pytest.mark.parametrize(
-    "source", [INSTALLED_DEPENDENCY_SOURCE, DEPLOYED_PACKAGE_SOURCE]
-)
-@pytest.mark.parametrize(
-    ("fields", "classifiers", "text", "expected", "conflicts"),
-    [
-        # Stated text is the declared licence, the file's the concluded one
-        # (G2), as for a project's own; they differ, so a conflict is noted.
-        (
-            {},
-            [_APACHE_CLASSIFIER],
-            _MIT,
-            {
-                "hasDeclaredLicense": "Apache Software License",
-                "hasConcludedLicense": "MIT",
-            },
-            1,
-        ),
-        # Nothing stated: the file's licence, declared or concluded by its
-        # source (single mode).
-        ({}, [], _MIT, {"single": "MIT"}, 0),
-        # python-dateutil: a dual licence the file would narrow, not read.
-        (
-            {"License": "Dual License"},
-            [_BSD_CLASSIFIER, _APACHE_CLASSIFIER],
-            _MIT,
-            {"single": "Dual License"},
-            0,
-        ),
-        # A header holding the licence body LicenseID reads as the file's
-        # licence agrees: no conflict, both relationships kept.
-        (
-            {"License": _MIT},
-            [],
-            _MIT,
-            {"hasDeclaredLicense": "<text>", "hasConcludedLicense": "MIT"},
-            0,
-        ),
-        # The same with a verbatim LGPL 3 body: only the classifier
-        # (LGPLv3+) decides it reads as the file's LGPL-3.0-or-later.
-        (
-            {"License": _LGPL3},
-            [_LGPL3_PLUS],
-            _LGPL3,
-            {
-                "hasDeclaredLicense": "<text>",
-                "hasConcludedLicense": "LGPL-3.0-or-later",
-            },
-            0,
-        ),
-        # A short name LicenseID reads as nothing still conflicts, though
-        # it names the file's licence by usage.
-        (
-            {"License": "Expat license"},
-            [],
-            _MIT,
-            {"hasDeclaredLicense": "Expat license", "hasConcludedLicense": "MIT"},
-            1,
-        ),
-        # A body of another licence than the file's: a real conflict.
-        (
-            {"License": _MIT},
-            [],
-            _LGPL3,
-            {"hasDeclaredLicense": "<text>", "hasConcludedLicense": "LGPL-3.0-only"},
-            1,
-        ),
-    ],
-    ids=[
-        "stated-text",
-        "unstated",
-        "dual",
-        "body-agrees",
-        "body-agrees-by-classifier",
-        "short-name",
-        "body-differs",
-    ],
-)
-# pylint: disable-next=too-many-arguments,too-many-positional-arguments,too-many-locals
-def test_dependency_licence_from_its_file(
+def _enriched_graph(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    meta: _FakeMetadata,
+    files: dict[str, str],
     source: str,
-    fields: dict[str, str],
-    classifiers: list[str],
-    text: str,
-    expected: dict[str, str],
-    conflicts: int,
-) -> None:
-    """A dependency's licence file is read on the project and the
-    environment route alike, with the file in provenance: beside stated
-    text (the classifier name ``Apache Software License``) as the concluded
-    second opinion, else as the licence."""
-    monkeypatch.setattr(
-        deps_installed,
-        "get_pkg_metadata",
-        lambda name: _FakeMetadata(
-            {"Version": "1.0", **fields}, classifiers=classifiers
-        ),
-    )
-    _patch_dist(monkeypatch, _dist(tmp_path, {f"{_DI}/LICENSE": text}))
+) -> list[dict[str, Any]]:
+    """The graph of one dependency ``dep`` enriched from *meta* and the
+    licence *files* of its fake installed copy, by the route *source*."""
+    monkeypatch.setattr(deps_installed, "get_pkg_metadata", lambda name: meta)
+    _patch_dist(monkeypatch, _dist(tmp_path, files))
     doc_uuid = compute_doc_uuid("demo", "1.0", [])
     _clear_doc_counters(doc_uuid)
     exporter = Spdx3JsonExporter()
@@ -439,7 +348,13 @@ def test_dependency_licence_from_its_file(
         "dep", dep, ci, "demo", doc_uuid, exporter, installed_source=source
     )
     assert "license" in filled
-    graph = json.loads(exporter.to_json(pretty=False))["@graph"]
+    graph: list[dict[str, Any]] = json.loads(exporter.to_json(pretty=False))["@graph"]
+    return graph
+
+
+def _licence_links(graph: list[dict[str, Any]]) -> list[tuple[str, str]]:
+    """``(relationship type, licence)`` of each licence relationship, sorted;
+    a licence body shown as ``<text>``."""
     by_id = {e.get("spdxId"): e for e in graph}
     custom = {
         d["key"]: d["value"]
@@ -450,23 +365,159 @@ def test_dependency_licence_from_its_file(
     def licence(ref: str) -> str:
         value = _licence_of(by_id[ref])
         value = _licence_of(by_id[custom[value]]) if value in custom else value
-        return "<text>" if len(value) > 100 else value  # a licence body
+        return "<text>" if len(value) > 100 else value
 
-    found = {
-        e["relationshipType"]: licence(e["to"][0])
+    return sorted(
+        (e["relationshipType"], licence(e["to"][0]))
         for e in graph
         if e.get("type") == "Relationship" and e["relationshipType"].endswith("License")
-    }
-    if "single" in expected:
-        single = (
-            "hasDeclaredLicense"
-            if source == DEPLOYED_PACKAGE_SOURCE
-            else "hasConcludedLicense"
-        )
-        expected = {single: expected["single"]}
-    assert found == expected
+    )
+
+
+def _conflicts(graph: list[dict[str, Any]]) -> list[list[str]]:
+    """The candidate roles of each licence conflict annotation."""
+    return [
+        [c["role"] for c in json.loads(e["statement"])["candidates"]]
+        for e in graph
+        if e.get("type") == "Annotation" and '"kind":"conflict"' in e["statement"]
+    ]
+
+
+_DECLARED = "hasDeclaredLicense"
+
+
+@pytest.mark.usefixtures("licenseid_db_path")
+@pytest.mark.parametrize(
+    "source", [INSTALLED_DEPENDENCY_SOURCE, DEPLOYED_PACKAGE_SOURCE]
+)
+@pytest.mark.parametrize(
+    ("fields", "classifiers", "text", "expected", "conflicts"),
+    [
+        # Stated text and the file's licence are both the originator's
+        # claims: both declared; they differ, so a conflict is noted.
+        (
+            {},
+            [_APACHE_CLASSIFIER],
+            _MIT,
+            [(_DECLARED, "Apache Software License"), (_DECLARED, "MIT")],
+            1,
+        ),
+        # Nothing stated: the file's licence, declared.
+        ({}, [], _MIT, [(_DECLARED, "MIT")], 0),
+        # python-dateutil: a dual licence the file would narrow, not read.
+        (
+            {"License": "Dual License"},
+            [_BSD_CLASSIFIER, _APACHE_CLASSIFIER],
+            _MIT,
+            [(_DECLARED, "Dual License")],
+            0,
+        ),
+        # A header holding the licence body LicenseID reads as the file's
+        # licence is that licence: one declared id.
+        ({"License": _MIT}, [], _MIT, [(_DECLARED, "MIT")], 0),
+        # The same with a verbatim LGPL 3 body: only the classifier
+        # (LGPLv3+) decides it reads as the file's LGPL-3.0-or-later.
+        (
+            {"License": _LGPL3},
+            [_LGPL3_PLUS],
+            _LGPL3,
+            [(_DECLARED, "LGPL-3.0-or-later")],
+            0,
+        ),
+        # A short name LicenseID reads as nothing stays beside the file's
+        # licence, though it names it by usage: a conflict.
+        (
+            {"License": "Expat license"},
+            [],
+            _MIT,
+            [(_DECLARED, "Expat license"), (_DECLARED, "MIT")],
+            1,
+        ),
+        # A body of another licence than the file's: a real conflict.
+        (
+            {"License": _MIT},
+            [],
+            _LGPL3,
+            [(_DECLARED, "<text>"), (_DECLARED, "LGPL-3.0-only")],
+            1,
+        ),
+    ],
+    ids=[
+        "stated-text",
+        "unstated",
+        "dual",
+        "body-agrees",
+        "body-agrees-by-classifier",
+        "short-name",
+        "body-differs",
+    ],
+)
+# pylint: disable-next=too-many-arguments,too-many-positional-arguments
+def test_dependency_licence_from_its_file(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    source: str,
+    fields: dict[str, str],
+    classifiers: list[str],
+    text: str,
+    expected: list[tuple[str, str]],
+    conflicts: int,
+) -> None:
+    """A dependency's licence file is read on the project and the
+    environment route alike, with the file in provenance; it and the
+    stated licence are the originator's claims, so declared."""
+    meta = _FakeMetadata({"Version": "1.0", **fields}, classifiers=classifiers)
+    graph = _enriched_graph(
+        tmp_path, monkeypatch, meta, {f"{_DI}/LICENSE": text}, source
+    )
+    assert _licence_links(graph) == expected
     assert (f"File: {_DI}/LICENSE" in json.dumps(graph)) == (len(classifiers) < 2)
-    assert json.dumps(graph).count('\\"kind\\":\\"conflict\\"') == conflicts
+    assert _conflicts(graph) == [["declared", "declared"]] * conflicts
+
+
+@pytest.mark.usefixtures("licenseid_db_path")
+def test_a_matched_body_keeps_the_stated_text_in_provenance(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The one declared id a matched ``License`` body gives keeps the body
+    as ``Normalized-From``: nothing read is lost."""
+    meta = _FakeMetadata({"Version": "1.0", "License": _MIT})
+    graph = _enriched_graph(
+        tmp_path,
+        monkeypatch,
+        meta,
+        {f"{_DI}/LICENSE": _MIT},
+        INSTALLED_DEPENDENCY_SOURCE,
+    )
+    [element] = [
+        e for e in graph if e.get("simplelicensing_licenseExpression") == "MIT"
+    ]
+    assert "Normalized-From: " + _MIT.split("\n", 1)[0] in element["comment"]
+    assert f"File: {_DI}/LICENSE" in element["comment"]
+
+
+@pytest.mark.usefixtures("licenseid_db_path")
+@pytest.mark.parametrize(
+    "source", [INSTALLED_DEPENDENCY_SOURCE, DEPLOYED_PACKAGE_SOURCE]
+)
+@pytest.mark.parametrize(
+    "files",
+    [{f"{_DI}/LICENSE": "not a licence"}, {f"{_DI}/LICENSE": _MIT}],
+    ids=["unread", "read"],
+)
+def test_stated_text_is_declared_whether_or_not_the_file_reads(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    source: str,
+    files: dict[str, str],
+) -> None:
+    """The stated ``Apache Software License`` is declared both when the
+    licence file gives no licence and when it gives one: its type does not
+    depend on the file."""
+    meta = _FakeMetadata({"Version": "1.0"}, classifiers=[_APACHE_CLASSIFIER])
+    graph = _enriched_graph(tmp_path, monkeypatch, meta, files, source)
+    assert (_DECLARED, "Apache Software License") in _licence_links(graph)
+    assert all(kind == _DECLARED for kind, _ in _licence_links(graph))
 
 
 @pytest.mark.parametrize(

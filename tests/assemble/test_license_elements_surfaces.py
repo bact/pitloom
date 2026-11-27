@@ -180,13 +180,13 @@ _SURFACES: dict[str, Callable[[str | None], list[dict[str, Any]]]] = {
 }
 
 
-#: Relationship a licence stated by each surface gets: the package's own
-#: statement (pyproject, wheel METADATA, sdist PKG-INFO, a file's own tag, an
-#: AI model's metadata) is *declared*; a dependency's installed metadata and
-#: PyPI are third-party records, *concluded* (see ``is_license_concluded``).
+#: Relationship a licence stated by each surface gets: every one is the
+#: package's own statement (pyproject, wheel METADATA, sdist PKG-INFO, a
+#: file's own tag, an AI model's metadata, a dependency's installed metadata
+#: or PyPI record), so *declared* (see ``is_license_concluded``).
 _RELATIONSHIP: dict[str, str] = {
-    "dependency-installed": "hasConcludedLicense",
-    "dependency-pypi": "hasConcludedLicense",
+    "dependency-installed": "hasDeclaredLicense",
+    "dependency-pypi": "hasDeclaredLicense",
     "main-package": "hasDeclaredLicense",
     "hook": "hasDeclaredLicense",
     "wheel": "hasDeclaredLicense",

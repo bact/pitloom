@@ -159,8 +159,8 @@ entries come first; fixed entries stay in the last section for history.
   *Found 2026-11-27, review of the dependency licence-file fallback.*
 - [ ] **A G2 conflict where a generic licence name narrows to its file's
   licence (S, upstream).** With #569 a dependency's stated licence text
-  stays declared and its licence file's detection is concluded, as for a
-  project. A generic trove classifier name the file narrows to one member
+  and its licence file's detection are both declared, the originator's
+  claims, with a conflict annotation when they differ. A generic trove classifier name the file narrows to one member
   of (`BSD License` -> `BSD-3-Clause`, `Apache Software License` ->
   `Apache-2.0`) is no conflict but still gets a conflict annotation: 10 of
   14 such packages in Pitloom's own environment, 4 stated by the
@@ -244,7 +244,9 @@ release ships.
 - [x] **Installed-dependency and local PT2 model licences are always concluded
   (S).** Decided by #276 ("Declared or concluded" in `license-typing.md`): a
   model file's own metadata is declared, a dependency's installed copy stays
-  concluded (`THIRD_PARTY_SOURCES`).
+  concluded (`THIRD_PARTY_SOURCES`). Reversed in #569 (2026-11-28): a dependency's
+  installed copy and PyPI record are declared too, and `THIRD_PARTY_SOURCES`
+  is gone.
 
 ### Fixed, Found in review rounds, not yet prioritised
 
@@ -254,8 +256,9 @@ release ships.
   detection, with a conflict annotation. Fixed in #569:
   `stated_text_agrees` reads the whole stated text with LicenseID (the
   classifier's licence breaking a near-tie, so fickling's LGPLv3+ decides
-  `LGPL-3.0-or-later`) and a text read as the detected id is agreement,
-  both relationships kept; 4 of 14 annotations gone. The short names stay
+  `LGPL-3.0-or-later`) and a text read as the detected id is that id: one
+  declared licence, the text kept as `Normalized-From` (ruled 2026-11-28,
+  with dependency licences declared); 4 of 14 annotations gone. The short names stay
   open above. *Found 2026-11-27, before/after sweep of the #569 G2 change.*
 
 - [x] **Catalogue 18, the licence families, was later (S), fixed (#498).**

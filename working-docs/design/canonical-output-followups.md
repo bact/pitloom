@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-20
-Last-Modified: 2026-11-26
+Last-Modified: 2026-11-28
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -495,7 +495,9 @@ origin; KB is [known-bugs.md](known-bugs.md).
 - **Why it matters:** `hasDeclaredLicense` or `hasConcludedLicense` changes
   the bytes. One installed copy is concluded as a project dependency and
   declared as a `loom env` package (`deployed package metadata`); a new
-  label is declared by default, and no test lists the labels.
+  label is declared by default, and no test lists the labels. Since #569 (2026-11-28) every named source is declared
+  (`THIRD_PARTY_SOURCES` is gone), so a dependency's installed copy is
+  declared on both routes.
 - **Options:** the label table plus a drift test over every emitted label;
   a typed source class carried with the value (license-rules questions 13,
   14).

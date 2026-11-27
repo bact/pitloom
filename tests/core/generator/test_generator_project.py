@@ -249,9 +249,9 @@ description = "A simple application"
     [
         # An in-package file states the package's own licence: declared.
         ("Source: LICENSE file", spdx3.RelationshipType.hasDeclaredLicense),
-        # A third-party record: concluded, and build_license_elements returns
+        # No source named: concluded, and build_license_elements returns
         # (None, rel_concluded), which build() must handle.
-        ("Source: PyPI JSON API", spdx3.RelationshipType.hasConcludedLicense),
+        ("Field: license", spdx3.RelationshipType.hasConcludedLicense),
     ],
 )
 def test_build_main_package_single_licence_relationship_follows_its_source(

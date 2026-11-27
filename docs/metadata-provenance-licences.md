@@ -35,8 +35,7 @@ not just casing (a declared `"mit"` and a detected `"MIT"` are recognised as the
 same licence), but also equivalent compound expressions written differently
 (`"MIT AND MIT"` and plain `"MIT"`; `"MIT OR Apache-2.0"` and `"Apache-2.0 OR
 MIT"` all normalise to the same value) -- so none of these are misreported as a
-conflict. Nor is a declared licence body (`project.license.text` holding the
-full text) that LicenseID reads as the detected licence.
+conflict.
 
 - If the project states no licence, the directory's value is recorded as
   `hasDeclaredLicense`: a `CITATION.cff`, `codemeta.json` or `LICENSE` file
@@ -242,16 +241,17 @@ own licence files: the first file LicenseID identifies gives the licence
 (provenance `File: <RECORD entry>`, `Method: licenseid_detection`); a file
 holding the texts of several licences ends the search with none, and the
 licence its `License ::` classifiers name wins a near-tie (`LGPLv3+` makes
-a verbatim LGPL 3 text `LGPL-3.0-or-later`). What it gives is recorded as
-for a project too: beside stated text, which stays the declared licence,
-as the concluded licence, with a conflict annotation when the two are not
-the same licence. A stated text LicenseID reads as the concluded licence
-(a `License` header holding the licence body, the classifiers' licence
-winning a near-tie) is the same licence; a short name it reads as nothing
-is not (`Apache Software License` is no SPDX List name, so it differs from
-`Apache-2.0`); in place of an absent value or
-`NOASSERTION`/`UNKNOWN`, as the licence, declared or concluded by its
-source, as the metadata value would be. When no file is identified, the metadata value is
+a verbatim LGPL 3 text `LGPL-3.0-or-later`). The files are the
+dependency's own statement, as its metadata is, so what they give is
+declared. In place of an absent value or `NOASSERTION`/`UNKNOWN`, it is
+the licence. A stated text LicenseID reads as the same licence (a
+`License` header holding the licence body, the classifiers' licence
+winning a near-tie) gives one declared licence, its provenance keeping
+the text as `Normalized-From`. Other stated text stays declared beside
+the files' licence, with a conflict annotation: a short name LicenseID
+reads as nothing (`Apache Software License` is no SPDX List name, so it
+differs from `Apache-2.0`) is such a text. When no file is identified,
+the metadata value is
 recorded as before. With no LicenseID database the files give no licence,
 said once (`license-db-missing`): `INFO:` when a classifier names an SPDX
 licence, else `WARNING:`, as for a project.
@@ -294,10 +294,10 @@ over 1 MiB: no version is read from it.
 
 Whose statement a licence is decides the relationship. The package's own --
 its manifest, a file it ships, an AI model file's own metadata, a model card,
-its own installed metadata (the project, or a `loom env` package) -- is
-`hasDeclaredLicense`. A third-party record -- the PyPI JSON API, or a
-dependency's installed copy read for a project SBOM -- is
-`hasConcludedLicense`, as is the directory's second opinion above.
+its installed metadata or licence files (the project, a `loom env` package,
+or a dependency's installed copy read for a project SBOM), its PyPI JSON API
+record -- is `hasDeclaredLicense`. A licence with no source named, and the
+project directory's second opinion above, are `hasConcludedLicense`.
 
 ## How the copyright text is found
 

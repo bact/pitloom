@@ -24,8 +24,10 @@ and this project adheres to
 
 ### Changed
 
+- A dependency's licence from its metadata, PyPI or licence files is
+  `hasDeclaredLicense`, its originator's claim, not concluded ([#569])
 - A dependency whose metadata names no SPDX licence gets the one its installed
-  licence files name, concluded beside stated text; dual licences kept ([#569])
+  licence files name; a differing stated text stays beside it ([#569])
 
 [#569]: https://github.com/bact/pitloom/pull/569
 
