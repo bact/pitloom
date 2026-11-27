@@ -164,8 +164,9 @@ counts are in [message-catalogue-migration-plan.md](message-catalogue-migration-
   line at the cut, keeping "0.24.0 or later" on the PyPI-URL lines; also
   "LicenseID 0.8.4" in three `SKILL.md` files (SKL-1 of the pre-release
   review).
-- [ ] **Pre-release review 0.25.0**: 5 blockers and 38 cheap fixes in four
-  PRs (argument checks, catalogue, docs and skills, the bump); the
+- [ ] **Pre-release review 0.25.0**: 5 blockers and 39 fixes for 0.25.0 in
+  five PRs (argument checks, catalogue, Hub "repository not found", docs and
+  skills, the bump); the
   next-release items (CLI paths as typed, `-v` sources, hook inert keys,
   Action glob count, spdx3-validate blank nodes, ...) are listed there. See
   [pre-release-review-0.25.0.md](../implementation/pre-release-review-0.25.0.md#next-release).

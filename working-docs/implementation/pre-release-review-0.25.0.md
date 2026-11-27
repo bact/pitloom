@@ -29,11 +29,12 @@ item.
   skills, docs, a downstream trial) reported 76 findings, 71 after merging
   duplicates. None was dropped: each reproduced in a re-run or was confirmed
   at the cited line (CLI-7 by reading only, to stay offline). Triage: 5
-  release blockers (6 ids), 38 cheap fixes for 0.25.0, 31 for the next
-  release (four ids are split between buckets), after an Opus second
-  opinion whose amendments were all taken (LIB-2 and the TRY-1 caveat up to
+  release blockers (6 ids), 39 fixes for 0.25.0, 30 for the next release
+  (four ids are split between buckets), after an Opus second opinion
+  whose amendments were all taken (LIB-2 and the TRY-1 caveat up to
   blockers, SKL-1 down to cheap, LIB-10 and the empty `--creator-email` up
-  to cheap, the batch fences below).
+  to cheap, the batch fences below) and the user's rulings of 2026-11-27
+  (TRY-2 and CLI-7 become 0.25.0 code fixes).
 
 ## Gate results (ff3960a1)
 
@@ -107,18 +108,19 @@ one cause.
 
 | PR | Ids |
 | --- | --- |
-| A, argument checks | LIB-4, LIB-5, LIB-8, LIB-10, REG-3, CLI-2, CLI-9 (`''` only), LIB-9 (CHANGELOG wording only) |
+| A, argument checks | LIB-4, LIB-5, LIB-8, LIB-10, REG-3, CLI-2, CLI-9 (`''` only), LIB-9 (CHANGELOG wording only), TRY-2 (code, ruled) |
 | B, catalogue | LIB-6, MSG-1, MSG-2, MSG-6, LIB-7, CLI-3, HOOK-4 (catalogue text) |
+| E, Hub "repository not found" | CLI-7 (ruled) |
 | C, docs and skills | DOC-1, REG-1, MSG-3, MSG-4, TRY-2, DOC-2, DOC-3, TRY-9a, DOC-4, DOC-5, DOC-7, TRY-11, REG-2, SKL-3, SKL-4, SKL-5, SKL-6, ACT-3, ACT-4, ACT-5, HOOK-4 (page quote), CLI-6 (soften the `docs/cli.md` line) |
 | D, the bump | SKL-1, HOOK-6, the bump cautions (findings-docs.md, "Version text") |
 
 ### Next release
 
-CLI-4, CLI-5, CLI-6 and HOOK-1 (code), CLI-7, CLI-8, CLI-9 (format check),
+CLI-4, CLI-5, CLI-6 and HOOK-1 (code), CLI-8, CLI-9 (format check),
 CLI-10 with MSG-5, CLI-11, CLI-12, LIB-9 (code), LIB-11, LIB-12, LIB-13,
 LIB-14, REG-4, REG-5, REG-6, REG-7, HOOK-2, HOOK-3, HOOK-5, MSG-7, ACT-1,
-ACT-2, TRY-1 (the spdx3-validate fix, by a handoff), TRY-5, TRY-7, TRY-8,
-TRY-12. The roadmap points here ([roadmap.md](../design/roadmap.md),
+ACT-2, TRY-1 (the spdx3-validate fix, by the handoff below), TRY-5, TRY-7
+and TRY-8 (ruled: next release), TRY-12. The roadmap points here ([roadmap.md](../design/roadmap.md),
 "Pre-release review 0.25.0"). Shared root causes to fix as one change each:
 
 - CLI values checked by library dataclasses after parsing (exit 1 or a
@@ -136,67 +138,113 @@ TRY-12. The roadmap points here ([roadmap.md](../design/roadmap.md),
 ## Proposed fix plan
 
 In the policy's order: output-changing fixes first, docs and skills last,
-so one docs pass describes the final output. One owner per file;
-`CHANGELOG.md` is the only file both A and B touch (CI requires it in each
-PR): B adds its lines after A merges.
+so one docs pass describes the final output. One owner per file.
+`CHANGELOG.md` is the one file every code PR touches (CI's "Changelog entry
+required" needs it): each PR adds its own lines and the later one rebases.
 
-1. **PR A, argument checks** (exit codes, error lines): LIB-1, LIB-2, LIB-4
-   (`embed.py`, `assemble/_generators_shared.py` and the wheel generators'
-   `project_dir` check, `_loom_args.py`), LIB-5 and REG-3
-   (`id_registry/_registry.py`, `_format.py`, `_sbom_io.py` for the
-   directory case), LIB-8 (`configure_logging()` in the `IdRegistry` entry
-   points, `resolve_registry`, `fetch_git_project`, `find_embedded_sbom`),
-   LIB-10 (`extract/remote/git.py:298`), CLI-1, CLI-2 and CLI-9 `''`
-   (`cli/parser.py`, `cli/options_resolve.py`: an `argparse` error at
-   parse). Existing codes only; no `src/pitloom/messages/` or generated page.
-   CHANGELOG: fold into the #545/#557 bullet and narrow it (LIB-9). Gate A
-   area: registry, config and options rows of
-   [manual-cli-checks.md](manual-cli-checks.md#when-to-run).
+0. **This review** (`working-docs/` only: the review doc, its two findings
+   files, `roadmap.md`): its own small PR, first. Docs-only, so the
+   CHANGELOG check and the code CI skip it; the fix PRs can then link it,
+   and their diffs stay code-only.
+1. **PR A, argument checks and the SDK relationship** (exit codes, error
+   lines, fragment bytes). Fence: `src/pitloom/embed.py`,
+   `assemble/_generators_shared.py` and the wheel generators' `project_dir`
+   check, `src/pitloom/_loom_args.py`, `src/pitloom/_loom_active_run.py`,
+   `src/pitloom/id_registry/` (`_registry.py`, `_format.py`),
+   `src/pitloom/_sbom_io.py`, `extract/remote/git.py`, the
+   `fetch_git_project`/`find_embedded_sbom` modules (LIB-8),
+   `cli/parser.py`, `cli/options_resolve.py`, their tests. LIB-1, LIB-2,
+   LIB-4 (one non-empty path helper), LIB-5 and REG-3, LIB-8, LIB-10, CLI-1,
+   CLI-2 and CLI-9 `''` (an `argparse` error at parse), TRY-2 (in
+   `_emit_model_dataset_relationships()`, `_loom_active_run.py:364-373`:
+   `self.datasets` relate as `testedOn` when `self._model_generated` is
+   false, i.e. a `use_model()` run). Existing codes only: no
+   `src/pitloom/messages/`, no generated page. CHANGELOG: fold into the
+   #545/#557 bullet and narrow it (LIB-9); TRY-2 a "Changed" line. Gate A
+   area: registry, config, options and `loom.run` rows of
+   [manual-cli-checks.md](manual-cli-checks.md#when-to-run) (`O1/*/fresh-loom`,
+   `O3/*` for TRY-2).
 2. **PR B, catalogue** (stderr wording), at the same time as A. Fence:
-   `src/pitloom/messages/`, `messages/_sbom_validation_say.py`, the
-   generated `docs/message-codes*.md` and `skills/*/references/messages-*.md`,
-   `assemble/_generators_git.py` and `_generators_pypi.py` (LIB-6, with its
-   `one-of-*` entries in `_config_place.py`). MSG-1 (a library twin for
-   `embed_wheel_sbom()` naming `overrides=ConfigOverrides(...)`, unless the
-   user rules otherwise), MSG-6, LIB-7, MSG-2 (the `did` text: `TypeError`
-   for a wrong type), HOOK-4 (the generated "exit 1" text), CLI-3 (escape the
-   line break, as for ESC). Regenerate the reference; `since` stays 0.25.0.
-3. **PR C, docs and skills**, after A and B (it quotes their final text),
-   merged with the planned docs/working-docs/skills sweep: TRY-1 and TRY-6
-   (the caveat), then the docs batch above. DOC-5 (splitting
+   `src/pitloom/messages/`, the generated `docs/message-codes*.md` and
+   `skills/*/references/messages-*.md`, `assemble/_generators_git.py`,
+   `assemble/_generators_pypi.py`. LIB-6 (with its `one-of-*` entries in
+   `messages/_config_place.py`), MSG-1 (ruled: library-specific wording on
+   the embed route naming the `ConfigOverrides` fields; no API change),
+   MSG-6, LIB-7, MSG-2 (the `did` text: `TypeError` for a wrong type),
+   HOOK-4 (the generated "exit 1" text), CLI-3 (escape the line break, as
+   for ESC). Regenerate the reference; `since` stays 0.25.0.
+3. **PR E, Hub "repository not found"** (CLI-7, ruled), after B: it needs
+   a catalogue line and a regenerated reference, B's fence. Fence:
+   `src/pitloom/extract/remote/huggingface*.py`, `_hub_api.py`,
+   `assemble/__init__.py` (the `hf` route), `src/pitloom/messages/` and the
+   generated pages, their tests. A target that is neither a local path nor
+   a repository the Hub knows is an error naming the local path as not found
+   too (`input-not-found`, or a variant of it): no SBOM, exit 1, on
+   `generate` and `model`, CLI and library. Other Hub failures (timeouts,
+   gated repositories, 5xx) keep today's `download-network-failed`
+   behaviour; decide 401 (anonymous "not found or private") with the user's
+   gated-repository cases in mind. Gate A: `M/model/*`, `M/*/target/*`
+   with `--network`, and `pytest -m network` for the Hub tests.
+4. **PR C, docs and skills**, after A, B and E (it quotes their final
+   text), merged with the planned docs/working-docs/skills sweep. Fence:
+   `docs/` (not the generated pages), `skills/` (not
+   `references/messages-*.md`), `action.yml` comments, MSG-4's docstring.
+   TRY-1 and TRY-6 first (ruled: the caveat in `docs/fragments.md` and
+   `skills/sbom-validate/SKILL.md`, suggesting `--no-merge` for several
+   files, saying an enrichment fragment fails on its own, and that no
+   `FILE=... STATUS=valid` line is printed when only the merged check
+   fails, `docs/cli.md:364`), TRY-2's example
+   (`add_validation_dataset()`, and the new `use_model()` rule), CLI-7's
+   page text, then the docs batch above. DOC-5 (splitting
    `docs/python-api.md`) last, since DOC-1, REG-1, TRY-2, TRY-11 and DOC-7
    edit that page; the split breaks `docs/id-registry-keys.md:13`
-   (`python-api.md#tracking-decorator`). MSG-4 is a `src/` docstring: run the
-   linters. Budgets: `sbom-enrich` body 12 bytes spare, `sbom-generate`
-   body 16,188 of 16,384 bytes and description 3 characters.
-4. **PR D, the 0.25.0 bump** (the user tags): SKL-2, SKL-1, HOOK-6, the bump
-   cautions; extend `tests/test_licenseid_floor_docs.py` to the prose form
-   "LicenseID 0.x.y".
+   (`python-api.md#tracking-decorator`). Budgets: `sbom-enrich` body 12
+   bytes spare, `sbom-generate` body 16,188 of 16,384 bytes and description
+   3 characters.
+5. **PR D, the 0.25.0 bump** (the user tags): SKL-2, SKL-1, HOOK-6, the
+   bump cautions; extend `tests/test_licenseid_floor_docs.py` to the prose
+   form "LicenseID 0.x.y".
 
-A and B in parallel, then C, then D; then Gate A and Gate B on the release
-commit and the release checklist (policy step 7).
+Order: the review PR; A and B in parallel; E after B; C after A, B and E;
+D last. Then Gate A and Gate B on the release commit and the release
+checklist (policy step 7).
 
-## Decisions for the user
+## Rulings (user, 2026-11-27)
 
-Not decisions: LIB-1, LIB-2, CLI-1 and the TRY-1 caveat block the release by
-the review's definition; SKL-2 is the tracked cut sweep. These are open:
+Not decisions: LIB-1, LIB-2, CLI-1 and the TRY-1 caveat block the release
+by the review's definition; SKL-2 is the tracked cut sweep.
 
-1. **TRY-1 for 0.25.0**: ship a caveat in `docs/fragments.md` and
-   `sbom-validate`, or make `--no-merge` the default until spdx3-validate
-   keeps blank nodes apart? The fix itself goes to spdx3-validate (the
-   user's repository) by a handoff prompt.
-2. **MSG-1**: a library twin of the advice (proposed), or let
-   `embed_wheel_sbom()` take `trust_model_files`/`scan_model_usage` (a public
-   API change)?
-3. **TRY-2 semantics**: should `loom.add_dataset()` in a `use_model()` run
-   record `trainedOn`, be refused, or become `testedOn`? PR C fixes only the
-   example.
-4. **CLI-7**: a missing local path shaped `a/b` is sent to huggingface.co
-   (a local directory name leaves the machine) and, when the Hub says the
-   repository does not exist, an SBOM is still written with exit 0. Keep
-   (documented under `download-network-failed`), or make "repository not
-   found" an error, per "a read/access failure is an error"?
-5. **TRY-8**: `[project.urls] Homepage` as `software_downloadLocation` when
-   there is no `Source` (arguably wrong content); **TRY-7**: a `uuid4`
-   document namespace per `loom.run` fragment against "no random UUIDs".
-   Next release either way.
+1. **TRY-1**: caveat plus handoff. Keep the merged check; the caveat goes
+   in PR C; spdx3-validate gets the prompt below; it is not edited here.
+2. **MSG-1**: library-specific wording naming the `ConfigOverrides`
+   fields; no API change (PR B).
+3. **TRY-2**: `loom.add_dataset()` inside a `use_model()` run records the
+   dataset as `testedOn`, not `trainedOn`: a 0.25.0 code fix (PR A), the
+   example in PR C.
+4. **CLI-7**: a target that is neither a local path nor a Hub repository
+   the Hub knows is an error, no SBOM, exit 1, naming the local path as
+   not found too: a 0.25.0 fix (PR E).
+5. **TRY-7, TRY-8**: next release.
+
+## Handoff prompt for spdx3-validate (TRY-1)
+
+For a session in the spdx3-validate repository (`bact/spdx3-validate`); the
+pin Pitloom tests is `0e2e3562` (`pyproject.toml`, `conformance` group):
+
+> `spdx3_validate.validate(paths, check_merged=True)` builds the merged
+> graph as `merged = rdflib.Graph()` then `merged += doc.graph` per
+> document (`src/spdx3_validate/core.py:719-722` at the pinned
+> commit). A blank node label is scoped to its own JSON-LD document, but the
+> union keeps the labels, so two documents that both use `_:CreationInfo0`
+> (every Pitloom SBOM does) share one `CreationInfo` node in the merged
+> graph. With different `created` values it then fails
+> `sh:MaxCountConstraintComponent` on `Core/created` ("More than 1 values
+> on ... _:CreationInfo0"), though each document is valid on its own.
+> Repro: two SPDX 3 JSON-LD files, each with `{"@id": "_:CreationInfo0",
+> "type": "CreationInfo", "created": ...}` and different `created`; the
+> merged check fails, `--no-merge` passes. Fix: rename each document's
+> blank nodes apart before the union (for example map every `BNode` of
+> document *i* to a fresh `BNode()`, or skolemise per document), keeping
+> IRIs shared. Add a regression test with two such documents; check that a
+> blank node a document references twice still resolves to one node within
+> that document. Do not change how a single document is validated.

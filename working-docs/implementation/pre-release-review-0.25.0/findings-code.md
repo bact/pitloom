@@ -179,13 +179,16 @@ skills, catalogue, Action, trial; the legend is there).
   true` is dropped silently by `embed-wheel --project-dir`;
   `core/inert_options.py:351-363` notes only two keys, while `docs/cli.md`
   "Options with no effect" says such a key is noted "the same".
-- **CLI-7** min, **N** (pre, needs a ruling), K. A missing local path
-  shaped `a/b` is read as a Hugging Face id (`assemble/__init__.py:156`,
-  before any local check): `loom generate h/nope -o o.json` and `loom model
-  h/nope` reach huggingface.co, warn `401 ... Repository Not Found` and
-  `download-network-failed` four times, write an SBOM and exit 0 (reviewer
-  run; not re-run, to stay offline). Documented under
-  `download-network-failed`, but against "a read/access failure is an error".
+- **CLI-7** min, **C** (ruled 2026-11-27): an error, PR E; pre, K. A missing
+  local path shaped `a/b` is read as a Hugging Face id
+  (`assemble/__init__.py:156`, before any local check): `loom generate h/nope
+  -o o.json` and `loom model h/nope` reach huggingface.co, warn `401 ...
+  Repository Not Found` and `download-network-failed` four times, write an
+  SBOM and exit 0 (reviewer run; not re-run, to stay offline). Documented
+  under `download-network-failed`, but against "a read/access failure is an
+  error". Ruling: a target that is neither a local path nor a repository the
+  Hub knows ("repository not found") is an error naming the local path as not
+  found too: no SBOM, exit 1.
 - **CLI-8** min, **N** (pre), K. `loom generate env` reads Pitloom's own
   environment even when `./env` is a project directory, with no warning
   (`assemble/__init__.py:150`); `./env` reads the directory.

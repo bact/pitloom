@@ -84,7 +84,8 @@ Paths are at `ff3960a1`. Commands ran as
 
 ## Message advice per surface (#556 follow-ups)
 
-- **MSG-1** min, **C**, K. `embed_wheel_sbom()` prints `set
+- **MSG-1** min, **C** (ruled 2026-11-27): library-specific wording naming the
+  `ConfigOverrides` fields; no API change; K. `embed_wheel_sbom()` prints `set
   trust_model_files=True` (`messages/_model_stub.py:31`) and `set
   scan_model_usage=True (or set it in pitloom_config)`
   (`messages/_usage_unusable.py:72,100`) but takes neither keyword (the real
@@ -111,13 +112,15 @@ Paths are at `ff3960a1`. Commands ran as
 
 ## User docs
 
-- **TRY-2** maj, **C** (doc), R. `docs/python-api.md:314-322`: the
-  "evaluation" example (`use_model` + `add_dataset`) records the dataset as
-  `trainedOn` (repro: the block as a script; the fragment holds only
-  `trainedOn`). `loom.add_validation_dataset()` (in `docs/api.md:99`) gives
-  `testedOn` but the page never names it. Pre (the example is in v0.24.0).
-  Whether `add_dataset` under `use_model` should mean `trainedOn` at all is a
-  question for the user (see the main page).
+- **TRY-2** maj, **C** (ruled 2026-11-27): code fix, `testedOn`; PR A, the
+  example in PR C; R. `docs/python-api.md:314-322`: the "evaluation" example
+  (`use_model` + `add_dataset`) records the dataset as `trainedOn` (repro: the
+  block as a script; the fragment holds only `trainedOn`).
+  `loom.add_validation_dataset()` (in `docs/api.md:99`) gives `testedOn` but
+  the page never names it. Pre (the example is in v0.24.0). Ruling:
+  `add_dataset()` in a `use_model()` run records `testedOn`
+  (`_loom_active_run.py:364-373`: datasets go to `trainedOn` whatever
+  `self._model_generated`, set at `:435`, says).
 - **DOC-2** min, **C**, K. `docs/configuration-subtables.md:183-186` says an
   unknown provenance `schema` is caught only at generation; since #524 it is
   `config-invalid` at read.
@@ -126,7 +129,7 @@ Paths are at `ff3960a1`. Commands ran as
   --bogus` prints `ERROR: loom: unrecognized arguments: --bogus
   [option-invalid]` (the top-level parser reports a subcommand's leftovers,
   `__main__.py:103`). Fix the wording (cheap) or the frame (next release).
-- **TRY-6** min, **B** with TRY-1 (same paragraph), K.
+- **TRY-6** min, **B** with TRY-1 (same paragraph, (ruled 2026-11-27)), K.
   `docs/fragments.md:169-192` lacks the skill's caveat that an enrichment
   fragment fails `fragment validate` on its own
   (`skills/sbom-validate/SKILL.md:132-137`); the pair then gets no merged
@@ -193,10 +196,11 @@ Paths are at `ff3960a1`. Commands ran as
 
 ## Downstream trial, behaviour
 
-- **TRY-1** maj, **B** for a caveat (a documented command fails on the normal
-  case), **N** for the fix (pre, upstream), R on both trees. `loom fragment
-  validate A B` fails two valid Pitloom SBOMs whose `created` differ: `More
-  than 1 values on ... _:CreationInfo0` (sh:MaxCount). The fixture fragments
+- **TRY-1** maj, (ruled 2026-11-27): caveat plus handoff; **B** for a caveat
+  (a documented command fails on the normal case), **N** for the fix (pre,
+  upstream), R on both trees. `loom fragment validate A B` fails two valid
+  Pitloom SBOMs whose `created` differ: `More than 1 values on ...
+  _:CreationInfo0` (sh:MaxCount). The fixture fragments
   (`tests/fixtures/fragments/*.json`) fail it too; `--no-merge` passes; `loom
   merge` output validates. The merged graph is built by spdx3-validate
   (`spdx3_validate.validate(paths, check_merged=True)`,
@@ -214,13 +218,13 @@ Paths are at `ff3960a1`. Commands ran as
 - **TRY-5** min, **N**, R. `--content-type-method extension` without
   `--content-type` is silently ignored (no `contentType`, no warning);
   `docs/cli-flags.md:86-90` does not say it needs `--content-type`.
-- **TRY-7** min, **N** (pre, design question), K. `loom.run` fragments get a
+- **TRY-7** min, **N** (ruled 2026-11-27), K. `loom.run` fragments get a
   fresh `uuid4` document namespace every run (`_loom_active_run.py:122`),
   so two runs with a pinned `SOURCE_DATE_EPOCH` differ. Documented
   (`docs/cli.md:280`, `docs/id-registry.md:20`: independent runs get
   different ids; pin them with a registry); the question is CLAUDE.md's "no
   random UUIDs". Builds stay deterministic: they read the saved fragment.
-- **TRY-8** min, **N** (pre; arguably wrong SBOM content, a user decision), K.
+- **TRY-8** min, **N** (ruled 2026-11-27); pre, arguably wrong SBOM content, K.
   `[project.urls] Homepage` is also `software_downloadLocation` when there is
   no `Source` (`assemble/spdx3/_document_main_package.py:51`).
 - **TRY-10** (part of CLI-10) nit, **N**, R. `PITLOOM_SBOM_OUTPUT_PATH` is
