@@ -16,8 +16,8 @@ label rule the CI item below repairs),
 
 0.25.0 was tagged and published on 2026-11-27 (bump #564). Its theme was the
 message catalogue: uncoded message sites went from 455 at v0.24.0 to none.
-These items cover the last stretch, from the first pre-release review to the
-PyPI page.
+These items cover the last stretch, from the per-surface advice (#556) to
+the PyPI page.
 
 ## 1. A pre-release review finds what per-PR reviews cannot
 
@@ -32,8 +32,18 @@ sat where two changes met: a library parameter and its CLI twin, a message
 code and the skill quoting it. A second "seam" check on the two combined fix
 PRs (#559 and #560) found three more gaps that neither PR showed alone.
 
+Two of the five blockers were in no diff at all: the `--creator-name ''`
+traceback and the spdx3-validate collision (section 11) already existed in
+v0.24.0, so no per-PR review could have seen them. The docs-only agent found
+the second by following the documented `loom fragment validate A B`. An
+output gate ran 75 fixture commands on v0.24.0 and on the candidate: 53
+outputs differed and every difference traced to a CHANGELOG entry; the manual
+CLI checks gave 650 passes and 29 known failures.
+
 Do: before a release, review the whole release range by surface, not PR by
-PR, and recheck the combined fix PRs before merging the last one.
+PR; diff the CLI outputs against the last tag and trace each change to the
+changelog; give one reviewer only the docs and skills; and recheck the
+combined fix PRs before merging the last one.
 
 ## 2. A dependency's new answer shape can switch a rule off with every test green
 
@@ -105,3 +115,73 @@ cleanly. It landed after the tag, so 0.25.0's PyPI page keeps the broken
 links.
 
 Do: check the README's links as PyPI will render them before the tag.
+
+## 7. The Hugging Face Hub answers "missing" and "private" alike
+
+Measured anonymously with huggingface_hub 2.2.0 for #561: a missing
+repository and a private one both give HTTP 401 `RepositoryNotFoundError`; a
+gated repository (Llama 2, Gemma) answers `model_info()` with 200 and refuses
+only file downloads (401 `GatedRepoError`); an invalid token behaves as
+anonymous; a wrong-case or renamed id is redirected. `GatedRepoError` is a
+subclass of `RepositoryNotFoundError` (still so in 2.5.0), so a broad catch
+reads a gated model as missing. Pitloom now refuses a repository the Hub does
+not know (`input-not-found/hub`, exit 1), says in the same line that a private
+one needs `HF_TOKEN` or `hf auth login`, and keeps gated repositories, time
+outs and server errors as warnings.
+
+Do: decide existence from the metadata call alone, catch the gated subclass
+first, and word "not found" so it also covers "private".
+
+## 8. A one-part model id collides with the Hub's page URLs
+
+Legacy models have one-part ids (`gpt2`).
+`https://huggingface.co/gpt2/tree/main` was split as owner `gpt2`, name `tree`: under a rule that refuses unknown
+repositories, a real model would get a false "not found". #561 recognises the
+page segments (`tree`, `blob`, `resolve`, ...) before splitting owner and
+name. A remaining limit: `hf.co/gpt2/settings` is refused.
+
+Do: parse page-kind segments before splitting an id, and test one-part and
+two-part `.../tree/<rev>` URLs.
+
+## 9. A capture SDK can infer a dataset's role from the run
+
+In the loom SDK, `use_model()` declares a model the run consumes and
+`set_model()` one it produces. From #560, a dataset added in a `use_model()`
+run is recorded as `testedOn` the model, not `trainedOn` (maintainer ruling);
+a producing run keeps `trainedOn`.
+
+Do: let the kind of run, not a default, choose the dataset relationship, and
+record which it was.
+
+## 10. Advice that names another surface's option
+
+Eleven message families told a library or build-hook caller to pass a CLI flag
+it cannot use (`BuildOptions(timeout=5)` was told `--build-timeout`). The first
+full run after #556 had 218 failures, 69 of them library-path tests that
+asserted the CLI wording: the suite had pinned the wrong advice. #556 picks
+each line's advice by the surface that ran (one context variable): a condition
+names the attribute (`BuildOptions.timeout`), an action names a form the user
+can copy (`pass BuildOptions(allow=True)`), and the hook names the TOML key.
+#559 then found one entry point, `embed_wheel_sbom()`, that takes a
+`ConfigOverrides` object rather than keywords, so five lines needed a fourth
+wording.
+
+Do: test each message on every surface that can say it, and treat an entry
+point that takes a settings object as a surface of its own.
+
+## 11. A validator's merge joins two documents' blank nodes
+
+Every Pitloom SBOM writes its `CreationInfo` as the blank node
+`_:CreationInfo0`. spdx3-validate's merged check of several files adds each
+graph into one (`merged += doc.graph`), which keeps blank-node labels as
+written, so the files' `CreationInfo` nodes become one node with two
+`created` values: two valid SBOMs made 60 s apart fail with
+`sh:MaxCountConstraintComponent` on `created`. `--no-merge` passes both, and
+`loom merge` output validates. Found in the pre-release review (TRY-1),
+present since 0.24.0, reported upstream. Contrast Pitloom's own merge, which
+deduplicates identical `CreationInfo` by content (see
+[spdx-modelling.md](spdx-modelling.md)).
+
+Do: a tool that combines several RDF documents renames blank nodes apart (an
+RDF merge, not a union); a producer whose documents will be combined can name
+`CreationInfo` with an IRI.

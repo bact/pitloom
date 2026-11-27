@@ -88,7 +88,8 @@ Data and semantics:
 - **Narrowing a derived field's rule needs an inventory of its writers**: run each through the new rule; derive from the value's shape as well as its key.
 - **A doc claim "after X, every Y has Z" names the code path deriving Z** and the Y it reaches.
 - **Measure the real tools before designing a reader**: probe each backend, put the matrix in the working doc.
-- **A dependency's new answer shape can switch a rule off with every test green**: on an upgrade, sweep real multi-input cases before/after; fakes answer every call the code makes.
+- **A dependency's new answer shape can switch a rule off with every test green**: on an upgrade, sweep real multi-input cases before/after; a sweep proves only fields it recorded non-empty.
+- **`Path("")` is `Path(".")`**: check every argument's raw type and value at the entry, before any side effect.
 - **A model reader records what the file stores, not what a binding defaults**, and a new format maps every field its siblings do: [model-format-mapping-parity.md](working-docs/implementation/model-format-mapping-parity.md).
 - **A failing manual repro is first suspect for a wrong replication**: use the real call shape.
 - **`Path.relative_to` does not collapse `..`**: `normpath` lexically first, `realpath` only as fallback.
@@ -101,6 +102,7 @@ Code shape:
 - **A provenance string is built only through `provenance_source`/`provenance_segment`** (a `|` in a name forges a segment); `tests/test_provenance_builders_lint.py` enforces it.
 - **A log message in a multi-exit function describes what that branch did**, not the typical path.
 - **Reusing a helper outside its contract narrows behaviour silently**: read its docstring preconditions, not only the return type. A shared helper's return type should fit every caller.
+- **A ContextVar misses import-time text, new threads and handlers called directly.**
 - **A private third-party API (`obj._attr`) has no structural guarantee**: verify its shape interactively; prefer the public algorithm. Do not reach into another module's `_name`: promote a public accessor.
 - **A check on the URL does not cover every client a fetch starts**: list each program run, switch off what is not needed. Server and subprocess text is attacker text: `loggable()`, one line, credentials masked where built. A fallback names its condition.
 - **A circular-import claim needs a live interpreter test** (both import orders).
@@ -112,7 +114,7 @@ Code shape:
 
 Tests, platform and CI:
 
-- **A fixture/mock of an external system carries what production inspects.**
+- **A fixture/mock of an external system carries what production inspects**: spec fakes on the real class.
 - **A byte-identity test must not let the writer stamp the clock** (`ZipFile.writestr("name", ...)`): use `ZipInfo`, run on a clock that moves every call. A rerun cannot prove a flake gone: perturb the variance source.
 - **For `A and B` in a derived rule, one test where only `A` fails and one where only `B` fails**; mutation testing finds the missing one.
 - **Mutation testing lies two ways**: an equivalent mutant proves nothing (reinstate the exact pre-fix shape); asserting a lazily installed side effect observes nothing.
@@ -162,7 +164,7 @@ Unix philosophy: consistent, predictable, parseable.
 Run and fix all errors before committing:
 
 ```shell
-ruff format
+ruff format examples/ src/ tests/
 ruff check --fix
 pylint examples/ src/ tests/ tests/*/
 mypy

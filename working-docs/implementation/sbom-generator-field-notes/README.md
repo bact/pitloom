@@ -163,7 +163,9 @@ the day it was added (2026-10-02 to 2026-11-23).
   pre-release review; a detector's new answer shape that switched a rule off
   with every test green; one licence file, two answers; CI green without its
   full legs; a changelog compaction that changed meaning; the README as the
-  PyPI page (#558 to #566).
+  PyPI page; the Hub's missing, private and gated answers; one-part model
+  ids; dataset roles by run; advice per surface; blank nodes joined by a
+  validator's merge (#556 to #566).
 
 ## Five rules that cover most items
 
