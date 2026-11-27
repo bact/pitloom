@@ -267,8 +267,9 @@ own `h`/`m`/`s` grammar is a CLI/Action-layer convenience only.
 `BuildOptions(...)` validates its fields when constructed, for every
 target: a non-`bool` `allow`/`no_isolation` (e.g. the string `"false"`)
 or a non-`int` `timeout` raises `TypeError`; a `timeout` outside 1 to
-604800 raises `ValueError`. Both carry the code `option-invalid` and name
-the field (`BuildOptions.allow: must be True or False, got a string
+604800 raises `ValueError` (`build timeout must be 1-604800 seconds, got
+604801`). Both carry the code `option-invalid`; a wrong type names the
+field (`BuildOptions.allow: must be True or False, got a string
 'false'`). A field set where it has no effect -- a
 target other than a project directory, or `no_isolation`/`timeout`
 without `allow` -- logs one `WARNING: Build: ...` line per field

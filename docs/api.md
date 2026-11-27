@@ -18,10 +18,15 @@ and choice arguments before they read, fetch or build anything. A value of the
 wrong type raises `TypeError`
 (`pretty="false"`: a `bool` parameter takes `True` or `False` only, so a
 string never switches an option on); a value of the right type that the
-parameter does not take, an empty path or file name included, raises
-`ValueError`. Both carry the code `option-invalid` and name the parameter
-(`pretty: must be True or False, got a string 'false'`), as `loom` names
-the flag; see [message codes: options](message-codes-options.md).
+parameter does not take, an empty ID registry path or SBOM file name
+included, raises `ValueError`. Both carry the code `option-invalid` and name
+the parameter (`pretty: must be True or False, got a string 'false'`), as
+`loom` names the flag; see [message codes: options](message-codes-options.md).
+An empty target path (`generate('')`, `generate_wheel_sbom('')`) is a path
+that does not exist: `FileNotFoundError`, code `input-not-found`. A Git URL
+argument (`generate_git_sbom()`, `generate_git_project_sbom()`,
+`fetch_git_project()`) is not checked this way yet: a value that is not a
+string raises a plain `TypeError`.
 
 ## Generator functions
 

@@ -103,8 +103,13 @@ never `--sbom-basename` or `--sbom-filename`), so its column is the CLI's.
   `generate_project_sbom(pitloom_config='')` (any non-`PitloomConfig`)
   dies with a bare `AttributeError`, as do the other object-typed
   parameters (`creation_metadata=`, `provenance=`, `credentials=`,
-  `build_options=` given `5`); `generate_git_sbom(5)` raises a plain
-  `TypeError` from `re`; `CreationMetadata(creators=5)` is accepted;
+  `build_options=` given `5`); `generate_git_sbom(5)`,
+  `generate_git_project_sbom(5)` and `fetch_git_project(5)` (on entering
+  the `with`) raise a plain `TypeError` from `re`, and
+  `generate_git_sbom('')` raises `InternalError` (`url='' is not a url`),
+  a programming-error class for a caller's mistake (as on `main`);
+  the out-of-range `BuildOptions.timeout` line does not name the field;
+  `CreationMetadata(creators=5)` is accepted;
   `docs/api.md` therefore names the argument kinds checked, not all; the text options (`--creator-name ''`,
   `--creation-comment ''`) take an empty value as given; the other
   `LIBRARY_SITES` raises (`register()` with an empty type name,
