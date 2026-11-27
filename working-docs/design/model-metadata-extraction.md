@@ -1,6 +1,6 @@
 ---
 Created: 2026-03-05
-Last-Modified: 2026-11-22
+Last-Modified: 2026-11-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -32,7 +32,7 @@ without executing model code.
 
 Found by the fact-check of the AI SBOM workshop paper (2026-11-14, 0.24.0
 code): data each format carries that its reader leaves unread. Built
-2026-11-21 (model-reader gaps PR): GGUF datasets (`general.datasets` and
+2026-11-21 (#509): GGUF datasets (`general.datasets` and
 `general.dataset.<id>.*` as `trainedOn`; a numbered entry's Hub
 `repo_url` names it by its Hub id, located at its dataset page), the PT2
 parameter count (a weight several names share counted once) and

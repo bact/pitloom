@@ -3,7 +3,7 @@ SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
 Created: 2026-11-26
-Last-Modified: 2026-11-26
+Last-Modified: 2026-11-27
 ---
 
 # Message catalogue sweep C1: as built
@@ -145,7 +145,8 @@ a name-only probe misses. Size close to the plan, so no split.
 - **#548 delta points**: a drift guard pins one `FILE=` for a model's
   `over-cap` line and its `dataset-conflict` line
   (`tests/messages/test_dataset_conflict_sites.py`). GGUF naming kept as is
-  (plan C2 section 11), on two fresh Opus opinions that agree: while a reader
+  ([C2 as built](message-catalogue-sweep-c2-as-built.md), section 11), on
+  two fresh Opus opinions that agree: while a reader
   runs only `file_name` is set, so `shown_path` there is `file_name` (a
   no-op); passing the path as handed would split the reader's line from the
   assembler's in a direct `read_gguf()` call and move a wheel's rewrite from
@@ -179,7 +180,6 @@ a name-only probe misses. Size close to the plan, so no split.
 - A reader-relayed line on a local route double-quotes a path holding a
   control character (`FILE=''sub/a\x1bb.gguf''`): `named_stably` writes the
   stable value quoted, then `scrub` finds the escaped path inside it again.
-- `message-catalogue-sweep-c2-plan.md` is 34.6 KB, over the file-size cap.
 - A relative `-o` with the cwd gone says `DIR=.` only at the write, after
   the whole run; an up-front check would fail fast.
 - `discovery_chdir` (`core/_models_wheel_guard.py`) reads the cwd even for

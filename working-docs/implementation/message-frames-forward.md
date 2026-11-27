@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-14
-Last-Modified: 2026-11-20
+Last-Modified: 2026-11-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -8,15 +8,17 @@ SPDX-License-Identifier: CC0-1.0
 
 # Message frames forward: prefixes for catalogue PRs 5 to 18
 
-See also: [message-frames.md](../implementation/message-frames.md) (what PR 4
-built), [message-catalogue-migration-plan.md](message-catalogue-migration-plan.md)
+See also: [message-frames.md](message-frames.md) (what PR 4
+built), [message-catalogue-migration-plan.md](../design/message-catalogue-migration-plan.md)
 (order, counts, rulings R1 to R7),
-[message-catalogue-and-skills.md](message-catalogue-and-skills.md)
+[message-catalogue-and-skills.md](../design/message-catalogue-and-skills.md)
 (decisions A to M).
 
 Status: design, 2026-11-14, written during PR 3 from three read-only surveys
 of `main` plus the PR 3 tree. Tags: (V) verified in code, (I) inferred.
-Rule 2 is built for PRs 5 to 7 (#485, #486, #492); the rest is not. It settles how a prefix before a catalogued line is
+Built: PRs 5 to 18 are merged (#485 to #534); where one differs from the
+notes here (frames match exact codes since PR 13), its plan says so. It
+settles how a prefix before a catalogued line is
 spelt and matched, so each later PR applies a rule instead of debating one.
 Codes themselves stay each PR's plan (decision L makes them promises).
 

@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-02
-Last-Modified: 2026-11-26
+Last-Modified: 2026-11-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -65,31 +65,6 @@ entries stay in the last section for history.
 - [ ] **Wheel-member, listed requirements file and registry-unstorable-name
   lines use the unreadable family's wording for another cause (S).**
   *Found 2026-10-30, from #408 (unreadable files, catalogue 2a; 2b and later).*
-- [ ] **The Hatchling `file discovery failed` warning has no `[code]` (S).**
-  Seen when a project name matched no package directory.
-  *Found 2026-11-02, PyPI 0.22.0 verification (a 0.22.1 candidate).*
-- [ ] **19 in-scope message sites pass another message through with no code
-  (S).** Their text is another message, not a template of their own,
-  so no code of the inner message is forwarded or checked: `scanner_wheel.py`
-  2 (1b, fixed in #446), `croissant.py` and `path_confine.py` (2b, fixed in
-  #444), 11 in the CLI (`cli/commands/utils.py` 3, `cli/id.py` 3,
-  `cli/options.py` 3, `_sbom_io.py` 2; PR 4), `id_registry/import_keys.py` (6),
-  `setuptools_cfg.py` (12), `archive_member_names.py` (16) and
-  `_loom_active_run.py` (17). Each goes with its family in the migration plan;
-  none is fixed alone. The relay of LicenseID warnings
-  (`extract/_licenseid_relay.py`, `say`) is the same shape, left out of the
-  ratchet by its `%s` template. Target: 1b and 2b in 0.23.0, the rest in
-  0.24.0.
-  *Found 2026-11-04, catalogue plan refresh (measured 19 at 54f79c57).*
-- [ ] **`provenance.py:414` raises a plain `ValueError` for a programming
-  error (S).** `assemble/spdx3/provenance.py` wraps a failure of the
-  provenance encoder or of `spdx3.Annotation` as `Invalid Annotation for
-  provenance schema ...`; a failure there is Pitloom's own bug (ruling R7), so
-  it should raise `pitloom.core.internal_error.InternalError` (decision J),
-  which leaves the line out of the ratchet by its class (one of the 498
-  sites).
-  One line; it can go in any catalogue PR (PR 17 in the plan). Target: 0.24.0.
-  *Found 2026-11-04, catalogue plan refresh.*
 - [ ] **A symbolic-link loop counts as absent (S).** `is_missing_errno`
   takes `ELOOP` as missing: a looping Croissant path raises the uncoded
   `Cannot read Croissant source ...: [Errno 40] ...`, a looping card
@@ -148,8 +123,33 @@ release ships.
 
 ### Fixed, Found in review rounds, not yet prioritised
 
+- [x] **The Hatchling `file discovery failed` warning had no `[code]` (S),
+  fixed (#501).**
+  Seen when a project name matched no package directory.
+  *Found 2026-11-02, PyPI 0.22.0 verification (a 0.22.1 candidate).*
+- [x] **19 in-scope message sites passed another message through with no code
+  (S), fixed by the catalogue PRs (ratchet 0 since #534).** Their text is
+  another message, not a template of their own, so no code of the inner message
+  is forwarded or checked: `scanner_wheel.py` 2 (1b, fixed in #446),
+  `croissant.py` and `path_confine.py` (2b, fixed in #444), 11 in the CLI
+  (`cli/commands/utils.py` 3, `cli/id.py` 3, `cli/options.py` 3, `_sbom_io.py`
+  2; PR 4), `id_registry/import_keys.py` (6), `setuptools_cfg.py` (12),
+  `archive_member_names.py` (16) and `_loom_active_run.py` (17). Each goes with
+  its family in the migration plan; none is fixed alone. The relay of LicenseID
+  warnings (`extract/_licenseid_relay.py`, `say`) is the same shape, left out of
+  the ratchet by its `%s` template. Shipped: 1b and 2b in 0.23.0, the rest in
+  0.25.0.
+  *Found 2026-11-04, catalogue plan refresh (measured 19 at 54f79c57).*
+- [x] **`provenance.py:414` raised a plain `ValueError` for a programming
+  error (S), fixed (#524).** `assemble/spdx3/provenance.py` wraps a failure
+  of the provenance encoder or of `spdx3.Annotation` as `Invalid Annotation for
+  provenance schema ...`; a failure there is Pitloom's own bug (ruling R7), so
+  it should raise `pitloom.core.internal_error.InternalError` (decision J),
+  which leaves the line out of the ratchet by its class (one of the 498
+  sites).
+  *Found 2026-11-04, catalogue plan refresh.*
 - [x] **A credential URL after a leading `!` was neither warned nor refused
-  (S), fixed (PR pending, 2026-11-26).** `[project.urls] Homepage =
+  (S), fixed (#555).** `[project.urls] Homepage =
   "!https://u:S3CRET@h/x"` or a dependency `x @ !https://u:S3CRET@h/x.whl`
   was written to the SBOM as is on `loom generate`, the library and the
   Hatchling hook, with no `credentials-unsafe` line and not refused in the
@@ -180,7 +180,7 @@ release ships.
   *Found 2026-11-26, mutation backfill
   ([mutation-backfill.md](../../implementation/mutation-backfill.md)).*
 - [x] **The export-site test survived `repr(min(changed))` (S), fixed
-  (mutation-backfill PR, 2026-11-26).** The mutant is equivalent only for a
+  (#552).** The mutant is equivalent only for a
   name that holds the lone surrogate and is otherwise ASCII (`ascii()` then
   equals `repr()`); a printable name (the surrogate in another field) or a
   non-ASCII one kills it. #553 replaced the code (a file by `FILE=`, any

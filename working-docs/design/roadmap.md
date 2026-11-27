@@ -43,8 +43,8 @@ Order (2026-11-04): 0.21.0 -> 0.21.1 -> 0.22.0 -> 0.22.1 -> 0.23.0 -> 0.24.0 ->
 what it requires, is in
 [roadmap-completed.md](../implementation/roadmap-completed.md), the procedure
 in [release-checklist.md](../implementation/release-checklist.md). The
-catalogue and provenance work planned for 0.24.0 is under "After 0.24.0"
-below, targeting 0.25.0 (not released). No date for 1.0.
+catalogue work planned for 0.24.0 is merged for 0.25.0 (not released), under
+"After 0.24.0" below with what is left. No date for 1.0.
 
 **Process (decided 2026-10-30):** two test gates per PR and a pre-release
 review before each release tag. See
@@ -112,52 +112,28 @@ Not built in 0.23.0:
 ### After 0.24.0: message catalogue and licence provenance
 
 Planned for 0.24.0 (ruling of 2026-11-04), not built when it was cut; the
-target is now 0.25.0, which is **not released** (user, 2026-11-16). Several
-design docs still say "0.24.0" for these items. Each item is its own PR; the order and
-counts are in [message-catalogue-migration-plan.md](message-catalogue-migration-plan.md).
+target is now 0.25.0, which is **not released** (user, 2026-11-16). Each
+item is its own PR; the order and counts are in
+[message-catalogue-migration-plan.md](message-catalogue-migration-plan.md).
 
-- [x] **Frames (catalogue PR 4)**: the uniform `loom <command>:` prefix on
-  every CLI `ERROR:` line, built; coding the `Build:` and `Git source:` lines
-  is unblocked (PRs 13 and 14). See
-  [message-frames.md](../implementation/message-frames.md).
-- [x] **Catalogue PR 3**: input, option, SBOM and target errors coded, paths
-  named as typed, URL credentials masked on every `ERROR:` line, one strict
-  SBOM reader for `id import` and `embed-wheel`, the `messages` package split
-  by topic (#482); ratchet 454 to 398.
-- [x] **Catalogue PR 5**: ID registry file errors coded (`FILE=` as
-  given); a missing `loom id generate` PATH is an error (#485); ratchet
-  398 to 366.
-- [x] **Credential leaks (#487)**: masking at the sinks, git helper, registry
-  refusal; built, unreleased. See
-  [credential-leak-fixes.md](../implementation/credential-leak-fixes.md).
-- [x] **Credentials: detect, warn or refuse, PR 2**: the SBOM strip replaced
-  by detect; warns by default, refuses opt in (`url-credentials = "refuse"`),
-  per-value fingerprint override; merged (#490, 2026-11-16), unreleased. See
-  [credential-detect-and-refuse.md](credential-detect-and-refuse.md).
-- [x] **Credentials PR 3** (#491, merged 2026-11-16): the Action's `url-credentials`
-  and `accept-url-credentials` inputs with `::add-mask::`, Git hardening (a
-  Git URL's query never reaches git: spy test), encoded query and fragment
-  values, `urllib3` log masking. Same doc, "Built in PR 3".
+- [x] **Message catalogue** (merged, unreleased; ratchet 0): the frames
+  (PR 4, #481), catalogue PRs 3 and 5 to 18 (#482 to #534), sweeps A to C
+  (#536, #541, #542, #545, #546, #548, #550), the masking PRs
+  (#526, #543 and #544) and the consistency rescan with per-surface
+  advice and library argument checks (#553, #556, #557). See
+  [the done list](message-catalogue-migration-plan.md#done-so-far-moved-from-the-roadmap-2026-11-26),
+  [message-catalogue-finish-plan.md](../implementation/message-catalogue-finish-plan.md),
+  [message-consistency-rescan.md](message-consistency-rescan.md).
+- [x] **Credentials** (merged, unreleased): masking at the sinks, git helper
+  and registry refusal (#487); detect, warn by default or refuse, with a
+  per-value override (#489, #490); the Action inputs, Git hardening and
+  encoded values (#491); a URL behind a leading character (#555). See
+  [credential-leak-fixes.md](../implementation/credential-leak-fixes.md),
+  [credential-detect-and-refuse.md](../implementation/credential-detect-and-refuse.md).
 - [x] **Namespace mixing in one SBOM**: a registry namespace beside
   `spdx.org/spdxdocs/demo-<uuid>` ids is by design (the registry pins ids as
   first minted); documented, not unified. See
   [id-namespace-mixing.md](../implementation/id-namespace-mixing.md).
-- [x] **Catalogue PRs 6 (#486) and 7 (#492)**: ID registry id, key and
-  conflict messages; then save, file-set and summary lines (`file-unwritable`,
-  `registry-file-missing`, `registry-conflict/file-set`); merged, ratchet 366
-  to 328 to 316.
-- [ ] **Catalogue PR 17** (the remaining families): miscellany (author split,
-  dataset fields, over-cap, library misuse); then the final sweep. Done PRs
-  and ratchets: [message-catalogue-migration-plan.md](message-catalogue-migration-plan.md#done-so-far-moved-from-the-roadmap-2026-11-26);
-  plans: [message-catalogue-pr8-12-plan.md](message-catalogue-pr8-12-plan.md),
-  [message-catalogue-pr12-18-plan.md](message-catalogue-pr12-18-plan.md).
-- [ ] **Catalogue sweep C**, then the `TOKEN_RE`/masking PR, the 0.25.0 cut
-  and a consistency rescan. Sweep B: B1 (#541, merged; each `DETAIL_EXC`
-  class proved), B2 (#542; strict uncoded-output check in tests, `line_kind`,
-  manual-matrix classifier); sweep A leftovers fixed in #539, #540, #542. C ("quotes and wording"): the 84 unchecked doc
-  quotes, singular "1 second", per-line `since`, and the items B and sweep A
-  carried. See [sweep A](../implementation/message-catalogue-sweep-plan.md),
-  [sweep B](../implementation/message-catalogue-sweep-b-plan.md#carried-to-sweep-c-or-the-rescan-found-in-the-b2-reviews-2026-11-25).
 - [ ] **0.25.0 cut sweep** (not released): the skills' floor `pitloom >=
   0.24.1` names no release (0.24.0 is the last tag; skills document 0.25.0
   flags and codes): raise to 0.25.0 in every `SKILL.md`, example and install
@@ -165,8 +141,8 @@ counts are in [message-catalogue-migration-plan.md](message-catalogue-migration-
   "LicenseID 0.8.4" in three `SKILL.md` files (SKL-1 of the pre-release
   review).
 - [ ] **Pre-release review 0.25.0**: 5 blockers and 39 fixes for 0.25.0 in
-  five PRs (argument checks, catalogue, Hub "repository not found", docs and
-  skills, the bump); the
+  five PRs; argument checks (#560), catalogue (#559) and Hub "repository not
+  found" (#561) are merged, docs and skills and the bump are left; the
   next-release items (CLI paths as typed, `-v` sources, hook inert keys,
   Action glob count, spdx3-validate blank nodes, ...) are listed there. See
   [pre-release-review-0.25.0.md](../implementation/pre-release-review-0.25.0.md#next-release).
@@ -181,13 +157,14 @@ counts are in [message-catalogue-migration-plan.md](message-catalogue-migration-
 - [ ] **Review follow-ups** (the #492 and #480-#494 reviews): the open
   catalogue, code-shape, docs and size items are listed in
   [message-catalogue-review-rounds.md](../implementation/message-catalogue-review-rounds.md);
-  also a NUL byte in a library registry path raises `InternalError`, and
+  also a NUL byte in a library registry path raises a bare `ValueError`
+  (`IdRegistry.load()`, `save()`; checked 2026-11-27), and
   `test_each_view_is_linear` flaked twice on CI runners (bound now 64, retried).
 - [ ] **PR 14a follow-ups** (round 5): the PDM
   discoverer's `pitloom-unused-<uuid>` directory, made by pdm-backend, is
   never removed (`_models_wheel_pdm.py:181`, `extract/project/pdm.py:160`);
   a signal test depends on the child's inherited SIGINT disposition (a
-  backgrounded shell ignores it); `docs/git-urls.md` is over 30 KB.
+  backgrounded shell ignores it).
 - [ ] **Unexplained CI hang** (2026-11-21, PR #507's first 3.14 ubuntu run):
   the first test was fixed in #538; the second is unexplained. See
   [ci-hang-link-loop-guard.md](../implementation/ci-hang-link-loop-guard.md#roadmap-entry-moved-2026-11-26).
@@ -199,8 +176,6 @@ counts are in [message-catalogue-migration-plan.md](message-catalogue-migration-
   ("the Hub may not speak the Hugging Face API") points away from the typo.
   Refuse these ids in `parse_hf_model_id` with `hf-url-invalid`, reusing the
   dataset rule (`core/dataset_names.is_hub_dataset_id`), and test it.
-- [ ] **`docs/ai-model-formats.md` is over the 30 KB limit** (about 39 KB, over
-  already on `main`); split it, with `docs/git-urls.md`.
 - [ ] **A revision URL is read at the default branch with no signal**
   (`https://huggingface.co/o/m/tree/<sha>`, found in PR 14b round 2): a
   pre-existing silent deviation; say it (INFO) or honour the revision.
@@ -226,8 +201,8 @@ counts are in [message-catalogue-migration-plan.md](message-catalogue-migration-
   for the flags item below and the provenance taxonomy. See
   [licence-resolution-provenance.md](licence-resolution-provenance.md).
 - [ ] **Licence variants** (`-only` / `-or-later`; option G ruled 2026-11-19):
-  declared as read, a variant concluded only on evidence, after the LicenseID
-  0.9 bump (0.9.0 released 2026-11-19); later, an opt-in scan of grant text in
+  declared as read, a variant concluded only on evidence, now that LicenseID
+  0.9 is required (#502, #551); later, an opt-in scan of grant text in
   repository files for more evidence. See
   [licence-variant-evidence.md](licence-variant-evidence.md).
 - [ ] **Provenance and source-metadata flags** (decided 2026-11-05):

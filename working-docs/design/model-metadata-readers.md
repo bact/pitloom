@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-30
-Last-Modified: 2026-11-10
+Last-Modified: 2026-11-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -9,8 +9,9 @@ SPDX-License-Identifier: CC0-1.0
 # Metadata-only AI model readers (pre-1.0)
 
 Status: planned; only the library skeleton, the pickle opcode walker
-(`formats/pickle_walk.py`) and the CRFsuite reader (`formats/crfsuite.py`) are
-built; the other readers are still to do. 0.20.0's #263 gates and bounds are the
+(`formats/pickle_walk.py`), the CRFsuite reader (`formats/crfsuite.py`) and
+the GGUF header reader (`formats/gguf_header.py`, step 3, #517) are built;
+the other readers are still to do. 0.20.0's #263 gates and bounds are the
 stable baseline the new readers are tested against. Replaces the
 earlier subprocess-isolation plan (kept below as the fallback for HDF5
 only). Summarised in
@@ -147,7 +148,9 @@ settle on the easy ones):
    `pickletools.opcodes`, never converts decimal arguments and refuses a
    number over 4300 digits; see
    [ai-model-scan-bounds.md](../implementation/ai-model-scan-bounds.md).
-3. **GGUF.** The `_gguf_bounds.py` walker already parses the header structure;
+3. **GGUF** (built in #517: see
+   [model-reader-onnx-defaults-gguf-tokeniser.md](../implementation/model-reader-onnx-defaults-gguf-tokeniser.md)).
+   The `_gguf_bounds.py` walker already parses the header structure;
    extend it to return key/value values, skip large arrays by seeking once the
    emitted value is known, and read the dimensions of every tensor info (the
    parameter count needs them; see "Parameter count" above) but not their types

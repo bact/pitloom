@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-02
-Last-Modified: 2026-11-26
+Last-Modified: 2026-11-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -68,7 +68,7 @@ entries come first; fixed entries stay in the last section for history.
 - [ ] **Per-operand licence provenance is not built (S).** A compound with one
   respelt part (`Apache2 OR MIT`) is read as an expression (#437, #440); the
   design's per-operand results (`Resolution-n`,
-  `Expansion-n`) wait for the licence provenance mapping (T14, 0.24.0;
+  `Expansion-n`) wait for the licence provenance mapping (T14, not scheduled;
   [licence-resolution-provenance.md](../licence-resolution-provenance.md)).
   Decision Q5 (the licence list version into
   `simplelicensing_licenseListVersion`) is not built either: the version is in
@@ -83,10 +83,6 @@ entries come first; fixed entries stay in the last section for history.
   resolver merges more values, so it shows more often. Found in the #359
   review.
   *Found 2026-10-27, combined review of #352 to #357.*
-- [ ] **Catalogue 18, the licence families, is later (S), decided
-  2026-10-30.** It follows the adoption, so 0.24.0 (the plan, re-cut
-  2026-11-04).
-  *Found 2026-10-30, LicenseID.*
 - [ ] **A foreign warnings block overlapping a lookup takes its LicenseID
   lines (S).** Pitloom's three warning blocks share one lock
   (`pitloom.core.warning_capture`), and the relay records only its own
@@ -211,6 +207,9 @@ release ships.
 
 ### Fixed, Found in review rounds, not yet prioritised
 
+- [x] **Catalogue 18, the licence families, was later (S), fixed (#498).**
+  Decided 2026-10-30: it follows the adoption; it ships in 0.25.0.
+  *Found 2026-10-30, LicenseID.*
 - [x] **Two spellings of one deprecated id give two expressions (S).**
   `StandardML NJ` is read as `SMLNJ` (LicenseID renames), while the listed
   `StandardML-NJ` parses locally and stays as written, so one licence has two

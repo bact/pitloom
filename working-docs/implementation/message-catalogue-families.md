@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-05
-Last-Modified: 2026-11-23
+Last-Modified: 2026-11-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -266,7 +266,7 @@ and takes `unusable` from the closed vocabulary (no word says "forbidden"). See
   `registry-unusable` (a project root the file cannot record, on save). Every
   line starts with the literal `REGISTRY_PREFIX` (`ID registry: `) and names
   the file as `FILE=`, as given (rule 2 of
-  [message-frames-forward.md](../design/message-frames-forward.md)).
+  [message-frames-forward.md](message-frames-forward.md)).
   `registry_file_error` and `unencodable_message` are gone, so the stacked
   `ID registry file 'p': ID registry: key ...` (the unencodable name) is
   fixed. Another stack, fixed in #492: a load or save failure inside

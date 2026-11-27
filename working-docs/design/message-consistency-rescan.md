@@ -8,10 +8,12 @@ SPDX-License-Identifier: CC0-1.0
 
 # Message catalogue: consistency rescan
 
-See also: [message-catalogue-finish-plan.md](message-catalogue-finish-plan.md)
+See also: [message-catalogue-finish-plan.md](../implementation/message-catalogue-finish-plan.md)
 (section 4, the scope), [message-catalogue-and-skills.md](message-catalogue-and-skills.md)
-(rule N, R1), [message-catalogue-sweep-c2-plan.md](message-catalogue-sweep-c2-plan.md)
-(ruling 8, sections 10-11), [message-catalogue-sweep-c1-as-built.md](message-catalogue-sweep-c1-as-built.md),
+(rule N, R1), [message-catalogue-sweep-c2-plan.md](../implementation/message-catalogue-sweep-c2-plan.md)
+(ruling 8),
+[message-catalogue-sweep-c2-as-built.md](../implementation/message-catalogue-sweep-c2-as-built.md),
+[message-catalogue-sweep-c1-as-built.md](../implementation/message-catalogue-sweep-c1-as-built.md),
 [../implementation/message-catalogue-sweep-b-plan.md](../implementation/message-catalogue-sweep-b-plan.md),
 [known-bugs/messages-and-provenance.md](known-bugs/messages-and-provenance.md).
 
@@ -21,13 +23,11 @@ and frames, codes by cause, `since`, British spelling, and the docs and
 skills that quote each line; fix what is inconsistent, record what is a
 choice. Measured on main 4f927257: 202 codes, 617 lines.
 
-The work splits into three PRs (the whole is over 1,500 changed lines):
+The work was three PRs, all merged (the whole is over 1,500 changed lines):
 
-1. **PR 1 (this branch, `message-consistency-rescan`)**: the permanent tests
-   and the wording fixes below.
-2. **PR 2**: per-surface advice twins (section 6).
-3. **PR 3**: library argument validation (section 7, built on
-   `library-argument-validation`).
+1. **PR 1 (#553)**: the permanent tests and the wording fixes below.
+2. **PR 2 (#556)**: per-surface advice twins (section 6).
+3. **PR 3 (#557)**: library argument validation (section 7).
 
 ## 1. Method
 

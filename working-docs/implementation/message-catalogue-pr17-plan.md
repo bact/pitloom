@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-23
-Last-Modified: 2026-11-26
+Last-Modified: 2026-11-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -17,11 +17,12 @@ and `utils.py:199`),
 (section 1.3, `_author_warnings.py:168`; ruling 11, row 57),
 [message-catalogue-pr12-18-rulings.md](message-catalogue-pr12-18-rulings.md)
 (ruling 11),
-[message-catalogue-migration-plan.md](message-catalogue-migration-plan.md)
+[message-catalogue-migration-plan.md](../design/message-catalogue-migration-plan.md)
 (row 17), [message-frames-forward.md](message-frames-forward.md) ("PR 17",
 ruling 2: `loom SDK: `).
 
-Status (2026-11-23): planned, not built. Read-only plan by Opus against
+Status (2026-11-23): planned; built and merged as 17a #524, 17b #527,
+17c #534. Read-only plan by Opus against
 `main` at dd31412b (#515 merged; ratchet 44). Every line number is from that
 tree. Rulings (user, 2026-11-23): three PRs (17a, 17b, 17c); Q4 validate at
 construction; Q6 probe P1 then drop the safety nets (keep as a coded WARNING
@@ -123,7 +124,7 @@ Each PR leaves `--check` green and lowers the baseline.
 | PR | Theme | Sites | Ratchet |
 | - | - | - | - |
 | 17a | Library misuse, scope rules, safety nets, `loom env`, hint | 2, 6, 10, 11, 12, 15, 16, 19, 20, 21, 22, 26, 27, 34, 42, 43, 44 (17) | 44 to 27 |
-| 17b (built, #527 guessed; [build notes](message-catalogue-pr17b-build.md)) | Authors, the loom SDK, `sbom-basename` | 1, 3, 4, 5, 8, 9, 25, 28-32 (12) | 27 to 15 |
+| 17b (merged, #527; [build notes](message-catalogue-pr17b-build.md)) | Authors, the loom SDK, `sbom-basename` | 1, 3, 4, 5, 8, 9, 25, 28-32 (12) | 27 to 15 |
 | 17c | Datasets, display text, metadata budget | 7, 13, 14, 17, 18, 23, 24, 33, 35-41 (15) | 15 to 0 |
 
 17a holds the inventory-tool changes (`_scope.py`, `_relay.py`) and the

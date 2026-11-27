@@ -3,20 +3,20 @@ SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
 Created: 2026-11-25
-Last-Modified: 2026-11-26
+Last-Modified: 2026-11-27
 ---
 
 # Message catalogue sweep B ("strict"): plan and rulings
 
 See also: [message-catalogue-sweep-plan.md](message-catalogue-sweep-plan.md)
 (sweep A, built), [message-catalogue-sweep-b-evidence.md](message-catalogue-sweep-b-evidence.md)
-(measured state, proof table), [message-catalogue-finish-plan.md](../design/message-catalogue-finish-plan.md).
+(measured state, proof table), [message-catalogue-finish-plan.md](message-catalogue-finish-plan.md).
 
 Status 2026-11-25: planned by Opus (read-only), reviewed by Fable (read-only);
 the maintainer ruled "go with the recommendations", split B into B1 and B2, and
 asked that every sweep A leftover be fixed or carried. Reference tree: main
 3be02626 (after #536). Counts are in the evidence page. Built: B1 merged
-2026-11-25 as #541; B2 is #542 (one PR, not split into B2a and B2b). The
+2026-11-25 as #541; B2 merged as #542 (one PR, not split into B2a and B2b). The
 sweep A leftovers routed to their own PRs merged as #539 (usage-parse hang)
 and #540 (GGUF dataset provenance). What is still open is under "Carried to
 sweep C or the rescan" at the end.

@@ -3,7 +3,7 @@ SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
 Created: 2026-11-24
-Last-Modified: 2026-11-25
+Last-Modified: 2026-11-27
 ---
 
 # Catalogue PR 17c: datasets, display text, the metadata budget (build notes)

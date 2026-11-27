@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-17
-Last-Modified: 2026-11-17
+Last-Modified: 2026-11-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -10,15 +10,16 @@ SPDX-License-Identifier: CC0-1.0
 
 See also: [message-catalogue-pr8-12-plan.md](message-catalogue-pr8-12-plan.md)
 (rulings 1 to 4, the family-12 contract),
-[message-catalogue-migration-plan.md](message-catalogue-migration-plan.md)
+[message-catalogue-migration-plan.md](../design/message-catalogue-migration-plan.md)
 (rows 10 and 11, R1 to R7), [message-catalogue-pr6-pr7-plan.md](message-catalogue-pr6-pr7-plan.md),
 [message-catalogue-pr8-9-config-plan.md](message-catalogue-pr8-9-config-plan.md),
-[message-catalogue-families.md](../implementation/message-catalogue-families.md).
+[message-catalogue-families.md](message-catalogue-families.md).
 
-Status: plan, 2026-11-17, `main` 654d734e. One PR for rows 10 and 11
-(they share every helper). Sites listed by `PYTHONPATH=src .venv/bin/python
--m scripts.message_inventory --jsonl`, filtered by `_scope.in_scope` and
-`coded` false, then read at the file:line given; "unverified" says so.
+Status: plan, 2026-11-17, `main` 654d734e; built and merged as #496. One PR for
+rows 10 and 11 (they share every helper). Sites listed by `PYTHONPATH=src
+.venv/bin/python -m scripts.message_inventory --jsonl`, filtered by
+`_scope.in_scope` and `coded` false, then read at the file:line given;
+"unverified" says so.
 
 ## 0. Counts
 

@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-20
-Last-Modified: 2026-11-21
+Last-Modified: 2026-11-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -15,7 +15,8 @@ See also: [message-catalogue-pr14-build.md](message-catalogue-pr14-build.md)
 [message-frames-forward.md](message-frames-forward.md),
 [message-catalogue-pr13-plan.md](message-catalogue-pr13-plan.md).
 
-Status (2026-11-20): planned, not built. Read-only plan written by Opus
+Status (2026-11-20): planned; built and merged as 14a #506, 14b #508,
+14c #511. Read-only plan written by Opus
 against `main` at 4c4f55c7 (the reference tree); every line number below is
 that tree's. Branch for 14a is `catalogue-build` (worktree
 `.claude/worktrees/catalogue-build`). The user decided the points under

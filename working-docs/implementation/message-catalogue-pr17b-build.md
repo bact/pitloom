@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-23
-Last-Modified: 2026-11-23
+Last-Modified: 2026-11-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -11,7 +11,7 @@ SPDX-License-Identifier: CC0-1.0
 See also: [message-catalogue-pr17-plan.md](message-catalogue-pr17-plan.md)
 (the plan and rulings), [message-catalogue-finish-plan.md](message-catalogue-finish-plan.md).
 
-PR number #527 is a guess until the PR is opened.
+Merged as #527.
 
 (V) verified by running or reading; (I) inferred.
 

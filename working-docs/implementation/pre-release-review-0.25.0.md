@@ -11,7 +11,8 @@ SPDX-License-Identifier: CC0-1.0
 See also: [testing-and-review-policy.md](testing-and-review-policy.md#pre-release-review)
 (the procedure), [release-checklist.md](release-checklist.md),
 [findings, code surfaces](pre-release-review-0.25.0/findings-code.md),
-[findings, docs, skills, Action](pre-release-review-0.25.0/findings-docs.md).
+[findings, docs, skills, Action](pre-release-review-0.25.0/findings-docs.md),
+[docs batch done](pre-release-review-0.25.0/docs-batch-done.md).
 
 The first pre-release review, over `v0.24.0..ff3960a1` (76 merged PRs,
 numbered #481 to #557; 449 files under `src/`). Release candidate: `ff3960a1` (main
@@ -439,6 +440,11 @@ one (`info.id`: `gpt2`, not `openai-community/gpt2`); a page URL's revision
 scheme (`huggingface.co/gpt2`) is read as an id and refused naming
 `https://huggingface.co/huggingface.co/gpt2`, with no hint to add
 `https://`.
+
+## PR C, docs and skills, and the sweep: what was done
+
+Branch `release-docs-sweep`: every item fixed or ruled out with its reason,
+and the sweep's removals, in [docs-batch-done.md](pre-release-review-0.25.0/docs-batch-done.md).
 
 ## Handoff prompt for spdx3-validate (TRY-1)
 

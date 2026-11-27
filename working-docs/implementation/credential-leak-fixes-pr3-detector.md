@@ -3,14 +3,14 @@ SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
 Created: 2026-11-16
-Last-Modified: 2026-11-16
+Last-Modified: 2026-11-27
 -->
 
 # Credential detector and masker: PR 3 decisions
 
 See also: [credential-leak-fixes.md](credential-leak-fixes.md) (what was
 built, and the gaps still tracked) and
-[credential-detect-and-refuse.md](../design/credential-detect-and-refuse.md)
+[credential-detect-and-refuse.md](credential-detect-and-refuse.md)
 (the plan).
 
 The detector and masker extras, third-party log masking and wheel patterns

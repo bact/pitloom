@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-06
-Last-Modified: 2026-11-08
+Last-Modified: 2026-11-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -389,8 +389,8 @@ of the GitHub Action.
 
 - The sdist holds two dangling symlinks, `CLAUDE.md` and `GEMINI.md`, which
   point at `AGENTS.md`; the sdist excludes `AGENTS.md`. The same holds for
-  0.22.0. A separate PR, not yet merged, leaves `AGENTS.md`, `CLAUDE.md` and
-  `GEMINI.md` out of both the sdist and the wheel.
+  0.22.0. A later change leaves `AGENTS.md`, `CLAUDE.md` and `GEMINI.md`
+  out of both the sdist and the wheel (`pyproject.toml`).
 - A flat-layout project (no package directory named for the project) gives
   setuptools and Hatchling discovery warnings that carry no `[code]`; they
   are not yet catalogued (catalogue PR 12; see

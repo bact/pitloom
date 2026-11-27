@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-29
-Last-Modified: 2026-11-11
+Last-Modified: 2026-11-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -26,7 +26,7 @@ Two pieces, on two schedules:
 - **Per-operand provenance** (sections 3 to 6, 8 to 10): new segments
   (`Resolution-<n>` per operand, `License-List`, `Reason`) that the planned
   `--provenance` flag adds. It waits for that flag and for the provenance
-  taxonomy (roadmap 0.24.0, rulings of 2026-11-05).
+  taxonomy (roadmap, rulings of 2026-11-05).
 - **`licenseListVersion`** (section 7): an SPDX 3 property on the licence
   element, not provenance. It ships independently.
 
@@ -148,7 +148,7 @@ recorded.
 
 ## 3. Scope: what `--provenance` adds, and what waits for the taxonomy
 
-The rulings of 2026-11-05 (roadmap 0.24.0, "Provenance and source-metadata
+The rulings of 2026-11-05 (roadmap, "Provenance and source-metadata
 flags"): provenance annotations go off by default, behind `--provenance`
 (name to settle), because they make the SBOM large and the taxonomy is not
 settled. So:

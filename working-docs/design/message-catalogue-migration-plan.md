@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-30
-Last-Modified: 2026-11-26
+Last-Modified: 2026-11-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -9,11 +9,11 @@ SPDX-License-Identifier: CC0-1.0
 # Message catalogue: migration plan and release cuts
 
 See also: [message-catalogue-and-skills.md](message-catalogue-and-skills.md)
-(the design and decisions A to M), [roadmap.md](roadmap.md) (0.23.0 and
-0.24.0 scope), [known-bugs.md](known-bugs.md),
+(the design and decisions A to M), [roadmap.md](roadmap.md) (0.25.0
+scope), [known-bugs.md](known-bugs.md),
 [licenseid/adoption-plan.md](../implementation/licenseid/adoption-plan.md),
-[message-frames-forward.md](message-frames-forward.md) (frames and prefixes
-for PRs 5 to 18).
+[message-frames-forward.md](../implementation/message-frames-forward.md)
+(frames and prefixes for PRs 5 to 18).
 
 Status: plan, re-measured 2026-11-04 on `main` 54f79c57 (0.22.1 released; the
 LicenseID 0.7 adoption merged, #437 to #440). Done: `lfs-pointer` (#390),
@@ -23,8 +23,10 @@ and 1c (#446); the reference split (#480) PR 4, the frames
 ([message-frames.md](../implementation/message-frames.md)), and PR 3, the
 input, option, SBOM and target errors (#482), and PR 5, the ID registry
 file errors (#485), and PR 6, the ID registry ids and keys (#486), and PR 7, the save
-lines (#492), are merged. Left: PR 8 onward
-and T14. This file is the
+lines (#492), are merged. Update 2026-11-27: PRs 8 to 18, sweeps A to C
+and the consistency rescan are merged too (ratchet 0; "Done so far" below),
+all in 0.25.0 (not released). Left: T14 and `--report` with SARIF (the
+roadmap). This file is the
 reference for what remains and what ships in which release.
 
 ## Shipped in 0.22.0 (2026-10-30)
@@ -106,17 +108,17 @@ read-only Opus plan settles them. Actor and effect are as decision G.
 | 5 | next (merged, #485) | registry-file-invalid 24 (`id_registry/_format.py` 20); the `PATH` error 1 (`_types.py:364`); unknown-key 2; escaped-text 3 (plan: 2) | `registry-malformed`, `registry-unknown-key`, `file-unreadable` `ERROR` form, `registry-invalid` (if the advice differs); built: `registry-malformed`, `registry-unknown-key`, `registry-wrong-format`, `registry-unusable`, `text-malformed/registry`, `option-invalid`/`option-conflict` lines, `dir-unlistable` `ERROR` line, `input-not-found` kind `PATH` | user / not-written | -29, now -30; built -32 (398 to 366, #485) | M; Opus |
 | 6 | next (merged, #486) | registry-collision 7; registry-miss-new-id 7; registry-key-decision 20 (INFO); `import_keys.py` passthrough 1 | `registry-conflict`; `registry-entry-missing`; decisions per R1; the remote registry's unpinned `INFO` born coded (`unpinned`); built: `registry-conflict` (+ `/concurrent`, `/held`, `/spelling`, `/type`), `registry-hash-conflict` (+ `/gate`), `registry-hash-missing`, `registry-entry-missing`, `registry-path-key-unusable`, `registry-identity-missing`, `registry-key-ambiguous`, `registry-key-moved`, `index-path-no-effect`; two summaries (`say_summary`, out of the ratchet by its definition); the `loom.Run` lines take `ID registry: ` (Q4); `unpinned` waits for the remote registry | user / weaker | -35, now -35; built -35, and -3 in `core/iri.py` from one namespace raise (366 to 328, #486) | M; Opus |
 | 7 | next (merged, #492) | registry-not-saved 5; registry-left-out 6; registry-summary 4 | built: `file-unwritable`, `registry-file-missing`, `registry-conflict/file-set`, WARNING twins of the registry and `json-malformed` lines, six summaries | user / none | -15, now -15; built -12 (328 to 316, #492) | S-M; Sonnet, Opus review |
-| 8 | next | config-invalid 46 by the classifier, all `ERROR` (`core/_config_parse.py` 19, `_config_read.py` 5, `_config_parse_scan.py` 3; 39 config; `iri.py`'s 4 and `_models_wheel_types.py`'s 3 are not config: option-invalid (PR 3), registry key encoding (PR 5), caller misuse (PR 17)) | ONE `config-invalid` via a helper `say_config_invalid(key, value, expected)` with a closed `expected` table (helper first) | user (R3) / not-written | -46, now -46 | L; Opus helper, Sonnet sites |
-| 9 | next | config-file-unusable 5; config-moved 6; config-unknown-key 2; config-value-ignored 1 | `config-unusable`, `config-moved`, `config-unknown-key`; value-ignored folds into `option-no-effect` | user / none or not-written | -14, now -14 | S-M; Sonnet |
-| 10 | next | lock-file-ignored 20 (pylock 7, requirements 4, uv 3); lock-file-unreadable 1 (`_lock_io.py:106`); the readers live in `extract/lock/` | `lock-file-malformed`, `lock-file-unusable`, `file-unreadable` reuse; the `over N bytes` text is detail | user / thinner | -21, now -21 | M; Opus |
-| 11 | next | lock-entry-skipped 20 (`_uv_graph.py` 9, `_common_warnings.py` 5, pipfile 3); dependency-skipped 7 | `lock-entry-malformed` or `-invalid`; `requirement-invalid`; the direct-reference `INFO` "not looked up on PyPI" born coded | user / thinner | -27, now -27 | M; Sonnet, Opus review |
-| 12 | next | project-metadata-unreadable 31; project-value-ignored 5; file-discovery-fallback 12 (incl. the Hatchling `file discovery failed`); poetry-core API moved 1; `setuptools_cfg.py` passthrough 1 | `metadata-malformed` vs `file-unreadable` (split by advice); `file-discovery-unusable`?; `poetry-core-unusable`; value-ignored by cause | user / thinner | -50, now -50 | L; Opus |
-| 13 | built (#503) | git-fetch-failed 11; git-decision 11 (INFO); git-redirect 2; network-refused 4; `git` missing 1 (`_git_run.py:181`); the `Git source: ` prefix on about 14 lines | reuse the shipped `download-timeout`, `download-network-failed`; `git-redirect-invalid`; `tool-missing`; `RemoteSourceError` dotted codes map onto `pitloom_code` | user / not-written | -29, now -22 (the tree had 22 uncoded Git sites; built, 154 to 132) | M; Opus |
-| 14 | done: 14a #506, Hub timeout #507, 14b #508, 14c #511 (ratchet 108) | 3 PRs (see [message-catalogue-pr14-plan.md](message-catalogue-pr14-plan.md)): 14a build 6, temp dirs, signals, frames (132 to 120, `Build: `, `AI model scan: `, hook leftover line); 14b Hub 7 (the listing site went with the Hub-timeout PR) + PyPI relay; 14c hook status lines 4 | 14a: `build-code-unsafe`, `build-failed`, `build-timeout`, `build-processes-unsafe`, `temp-dir-unwritable`, `interrupted`, `library-missing` kept; frames `BUILD_FRAME`, `HF_FRAME`, `PYPI_FRAME`, `SCAN_FRAME`, `HOOK_STEP_FRAME` match exact codes; 14b `download-timeout`, `download-network-failed` reuse, `hub-revision-unpinned`, `hub-response-invalid` | user / not-written | 14a -12, 14b -7, 14c -4 | M; Opus plan, Sonnet |
-| 15 | next | fragment-unusable 13; merge-conflict-kept 9; source-conflict-kept 9 | `fragment-unusable` or `-malformed`; `fragment-conflict`, `source-conflict` (merged if the advice is equal) | user / weaker | -31, now -31; 22 in scope by the 2026-11-14 survey | M; Opus |
-| 16 | next | wheel-sbom-check 13; wheel-embed-action 4; archive-member-refused 10; `archive_member_names.py` passthrough 1 | `wheel-sbom-missing`, `-invalid`; `archive-member-unsafe`; embed actions per R1 | user or caller / not-written | -28, now -28 | M; Sonnet, Opus review |
-| 17 | 17a #524, 17b #527, 17c built (#534) | author-split 6; escaped-text 3 in scope (`_embed_generate.py`, `_loom_dataset_meta.py`, `_ai_package.py`; plan: 6, then 5); dataset-field-invalid 7; over-cap in `provenance.py` 2; library-api-misuse 4; `_loom_active_run.py` passthrough 1; internal 1 (`provenance.py:414`, becomes `InternalError`, R7) | `author-ambiguous`, `text-escaped`?, `dataset-field-invalid`, `over-cap`, `call-invalid` (caller) | mixed | -27, now -26 | M; Sonnet |
-| 18 | next | licence 8 (`_license_classify.py` 3, `_license_text_match.py` 2, `_core_metadata.py` 1, `_license_resolve.py` 1, `pyproject.py` 1; the two `licenseid database` lines, 97 and 107, are among these 8, not extra) | `expression-malformed` (redesigns the ported broken-expression warning), `license-not-recordable`, `license-ambiguous`, `license-db-missing`? (working names; codes are spelt `license-*` as identifiers, like the shipped `license-relationship-invalid`) | user / weaker | -8, now -8 | M; Opus; after the adoption (done) |
+| 8 | next (merged, #497) | config-invalid 46 by the classifier, all `ERROR` (`core/_config_parse.py` 19, `_config_read.py` 5, `_config_parse_scan.py` 3; 39 config; `iri.py`'s 4 and `_models_wheel_types.py`'s 3 are not config: option-invalid (PR 3), registry key encoding (PR 5), caller misuse (PR 17)) | ONE `config-invalid` via a helper `say_config_invalid(key, value, expected)` with a closed `expected` table (helper first) | user (R3) / not-written | -46, now -46 | L; Opus helper, Sonnet sites |
+| 9 | next (merged, #497) | config-file-unusable 5; config-moved 6; config-unknown-key 2; config-value-ignored 1 | `config-unusable`, `config-moved`, `config-unknown-key`; value-ignored folds into `option-no-effect` | user / none or not-written | -14, now -14 | S-M; Sonnet |
+| 10 | next (merged, #496) | lock-file-ignored 20 (pylock 7, requirements 4, uv 3); lock-file-unreadable 1 (`_lock_io.py:106`); the readers live in `extract/lock/` | `lock-file-malformed`, `lock-file-unusable`, `file-unreadable` reuse; the `over N bytes` text is detail | user / thinner | -21, now -21 | M; Opus |
+| 11 | next (merged, #496) | lock-entry-skipped 20 (`_uv_graph.py` 9, `_common_warnings.py` 5, pipfile 3); dependency-skipped 7 | `lock-entry-malformed` or `-invalid`; `requirement-invalid`; the direct-reference `INFO` "not looked up on PyPI" born coded | user / thinner | -27, now -27 | M; Sonnet, Opus review |
+| 12 | next (merged, #501) | project-metadata-unreadable 31; project-value-ignored 5; file-discovery-fallback 12 (incl. the Hatchling `file discovery failed`); poetry-core API moved 1; `setuptools_cfg.py` passthrough 1 | `metadata-malformed` vs `file-unreadable` (split by advice); `file-discovery-unusable`?; `poetry-core-unusable`; value-ignored by cause | user / thinner | -50, now -50 | L; Opus |
+| 13 | next (merged, #503) | git-fetch-failed 11; git-decision 11 (INFO); git-redirect 2; network-refused 4; `git` missing 1 (`_git_run.py:181`); the `Git source: ` prefix on about 14 lines | reuse the shipped `download-timeout`, `download-network-failed`; `git-redirect-invalid`; `tool-missing`; `RemoteSourceError` dotted codes map onto `pitloom_code` | user / not-written | -29, now -22 (the tree had 22 uncoded Git sites; built, 154 to 132) | M; Opus |
+| 14 | done: 14a #506, Hub timeout #507, 14b #508, 14c #511 (ratchet 108) | 3 PRs (see [message-catalogue-pr14-plan.md](../implementation/message-catalogue-pr14-plan.md)): 14a build 6, temp dirs, signals, frames (132 to 120, `Build: `, `AI model scan: `, hook leftover line); 14b Hub 7 (the listing site went with the Hub-timeout PR) + PyPI relay; 14c hook status lines 4 | 14a: `build-code-unsafe`, `build-failed`, `build-timeout`, `build-processes-unsafe`, `temp-dir-unwritable`, `interrupted`, `library-missing` kept; frames `BUILD_FRAME`, `HF_FRAME`, `PYPI_FRAME`, `SCAN_FRAME`, `HOOK_STEP_FRAME` match exact codes; 14b `download-timeout`, `download-network-failed` reuse, `hub-revision-unpinned`, `hub-response-invalid` | user / not-written | 14a -12, 14b -7, 14c -4 | M; Opus plan, Sonnet |
+| 15 | next (merged, #513) | fragment-unusable 13; merge-conflict-kept 9; source-conflict-kept 9 | `fragment-unusable` or `-malformed`; `fragment-conflict`, `source-conflict` (merged if the advice is equal) | user / weaker | -31, now -31; 22 in scope by the 2026-11-14 survey | M; Opus |
+| 16 | next (merged, #515) | wheel-sbom-check 13; wheel-embed-action 4; archive-member-refused 10; `archive_member_names.py` passthrough 1 | `wheel-sbom-missing`, `-invalid`; `archive-member-unsafe`; embed actions per R1 | user or caller / not-written | -28, now -28 | M; Sonnet, Opus review |
+| 17 | next (merged: 17a #524, 17b #527, 17c #534) | author-split 6; escaped-text 3 in scope (`_embed_generate.py`, `_loom_dataset_meta.py`, `_ai_package.py`; plan: 6, then 5); dataset-field-invalid 7; over-cap in `provenance.py` 2; library-api-misuse 4; `_loom_active_run.py` passthrough 1; internal 1 (`provenance.py:414`, becomes `InternalError`, R7) | `author-ambiguous`, `text-escaped`?, `dataset-field-invalid`, `over-cap`, `call-invalid` (caller) | mixed | -27, now -26 | M; Sonnet |
+| 18 | next (merged, #498) | licence 8 (`_license_classify.py` 3, `_license_text_match.py` 2, `_core_metadata.py` 1, `_license_resolve.py` 1, `pyproject.py` 1; the two `licenseid database` lines, 97 and 107, are among these 8, not extra) | `expression-malformed` (redesigns the ported broken-expression warning), `license-not-recordable`, `license-ambiguous`, `license-db-missing`? (working names; codes are spelt `license-*` as identifiers, like the shipped `license-relationship-invalid`) | user / weaker | -8, now -8 | M; Opus; after the adoption (done) |
 | T14 | next | none (the licence provenance mapping, [licence-resolution-provenance.md](licence-resolution-provenance.md); not a catalogue PR) | none | none | 0 | after PR 18 |
 
 Sum of the rows: 498 (the plan's 501 counted three `raise _over_cap()` sites
@@ -152,7 +154,7 @@ Differences from the plan, by measurement:
   into `core/temp_dirs.py` and `core/build_signals.py`. R1 (`INFO` decision
   lines) must be ruled first. The frame design (family-restricted frames,
   `emit(frame=)`, literal prefixes elsewhere) is in
-  [message-frames-forward.md](message-frames-forward.md).
+  [message-frames-forward.md](../implementation/message-frames-forward.md).
 - PR 14 turns `Build: ` into a frame and collapses `option-no-effect`'s two
   templates (`Options: `, `Build: `) into one, same code and same text.
 - PR 18: `extract/_licenseid_relay.py` relays LicenseID's own text after
@@ -179,7 +181,8 @@ Differences from the plan, by measurement:
   code; the placeholders `timeout` and `network-failed` are renamed, no SBOM
   writes them yet); pairs with PR 14 only (the HF file left out,
   `_http_errors.py:111`). `PENDING` in `tests/messages/test_drift_sources.py`
-  empties then. See [message-frames-forward.md](message-frames-forward.md).
+  empties then. See
+  [message-frames-forward.md](../implementation/message-frames-forward.md).
 - Not paired (later): the declared size of a model over the cap,
   `Evidence: declared` on pointers, directory sizes.
 
@@ -190,7 +193,8 @@ The recommendation is in brackets.
 - R1 (before 6, 7, 13, 14, 15, 16, 17 and 18; PR 4 is built): `INFO`
   decision and summary lines (57 sites). **Ruled 2026-11-14: as
   recommended.** Also ruled that day (see
-  [message-frames-forward.md](message-frames-forward.md), "Rulings"): the
+  [message-frames-forward.md](../implementation/message-frames-forward.md),
+  "Rulings"): the
   hook's WARNING/INFO prefix becomes `Pitloom build hook: `, the SDK's
   `loom: ` becomes `loom SDK: `, and the duplicate Git/PyPI relays are
   dropped.
@@ -269,7 +273,12 @@ build, temporary directories and signals (14a, #506), the Hub timeout
 to 108), SBOM fragments and merge (15, #513; ratchet 108 to 85), wheels and
 embedding (16, #515; ratchet 85 to 44), library misuse and scope rules
 (17a, #524; ratchet 44 to 27), authors, the loom SDK and the SBOM base name
-(17b, #527 guessed; ratchet 27 to 15), the generated values page (#499),
+(17b, #527; ratchet 27 to 15), the generated values page (#499),
 sweep A (#536: library raises coded or `InternalError`, `file-unwritable`
 for `-o` and hook writes, LicenseID 0.9.2 pinned; merged 2026-11-25, ratchet
 0). The consistency re-check of the merged families is done (#494).
+
+Since (moved from the roadmap, 2026-11-27): sweep B (#541, #542), sweep C
+(C1a #545, C2a #546, C2b #548, C1b #550), the masking PRs (#526, #543,
+and #544), and the consistency rescan (#553; per-surface advice #556;
+library argument checks #557).

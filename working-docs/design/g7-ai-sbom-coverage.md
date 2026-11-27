@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-17
-Last-Modified: 2026-11-26
+Last-Modified: 2026-11-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -55,7 +55,7 @@ disambiguation is explicitly left to the Skill, not listed as a core
 
 ## Checklist status (re-verified against code, 2026-09-17)
 
-[G7 SBOM for AI 2026](../../skills/sbom-enrich/references/minimum-elements-g7.md#g7-sbom-for-ai-2026-additive-apply-only-when-an-ai_aipackage-is-present)
+[G7 SBOM for AI 2026](../../skills/sbom-enrich/references/minimum-elements-g7.md#g7-sbom-for-ai-2026-additive----apply-only-when-an-ai_aipackage-is-present)
 was built from one verified sample run and is now known to be **stale
 in places** -- re-checked against the current assembly code
 (`assemble/spdx3/_ai_package.py`, `assemble/spdx3/dataset.py`):

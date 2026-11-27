@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-23
-Last-Modified: 2026-11-26
+Last-Modified: 2026-11-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -9,8 +9,8 @@ SPDX-License-Identifier: CC0-1.0
 # Finishing the message catalogue: definition of done, order of work, rescan
 
 See also: [message-catalogue-pr17-plan.md](message-catalogue-pr17-plan.md)
-(17a, 17b, 17c), [message-catalogue-migration-plan.md](message-catalogue-migration-plan.md),
-[message-catalogue-and-skills.md](message-catalogue-and-skills.md).
+(17a, 17b, 17c), [message-catalogue-migration-plan.md](../design/message-catalogue-migration-plan.md),
+[message-catalogue-and-skills.md](../design/message-catalogue-and-skills.md).
 
 Status (2026-11-23): plan by Opus (read-only) against the 17a tree and main
 b0e43ccf. User instruction: finish the catalogue, then upgrade LicenseID to
@@ -21,11 +21,14 @@ Progress (2026-11-25): 17a-17c merged (ratchet 0); sweep A merged (#536,
 D2, D3, LicenseID pinned at 0.9.2 instead of 0.9.1); sweep B: B1 merged (#541,
 D4), B2 is #542 (D5 on by default, D6). Side PRs merged: #537 (Hub request id
 dropped from `failure=`), #538 (link-loop guard), #539 (usage-scan parse
-hang), #540 (GGUF dataset provenance names the wheel member). Next: sweep C
-(D7 and the carried items), then the `TOKEN_RE` PR, the 0.25.0 cut, the
-rescan. Plans:
-[message-catalogue-sweep-plan.md](../implementation/message-catalogue-sweep-plan.md),
-[message-catalogue-sweep-b-plan.md](../implementation/message-catalogue-sweep-b-plan.md)
+hang), #540 (GGUF dataset provenance names the wheel member).
+
+Done (2026-11-27): the `TOKEN_RE` PR (#526) and the masking PR (#544);
+sweep C (C1a #545, C1b #550, C2a #546, C2b #548); the LicenseID pin
+(#551, `>=0.9.3,<0.10`); the rescan (#553, #556, #557). Left: the 0.25.0
+cut (roadmap). Plans:
+[message-catalogue-sweep-plan.md](message-catalogue-sweep-plan.md),
+[message-catalogue-sweep-b-plan.md](message-catalogue-sweep-b-plan.md)
 (its "Carried to sweep C or the rescan" list).
 
 ## 1. Measured state (V)
@@ -112,9 +115,8 @@ items; Hub behaviour items.
 
 ## 4. Consistency rescan
 
-Progress (2026-11-26): built as three PRs; PR 1 (permanent tests, wording
-rulings) on branch `message-consistency-rescan`, PRs 2-3 planned. Rulings,
-opinions and follow-ups: [message-consistency-rescan.md](message-consistency-rescan.md).
+Progress (2026-11-27): built and merged as three PRs (#553, #556, #557). Rulings,
+opinions and follow-ups: [message-consistency-rescan.md](../design/message-consistency-rescan.md).
 
 Permanent tests (new): D4 and D5; a closed subject-key vocabulary; level
 against effect and actor (derive the table from today's entries, fail on new

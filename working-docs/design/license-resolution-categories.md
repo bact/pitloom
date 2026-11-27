@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-26
-Last-Modified: 2026-11-26
+Last-Modified: 2026-11-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -23,7 +23,7 @@ indicator for a concluded licence (Q4). LicenseID 0.8.4 has `alias_name`,
 titles); the list is in the note after section 4's table and Pitloom's
 decision per category is in `tests/extract/test_license_resolve.py`
 (`_DECIDED_BY_CATEGORY`). Decided 2026-11-05: provenance annotations are off by
-default and a flag turns them on (0.24.0); the provenance notes below are
+default and a flag turns them on (deferred); the provenance notes below are
 written when it is on.
 
 See also: [license-typing.md](../implementation/license-typing.md) (the one

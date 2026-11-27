@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-23
-Last-Modified: 2026-11-23
+Last-Modified: 2026-11-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -121,7 +121,7 @@ C is dominated by A (same real-file cost, worse worst case, a key-name
 rule), so it is dropped.
 
 **Decision: B (ruled 2026-11-23, Q2)**, step 3 of
-[model-metadata-readers.md](model-metadata-readers.md) cut to what #514
+[model-metadata-readers.md](../design/model-metadata-readers.md) cut to what #514
 needs. It lowers time 12x and memory 13x on Gemma 4, lowers the worst case
 below today's, and frees the cap from counting work Pitloom never needed.
 The 12 audio-cpp files are read (Q1): skipping their 1-byte arrays costs
@@ -185,7 +185,7 @@ nothing, and caps bound reading only. Both parts ship in one PR (Q5).
 - Evidence level: model fields have no `not_measured` record yet (only
   dataset keys do, `_loom_dataset_keys.py`); the warning is the record for
   now, and the partial read is listed under
-  [evidence-levels.md](evidence-levels.md) for when model facts gain one.
+  [evidence-levels.md](../design/evidence-levels.md) for when model facts gain one.
 - Not in scope: lifting GGUF from the wheel/download `reader-unsafe` gate;
   short arrays as values.
 

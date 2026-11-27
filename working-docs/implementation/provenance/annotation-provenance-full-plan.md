@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-08
-Last-Modified: 2026-11-06
+Last-Modified: 2026-11-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -221,7 +221,7 @@ evidence; A1 unification = N1 native `imports` + Annotation criterion; E1/E2 enr
 `CreationInfo` + Annotation before/after. Phase 1 deliberately does **not** pre-empt these — where a
 native home is coming in Phase 2, the Phase-1 Annotation still carries the whole fact for now and is
 trimmed to the residual when N-x lands. Track each N-item as a checklist in
-`working-docs/implementation/annotation-provenance.md` so the trim is not forgotten.
+`working-docs/implementation/provenance/annotation-provenance.md` so the trim is not forgotten.
 
 ## Design changes
 
@@ -335,7 +335,7 @@ conflict, `fragments.py`), so structured override needs the enricher to run in-p
 - `src/pitloom/assemble/spdx3/{document,dataset,deps}.py`, `assemble/__init__.py`,
   `plugins/hatch.py`, `loom.py` — thread `provenance_detail` (+ preserve flag where AI models flow);
   drop the two relationship annotations.
-- Docs: `working-docs/implementation/annotation-provenance.md` (boundary + use cases + `detail` +
+- Docs: `working-docs/implementation/provenance/annotation-provenance.md` (boundary + use cases + `detail` +
   the **Phase 2 native-backfill checklist N1–N6** with per-item "trim the Annotation to residual"
   notes), `working-docs/design/metadata-provenance.md` (native-first principle), `CHANGELOG.md`.
 - Tests: extend `tests/test_annotation_provenance.py` (high-signal filter, minimal vs full,

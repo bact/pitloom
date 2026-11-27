@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-19
-Last-Modified: 2026-11-19
+Last-Modified: 2026-11-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -13,8 +13,8 @@ See also: [message-catalogue-pr13-build.md](message-catalogue-pr13-build.md)
 [message-catalogue-pr12-18-plan.md](message-catalogue-pr12-18-plan.md),
 [message-frames-forward.md](message-frames-forward.md).
 
-Status (2026-11-19): built on branch `catalogue-git` (#503),
-reviewed in two rounds ([review rounds](../implementation/message-catalogue-review-rounds.md),
+Status (2026-11-19): built and merged (#503),
+reviewed in two rounds ([review rounds](message-catalogue-review-rounds.md),
 Round 4). The user accepted every recommendation of Q1 to Q15 (section 4).
 Written by Opus on `main` at 8bdca1e6. Built shape differs in these places:
 frames name exact **codes**, not families (`Frame.codes`,
@@ -28,8 +28,8 @@ PyPI caller names `line=`; the new frame tests are in
 Read-only plan on `main` at 8bdca1e6 (PR 12, #501, merged). Last tag
 `v0.24.0`: every new entry `since="0.25.0"`. Worktree
 `/Users/arthit/projects/pitloom/.claude/worktrees/catalogue-registry-ids`.
-Pattern: `working-docs/design/message-catalogue-pr12-18-plan.md` and the PR 12
-build plan. Tags: (V) verified in code or by a run, (I) inferred.
+Pattern: `working-docs/implementation/message-catalogue-pr12-18-plan.md`
+and the PR 12 build plan. Tags: (V) verified in code or by a run, (I) inferred.
 
 ## 0. Counts and ratchet
 

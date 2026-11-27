@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-17
-Last-Modified: 2026-11-17
+Last-Modified: 2026-11-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -8,17 +8,18 @@ SPDX-License-Identifier: CC0-1.0
 
 # Message catalogue PRs 8 to 12: config, lock files, project metadata
 
-See also: [message-catalogue-migration-plan.md](message-catalogue-migration-plan.md)
+See also: [message-catalogue-migration-plan.md](../design/message-catalogue-migration-plan.md)
 (rows 8 to 12, R1 to R7), [message-catalogue-pr6-pr7-plan.md](message-catalogue-pr6-pr7-plan.md)
 (how a past plan was built and where it needed rework),
 [message-catalogue-pr8-9-config-plan.md](message-catalogue-pr8-9-config-plan.md),
 [message-catalogue-pr10-11-lock-plan.md](message-catalogue-pr10-11-lock-plan.md),
-[message-catalogue-review-rounds.md](../implementation/message-catalogue-review-rounds.md).
+[message-catalogue-review-rounds.md](message-catalogue-review-rounds.md).
 
 Status: planned 2026-11-17 on `main` 654d734e (#495 merged, 316 uncoded
 sites). Config (8 and 9) and lock files (10 and 11) are built first, as two
 PRs in two worktrees. Project metadata (12) is planned again with licence (18)
-from the `main` that has them.
+from the `main` that has them. Built and merged: 10 and 11 as #496, 8 and
+9 as #497, 12 as #501.
 
 ## 1. Order and structure
 
