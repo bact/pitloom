@@ -122,7 +122,24 @@ CLI-10 with MSG-5, CLI-11, CLI-12, LIB-9 (code), LIB-11, LIB-12, LIB-13,
 LIB-14, REG-4, REG-5, REG-6, REG-7, HOOK-2, HOOK-3, HOOK-5, MSG-7, ACT-1,
 ACT-2, TRY-1 (the spdx3-validate fix, by the handoff below), TRY-5, TRY-7
 and TRY-8 (ruled: next release), TRY-12. The roadmap points here ([roadmap.md](../design/roadmap.md),
-"Pre-release review 0.25.0"). Shared root causes to fix as one change each:
+"Pre-release review 0.25.0").
+
+Also for the next release (user, 2026-11-27; moved from the roadmap):
+
+- **A malformed Hub repo id gets "not found" advice.** `_HF_ID_RE` accepts
+  `a/b--c`, `a/b..c`, `a/b.git`, `a/b-`, `a/b.` and names over 96
+  characters, which `huggingface_hub.validate_repo_id` rejects before any
+  request. Before #561 this was said as `hub-response-invalid`; since #561
+  it is `input-not-found/hub` (exit 1), whose advice ("if it is private,
+  set HF_TOKEN ...") does not fit an id no repository can have. Refuse
+  these ids in `parse_hf_model_id` with `hf-url-invalid`, reusing the
+  dataset rule (`core/dataset_names.is_hub_dataset_id`), and test it.
+- **A revision URL is read at the default branch with no message.**
+  `https://huggingface.co/o/m/tree/<sha>` parses to `o/m` and the revision
+  is dropped (checked on #562's tree): a silent deviation from the URL as
+  given. Say it (`INFO:`) or honour the revision.
+
+Shared root causes to fix as one change each:
 
 - CLI values checked by library dataclasses after parsing (exit 1 or a
   traceback instead of exit 2): CLI-1, CLI-2, CLI-9, CLI-12's

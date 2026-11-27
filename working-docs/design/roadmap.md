@@ -168,17 +168,10 @@ item is its own PR; the order and counts are in
 - [ ] **Unexplained CI hang** (2026-11-21, PR #507's first 3.14 ubuntu run):
   the first test was fixed in #538; the second is unexplained. See
   [ci-hang-link-loop-guard.md](../implementation/ci-hang-link-loop-guard.md#roadmap-entry-moved-2026-11-26).
-- [ ] **A repo id `huggingface_hub` refuses is said as `hub-response-invalid`**
-  (found in PR 14b round 1; the misroute is new in 14b, `main` said a neutral
-  "Failed to load model_info()"): `_HF_ID_RE` accepts `a/b--c`, `a/b..c`, `a/b.git`,
-  `a/b-`, `a/b.` and names over 96 characters, which `validate_repo_id`
-  rejects with `HFValidationError` before any request, so the line's advice
-  ("the Hub may not speak the Hugging Face API") points away from the typo.
-  Refuse these ids in `parse_hf_model_id` with `hf-url-invalid`, reusing the
-  dataset rule (`core/dataset_names.is_hub_dataset_id`), and test it.
-- [ ] **A revision URL is read at the default branch with no signal**
-  (`https://huggingface.co/o/m/tree/<sha>`, found in PR 14b round 2): a
-  pre-existing silent deviation; say it (INFO) or honour the revision.
+- [ ] **Hub id and revision URL follow-ups** (a malformed repo id gets "not
+  found" advice since #561; a revision URL is read at the default branch
+  with no message): moved to the next-release list of
+  [pre-release-review-0.25.0.md](../implementation/pre-release-review-0.25.0.md#next-release).
 - [ ] **The hook accepts an `sbom-basename` that cannot be a file on Windows**
   (found in PR 14c round 1): a `"` in `sbom-basename` passes
   `sbom_base_name`, then `write_text_lf` fails late with a bare `OSError` on
