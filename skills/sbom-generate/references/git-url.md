@@ -51,8 +51,8 @@ URL is read by the host's conventions. Rules to state to the user:
   holding a line break are not sent to git
   [credentials-unsafe/git-line-break]`; a private repository then fails). A
   URL whose user information git would read differently (an `@` git takes for
-  part of the password where the URL parser sees a query, for one) or that
-  holds a NUL is refused before git runs: `ERROR: loom <command>: URL=<url>:
+  part of the password where the URL parser sees a query, for one) or whose
+  user name or password holds a NUL is refused before git runs: `ERROR: loom <command>: URL=<url>:
   user information cannot be taken out of the git command line; not fetched
   [credentials-unsafe/git-userinfo]`. A URL with no host (`https:///o/r`,
   `https://u:p@/o/r`) is refused with `the URL names no host`

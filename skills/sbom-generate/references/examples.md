@@ -160,7 +160,8 @@ A model page URL works too (`https://huggingface.co/gpt2/tree/main` is read as
 `gpt2`). An id or URL the Hub knows no model for (a private model read without
 a token answers the same) is one `ERROR: ... [input-not-found/hub]`, no SBOM,
 exit 1: relay its `HF_TOKEN`/`hf auth login` advice; never sign in for the
-user. A gated model is read; a timeout or server failure only warns.
+user. A gated model is read; a file it holds without access, a timeout or a
+server failure only warns.
 
 ## Deployed SBOM, currently installed environment
 

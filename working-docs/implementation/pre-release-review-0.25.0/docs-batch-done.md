@@ -143,3 +143,7 @@ Next release:
   called on dataclass instances`); `IdRegistry.new(1)` and `IdRegistry(1)`
   (a namespace that is no string) raise uncoded `TypeError`s. Found by the
   review of this batch; LIB-9's family.
+- `read_wheel("")` raises `target-wrong-format` naming `FILE=.` (`not a
+  .whl file`), where every generate and embed function says
+  `input-not-found` for an empty wheel path. Found by the review of this
+  batch.

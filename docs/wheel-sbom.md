@@ -454,8 +454,8 @@ archive (and the member, where one is at fault), and nothing is written:
 - no single own `.dist-info`;
 - (embed only) a member of its own `.dist-info` under a non-conforming name.
 
-A wheel that is not there, an empty `wheel_path` included, raises
-`FileNotFoundError` (`input-not-found`); an empty `project_dir=""` raises
+From the generate and embed functions, a wheel that is not there, an empty
+`wheel_path` included, raises `FileNotFoundError` (`input-not-found`); an empty `project_dir=""` raises
 `ValueError` (`option-invalid`), never read as the current directory. A wheel
 under a directory Pitloom may not search raises `ValueError`
 (`file-unreadable`) from the generate and embed functions, `OSError` from

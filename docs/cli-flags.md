@@ -80,8 +80,9 @@ Available on `project`/`generate`/`model`/`enrich`/`wheel`/`embed-wheel`/`env`
   registry](id-registry.md).
 - `--update-id-registry` / `--no-update-id-registry` -- after generating,
   write newly minted ids back into the declared registry (on by default; no
-  effect without one). `model`, `enrich`, `embed-wheel` and `wheel --embed`
-  never update a registry and warn that the flag has no effect.
+  effect without one). `model` (and `generate` on a model), `enrich`,
+  `embed-wheel` and `wheel --embed` never update a registry and warn that
+  the flag has no effect.
 - `--describe-relationship` / `--no-describe-relationship` -- include (or
   suppress) human-readable text on SPDX relationships.
 - `--extract-file-header` / `--no-extract-file-header` -- scan each source
