@@ -35,7 +35,6 @@ from pitloom.extract.remote import (
     is_git_url,
     is_huggingface_source,
     is_unfetchable_remote,
-    log_hf_url_rewrite,
     require_hf_model_id,
 )
 from pitloom.extract.remote.pypi_url import is_pypi_url
@@ -108,12 +107,15 @@ def generate_model_from_args(
 def _run_hf_model(args: argparse.Namespace, target: str) -> int:
     """``loom model`` on a Hugging Face URL or model id."""
     model_id = require_hf_model_id(target)
-    log_hf_url_rewrite(target, model_id)
     output_path = _resolve_hf_output_path(args.output, model_id)
     if args.verbose:
         log_verbose(HF_MODEL=model_id, OUTPUT_PATH=output_path)
-    # Same subject generate_model_sbom() settles its own options under.
-    _write_model_sbom(args, model_id, output_path, kind=HF, subject=model_id)
+    # Given as typed, as loom generate gives it: a URL is read as one (a
+    # model with a one-part id, a refusal naming no local path), and its
+    # rewrite is said by read_huggingface. The same subject
+    # generate_model_sbom() settles its own options under.
+    source = target.strip()
+    _write_model_sbom(args, source, output_path, kind=HF, subject=source)
     _print_sbom_output_path(output_path)
     return 0
 

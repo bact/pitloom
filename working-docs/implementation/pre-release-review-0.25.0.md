@@ -284,6 +284,15 @@ by the review's definition; SKL-2 is the tracked cut sweep.
    the Hub knows is an error, no SBOM, exit 1, naming the local path as
    not found too: a 0.25.0 fix (PR E).
 5. **TRY-7, TRY-8**: next release.
+6. **CLI-7, 401**: always refuse. A target that is no local path and that
+   the Hub answers "not found" (an anonymous 401 included, which a private
+   model asked for without a token also gets) is an error; the line names
+   the local path as not found, says the Hub knows no such model, and adds
+   that a private one needs `HF_TOKEN` or `hf auth login`. A bare id and a
+   URL alike (the URL line names no local path: a URL is none).
+7. **CLI-7, legacy page URL**: fixed in the same PR:
+   `https://huggingface.co/gpt2/tree/main` reads as the model `gpt2`, so the
+   new error cannot fire on a real model with a one-part id.
 
 ## PR A, argument checks: what was done
 
@@ -345,6 +354,72 @@ silently (the CLI flag now refuses it); `extract.remote.pypi.fetch_pypi_file`
 "choice arguments" are checked (true once LIB-6 lands); the no-host Git URL
 refusal and the blank creator/tool refusal are not on the Git URL and CLI
 flag pages.
+
+## PR E, Hub "repository not found" (CLI-7): what was done
+
+Branch `hub-repository-not-found`. The Hub's answers, measured on
+2026-11-27 with `huggingface_hub` 2.2.0, anonymous (no token was at hand;
+the private rows are huggingface_hub's own comment in `hf_raise_for_status`
+and the Hub's documentation; an Opus second opinion measured the case and
+rename rows):
+
+| Repository | `model_info()` | Files (`resolve`) |
+|---|---|---|
+| missing (`h/nope`, an owner with no account) | `RepositoryNotFoundError`, 401 "Invalid username or password." | 401 |
+| public (`gpt2`, `mistralai/Mistral-7B-v0.1`) | 200 | 200 |
+| gated (`meta-llama/Llama-2-7b-hf`, `google/gemma-2b`) | 200, `gated=manual` | card 200; `config.json` 401 `X-Error-Code: GatedRepo` |
+| missing, an invalid token sent | as anonymous (the Hub ignores the token) | - |
+| public or gated, an invalid token sent | 200 | - |
+| another case or a moved name (`GPT2`, `gpt2`) | 200 after a 307 to the current id | - |
+| private, no token (or an expired one) | believed: as missing (401) | - |
+| private, a token without / with access | believed: 404 `RepoNotFound` / 200 | - |
+
+`GatedRepoError` is a subclass of `RepositoryNotFoundError` (1.x and 2.x)
+and is sent for files only; `DisabledRepoError` is not one.
+
+The rule (ruling 6): only `model_info()` decides, the first request. A
+`RepositoryNotFoundError` that is no `GatedRepoError`
+(`_hub_api.is_repository_not_found`) raises `RemoteSourceError`
+`huggingface.repository-not-found`, catalogue `input-not-found/hub`, before
+any file is fetched: no SBOM, exit 1, on `loom generate`, `loom model`,
+`generate()` and `generate_model_sbom()`. Two lines: an id (`target not
+found: 'h/nope' is no local path, and the Hugging Face Hub knows no model
+<page>; if it is private, set HF_TOKEN ...`) and a URL (`URL=<page>: the
+Hugging Face Hub knows no such model; ...`); the page is the Hub asked
+(`HF_ENDPOINT`). Every other failure keeps its `WARNING:`. A dataset a card
+lists is not the target: `dataset_info()` not found still warns.
+
+Also: `loom model <url>` now gives the library the URL as typed, as
+`loom generate` does (it gave the id, so a URL's refusal would have named
+a local path, and `gpt2/tree/main` was read as a local file `gpt2`); the
+URL-rewrite `INFO:` is said by `read_huggingface` alone, before the offline
+check. A page URL `<id>/<page>/<part>` with a page kind (`tree`, `blob`,
+`resolve`, `commit`, `commits`, `discussions`, `edit`, `raw`, `blame`) and
+a part that is none names the one-part id (ruling 7); `org/tree/tree/main`
+stays the model `org/tree`. An id-shaped target that is a dangling symbolic
+link is a local path (`os.path.lexists`), so "is no local path" stays true.
+
+The other items: `fetch_git_project()` checks its URL argument
+(`require_text_argument`) when the block is entered, before the temporary
+directory; a Git URL with no host has its own `git-url-invalid` line ("the
+URL names no host"; a line of an existing code rather than a new
+`url-unsafe/host-missing`, as the catalogue rules ask); `IdRegistry.generate()`
+says "a list or tuple of paths" (`list-of-paths`).
+
+For PR C: `docs/ai-model-formats-hugging-face.md` and `docs/cli.md:168-178`
+(a model the Hub does not know, or private without a token, is
+`input-not-found/hub`; a page of a one-part id; a dangling link is a local
+path), `docs/python-api-remote.md` (the `huggingface.repository-not-found`
+code; the no-host `git-url-invalid` line beside `url-unsafe/host-spelling`
+at line 49), `docs/git-urls.md:114-125` (the no-host refusal),
+`docs/api.md:25-28` (`fetch_git_project()` now checks its URL).
+
+Follow-ups (next release): `docs/message-codes-targets.md` is 213 bytes
+under its 30,000-byte cap: the next `targets` entry needs a topic split; a
+one-part URL with no page (`https://huggingface.co/gpt2`) is still
+`hf-url-invalid`; the model id kept is the one typed, not the Hub's current
+one (`info.id`: `gpt2`, not `openai-community/gpt2`); a page URL's revision
+(`tree/v1.0`) is not read, the revision `model_info()` states is.
 
 ## Handoff prompt for spdx3-validate (TRY-1)
 

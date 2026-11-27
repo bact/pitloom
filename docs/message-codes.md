@@ -28,7 +28,7 @@ the table of prefixes.
 
 - [AI models](message-codes-models.md): 13 codes
 - [Model fields](message-codes-model-fields.md): 6 codes
-- [Targets](message-codes-targets.md): 16 codes
+- [Targets](message-codes-targets.md): 17 codes
 - [Options](message-codes-options.md): 6 codes
 - [Configuration](message-codes-config.md): 6 codes
 - [Project metadata](message-codes-metadata.md): 9 codes
@@ -136,6 +136,7 @@ the table of prefixes.
 | [`index-path-no-effect`](message-codes-id-registry-ids.md#index-path-no-effect) | WARNING | 0.25.0 |
 | [`input-not-found`](message-codes-targets.md#input-not-found) | ERROR, WARNING | 0.23.4 |
 | [`input-not-found/fragment`](message-codes-targets.md#input-not-foundfragment) | WARNING | 0.25.0 |
+| [`input-not-found/hub`](message-codes-targets.md#input-not-foundhub) | ERROR | 0.25.0 |
 | [`installed-metadata-ambiguous`](message-codes-metadata.md#installed-metadata-ambiguous) | WARNING | 0.25.0 |
 | [`installed-metadata-unusable`](message-codes-metadata.md#installed-metadata-unusable) | WARNING | 0.25.0 |
 | [`interrupted`](message-codes-build.md#interrupted) | ERROR, WARNING | 0.25.0 |

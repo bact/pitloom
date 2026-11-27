@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-29
-Last-Modified: 2026-11-26
+Last-Modified: 2026-11-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -147,7 +147,9 @@ from a scan and from `loom model FILE` (exit 0). Beyond that:
   information: no model file is opened, so a repository whose weights are a
   `.keras` file has no Keras-derived field, no format and no hash. Download
   the file and run `loom model <file>` for those, or give the file's Git URL
-  when the repository is on a Git host. A failed Hub information request is
+  when the repository is on a Git host. A model the Hub does not know (or a
+  private one read without a token) is an `ERROR:`, no SBOM
+  (`[input-not-found/hub]`); any other failed Hub information request is
   one `WARNING:` that names what is lost (`[download-network-failed]`,
   `[download-timeout]`, `[offline-unusable]` or `[hub-response-invalid]`); a
   model read with no revision says `the Hub stated no revision`

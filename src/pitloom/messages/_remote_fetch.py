@@ -163,9 +163,10 @@ DOWNLOAD_FAILED: Final = Message(
     "document a library caller names by URL (read_croissant): the same, any "
     "HTTP error status, a 404 included. The "
     "Hugging Face Hub API "
-    "(model_info(), dataset_info()): any HTTP error status, a 404 for a "
-    "repository that does not exist or is private included, or a connection "
-    "that failed. Git: git could not reach "
+    "(model_info(), dataset_info()): any HTTP error status, or a connection "
+    "that failed; for a dataset, a repository that does not exist or is "
+    "private included (for the model a run reads, that is "
+    "input-not-found/hub, an error). Git: git could not reach "
     "the repository (a name that did not resolve, a refused, reset or "
     "timed-out connection, a TLS failure, an HTTP 5xx answer); a git failure "
     "with any other cause is git-repository-unusable.",

@@ -63,7 +63,9 @@ and resolving the licence lives in
 from __future__ import annotations
 
 import logging
+import os
 import re
+from typing import Final
 
 from pitloom.core.ai_metadata import (
     AiModelFormat,
@@ -132,6 +134,24 @@ _HF_URL_RE = re.compile(
 )
 _CANONICAL_PREFIX = "https://huggingface.co/"
 
+#: The first part of a model page's path after the model id
+#: (``<id>/tree/main``, ``<id>/blob/main/README.md``): the Hub's page kinds.
+_PAGE_SEGMENTS: Final = frozenset(
+    {
+        "blame",
+        "blob",
+        "commit",
+        "commits",
+        "discussions",
+        "edit",
+        "raw",
+        "resolve",
+        "tree",
+    }
+)
+#: The path segment that starts the rest of a Hub URL after ``owner/name``.
+_NEXT_SEGMENT_RE: Final = re.compile(r"/([^/?#]+)")
+
 # Loose model-ID pattern: two segments separated by exactly one slash,
 # each segment matching HF naming conventions. A one-character name is valid
 # on the Hub, and :data:`_HF_URL_RE` takes one, so this must too: a URL's id
@@ -143,8 +163,8 @@ def log_hf_url_rewrite(source: str, model_id: str) -> None:
     """One ``INFO:`` when *source* is a Hub URL spelt other than
     ``https://huggingface.co/<id>`` (``hf.co``, ``www.``, ``http://``, a
     mixed-case host), naming the URL it is read as; credentials and query
-    tokens are masked. ``loom model`` calls it before fetching, the other
-    routes through :func:`read_huggingface`."""
+    tokens are masked. Every route says it through :func:`read_huggingface`,
+    before anything is fetched (offline too)."""
     source = source.strip()
     if _HF_URL_RE.match(source) and not source.startswith(_CANONICAL_PREFIX):
         emit(
@@ -161,26 +181,41 @@ def parse_hf_model_id(source: str) -> str | None:
 
     Returns ``None`` when *source* does not look like a Hugging Face reference.
     The check is intentionally conservative: the ``owner/name`` pattern is
-    only accepted when the path does *not* exist on the local filesystem,
-    to avoid misidentifying relative project paths like ``models/my_model``.
+    only accepted when nothing is at that path on the local file system (not
+    even a dangling symbolic link), to avoid misidentifying relative project
+    paths like ``models/my_model``.
     Surrounding white space is no part of it, as
     :func:`~pitloom.extract.remote.git_url.is_hub_model_url` and
     ``generate()``'s classification take it.
+
+    A page of a model with a one-part id (one the Hub keeps for a model it
+    moved: ``https://huggingface.co/gpt2/tree/main``) names that id
+    (:func:`_legacy_page_id`).
     """
     source = source.strip()
     url_match = _HF_URL_RE.match(source)
     if url_match:
-        return url_match.group(1)
+        return _legacy_page_id(url_match) or url_match.group(1)
 
     # Accept bare owner/name that has no local counterpart
-    if _HF_ID_RE.match(source):
-        # pylint: disable=import-outside-toplevel
-        from pathlib import Path
-
-        if not Path(source).exists():
-            return source
+    if _HF_ID_RE.match(source) and not os.path.lexists(source):
+        return source
 
     return None
+
+
+def _legacy_page_id(url_match: re.Match[str]) -> str | None:
+    """The one-part model id a Hub URL matched by :data:`_HF_URL_RE` names,
+    or ``None``: its path is ``<id>/<page>/<part>`` where ``<page>`` is
+    one of :data:`_PAGE_SEGMENTS` and ``<part>`` is not (a revision, a
+    commit). ``<owner>/tree/tree/main`` is a page of the model
+    ``<owner>/tree``: the part after a page is never a page itself."""
+    first, second = url_match.group(1).split("/")
+    rest = url_match.string[url_match.end(1) :]
+    part = _NEXT_SEGMENT_RE.match(rest)
+    if second not in _PAGE_SEGMENTS or part is None:
+        return None
+    return None if part.group(1) in _PAGE_SEGMENTS else first
 
 
 def is_huggingface_source(source: str) -> bool:
@@ -278,7 +313,11 @@ def read_huggingface(
             ``library-missing`` (``library-unusable`` when installed).
         ValueError: If *source* is not a valid Hugging Face URL or model ID.
         pitloom.extract.remote.errors.RemoteSourceError: The policy is
-            offline (``huggingface.offline``, ``offline-unusable``).
+            offline (``huggingface.offline``, ``offline-unusable``), or the
+            Hub knows no model by that id that this run can read
+            (``huggingface.repository-not-found``, ``input-not-found/hub``;
+            a private model asked for without a token is answered so too),
+            before any of its files is fetched.
         Exception: Whatever the policy's ``check_url`` raises, unchanged.
     """
     try:
@@ -290,23 +329,27 @@ def read_huggingface(
 
     model_id = require_hf_model_id(source)
     hf_url = f"{_CANONICAL_PREFIX}{model_id}"
+    log_hf_url_rewrite(source, model_id)
     if policy.offline:
         raise remote_error(
             f"{ROUTE}.offline", OFFLINE_UNUSABLE, OFFLINE_LINE, url=shown_url(hf_url)
         )
-    log_hf_url_rewrite(source, model_id)
+    # An id is no local path either (parse_hf_model_id): a refusal says so.
+    as_id = not source.strip().lower().startswith(("http://", "https://"))
     with hub_files(policy) as hub:
-        return _read_repository(hub, model_id, hf_url)
+        return _read_repository(hub, model_id, hf_url, as_id=as_id)
 
 
 # pylint: disable-next=too-many-locals
-def _read_repository(hub: HubFiles, model_id: str, hf_url: str) -> AiModelMetadata:
+def _read_repository(
+    hub: HubFiles, model_id: str, hf_url: str, *, as_id: bool
+) -> AiModelMetadata:
     """:func:`read_huggingface` of *model_id*, its files downloaded by
-    *hub*."""
+    *hub*; *as_id*: the target was spelt as a model id."""
     model_name = model_id.split("/")[-1]
     provenance: dict[str, str] = {"name": "Source: Hugging Face Hub | Field: model_id"}
 
-    hf_data = _fetch_all_hf_data(hub, model_id)
+    hf_data = _fetch_all_hf_data(hub, model_id, as_id=as_id)
     description = _extract_description(hf_data, provenance)
     license_val, vague_raw_license = _resolve_license(
         hub, hf_data, model_id, provenance

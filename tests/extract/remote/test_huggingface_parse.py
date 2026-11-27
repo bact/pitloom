@@ -110,6 +110,62 @@ def test_parse_hf_model_id_invalid(source: str) -> None:
     assert parse_hf_model_id(source) is None
 
 
+@pytest.mark.parametrize(
+    ("url", "expected"),
+    [
+        ("https://huggingface.co/gpt2/tree/main", "gpt2"),
+        ("https://hf.co/gpt2/blob/main/README.md", "gpt2"),
+        ("https://huggingface.co/gpt2/resolve/0123abc/config.json", "gpt2"),
+        ("https://huggingface.co/gpt2/commits/main?p=1", "gpt2"),
+        ("https://huggingface.co/gpt2/discussions/12", "gpt2"),
+        ("https://huggingface.co/org/name/tree/v1.0", "org/name"),
+        ("https://huggingface.co/org/name/blob/main/README.md", "org/name"),
+        ("https://huggingface.co/org/tree/tree/main", "org/tree"),
+        ("https://huggingface.co/org/tree/blob/main/x", "org/tree"),
+        ("https://huggingface.co/org/tree", "org/tree"),
+        ("https://huggingface.co/org/discussions", "org/discussions"),
+        ("https://huggingface.co/gpt2/Tree/main", "gpt2/Tree"),
+    ],
+    ids=[
+        "legacy-tree",
+        "legacy-blob",
+        "legacy-resolve",
+        "legacy-query",
+        "legacy-discussion",
+        "two-part-tree",
+        "two-part-blob",
+        "model-named-tree",
+        "model-named-tree-blob",
+        "model-named-tree-bare",
+        "model-named-discussions",
+        "page-case",
+    ],
+)
+def test_a_page_of_a_one_part_id_names_that_id(url: str, expected: str) -> None:
+    """The Hub keeps a one-part id for a model it moved (``gpt2``, now
+    ``openai-community/gpt2``): a page of it, ``<id>/<page>/<part>``, names
+    that id, so the model is read, not refused as unknown. A model named
+    like a page (``org/tree``) is read as two parts: the part after a page
+    is never a page itself, and a page needs a part after it. The Hub's
+    paths are case-sensitive."""
+    assert parse_hf_model_id(url) == expected
+
+
+@pytest.mark.platform  # a symbolic link
+def test_a_dangling_link_of_an_id_shape_is_not_hf(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Something is at the path, a link to nothing: it is a local path, and
+    a Hub refusal would wrongly say it is none."""
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "models").mkdir()
+    try:
+        (tmp_path / "models" / "gone").symlink_to(tmp_path / "nowhere")
+    except OSError as exc:  # Windows without the symlink privilege
+        pytest.skip(f"cannot make a symbolic link: {exc}")
+    assert parse_hf_model_id("models/gone") is None
+
+
 def test_parse_hf_model_id_owner_name_shape_with_local_dir_is_not_hf(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -131,9 +187,8 @@ def test_parse_hf_model_id_owner_name_shape_with_local_dir_is_not_hf(
     ids=["one-char-name", "one-char-both", "query"],
 )
 def test_the_id_read_from_a_url_is_itself_a_model_source(url: str) -> None:
-    """``loom model`` passes the URL's id on, and the generator asks
-    :func:`is_huggingface_source` about it again: both must agree, or a URL
-    is fetched as a local file."""
+    """A two-part id read from a URL is a model source again, as typed: a
+    caller that passes it on, and the generator, agree."""
     model_id = parse_hf_model_id(url)
     assert model_id is not None
     assert is_huggingface_source(model_id)
