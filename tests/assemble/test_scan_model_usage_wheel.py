@@ -53,6 +53,10 @@ _WHEEL_HINT_ONE = {
     "files reference them.",
     "lib": "Found 1 AI model file(s); set scan_model_usage=True (or set it "
     "in pitloom_config) to also record which Python files reference them.",
+    # embed_wheel_sbom() takes its settings as ConfigOverrides fields.
+    "lib-embed_wheel_sbom": "Found 1 AI model file(s); set "
+    "ConfigOverrides.scan_model_usage=True (or set it in pitloom_config) to "
+    "also record which Python files reference them.",
 }
 _MEMBERS = {
     f"demo/{_MODEL}": safetensors_bytes(),
@@ -261,7 +265,7 @@ def test_wheel_usage_pass_default_flag_config_and_cascade(
         expected = [("demo/use.py", f"demo/{_MODEL}")] if edges else []
         assert _usage(sboms[name]) == expected, name
         unset = usage is None and flag is None
-        hint = _WHEEL_HINT_ONE[surface.split("-", 1)[0]]
+        hint = _WHEEL_HINT_ONE.get(surface, _WHEEL_HINT_ONE[surface.split("-", 1)[0]])
         assert _hints(caplog) == ([hint] if unset else []), name
         assert not [w for w in logged_warnings(caplog) if "has no effect" in w], name
     assert sboms["config"] != sboms["default"]  # not vacuous

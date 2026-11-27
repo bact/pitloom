@@ -39,15 +39,15 @@ from pitloom.core.config_cascade import (
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.credential_policy import CredentialPolicy
 from pitloom.core.inert_options import INERT, PYPI_SDIST, PYPI_WHEEL, settle_inert
-from pitloom.core.internal_error import InternalError
 from pitloom.core.project import ProjectMetadata
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.extract.project import resolve_project_with_lockfile
 from pitloom.extract.remote.pypi import SDIST, WHEEL, PypiDownload, fetch_pypi_file
-from pitloom.extract.remote.pypi_url import PYPI_JSON_API
+from pitloom.extract.remote.pypi_url import PYPI_JSON_API, parse_pypi_url
 from pitloom.id_registry import IdRegistry
 from pitloom.logging_config import configure_logging
 from pitloom.messages import emit
+from pitloom.messages.config import require_choice_argument, require_text_argument
 from pitloom.messages.targets import (
     CONFIG_UNSAFE,
     CONFIG_UNSAFE_PYPI_LINE,
@@ -73,6 +73,8 @@ PYPI_INDEX = "PyPI"
 
 #: The inert-option kind of each file kind.
 _KINDS = {WHEEL: PYPI_WHEEL, SDIST: PYPI_SDIST}
+#: The file kinds a PyPI URL's SBOM can read (``kind``).
+PYPI_FILE_KINDS = frozenset(_KINDS)
 
 
 @dataclass(frozen=True)
@@ -239,20 +241,23 @@ def generate_pypi_sbom_with_download(
     returns the SBOM alone.
 
     Raises:
-        pitloom.core.internal_error.InternalError: *kind* is neither.
-        TypeError: *max_download_bytes* or *max_model_extract_bytes* is
-            not an integer (``option-invalid``).
-        ValueError: either is an integer below 1, or the config's
-            ``max-download-bytes`` is not an integer of at least 1.
+        TypeError: *url* or *kind* is no string, or
+            *max_download_bytes* or *max_model_extract_bytes* is not an
+            integer (``option-invalid``).
+        ValueError: *url* is empty or white space only, or *kind* is
+            neither (``option-invalid``); either cap is
+            an integer below 1, or the config's ``max-download-bytes`` is
+            not an integer of at least 1.
         pitloom.messages.CodedValueError: *url* is not a PyPI project or
-            release URL (``pypi-url-invalid``).
+            release URL (``pypi-url-invalid``), checked before any option
+            warns against it.
         pitloom.extract.remote.errors.RemoteSourceError: the release or the
             file could not be fetched or verified (``pypi.*``).
     """
     configure_logging()
     refuse_empty_output(output_path)
-    if kind not in _KINDS:
-        raise InternalError(f"kind must be {WHEEL!r} or {SDIST!r}, got {kind!r}")
+    require_text_argument(url, "url")
+    require_choice_argument(kind, "kind", PYPI_FILE_KINDS, "one-of-pypi-kind")
     if max_model_extract_bytes is not None:
         require_model_extract_override(max_model_extract_bytes)  # even if inert
     policy = resolve_fetch_policy(
@@ -262,6 +267,8 @@ def generate_pypi_sbom_with_download(
         check_url=check_url,
     )
     subject = url.strip()
+    # Refused before an option warns against it.
+    parse_pypi_url(subject)
     build_options.settle_not_applicable(subject, PYPI_BUILD_REASON)
     options: dict[str, Any] = {
         "output_path": output_path,

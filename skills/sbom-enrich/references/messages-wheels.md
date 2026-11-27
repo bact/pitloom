@@ -28,7 +28,7 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
 | [`wheel-invalid`](#wheel-invalid) | ERROR | A wheel's member names do not let an installer tell its files apart: two members have one name, exactly or once read as an installer on Windows reads it (a/M and a\M), or a name holds a NUL, where Python's zipfile cuts the name, so the member installs under a shorter name that may be another member's. No reader can tell which member is meant. | 0.25.0 |
 | [`wheel-unreadable`](#wheel-unreadable) | ERROR | A wheel could not be read: the file is not a ZIP archive Python can open (damaged, cut short, another format named .whl, a member name flagged UTF-8 that is not), or one of its members could not be read (damaged, encrypted, a compression Python cannot read, a RECORD that is not UTF-8). The line names the exception's type only, never its text, which quotes member names. | 0.25.0 |
 | [`wheel-unusable`](#wheel-unusable) | ERROR | A wheel to embed an SBOM in stores a member of its own .dist-info directory under a name that is not its install name (a backslash, a ./ or an empty segment): the embed rewrites RECORD by install name, so it could not tell which entry it rewrites. Only an embed refuses it ('embed-wheel', 'wheel --embed'); a read lists the member under its install name. | 0.25.0 |
-| [`wheel-unusable/signed`](#wheel-unusablesigned) | ERROR, INFO | A wheel to embed an SBOM in carries a signature of its RECORD (RECORD.jws or RECORD.p7s, PEP 427). The embed rewrites RECORD, so the signature would no longer verify. As an INFO line, --allow-signed-wheel was given and the embed removed the signature. | 0.25.0 |
+| [`wheel-unusable/signed`](#wheel-unusablesigned) | ERROR, INFO | A wheel to embed an SBOM in carries a signature of its RECORD (RECORD.jws or RECORD.p7s, PEP 427). The embed rewrites RECORD, so the signature would no longer verify. The ERROR line names --allow-signed-wheel on the command line, allow_signed_wheel=True in the library. As an INFO line, it was given and the embed removed the signature. | 0.25.0 |
 
 ### `archive-member-conflict`
 
@@ -275,19 +275,20 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
   writes nothing for it (exit 1).
 - **Means**: A wheel to embed an SBOM in carries a signature of its RECORD
   (RECORD.jws or RECORD.p7s, PEP 427). The embed rewrites RECORD, so the
-  signature would no longer verify. As an INFO line, --allow-signed-wheel was
-  given and the embed removed the signature.
+  signature would no longer verify. The ERROR line names --allow-signed-wheel on
+  the command line, allow_signed_wheel=True in the library. As an INFO line, it
+  was given and the embed removed the signature.
 - **SBOM effect**: not-written: no SBOM is written for the input.
 - **Pitloom did**: As an ERROR, refused the wheel: no wheel is changed, the
   command exits 1 and the library raises WheelRefused, a ValueError carrying the
   code. As an INFO line, embedded the SBOM, rewrote RECORD and removed the
   signature: the wheel is unsigned.
 - **Tell the user**: the wheel is signed and an embed would break the signature,
-  as the line says. Only with their say: run again with --allow-signed-wheel,
-  which removes the signature, then they re-sign the wheel with their own key;
-  after an INFO line, they re-sign it before publishing. Do not pass
-  --allow-signed-wheel or sign for them; ask first, and with nobody to ask,
-  report it only.
+  as the line says. Only with their say: run again with --allow-signed-wheel
+  (allow_signed_wheel=True in the library), which removes the signature, then
+  they re-sign the wheel with their own key; after an INFO line, they re-sign it
+  before publishing. Do not pass --allow-signed-wheel or sign for them; ask
+  first, and with nobody to ask, report it only.
 - **Lines**:
 
   ```text

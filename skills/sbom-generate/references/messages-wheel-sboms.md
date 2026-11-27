@@ -47,8 +47,8 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
 
 ### `sbom-name-conflict`
 
-- **Level**: ERROR. As an ERROR, the command stops for that input and writes
-  nothing for it (exit 1).
+- **Level**: ERROR. As an ERROR (the Hatchling build hook only), the build fails
+  and writes no wheel; no command stops on it.
 - **Means**: The build hook's SBOM file name is also, ignoring letter case, the
   name of an SBOM Hatchling already places under .dist-info/sboms/ (an
   sbom-files entry, often a 'loom project' output of the same default name): one

@@ -15,8 +15,14 @@ URL's credentials masked, is cut to :data:`VALIDATOR_LINE_CHARS`
 characters and escaped (:func:`~pitloom.logging_config.one_line`); a blank
 line is dropped, and a finding the validator gives twice, word for word,
 is said once. A path of *names* (a temporary copy) is shown as its name
-wherever the validator's text names it; a coded line cuts it as every
-name is (:func:`~pitloom.messages._field_writers.cut_name`).
+wherever the validator's text names it, a validated path as given; in a
+relayed line it is escaped first
+(:func:`~pitloom.logging_config.escape_controls`), so a line break in a
+file name cannot split the line and start the next with a level tag of its
+own. A path the validator spells another way (resolved, as a ``file:``
+URI, quoted) is not found, so its line break still splits the line, but
+the frame before every relayed line stays. A coded line cuts a name as
+every name is (:func:`~pitloom.messages._field_writers.cut_name`).
 
 See also: :mod:`pitloom.messages._sbom_input` (the entry),
 :mod:`pitloom.cli.commands.utils` (the caller).
@@ -25,10 +31,11 @@ See also: :mod:`pitloom.messages._sbom_input` (the entry),
 from __future__ import annotations
 
 import os
+import re
 from collections.abc import Iterable, Mapping
 from typing import Final
 
-from pitloom.logging_config import one_line, print_error
+from pitloom.logging_config import escape_controls, one_line, print_error
 from pitloom.messages._field_writers import cut_name
 from pitloom.messages._sbom_input import (
     DOCUMENT_INVALID_LINE,
@@ -52,12 +59,39 @@ def _shown(text: str, names: Mapping[str, str] | None) -> str:
     return text
 
 
-def relay_validator_text(text: str, *, names: Mapping[str, str] | None = None) -> int:
+def _escaped_names(text: str, names: Mapping[str, str]) -> str:
+    """*text* with each path of *names* replaced by its name, escaped
+    (:func:`~pitloom.logging_config.escape_controls`), in one pass: the
+    longest path is tried first at each place, so a path that starts
+    another is not replaced inside it, and no name is read again as a
+    path."""
+    paths = sorted((path for path in names if path), key=len, reverse=True)
+    if not paths:
+        return text
+    pattern = re.compile("|".join(map(re.escape, paths)))
+    return pattern.sub(lambda found: escape_controls(names[found.group()]), text)
+
+
+def _with_paths(
+    names: Mapping[str, str] | None, paths: Iterable[str]
+) -> dict[str, str]:
+    """*names*, plus each of *paths* it does not name, as given."""
+    return {**{path: path for path in paths}, **(names or {})}
+
+
+def relay_validator_text(
+    text: str,
+    *,
+    names: Mapping[str, str] | None = None,
+    paths: Iterable[str] = (),
+) -> int:
     """Print each line of *text*, ``spdx3-validate``'s own words, as one
     ``ERROR: spdx3-validate: <line>`` line (the command frame before it),
-    no code; a blank line is dropped. Returns how many lines it printed."""
+    no code; a blank line is dropped. A path of *names*, or one of *paths*
+    (the documents validated, named as given), is written escaped before
+    the text is split into lines. Returns how many lines it printed."""
     printed = 0
-    for line in _shown(text, names).splitlines():
+    for line in _escaped_names(text, _with_paths(names, paths)).splitlines():
         shown = one_line(line, VALIDATOR_LINE_CHARS, ellipsis=True)
         if shown:
             print_error(VALIDATOR_PREFIX + shown)
@@ -87,7 +121,9 @@ def say_validation_findings(
     for source, found in by_source.items():
         name = _shown(source, names)
         for kind, message in found:
-            relay_validator_text(f"{name}: [{kind}] {message}", names=names)
+            relay_validator_text(
+                f"{source}: [{kind}] {message}", names=names, paths=(source,)
+            )
         said += len(found)
         if not per_document:
             continue
@@ -105,12 +141,15 @@ def say_validator_failure(
     *,
     file: str | os.PathLike[str] | None = None,
     names: Mapping[str, str] | None = None,
+    paths: Iterable[str] = (),
 ) -> None:
     """Print why ``spdx3-validate`` could not validate: *exc*'s text (its
-    class name when it has none) relayed by :func:`relay_validator_text`,
-    then one ``sbom-invalid`` line naming the document *file* (as *names*
-    names it), or, with ``None`` (several documents), the documents."""
-    relay_validator_text(str(exc) or type(exc).__name__, names=names)
+    class name when it has none) relayed by :func:`relay_validator_text`
+    (*names* and *paths*, with *file*, as it takes them), then one
+    ``sbom-invalid`` line naming the document *file* (as *names* names it),
+    or, with ``None`` (several documents), the documents."""
+    given = (*paths, os.fspath(file)) if file is not None else tuple(paths)
+    relay_validator_text(str(exc) or type(exc).__name__, names=names, paths=given)
     if file is None:
         text = NONE_VALIDATED_LINE.render({})
     else:

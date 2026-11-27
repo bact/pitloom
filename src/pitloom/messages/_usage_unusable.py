@@ -64,12 +64,15 @@ _HINT_END: Final = " to also record which Python files reference them."
 _HINT_MEANING: Final = (
     "Models were found and the usage scan is off: it reads every Python file "
     "for references to them only on request. Said once per run, naming the "
-    "flag, the library parameter or the [tool.pitloom] key of the surface "
-    "that runs."
+    "flag, the library parameter (the ConfigOverrides field for "
+    "embed_wheel_sbom()) or the [tool.pitloom] key of the surface that runs."
 )
 #: How each surface turns the scan on.
 _PASS_FLAG: Final = "pass --scan-model-usage"
 _SET_PARAMETER: Final = "set scan_model_usage=True"
+#: The same where settings are ``ConfigOverrides`` fields
+#: (``embed_wheel_sbom()``).
+_SET_OVERRIDE: Final = "set ConfigOverrides.scan_model_usage=True"
 _SETTING: Final = "scan-model-usage = true"
 
 #: A project's hint (a sdist or an installed environment too) on each
@@ -81,6 +84,11 @@ USAGE_HINT_PROJECT_CLI: Final = Summary(
 )
 USAGE_HINT_PROJECT_LIBRARY: Final = Summary(
     template=f"{_HINT_START}{_SET_PARAMETER} (or set {_SETTING}){_HINT_END}",
+    meaning=_HINT_MEANING,
+    topic="models",
+)
+USAGE_HINT_PROJECT_OVERRIDES: Final = Summary(
+    template=f"{_HINT_START}{_SET_OVERRIDE} (or set {_SETTING}){_HINT_END}",
     meaning=_HINT_MEANING,
     topic="models",
 )
@@ -102,6 +110,12 @@ USAGE_HINT_WHEEL_LIBRARY: Final = Summary(
     topic="models",
 )
 
+USAGE_HINT_WHEEL_OVERRIDES: Final = Summary(
+    template=f"{_HINT_START}{_SET_OVERRIDE} (or set it in pitloom_config){_HINT_END}",
+    meaning=_HINT_MEANING,
+    topic="models",
+)
+
 #: The hint, by target, worded for each surface.
 USAGE_HINTS: Final[Mapping[str, Twins[Summary]]] = MappingProxyType(
     {
@@ -109,10 +123,13 @@ USAGE_HINTS: Final[Mapping[str, Twins[Summary]]] = MappingProxyType(
             cli=USAGE_HINT_PROJECT_CLI,
             library=USAGE_HINT_PROJECT_LIBRARY,
             hook=USAGE_HINT_PROJECT_HOOK,
+            overrides=USAGE_HINT_PROJECT_OVERRIDES,
         ),
         # The hook reads its own project, never a wheel.
         USAGE_TARGET_WHEEL: Twins.no_hook(
-            cli=USAGE_HINT_WHEEL_CLI, library=USAGE_HINT_WHEEL_LIBRARY
+            cli=USAGE_HINT_WHEEL_CLI,
+            library=USAGE_HINT_WHEEL_LIBRARY,
+            overrides=USAGE_HINT_WHEEL_OVERRIDES,
         ),
     }
 )
@@ -120,7 +137,9 @@ USAGE_HINTS: Final[Mapping[str, Twins[Summary]]] = MappingProxyType(
 SUMMARIES: Final = (
     USAGE_HINT_PROJECT_CLI,
     USAGE_HINT_PROJECT_LIBRARY,
+    USAGE_HINT_PROJECT_OVERRIDES,
     USAGE_HINT_PROJECT_HOOK,
     USAGE_HINT_WHEEL_CLI,
     USAGE_HINT_WHEEL_LIBRARY,
+    USAGE_HINT_WHEEL_OVERRIDES,
 )

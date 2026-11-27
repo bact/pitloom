@@ -27,9 +27,15 @@ from typing import TYPE_CHECKING, Final
 
 from pitloom.core.internal_error import InternalError
 from pitloom.messages._emit import CodedValueError, emit
+from pitloom.messages._surface import (
+    SURFACE_HOOK,
+    SURFACE_LIBRARY,
+    current_surface,
+    unreachable_on_hook,
+)
 from pitloom.messages._types import Line, Message
 from pitloom.messages._wheels import (
-    ALLOW_SIGNED_OPTION,
+    ALLOW_SIGNED_NAMES,
     DIST_INFO_AMBIGUOUS,
     DIST_INFO_CONFLICT,
     DIST_INFO_MISSING,
@@ -126,13 +132,19 @@ def refuse_non_conforming(archive: Archive, member: str) -> WheelRefused:
 
 def refuse_signed(archive: Archive, member: str) -> WheelRefused:
     """*member* (``RECORD.jws``, ``RECORD.p7s``) signs the ``RECORD`` an
-    embed rewrites (``wheel-unusable/signed``)."""
+    embed rewrites (``wheel-unusable/signed``), named with the option of
+    the surface that runs (:data:`ALLOW_SIGNED_NAMES`)."""
+    surface = current_surface()
+    if surface == SURFACE_HOOK:
+        # The hook never embeds into a wheel.
+        unreachable_on_hook("the signed-wheel refusal")
+        surface = SURFACE_LIBRARY
     return WheelRefused(
         WHEEL_UNUSABLE_SIGNED,
         line=SIGNED_LINE,
         archive=archive,
         member=member,
-        option=ALLOW_SIGNED_OPTION,
+        option=ALLOW_SIGNED_NAMES[surface],
     )
 
 

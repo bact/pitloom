@@ -38,10 +38,10 @@ from pitloom.assemble import (
 )
 from pitloom.core.ai_metadata import AiModelFormat
 from pitloom.core.config import PitloomConfig
-from pitloom.core.internal_error import InternalError
 from pitloom.extract.remote.errors import RemoteSourceError
 from pitloom.extract.remote.pypi import SDIST, WHEEL
 from pitloom.id_registry import IdRegistry
+from pitloom.messages import CodedValueError
 from tests._fake_pypi_server import Dist, FakePypi
 from tests._model_fixtures import fixture_path
 from tests._spdx3_validate import assert_spdx3_valid
@@ -398,11 +398,12 @@ def test_the_download_variant_returns_the_sbom_and_what_was_read(
 
 
 @pytest.mark.parametrize("call", [generate_pypi_sbom, generate_pypi_sbom_with_download])
-def test_an_unknown_kind_is_a_programming_error(
+def test_an_unknown_kind_is_refused_before_a_request(
     fake: FakePypi, call: Callable[..., object]
 ) -> None:
-    """Only a wheel or an sdist is fetched: any other kind raises before a
-    request, and the server is never asked."""
-    with pytest.raises(InternalError, match="kind must be"):
+    """Only a wheel or an sdist is fetched: any other kind is
+    ``option-invalid`` before a request, and the server is never asked."""
+    with pytest.raises(CodedValueError, match="kind: must be one of") as raised:
         call(URL, kind="model", creation_metadata=CREATION)
+    assert raised.value.pitloom_code == "option-invalid"
     assert not fake.seen

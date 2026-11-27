@@ -155,7 +155,7 @@ _CONSTRUCTORS: list[tuple[Callable[[], w.WheelRefused], str, str]] = [
     (
         lambda: w.refuse_signed(_WHEEL, "d/RECORD.jws"),
         "wheel-unusable/signed",
-        "--allow-signed-wheel removes it",
+        "allow_signed_wheel=True removes it",
     ),
     (lambda: w.refuse_dist_info(_WHEEL, w.DIST_INFO_NONE), "dist-info-missing", "no"),
     (

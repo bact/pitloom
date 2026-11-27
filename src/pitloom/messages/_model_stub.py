@@ -29,6 +29,9 @@ _TWIN_SINCE: Final = "0.25.0"
 #: How each surface lifts the reader gate, after ``; ``.
 _TRUST_CLI: Final = "pass --trust-model-files"
 _TRUST_LIBRARY: Final = "set trust_model_files=True"
+#: The same where settings are ``ConfigOverrides`` fields
+#: (``embed_wheel_sbom()``).
+_TRUST_OVERRIDES: Final = "set ConfigOverrides.trust_model_files=True"
 
 #: What a model whose read stopped is, in the SBOM.
 _STUB: Final = (
@@ -153,6 +156,11 @@ READER_UNSAFE_LINES: Final = Twins.no_hook(
         template=f"{_WHEEL_GATED}{_TRUST_LIBRARY} for a wheel you trust",
         since=_TWIN_SINCE,
     ),
+    overrides=Line(
+        level="INFO",
+        template=f"{_WHEEL_GATED}{_TRUST_OVERRIDES} for a wheel you trust",
+        since=_TWIN_SINCE,
+    ),
 )
 
 #: The formats a wheel scan does not read: one line per scan.
@@ -169,7 +177,8 @@ READER_UNSAFE: Final = Message(
     actor="user",
     advice="Tell the user which formats in the wheel were not read, and why. If "
     "they trust the wheel, they pass --trust-model-files (trust_model_files="
-    "True in the library; the trust-model-files input of the GitHub Action, "
+    "True in the library, ConfigOverrides.trust_model_files=True for "
+    "embed_wheel_sbom(); the trust-model-files input of the GitHub Action, "
     "with embed-wheel and an empty project-path) and generate again; no config "
     f"file can set it. Do not add the flag or generate again for them; {ASK_FIRST}",
 )

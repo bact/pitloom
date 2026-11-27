@@ -112,6 +112,13 @@ REFUSED_LIBRARY_LINE: Final = Line(
     template=f"{_REFUSED_HEAD}with credentials=CredentialPolicy("
     'accepted=["%(fingerprint)s"])',
 )
+#: The same from ``embed_wheel_sbom()``, which takes the policy as a
+#: ``ConfigOverrides`` field.
+REFUSED_OVERRIDES_LINE: Final = Line(
+    level="ERROR",
+    template=f"{_REFUSED_HEAD}with ConfigOverrides.credentials=CredentialPolicy("
+    'accepted=["%(fingerprint)s"])',
+)
 #: The closing refusal, naming no URL.
 REFUSED_COUNT_LINE: Final = Line(
     level="ERROR",
@@ -146,6 +153,12 @@ WRITTEN_CONFIG_LINE: Final = Line(
 WRITTEN_LIBRARY_LINE: Final = Line(
     level="WARNING",
     template=f"{_WRITTEN_HEAD}with credentials=CredentialPolicy(refuse=True)",
+)
+#: The same from ``embed_wheel_sbom()``: the ``ConfigOverrides`` field.
+WRITTEN_OVERRIDES_LINE: Final = Line(
+    level="WARNING",
+    template=f"{_WRITTEN_HEAD}with ConfigOverrides.credentials="
+    "CredentialPolicy(refuse=True)",
 )
 CREDENTIALS_UNSAFE: Final = Message(
     code="credentials-unsafe",
@@ -229,7 +242,12 @@ CREDENTIALS_UNSAFE_REGISTRY: Final = Message(
 CREDENTIALS_UNSAFE_WRITTEN: Final = Message(
     code="credentials-unsafe/written",
     condition="unsafe",
-    lines=(WRITTEN_LINE, WRITTEN_CONFIG_LINE, WRITTEN_LIBRARY_LINE),
+    lines=(
+        WRITTEN_LINE,
+        WRITTEN_CONFIG_LINE,
+        WRITTEN_LIBRARY_LINE,
+        WRITTEN_OVERRIDES_LINE,
+    ),
     summary="A URL-typed value the SBOM states (a dependency's direct URL, "
     "a download location, a PURL, an external reference's locator) holds a "
     "user name or password, a query parameter named like a secret, an "
@@ -240,7 +258,8 @@ CREDENTIALS_UNSAFE_WRITTEN: Final = Message(
     "and field that hold it and its fingerprint, and how the surface that "
     "ran turns the refuse mode on: the command line's "
     "--refuse-url-credentials, the build hook's [tool.pitloom] "
-    "url-credentials, or the library's credentials argument.",
+    "url-credentials, or the library's credentials argument "
+    "(ConfigOverrides.credentials for embed_wheel_sbom()).",
     did="Wrote the SBOM with the value as written: the command exits 0, the "
     "build hook does not fail the build, and the library returns. Said once "
     "per value of each SBOM, shown masked. Nothing is removed or rewritten.",
@@ -270,6 +289,7 @@ CREDENTIALS_UNSAFE_REFUSED: Final = Message(
         REFUSED_LINE,
         REFUSED_CONFIG_LINE,
         REFUSED_LIBRARY_LINE,
+        REFUSED_OVERRIDES_LINE,
         REFUSED_COUNT_LINE,
     ),
     summary="A URL-typed value the SBOM would state (a dependency's direct "
@@ -284,7 +304,8 @@ CREDENTIALS_UNSAFE_REFUSED: Final = Message(
     "fingerprint; the last line "
     "counts them and names no URL. Each line says how the surface that ran "
     "accepts the value: the command line's option, the build hook's "
-    "[tool.pitloom] list, or the library's credentials argument.",
+    "[tool.pitloom] list, or the library's credentials argument "
+    "(ConfigOverrides.credentials for embed_wheel_sbom()).",
     did="Wrote no SBOM: the command exits 1 (the Action step fails), the "
     "build hook fails the build, and the library raises ValueError carrying "
     "the code; 'embed-wheel --sbom' embeds nothing and leaves the wheel as "
@@ -300,7 +321,8 @@ CREDENTIALS_UNSAFE_REFUSED: Final = Message(
     "they accept that value alone, the way the line gives with its "
     "fingerprint: --accept-url-credential, accept-url-credentials in "
     "[tool.pitloom] (also for the command line), the GitHub Action's "
-    "accept-url-credentials input, or the library's credentials argument. "
+    "accept-url-credentials input, or the library's credentials argument "
+    "(ConfigOverrides.credentials for embed_wheel_sbom()). "
     "Do not suggest turning the refuse mode off to "
     f"get past it. Do not edit their files; {ASK_FIRST}",
     subject_key="URL",

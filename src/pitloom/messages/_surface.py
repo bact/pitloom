@@ -16,6 +16,12 @@ several surfaces is a :class:`Twins`, resolved where it is said
 (:func:`pitloom.messages.emit`, :class:`pitloom.messages.CodedValueError`,
 :func:`pitloom.messages.say_summary`), never picked by a call site.
 
+Within the library one route takes its settings otherwise:
+``embed_wheel_sbom()`` takes them as
+:class:`~pitloom.core.config_cascade.ConfigOverrides` fields, not keywords,
+so a line whose action names a keyword has an :attr:`Twins.overrides`
+wording, said within :func:`overrides_route`.
+
 The surface is a :class:`contextvars.ContextVar`: a thread started with
 :class:`threading.Thread` does not see it (unless the interpreter's
 ``thread_inherit_context`` flag is set), so a twinned line is said on the
@@ -46,6 +52,11 @@ SURFACE_LIBRARY: Final = "library"
 SURFACES: Final = (SURFACE_CLI, SURFACE_LIBRARY, SURFACE_HOOK)
 
 _SURFACE: ContextVar[str] = ContextVar("pitloom_surface", default=SURFACE_LIBRARY)
+#: Whether the library call that runs takes its settings as
+#: ``ConfigOverrides`` fields (:func:`overrides_route`).
+_OVERRIDES_ROUTE: ContextVar[bool] = ContextVar(
+    "pitloom_overrides_route", default=False
+)
 #: Whether a line the hook cannot reach raises when it is resolved there
 #: (:func:`strict_surfaces`, the test suite only).
 _STRICT: ContextVar[bool] = ContextVar("pitloom_strict_surfaces", default=False)
@@ -74,6 +85,29 @@ def current_surface() -> str:
     """The surface that runs (:func:`advice_surface`), else
     :data:`SURFACE_LIBRARY`."""
     return _SURFACE.get()
+
+
+def on_overrides_route() -> bool:
+    """Whether the library call that runs takes its settings as
+    ``ConfigOverrides`` fields (:func:`overrides_route`): for a line picked
+    by its own branch per surface rather than a :class:`Twins`."""
+    return _OVERRIDES_ROUTE.get()
+
+
+@contextmanager
+def overrides_route() -> Iterator[None]:
+    """Within the block (or the function it decorates), the library's
+    settings are
+    :class:`~pitloom.core.config_cascade.ConfigOverrides` fields, not keywords
+    (``embed_wheel_sbom()``): on :data:`SURFACE_LIBRARY` a :class:`Twins`
+    says its :attr:`~Twins.overrides` wording where it has one. The command
+    line and the hook are not affected. The previous route returns on exit,
+    also on an exception."""
+    token = _OVERRIDES_ROUTE.set(True)
+    try:
+        yield
+    finally:
+        _OVERRIDES_ROUTE.reset(token)
 
 
 @contextmanager
@@ -107,9 +141,13 @@ _T = TypeVar("_T")
 
 @dataclass(frozen=True)
 class Twins(Generic[_T]):
-    """One line (or summary) worded for each surface. All three are named:
-    a surface that cannot reach the line names another's wording on
-    purpose (:meth:`no_hook`), never by an implicit fallback.
+    """One line (or summary) worded for each surface. All three surfaces
+    are named: a surface that cannot reach the line names another's wording
+    on purpose (:meth:`no_hook`), never by an implicit fallback.
+    :attr:`overrides` is a variant of the library's wording, for the route
+    that takes its settings as ``ConfigOverrides`` fields
+    (:func:`overrides_route`); a drift test holds that every line whose
+    library action names such a setting has one.
 
     Raises:
         ValueError: The members differ in level or in the fields their
@@ -124,6 +162,9 @@ class Twins(Generic[_T]):
     hook: _T
     #: Whether the hook can say it (:meth:`no_hook`).
     hook_reachable: bool = True
+    #: The library's wording within :func:`overrides_route`; ``None``: the
+    #: library's own wording names no setting that route spells otherwise.
+    overrides: _T | None = None
 
     def __post_init__(self) -> None:
         """Check that one call can say any member."""
@@ -138,19 +179,25 @@ class Twins(Generic[_T]):
             raise ValueError(f"twins of different levels or fields: {self.members!r}")
 
     @classmethod
-    def no_hook(cls, cli: _T, library: _T) -> Twins[_T]:
+    def no_hook(cls, cli: _T, library: _T, overrides: _T | None = None) -> Twins[_T]:
         """The twins of a line the hook cannot reach: the hook's wording is
         the library's, and resolving it there raises under
         :func:`strict_surfaces`."""
-        return cls(cli=cli, library=library, hook=library, hook_reachable=False)
+        return cls(
+            cli=cli,
+            library=library,
+            hook=library,
+            hook_reachable=False,
+            overrides=overrides,
+        )
 
     @property
     def members(self) -> tuple[_T, ...]:
         """Each distinct wording once, in :data:`SURFACES` order: what the
         entry lists among its lines."""
         found: list[_T] = []
-        for member in (self.cli, self.library, self.hook):
-            if member not in found:
+        for member in (self.cli, self.library, self.hook, self.overrides):
+            if member is not None and member not in found:
                 found.append(member)
         return tuple(found)
 
@@ -172,6 +219,8 @@ class Twins(Generic[_T]):
                 unreachable_on_hook(repr(self.hook))
             return self.hook
         if surface == SURFACE_LIBRARY:
+            if self.overrides is not None and _OVERRIDES_ROUTE.get():
+                return self.overrides
             return self.library
         raise InternalError(f"no wording for surface {surface!r}")
 
@@ -184,6 +233,8 @@ __all__ = [
     "Twins",
     "advice_surface",
     "current_surface",
+    "on_overrides_route",
+    "overrides_route",
     "strict_surfaces",
     "unreachable_on_hook",
 ]

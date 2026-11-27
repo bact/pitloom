@@ -53,6 +53,10 @@ _HINT_ONE = {
     f"(or set scan-model-usage = true){_HINT_TAIL}",
     "hatch": "Found 1 AI model file(s); set scan-model-usage = true in "
     f"[tool.pitloom]{_HINT_TAIL}",
+    # embed_wheel_sbom() takes its settings as ConfigOverrides fields.
+    "lib-embed_wheel_sbom": "Found 1 AI model file(s); set "
+    "ConfigOverrides.scan_model_usage=True (or set scan-model-usage = true)"
+    f"{_HINT_TAIL}",
 }
 _PYPROJECT = (
     '[build-system]\nrequires = ["hatchling"]\nbuild-backend = "hatchling.build"\n'
@@ -252,7 +256,7 @@ def test_usage_pass_default_flag_config_and_cascade(
         expected = [("demo/use.py", f"demo/{_MODEL}")] if edges else []
         assert _usage(sboms[name]) == expected, name
         unset = usage is None and flag is None
-        hint = _HINT_ONE[surface.split("-", 1)[0]]
+        hint = _HINT_ONE.get(surface, _HINT_ONE[surface.split("-", 1)[0]])
         assert _hints(caplog) == ([hint] if unset else []), name
     assert sboms["config"] != sboms["default"]  # not vacuous
     if surface != "hatch-hook":

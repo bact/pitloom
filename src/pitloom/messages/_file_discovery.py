@@ -108,19 +108,18 @@ BUILD_FAILED_LINE: Final = _line(f"build-and-read failed and {_NOT_AWARE}{_HEURI
 BUILD_FAILED_NO_PROJECT_LINE: Final = _line(
     f"build-and-read failed and {_NOT_AWARE}{_NO_PROJECT}"
 )
-_UV_OVERRIDES: Final = (
-    "[tool.uv.build-backend] overrides the heuristic cannot see; pass "
-)
+_UV_OVERRIDES: Final = "[tool.uv.build-backend] overrides the heuristic cannot see; "
 _REAL_BUILD: Final = " for an exact file list from a real build"
 #: uv_build overrides the heuristic does not read, without --allow-build.
-_UV_OVERRIDES_LINE: Final = _line(f"{_UV_OVERRIDES}--allow-build{_REAL_BUILD}")
+_UV_OVERRIDES_LINE: Final = _line(f"{_UV_OVERRIDES}pass --allow-build{_REAL_BUILD}")
 #: The same, as each surface asks for a build (the hook never builds; it
 #: reads a Hatchling project).
 UV_OVERRIDES_LINES: Final = Twins.no_hook(
     cli=_UV_OVERRIDES_LINE,
     library=Line(
         level="WARNING",
-        template=f"DIR=%(dir)s: {_UV_OVERRIDES}BuildOptions(allow=True){_REAL_BUILD}",
+        template=f"DIR=%(dir)s: {_UV_OVERRIDES}set BuildOptions.allow=True"
+        f"{_REAL_BUILD}",
         since="0.25.0",
     ),
 )
