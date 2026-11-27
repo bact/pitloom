@@ -90,7 +90,7 @@ and this project adheres to
   password are found ([#491])
 - Git URLs: a NUL in user information, a host no host name spells and a missing
   host are refused before git runs; more `GIT_*` variables are dropped ([#491],
-  [#NNN])
+  [#560])
 - `verify-wheel`, `validate-wheel` and `embed-wheel`: a pattern nested too
   deeply is `input-not-found`, not a crash; a `[` in a path is taken as typed
   ([#491])
@@ -165,12 +165,12 @@ and this project adheres to
   credential: refused or warned of in an SBOM ([#544])
 - An empty input path is `input-not-found`; an empty `-o`, `--project-dir`,
   `--id-registry`, `--config`, SBOM file name, library `project_dir` or `IdRegistry`
-  path `option-invalid`: `""` never reads the cwd ([#545], [#550], [#557], [#NNN])
-- A blank loom dataset or model `name` is `option-invalid` ([#NNN])
+  path `option-invalid`: `""` never reads the cwd ([#545], [#550], [#557], [#560])
+- A blank loom dataset or model `name` is `option-invalid` ([#560])
 - loom SDK calls, `IdRegistry` methods and library path, `bool` and cap arguments
   refuse a wrong type (`CodedTypeError`, `option-invalid`; a `bool` refuses
   `"false"`); an unknown `dataset_type` is refused, not `text`; a symlinked script
-  keeps its own name ([#545], [#557], [#NNN])
+  keeps its own name ([#545], [#557], [#560])
 - `loom id generate --namespace` holding a credential is `credentials-unsafe/registry`,
   exit 1, as in the library ([#545])
 - The message reference dates a line newer than its code ([#546]); `line_kind()`
@@ -185,12 +185,12 @@ and this project adheres to
   or `[tool.pitloom]` key of the surface that ran ([#556])
 - `IdRegistry.save()` with no path is `registry-file-missing`, not a plain
   `ValueError`; a refused write is `file-unwritable` naming the path given, and a
-  `str` path saves ([#557], [#NNN])
+  `str` path saves ([#557], [#560])
 - A missing `loom generate` or `generate()` target is `target not found`, `loom
   project`'s `project path not found`; `loom generate ''` says so before a missing
   `-o` ([#557])
 - A dataset `loom.add_dataset()` adds in a `use_model()` run (`generated=False`) is
-  `testedOn` the model, not `trainedOn` ([#NNN])
+  `testedOn` the model, not `trainedOn` ([#560])
 
 ### Fixed
 
@@ -241,10 +241,10 @@ and this project adheres to
 - A build, download or git time limit of one second reads `1 second`, not
   `1 seconds` ([#546])
 - An empty or blank `--creator-name`, `--creator-email` or `--creation-tool` is
-  `option-invalid`, exit 2: no traceback, no silent drop ([#NNN])
+  `option-invalid`, exit 2: no traceback, no silent drop ([#560])
 - `IdRegistry`, `resolve_registry()`, `find_embedded_sbom()` and
   `fetch_git_project()` tag and code their lines when no other Pitloom call came
-  first ([#NNN])
+  first ([#560])
 
 ### Security
 
@@ -308,7 +308,7 @@ and this project adheres to
 [#555]: https://github.com/bact/pitloom/pull/555
 [#556]: https://github.com/bact/pitloom/pull/556
 [#557]: https://github.com/bact/pitloom/pull/557
-[#NNN]: https://github.com/bact/pitloom/pull/NNN
+[#560]: https://github.com/bact/pitloom/pull/560
 
 ## [0.24.0] - 2026-11-11
 
