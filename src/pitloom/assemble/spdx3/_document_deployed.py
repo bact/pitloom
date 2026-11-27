@@ -17,7 +17,7 @@ from typing import Any
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.assemble.spdx3._document_main_package import (
-    build_creation_bundle,
+    add_creation_bundle,
     build_main_package,
 )
 from pitloom.assemble.spdx3._licensing_profiles import apply_licensing_profiles
@@ -306,12 +306,7 @@ def build_deployed(
     main_key = ((PACKAGE_TYPE, package_key(metadata.name, metadata.version)),)
     reserve_held_ids(metadata.name, doc_uuid, session, unlooked=main_key)
 
-    spdx_ci, agents, tools = build_creation_bundle(doc, doc_uuid)
-    exporter.add_creation_info(spdx_ci)
-    for agent in agents:
-        exporter.add_agent(agent)
-    for tool in tools:
-        exporter.object_set.add(tool)
+    spdx_ci, agents = add_creation_bundle(exporter, doc, doc_uuid)
 
     main_package = build_main_package(doc, spdx_ci, agents, doc_uuid)
     exporter.add_package(main_package)

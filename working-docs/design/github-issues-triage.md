@@ -45,7 +45,7 @@ old row.
 | [#147] SPDX 3.0 and 3.1 | Open | `specVersion` fixed at `3.0.1` (`assemble/spdx3/creation_info.py`) | To design: SPDX 3.1 output |
 | [#150] Merge policy | Open | Documented in `docs/fragments.md` (the earlier element is kept, the project's own first); fragment over generated values is built (#349); over a catalogue value, open; not configurable | 0.21.0: Fragment value beats an extracted one; To design: Fragments |
 | [#154] Provenance vocabularies | Open | Parked draft | To design: Provenance vocabulary |
-| [#170] Known organisations | Open | Not built: a project author is a `Person` unless its source types it; a warning, no guess | To design: Author strings |
+| [#170] Known organisations | Open | Decided 2026-11-27, not built: exact name/address list types `Organization`, an untyped author is an `Agent` | To design: Author strings |
 | [#186] Sigstore model signing | Open | Not built; Sigstore signs only Pitloom's own release files (#180) | Long-term: PEP 740 |
 | [#570] Creator-supplied known values | Open | Not built: a value the SBOM creator knows (a dependency's licence, its supplier) has no input; a fragment value beating a read one is open (#349) | Next: Creator-supplied known values |
 
