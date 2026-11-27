@@ -39,6 +39,7 @@ from __future__ import annotations
 
 import logging
 import os
+import posixpath
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, replace
@@ -81,6 +82,7 @@ from pitloom.messages.git import (
     GIT_REPOSITORY_EMPTY,
     GIT_URL_HOST_LINE,
     GIT_URL_INVALID,
+    GIT_URL_NO_REPOSITORY_LINE,
     GIT_URL_SCHEME_LINE,
 )
 from pitloom.messages.network import (
@@ -277,7 +279,8 @@ def _read_url(url: str, shown: str) -> GitPage:
 
     Raises:
         RemoteSourceError: ``git.url-invalid``, a scheme other than http(s),
-            no host (``git-url-invalid``), a host that is not plain
+            no host or no repository path (``git-url-invalid``), a host that
+            is not plain
             (:func:`_host_as_typed`, ``url-unsafe/host-spelling``) or a path
             that leaves the checkout.
     """
@@ -295,7 +298,14 @@ def _read_url(url: str, shown: str) -> GitPage:
             GIT_HOST_SPELLING_LINE.render({"url": shown}),
             pitloom_code=URL_HOST_SPELLING.code,
         )
-    return parse_git_page(url)
+    page = parse_git_page(url)
+    # A host alone (https://github.com/, or /./ and /.. that a client
+    # collapses to the root) names no repository to clone.
+    if not posixpath.normpath(urlsplit(page.plain_url).path or "/").strip("/"):
+        raise remote_error(
+            "git.url-invalid", GIT_URL_INVALID, GIT_URL_NO_REPOSITORY_LINE, url=shown
+        )
+    return page
 
 
 def _names_host(url: str) -> bool:

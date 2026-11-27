@@ -198,6 +198,7 @@ _MARKERS: dict[str, tuple[str, ...]] = {
     "git-url-invalid": (
         "only http and https URLs are fetched",
         "the URL names no host",
+        "names a host but no repository",
         "the port is not a number",
         "a path part decodes to ",
     ),

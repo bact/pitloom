@@ -28,9 +28,12 @@ and this project adheres to
   a second no longer leave Windows and macOS on the platform subset ([#566])
 - An SBOM creator and a dependency author of the same name and email are one
   `Person`, not two ([#568])
+- A Git URL that names a host but no repository (`https://github.com/`) is
+  refused before any probe or `git` process ([#571])
 
 [#566]: https://github.com/bact/pitloom/pull/566
 [#568]: https://github.com/bact/pitloom/pull/568
+[#571]: https://github.com/bact/pitloom/pull/571
 
 ## [0.25.0] - 2026-11-27
 

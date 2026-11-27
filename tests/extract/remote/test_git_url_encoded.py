@@ -34,7 +34,11 @@ from pitloom.extract.remote.errors import RemoteSourceError
 from pitloom.extract.remote.git import fetch_git_project
 from pitloom.extract.remote.git_url import parse_git_page
 from pitloom.messages import CodedTypeError, CodedValueError
-from pitloom.messages.git import GIT_URL_HOST_LINE, GIT_URL_INVALID
+from pitloom.messages.git import (
+    GIT_URL_HOST_LINE,
+    GIT_URL_INVALID,
+    GIT_URL_NO_REPOSITORY_LINE,
+)
 from pitloom.messages.network import (
     GIT_HOST_SPELLING_LINE,
     URL_HOST_SPELLING,
@@ -289,6 +293,44 @@ def test_a_url_with_no_host_is_refused_unfetched(
     assert raised_as(error, GIT_URL_INVALID)
     assert str(error) == GIT_URL_HOST_LINE.render({"url": shown})
     assert "names no host" in str(error) and "S3CRET" not in str(error)
+
+
+@pytest.mark.parametrize("offline", [False, True], ids=["online", "offline"])
+@pytest.mark.parametrize(
+    ("url", "shown"),
+    [
+        ("https://github.com/", "https://github.com/"),
+        ("https://github.com", "https://github.com"),
+        ("https://git.example.org//", "https://git.example.org//"),
+        ("https://github.com/?tab=x#top", "https://github.com/?tab=x#top"),
+        ("https://u:S3CRET@github.com/", "https://***:***@github.com/"),
+        ("https://github.com/./", "https://github.com/./"),
+        ("https://github.com/..", "https://github.com/.."),
+        ("https://github.com/o/..", "https://github.com/o/.."),
+    ],
+    ids=["slash", "bare", "slashes", "query", "credential", "dot", "dot-dot", "up"],
+)
+@pytest.mark.usefixtures("no_git")
+def test_a_url_with_a_host_alone_is_refused_unfetched(
+    url: str, shown: str, offline: bool
+) -> None:
+    """A host with no path names no repository: refused before any git
+    process or redirect probe, and before ``offline``; a credential is
+    masked."""
+    error = _refusal(url, offline)
+    assert error.code == "git.url-invalid"
+    assert raised_as(error, GIT_URL_INVALID)
+    assert str(error) == GIT_URL_NO_REPOSITORY_LINE.render({"url": shown})
+    assert "S3CRET" not in str(error)
+
+
+@pytest.mark.parametrize("path", ["/repo", "/./repo"], ids=["plain", "dot"])
+@pytest.mark.usefixtures("no_git")
+def test_a_url_with_one_path_segment_passes(path: str) -> None:
+    """One segment is a path: whether it is a repository is the server's
+    to say (a self-hosted repository may sit at ``/repo``)."""
+    url = "https://git.example.org" + path
+    assert _refusal(url, True).code == "git.offline"
 
 
 @pytest.mark.parametrize(
