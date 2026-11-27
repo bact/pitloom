@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-26
-Last-Modified: 2026-11-26
+Last-Modified: 2026-11-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -11,7 +11,7 @@ SPDX-License-Identifier: CC0-1.0
 See also: [message-catalogue-pr12-18-plan.md](message-catalogue-pr12-18-plan.md)
 (the sites, codes and surfaces these rulings decide; "row n" and "section
 n" below refer to it),
-[message-catalogue-migration-plan.md](message-catalogue-migration-plan.md).
+[message-catalogue-migration-plan.md](../design/message-catalogue-migration-plan.md).
 
 Sections 4 to 7 of the PR 12 and 18 plan, split out for size. Status and
 sources: see the plan's header.

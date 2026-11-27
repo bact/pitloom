@@ -46,7 +46,7 @@ setuptools `cmdclass`, PDM hooks) is not run while its files are listed. A failu
 
 | `code` | `pitloom_code` |
 | :----- | :------------- |
-| `git.url-invalid` | [`git-url-invalid`](message-codes-git.md#git-url-invalid); for a host not written in plain ASCII, `url-unsafe/host-spelling`; for user information git would read differently, `credentials-unsafe/git-userinfo`; for a PyPI URL, `pypi-url-unusable` |
+| `git.url-invalid` | [`git-url-invalid`](message-codes-git.md#git-url-invalid) (a URL with no host among them: `the URL names no host`); for a host not written in plain ASCII, `url-unsafe/host-spelling`; for user information git would read differently, `credentials-unsafe/git-userinfo`; for a PyPI URL, `pypi-url-unusable` |
 | `git.ref-not-found` | [`git-ref-not-found`](message-codes-git.md#git-ref-not-found) |
 | `git.not-found` (no `git` program) | [`git-missing`](message-codes-git.md#git-missing) |
 | `git.clone-failed` | [`git-repository-unusable`](message-codes-git.md#git-repository-unusable), or `git-repository-unusable/empty` for a repository with no commits; `download-network-failed` when the cause is the network (git could not reach the server, told by git's own `fatal:` and `error:` lines, never by a name, URL or server text in them; git runs with `LC_ALL=C`) |
@@ -75,9 +75,14 @@ checkout and the repository's build-time code is not run, as for
 `generate_git_sbom()`, with no further call (`with checkout.reading():` is
 optional and may be nested); blocks that overlap in time each keep their own
 confinement. `fetch_git_project()` and `fetch_pypi_file()` check the URL
-before `offline`, and `fetch_git_project()` refuses a host that is not written
-in plain ASCII or is percent-encoded (`git.url-invalid`, catalogued
-`url-unsafe/host-spelling`). The policy's `max_bytes` (512 MiB by default)
+before `offline`, and `fetch_git_project()` refuses a URL with no host
+(`git.url-invalid`, `git-url-invalid`) and a host that is not written in
+plain ASCII or is percent-encoded (`git.url-invalid`, catalogued
+`url-unsafe/host-spelling`). The URL of `fetch_git_project()`,
+`generate_git_sbom()` and `generate_git_project_sbom()` is checked first: one
+that is not a string raises `TypeError`, an empty or blank one `ValueError`,
+both `option-invalid`; `generate_git_sbom()`'s `sbom_kind=` that is none of
+`auto`, `project`, `model` raises `ValueError` (`TypeError` for a non-string), `option-invalid`. The policy's `max_bytes` (512 MiB by default)
 stops the fetch, with `git.too-large`, once the checkout takes more disk than
 that; the generators take `max_download_bytes=` instead (else `pitloom_config=`'s
 `max-download-bytes`, else 512 MiB, as for a PyPI URL; `over-cap` as
@@ -100,7 +105,7 @@ generate_pypi_sbom(
 )
 
 # generate() reads a PyPI URL as `loom generate` does: the wheel, with an
-# INFO: naming `loom project <url>` for the sdist.
+# INFO: naming generate_pypi_sbom(<url>, kind='sdist') for the sdist.
 generate("https://pypi.org/project/demo/", output_path=Path("sbom.spdx3.json"))
 ```
 
@@ -108,10 +113,15 @@ The file is downloaded into a temporary directory removed on return, its SHA-256
 checked against the one PyPI declares, and read as a local file; the SBOM
 carries one provenance record of how it was obtained. A PyPI URL is never
 sent to Git. `max_download_bytes=` (else `pitloom_config=`'s
-`max-download-bytes`, else 512 MiB) caps the file; a value that is not an
-integer of at least 1 raises `ValueError` (`option-invalid`) on every target, and on a target
-that downloads nothing it warns that it has no effect. A malformed URL raises
-a `pitloom.messages.CodedValueError` (`pypi-url-invalid`); any other failure is
+`max-download-bytes`, else 512 MiB) caps the file; on every target a value
+that is not an integer (`True` included) raises `TypeError` and an integer
+below 1 `ValueError`, both `option-invalid`, and on a target that downloads
+nothing it warns that it has no effect. `generate_pypi_sbom()` checks its
+arguments first: a URL that is not a string raises `TypeError`, an empty or
+blank one `ValueError`, and a `kind=` other than `wheel` or `sdist`
+`ValueError` (`TypeError` for a non-string), all `option-invalid`. A
+malformed URL raises a `pitloom.messages.CodedValueError`
+(`pypi-url-invalid`); any other failure is
 a `pitloom.extract.remote.RemoteSourceError` whose `code` (`pypi.*`) names it
 and whose `pitloom_code` is the catalogued code (see [Message
 codes](message-codes.md)). *check_url* is called with every URL of the release
@@ -165,3 +175,17 @@ format and hash only, and one `INFO:` per SBOM says so, unless you pass
 NumPy, CRFsuite and PT2 files are read in full. `generate_project_sbom()` on
 a local directory reads every format. `check_url=`, `offline=` and `max_download_bytes=` apply as for a project;
 options a model SBOM cannot use warn once.
+
+A Hugging Face model is read through its id (`owner/name`, when no local path
+of that name exists; a dangling symbolic link is a local path) or its Hub URL,
+with `generate()` or `generate_model_sbom()` (needs the `huggingface_hub`
+extra). A page URL of a one-part id (`https://hf.co/gpt2/tree/main`) names
+that id. A model the Hub does not know raises a
+`pitloom.extract.remote.RemoteSourceError` with the `code`
+`huggingface.repository-not-found` (`pitloom_code` `input-not-found/hub`)
+before any of its files is fetched, and nothing is written. Without a token
+the Hub answers a private model the same way: set `HF_TOKEN`, or run `hf auth
+login`. A gated model, a timeout, a server error and a model card's dataset
+the Hub does not know only warn, and `offline=True` raises
+`huggingface.offline` (`offline-unusable`). See [Hugging Face
+models](ai-model-formats-hugging-face.md).

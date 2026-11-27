@@ -3,14 +3,14 @@ SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
 Created: 2026-11-15
-Last-Modified: 2026-11-17
+Last-Modified: 2026-11-27
 -->
 
 # Credential leak fixes
 
 See also: [message-catalogue-and-skills.md](../design/message-catalogue-and-skills.md)
 (the catalogue the new messages are in),
-[credential-detect-and-refuse.md](../design/credential-detect-and-refuse.md)
+[credential-detect-and-refuse.md](credential-detect-and-refuse.md)
 (PR 2: the strip replaced by detect and refuse, built), PR 487,
 [credential-leak-fixes-pr3-detector.md](credential-leak-fixes-pr3-detector.md)
 (PR 3: detector and masker extras, third-party logs, wheel patterns).
@@ -26,7 +26,7 @@ an SBOM or registry file holding a credential is warned of by default
 (`credentials-unsafe/refused`, `credentials-unsafe/registry`); displayed text
 (logs, tracebacks, `KEY=VALUE`, `ERROR:` lines) is still **masked**. What PR
 2 decided: "Built in PR 2" in
-[credential-detect-and-refuse.md](../design/credential-detect-and-refuse.md).
+[credential-detect-and-refuse.md](credential-detect-and-refuse.md).
 Below, "strip" and "kept" describe PR 487 and PR 1 unless a line says
 otherwise.
 
@@ -37,7 +37,7 @@ written with `WARNING: ... [credentials-unsafe/written]`; refusing is opt in
 mode; a credentialed namespace is refused in both. Where this page says
 "refused" for PR 2, read "refused in the `refuse` mode". Decision record:
 "Decision record: warn by default" in
-[credential-detect-and-refuse.md](../design/credential-detect-and-refuse.md).
+[credential-detect-and-refuse.md](credential-detect-and-refuse.md).
 
 ## Root cause
 

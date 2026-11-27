@@ -10,8 +10,8 @@ Unlike :func:`~pitloom.extract.project.pyproject.read_pyproject`, which re-parse
 Hatchling has *already resolved* -- including dynamic ``version``,
 ``dependencies``, and metadata-hook-populated fields -- into Pitloom's
 format-neutral :class:`~pitloom.core.project.ProjectMetadata`.  Only the
-Hatchling build hook (:mod:`pitloom.plugins.hatch`) uses it; the CLI uses
-:func:`~pitloom.extract.project.pyproject.read_pyproject`.
+Hatchling build hook (:mod:`pitloom.plugins.hatch`) uses it; the CLI and the
+library use :func:`~pitloom.extract.project.read_project`.
 """
 
 from __future__ import annotations

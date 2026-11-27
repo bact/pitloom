@@ -1,6 +1,6 @@
 ---
 # Created: 2026-08-10
-# Last-Modified: 2026-11-26
+# Last-Modified: 2026-11-27
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -114,9 +114,11 @@ printed to stderr, each finding line
 `ERROR: loom fragment validate: spdx3-validate: <line>` (a SHACL
 violation's Severity/Source Shape/Focus Node breakdown spans several lines, and
 a merged-graph failure is labelled `(merged)`), then one coded `[sbom-invalid]`
-`ERROR:` line per document (`not valid SPDX 3 (<number> finding(s) above)`; a
-document that could not be loaded says why above and ends `could not be
-validated`); a missing file is one `ERROR:`.
+`ERROR:` line per document (`FILE=<path>: not valid SPDX 3 (<number>
+finding(s) above)`; one that could not be loaded says why above, then
+`FILE=<path>: could not be validated; spdx3-validate says why above`), or for
+the merged graph (`the SBOMs together are not valid SPDX 3 ...`); a missing
+file is one `ERROR:`.
 
 To validate several related documents (e.g. a base SBOM plus a fragment
 that declares an `ExternalMap` for the base ids it uses) and additionally
@@ -128,6 +130,15 @@ loom fragment validate base.spdx3.json fragment.spdx3.json
 
 Add `--no-merge` to skip the merged-graph check and validate each
 document only in isolation.
+
+**Separate SBOMs: use `--no-merge`.** The merged check can fail two valid
+SBOMs, Pitloom's included, whose `created` times differ: spdx3-validate
+merges each file's local blank nodes into one (`Focus Node: _:CreationInfo0`,
+`More than 1 values on ...`, `sh:MaxCountConstraintComponent`), exit 1. Then
+no `FILE=... STATUS=valid` line is printed, not even for the documents that
+passed alone. A single document, `loom merge` output included, is not
+affected. Report such a failure as this limit of the merged check, not as an
+invalid SBOM, and check the files with `--no-merge`.
 
 **A Pitloom enrichment fragment is not such a fragment.** It names the
 base SBOM's ids directly, with no `ExternalMap`, so it usually fails SHACL
@@ -175,9 +186,9 @@ validate-wheel: ...`, stops the batch instead). `verify-wheel` reads only the me
 `.dist-info`'s `METADATA` and the embedded SBOM, and `validate-wheel` only the
 names and the embedded SBOM, so they refuse a file that is not a ZIP, and a
 wheel with one of those unreadable, two members with one name, a NUL in a name
-or no single own `.dist-info` (only the `ERROR:`: no `identity unknown`
-`WARNING:` comes first, as it does from `wheel` and `generate`): a damaged
-other member does not fail them. `WARNING: ... the file name names no
+or no single own `.dist-info` (where `wheel` and `generate` only warn,
+`identity unknown`, and write an SBOM): a damaged other member does not fail
+them. `WARNING: ... the file name names no
 top-level .dist-info; using ...` (`[dist-info-conflict]`) means the file name
 and the wheel's `.dist-info` disagree: report it.
 

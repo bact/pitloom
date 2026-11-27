@@ -3,21 +3,23 @@ SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
 Created: 2026-11-26
-Last-Modified: 2026-11-26
+Last-Modified: 2026-11-27
 ---
 
 # Message catalogue sweep C1: behaviour and correctness fixes (plan)
 
 See also: [message-catalogue-sweep-c1-as-built.md](message-catalogue-sweep-c1-as-built.md)
 (C1a and C1b as built, and the follow-ups left open),
-[message-catalogue-sweep-b-plan.md](../implementation/message-catalogue-sweep-b-plan.md)
+[message-catalogue-sweep-b-plan.md](message-catalogue-sweep-b-plan.md)
 (sections "Carried to sweep C or the rescan" and "For sweep C: the PR 17
 onward range review", the sources of this plan),
-[message-catalogue-sweep-plan.md](../implementation/message-catalogue-sweep-plan.md)
-(sweep A leftovers), [message-catalogue-agent-rules.md](../implementation/message-catalogue-agent-rules.md).
+[message-catalogue-sweep-plan.md](message-catalogue-sweep-plan.md)
+(sweep A leftovers), [message-catalogue-agent-rules.md](message-catalogue-agent-rules.md).
 
-Status 2026-11-26: planned read-only by Opus against commit 4c194136 (main
-4ef7961d plus open #543). Sibling plans: sweep C2 (wording and quotes) and the
+Status 2026-11-26: built and merged as C1a #545 and C1b #550 (as built:
+[message-catalogue-sweep-c1-as-built.md](message-catalogue-sweep-c1-as-built.md));
+planned read-only by Opus against commit 4c194136 (main 4ef7961d plus
+open #543). Sibling plans: sweep C2 (wording and quotes) and the
 masking PR. Every item marked "reproduced" was run at 4c194136 (probe output
 in the appendix of
 [message-catalogue-sweep-c1-as-built.md](message-catalogue-sweep-c1-as-built.md#appendix-plan-probes-at-4c194136-abridged));

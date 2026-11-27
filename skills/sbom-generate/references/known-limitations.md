@@ -147,9 +147,11 @@ from a scan and from `loom model FILE` (exit 0). Beyond that:
   information: no model file is opened, so a repository whose weights are a
   `.keras` file has no Keras-derived field, no format and no hash. Download
   the file and run `loom model <file>` for those, or give the file's Git URL
-  when the repository is on a Git host. A model the Hub does not know (or a
-  private one read without a token) is an `ERROR:`, no SBOM
-  (`[input-not-found/hub]`); any other failed Hub information request is
+  when the repository is on a Git host. A model id or URL the Hub does not
+  know (or a private one read without a token) is an `ERROR:`, no SBOM, exit
+  1 (`[input-not-found/hub]`: relay its `HF_TOKEN`/`hf auth login` advice;
+  never sign in for the user); a gated model is read. Any other failed Hub
+  information request (a dataset the card lists included) is
   one `WARNING:` that names what is lost (`[download-network-failed]`,
   `[download-timeout]`, `[offline-unusable]` or `[hub-response-invalid]`); a
   model read with no revision says `the Hub stated no revision`
@@ -321,21 +323,18 @@ duplicate member name; wheel refused [wheel-invalid]`.
 Every wheel line ends with a code: `references/messages-wheels.md` lists each
 one, what it means and what to tell the user.
 
-The same commands also refuse a wheel with no single own `.dist-info`
-(`dist-info-missing`, `dist-info-ambiguous`); the two embeds also refuse one
-whose own `.dist-info` has a member stored under a non-conforming name (`./`,
-`\`: `wheel-unusable`). Only `wheel` and `generate` warn first for a missing or
-ambiguous own `.dist-info`: the others print only the `ERROR:`, never an
-`identity unknown` `WARNING:` before it.
-With no single own `.dist-info`, or a `METADATA` that is missing or over a cap,
-`wheel` and `generate` only warn (`WARNING: ARCHIVE='<archive>': no top-level
-.dist-info directory; identity unknown [dist-info-missing]`) and write an
-SBOM that names the wheel `unknown`; an ID registry neither looks up nor
-records that placeholder (one `INFO:` when a registry is declared); its ids
-derive from the wheel's file name and payload, so a renamed copy gets new ids.
-The embeds do the same (one registry `INFO:` per batch) for a `METADATA`
-that is missing or over a cap, but fail with the `ERROR:` above where there is
-no single `.dist-info` to write into. Where the file name names no top-level
+`verify-wheel`, `validate-wheel` and the two embeds also refuse a wheel with no
+single own `.dist-info` (`dist-info-missing`, `dist-info-ambiguous`); the
+embeds also refuse one whose own `.dist-info` has a member stored under a
+non-conforming name (`./`, `\`: `wheel-unusable`). `wheel` and `generate`
+refuse neither: with no single own `.dist-info`, or a `METADATA` that is
+missing or over a cap, they only warn (`WARNING: ARCHIVE='<archive>': no
+top-level .dist-info directory; identity unknown [dist-info-missing]`) and
+write an SBOM (exit 0) that names the wheel `unknown`; an ID registry neither
+looks up nor records that placeholder (one `INFO:` when a registry is
+declared); its ids derive from the wheel's file name and payload, so a renamed
+copy gets new ids. The embeds do the same (one registry `INFO:` per batch) for
+a `METADATA` that is missing or over a cap. Where the file name names no top-level
 `.dist-info` but one other exists, every one of these commands uses it and logs
 `WARNING: ... the file name names no top-level .dist-info; using ...`
 (`dist-info-conflict`): report that line, as the name and version then come

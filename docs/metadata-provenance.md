@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-08
-Last-Modified: 2026-11-26
+Last-Modified: 2026-11-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -157,7 +157,7 @@ adds no key.
 `file-unreadable` or `dir-unlistable`, the code of the `WARNING:` that said
 why. Today `over-cap`, `file-unreadable` and `dir-unlistable` are written,
 for a dataset in `loom` (a file or a directory; the
-[Python API](python-api.md#tracking-decorator)):
+[Python API](python-api-tracking.md)):
 
 - A file over `max-dataset-hash-bytes` has no hash, and its
   `verified_using` entry reads `Source: data.csv | Evidence: not_measured
@@ -237,8 +237,8 @@ wins), and Pitloom adds a `conflict` Annotation (`field:
 ```json
 {
   "candidates": [
-    {"role": "declared", "source": "Source: pyproject.toml | Field: dependencies", "value": ">=2.0"},
-    {"role": "declared", "source": "Source: requirements.txt | Method: resolved_lockfile", "value": "1.5.0"}
+    {"role": "declared", "source": "Source: pyproject.toml | Field: project.dependencies", "value": ">=2.0"},
+    {"role": "declared", "source": "Source: requirements.txt | Method: pinned_requirements", "value": "1.5.0"}
   ],
   "field": "dependency_version",
   "kind": "conflict",

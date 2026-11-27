@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-10
-Last-Modified: 2026-10-06
+Last-Modified: 2026-11-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -49,7 +49,13 @@ spdx3-validate --json sbom.spdx3.json
 
 ```bash
 spdx3-validate --json a.spdx3.json --json b.spdx3.json --no-merge
+loom fragment validate a.spdx3.json b.spdx3.json --no-merge
 ```
+
+Use this for separate SBOMs (two releases, two projects): the merged check
+fails two valid SBOMs whose `created` times differ, as each file's
+`_:CreationInfo0` blank node becomes one node with two values
+(`sh:MaxCountConstraintComponent`; `../SKILL.md`, "Separate SBOMs").
 
 ## Force a specific SPDX version
 
@@ -78,8 +84,9 @@ loom project . -o - | spdx3-validate --json -
 - Exit code `0`: valid, no output beyond progress.
 - Non-zero exit code: at least one error, printed per-document as
   `ERROR: JSON Schema validation failed for <file>:` or `ERROR: SHACL
-  Validation failed for <file>:`, followed by the failing JSON path(s)
-  and a description.
+  Validation failed for <file>:` (`... failed on merged files:` for the
+  merged graph), followed by the failing JSON path(s) and a description, on
+  stdout.
 
 ## See also
 

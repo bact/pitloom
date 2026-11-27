@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-14
-Last-Modified: 2026-11-17
+Last-Modified: 2026-11-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -8,17 +8,17 @@ SPDX-License-Identifier: CC0-1.0
 
 # Message catalogue PRs 6 and 7: ID registry ids, keys and saves
 
-See also: [message-catalogue-migration-plan.md](message-catalogue-migration-plan.md)
+See also: [message-catalogue-migration-plan.md](../design/message-catalogue-migration-plan.md)
 (rows 6 and 7, R1), [message-frames-forward.md](message-frames-forward.md)
 (rule 2, the `ID registry: ` literal),
-[message-catalogue-families.md](../implementation/message-catalogue-families.md)
-(PR 5, #485), [id-registry-followups.md](id-registry-followups.md)
+[message-catalogue-families.md](message-catalogue-families.md)
+(PR 5, #485), [id-registry-followups.md](../design/id-registry-followups.md)
 ("Message codes after catalogue PR 5").
 
 Status: PR 6 merged (#486); PR 7 merged (#492, 2026-11-16; ratchet 328 to
 316). What was built, and where it departs from
 this plan (six summaries, not five; more `WARNING` twins; the deserialiser's
-refusal coded `sbom-invalid`): [message-catalogue-families.md](../implementation/message-catalogue-families.md)
+refusal coded `sbom-invalid`): [message-catalogue-families.md](message-catalogue-families.md)
 "ID registry saves, left-out files and summaries". The plan as written,
 2026-11-14, on `main` 99483287 (PR 5 merged): every site below was listed
 by `PYTHONPATH=src python -m scripts.message_inventory --jsonl` filtered by
@@ -47,7 +47,7 @@ PR 7. Out of both: `_loom_model.py:130,284` and `_loom_caller.py:108,145`
 ## 1. PR 6: ids, keys and lookups
 
 Built in #486; the site table, entries, fields and helpers as built are in
-[message-catalogue-families.md](../implementation/message-catalogue-families.md)
+[message-catalogue-families.md](message-catalogue-families.md)
 ("ID registry ids and keys") and the generated `docs/message-codes-id-registry-ids.md`.
 The plan's per-site table (35 sites) is in this file's history. Decisions kept
 for PR 7 and later:
@@ -57,7 +57,7 @@ for PR 7 and later:
   `/concurrent`, `/spelling`, `/held`, `/type`), `registry-hash-conflict`
   (`/gate`), `registry-hash-missing`, `registry-entry-missing` (stays a
   `WARNING`: no level change in a coding PR; level review in
-  [id-registry-followups.md](id-registry-followups.md)),
+  [id-registry-followups.md](../design/id-registry-followups.md)),
   `registry-key-ambiguous`, `registry-path-key-unusable`,
   `registry-identity-missing`, `registry-key-moved`, `index-path-no-effect`.
   An INFO decision is coded by its condition (R1), actor `none`.
@@ -145,7 +145,7 @@ Fixed with it (verified in code):
   writes nothing: `entity_entry` returns its notes, said after `_save`
   succeeds.
 
-Left in [id-registry-followups.md](id-registry-followups.md): `loom id
+Left in [id-registry-followups.md](../design/id-registry-followups.md): `loom id
 generate ""` (a behaviour change, not a message), `option-invalid` exit 2
 vs 1 (a reference note, not these families), the partly indexed registry.
 

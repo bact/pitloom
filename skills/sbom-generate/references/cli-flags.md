@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-29
-Last-Modified: 2026-11-17
+Last-Modified: 2026-11-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -15,8 +15,9 @@ holds the rules for the opt-in and unsafe flags); [examples.md](examples.md);
 
 Most flags are shared by every generating command (`project`, `generate`,
 `wheel`, `model`, `env`, `enrich`, `embed-wheel`); a line names its commands
-where they differ, and a flag with no effect on a target logs
-`WARNING: Options: ...`.
+where they differ, and a flag with no effect on a target logs one `WARNING:`
+ending `[option-no-effect]` (`WARNING: Options: ...`, or `WARNING: Build:
+<dir>: ...` for a build flag without `--allow-build`).
 
 - `-o FILE` / `--output FILE` -- explicit output path.
 - `--config FILE` -- read `[tool.pitloom]` from *FILE* instead of the
@@ -42,8 +43,10 @@ where they differ, and a flag with no effect on a target logs
   e-mail); the first creator that is not a `software-agent` is also the main
   package's supplier, never a dependency's or a model's. `--creation-datetime
   ISO8601`, else `SOURCE_DATE_EPOCH`, else the clock, sets `created`: pin
-  one for a bit-for-bit reproducible SBOM. `--creation-comment`, `--creation-tool`/`--no-creation-tool` set the rest of
-  the creation info.
+  one for a bit-for-bit reproducible SBOM. `--creation-comment`,
+  `--creation-tool`/`--no-creation-tool` set the rest of the creation info.
+  An empty or blank `--creator-name`, `--creator-email` or `--creation-tool`
+  is a usage error (`must be a non-empty string`, `[option-invalid]`, exit 2).
 - `--enrich` / `--no-enrich` -- Pitloom's own deterministic, local,
   frontmatter-only enrichment pass, in the same generate call. Add it only
   for a project directory or a local model file: on a wheel, env, sdist

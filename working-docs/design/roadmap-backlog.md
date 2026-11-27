@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-26
-Last-Modified: 2026-11-26
+Last-Modified: 2026-11-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -91,7 +91,7 @@ unless the linked doc says so.
   [metadata-quality.md](metadata-quality.md).
 - [ ] **Licence resolution categories** (which changes to trust, log and
   record): built on LicenseID 0.7's `Resolution` (#437, #440). Open:
-  per-operand provenance (T14, 0.24.0) and Q5 (the list version), both in
+  per-operand provenance (T14, not scheduled) and Q5 (the list version), both in
   [licence-resolution-provenance.md](licence-resolution-provenance.md), and
   Q4 (a cross-field indicator). See
   [license-resolution-categories.md](license-resolution-categories.md).
@@ -99,8 +99,8 @@ unless the linked doc says so.
   (decided 2026-10-29): design done (#379); skill size cap built (#385);
   catalogue in code, schema and ratchet; the `lfs-pointer`, `over-cap`,
   model-stub and unreadable-file families built (#390, #396, #404, #408;
-  0.22.0); PRs 1b, 1c and 2b in 0.23.0; the other families and `--report`
-  in 0.24.0. See
+  0.22.0); PRs 1b, 1c and 2b in 0.23.0; the other families, sweeps and
+  rescan merged for 0.25.0 (ratchet 0); `--report` open. See
   [message-catalogue-and-skills.md](message-catalogue-and-skills.md).
 - [ ] **Evidence levels for recorded facts** (proposed 2026-10-29): caps bound
   reading, never reporting. Built: unit fix #382, merge drop #386, sizes under

@@ -268,8 +268,9 @@ def refuse_hub_model_target(target: object) -> None:
     Raises:
         pitloom.messages.CodedValueError: It names no model
             (``hf-url-invalid``, :func:`require_hf_model_id`), else it is a
-            model (``target-wrong-format``, naming ``loom model``); the URL
-            is named with its credentials masked.
+            model (``target-wrong-format``, naming ``loom model`` on the
+            CLI and ``generate_model_sbom()`` from the library); the URL is
+            named with its credentials masked.
     """
     if not isinstance(target, str) or not is_hub_model_target(target):
         return

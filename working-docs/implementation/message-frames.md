@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-13
-Last-Modified: 2026-11-14
+Last-Modified: 2026-11-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -11,7 +11,7 @@ SPDX-License-Identifier: CC0-1.0
 See also: [message-catalogue-and-skills.md](../design/message-catalogue-and-skills.md)
 (decision I) and [message-catalogue-migration-plan.md](../design/message-catalogue-migration-plan.md)
 (catalogue PR 4); frames for PRs 5 to 18:
-[message-frames-forward.md](../design/message-frames-forward.md).
+[message-frames-forward.md](message-frames-forward.md).
 
 ## What was built
 
@@ -54,7 +54,7 @@ frame on an exception's text. The old `<what> failed:` strings are gone.
 - The `Build:` and `Git source:` WARNING sub-prefixes are not frames yet:
   they need a WARNING line on each family they relay (PRs 13 and 14), and a
   frame restricted to the families it may precede
-  ([message-frames-forward.md](../design/message-frames-forward.md)).
+  ([message-frames-forward.md](message-frames-forward.md)).
 - `option-no-effect` builds its two templates from `OPTIONS_PREFIX` and
   `BUILD_PREFIX` (`messages/_options.py`); `core.no_effect.INERT_LOG_PREFIX`
   and `core._models_wheel_types.BUILD_LOG_PREFIX` are the same objects, so

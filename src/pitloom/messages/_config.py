@@ -15,7 +15,7 @@ an SBOM date taken from the clock (``datetime-unpinned``).
 A line names where the value sits by its ``config_key``
 (:class:`~pitloom.messages._config_place.ConfigPlace`), after ``FILE=``
 when the file is known; a library caller's own value is
-``option-invalid`` (:data:`~pitloom.messages._options.OPTION_VALUE_LINE`).
+``option-invalid`` (:data:`~pitloom.messages._options.VALUE_LINE`).
 A configuration file the system does not let Pitloom read, or that is not
 UTF-8, says ``file-unreadable`` (``/not-utf8``) ``for the configuration``.
 

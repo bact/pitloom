@@ -3,22 +3,22 @@ SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
 Created: 2026-11-15
-Last-Modified: 2026-11-26
+Last-Modified: 2026-11-27
 -->
 
 # Credentials: detect, warn or refuse, never rewrite
 
-See also: [credential-leak-fixes.md](../implementation/credential-leak-fixes.md)
+See also: [credential-leak-fixes.md](credential-leak-fixes.md)
 (what PR 487 built and the gaps still tracked),
-[message-catalogue-and-skills.md](message-catalogue-and-skills.md) (the
+[message-catalogue-and-skills.md](../design/message-catalogue-and-skills.md) (the
 message contract the new codes join).
 
-Status: proposed 2026-11-15, follow-up to PR 487 (merged). PR 1 (PR 489,
-merged) built the detector; PR 2 (#490, merged 2026-11-16, unreleased) built
-the check at the persisted sinks, the two modes and the per-value override,
-and deleted the strip. PR 3 (#491, merged 2026-11-16, unreleased): the Action
-inputs and masks, the Git hardening, detector and masker extras ("Built in
-PR 3" below).
+Status: built (PRs 1 to 3 merged); proposed 2026-11-15, follow-up to
+PR 487. PR 1 (PR 489, merged) built the detector; PR 2 (#490, merged
+2026-11-16, unreleased) built the check at the persisted sinks, the two
+modes and the per-value override, and deleted the strip. PR 3 (#491,
+merged 2026-11-16, unreleased): the Action inputs and masks, the Git
+hardening, detector and masker extras ("Built in PR 3" below).
 
 ## Decision record: warn by default (2026-11-16)
 
@@ -147,9 +147,9 @@ says "refused", read "refused in the `refuse` mode, warned of in `warn`".
 ## Built in PR 3
 
 Built 2026-11-16 (branch `credential-hardening`). Detail and evidence:
-[credential-leak-fixes.md](../implementation/credential-leak-fixes.md)
+[credential-leak-fixes.md](credential-leak-fixes.md)
 ("Git argv spy (PR 3)") and
-[credential-leak-fixes-pr3-detector.md](../implementation/credential-leak-fixes-pr3-detector.md).
+[credential-leak-fixes-pr3-detector.md](credential-leak-fixes-pr3-detector.md).
 
 - **The Action**: inputs `url-credentials` (`warn` default; `refuse` adds
   `--refuse-url-credentials`) and `accept-url-credentials` (commas or line
@@ -180,7 +180,7 @@ Built 2026-11-16 (branch `credential-hardening`). Detail and evidence:
   address, a PURL with its qualifiers and subpath) and never prose (user
   ruling 2026-11-15); an identifier Pitloom stores is read for a URL or a
   token anywhere in it. Detail: "Detector sweep (PR 1)" in
-  [credential-leak-fixes.md](../implementation/credential-leak-fixes.md).
+  [credential-leak-fixes.md](credential-leak-fixes.md).
 - A `Finding` holds its kind, its view (left out of `repr`) and the masked
   text; a weak name or an accepted `ssh` account name is a weak finding,
   never refused.

@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-26
-Last-Modified: 2026-11-26
+Last-Modified: 2026-11-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -18,7 +18,7 @@ which file they write, and how they fail.
 ## Create a registry
 
 ```bash
-loom id generate data src --entity model -o loom-id-registry.json   # pin ids before a run
+loom id generate data src -e models/classifier.onnx -o loom-id-registry.json  # pin ids before a run
 loom id import existing-sbom.spdx3.json -o loom-id-registry.json    # or reuse ids from an SBOM
 loom project                                                        # uses the declared registry
 ```
@@ -90,8 +90,9 @@ the symlink target's directory.
 `generate` records each AI model file's SHA-256 with its entry, so a
 retrained file (other bytes) gets a new id on every surface. A registry from an
 earlier release (format version 3 or 2) is rejected, on every command, with one
-`ERROR:` and nothing written; delete it and re-run `loom id generate` or `loom
-id import` ([what changed](id-registry-keys.md#what-changed-for-an-existing-registry)).
+`ERROR:` and nothing written; to keep its ids, delete it and run `loom id
+import` on the last SBOM made with it (`loom id generate` alone mints new ids;
+[what changed](id-registry-keys.md#what-changed-for-an-existing-registry)).
 
 **Target file.** `-o`/`--id-registry` if given, else the config's
 `id-registry` key (both commands: read from `--project-dir`, default the

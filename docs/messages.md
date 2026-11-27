@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-29
-Last-Modified: 2026-11-26
+Last-Modified: 2026-11-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -44,10 +44,11 @@ LEVEL: [FRAME: ][SUBJECT=value: ]CONDITION[; ACTION] [code]
   code is the same on every surface; the reference pages list each wording.
 - `[code]` is the last token. `DEBUG` lines carry no code.
 - `FRAME` starts every `ERROR:` line the CLI prints: the command, as in
-  `ERROR: loom generate: ...` (`ERROR: loom: ...` before the command is
-  known). A command line that does not parse says argparse's own text
-  after the frame, coded when its wording is catalogued
-  (`ERROR: loom: unrecognized arguments: --bogus [option-invalid]`). The
+  `ERROR: loom generate: ...`. A command line that does not parse says
+  argparse's own text after the frame, coded when its wording is catalogued;
+  the frame is `loom:` before the command is known, and for an argument the
+  command does not take (`--bogus` after `loom project .` prints `ERROR: loom:
+  unrecognized arguments: --bogus [option-invalid]`). The
   Hatchling hook's line starts `Pitloom build hook: `. A model scan's line may
   also start with the model it read (`FORMAT=<format> FILE=<file>: `), and a
   Git URL fetch's `WARNING:` and `INFO:` lines with `Git source: `: the

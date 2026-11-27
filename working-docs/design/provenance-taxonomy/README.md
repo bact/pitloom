@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-14
-Last-Modified: 2026-11-23
+Last-Modified: 2026-11-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -21,7 +21,8 @@ ODRL for licence claims),
 external vocabulary weighed, and how each is used or not),
 [renames-and-migration.md](renames-and-migration.md),
 [findings-to-fix-first.md](findings-to-fix-first.md) (what to fix in
-LicenseID and Pitloom before the code stage),
+LicenseID and Pitloom before the code stage; its hand-over prompts in
+[findings-to-fix-first-prompts.md](findings-to-fix-first-prompts.md)),
 [examples/](examples/README.md) (the Asserter and Basis matrix on real
 inputs),
 [mappings/](mappings/pitloom-provenance.sssom.tsv) (SSSOM), and what this

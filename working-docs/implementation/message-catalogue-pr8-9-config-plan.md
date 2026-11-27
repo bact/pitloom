@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-17
-Last-Modified: 2026-11-17
+Last-Modified: 2026-11-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -10,13 +10,14 @@ SPDX-License-Identifier: CC0-1.0
 
 See also: [message-catalogue-pr8-12-plan.md](message-catalogue-pr8-12-plan.md)
 (rulings 1 to 4, what a plan holds),
-[message-catalogue-migration-plan.md](message-catalogue-migration-plan.md)
+[message-catalogue-migration-plan.md](../design/message-catalogue-migration-plan.md)
 (rows 8 and 9, R3), [message-catalogue-pr6-pr7-plan.md](message-catalogue-pr6-pr7-plan.md),
-[message-catalogue-review-rounds.md](../implementation/message-catalogue-review-rounds.md),
+[message-catalogue-review-rounds.md](message-catalogue-review-rounds.md),
 [message-catalogue-pr10-11-lock-plan.md](message-catalogue-pr10-11-lock-plan.md)
 (the sibling plan; coordination in Q3).
 
-Status: plan, 2026-11-17, `main` 654d734e. Families 8 and 9 are ONE PR
+Status: plan, 2026-11-17, `main` 654d734e; built and merged as #497.
+Families 8 and 9 are ONE PR
 (the 8 to 12 plan, section 1), merged after 10 and 11. Sites from
 `message_inventory --jsonl` (`in_scope`, not `coded`), read in the source;
 "verified" means read or run (session probes `cfg-probe1.py`,

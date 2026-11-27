@@ -3,7 +3,7 @@ SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
 Created: 2026-11-24
-Last-Modified: 2026-11-24
+Last-Modified: 2026-11-27
 ---
 
 # Message catalogue PR 17c: plan
@@ -16,7 +16,8 @@ See also: [message-catalogue-finish-plan.md](message-catalogue-finish-plan.md),
 patterns and lessons this PR follows). The build record is
 `message-catalogue-pr17c-build.md`, written during the build.
 
-Planned by Opus (read-only) against `main` at beefc13c on 2026-11-24. Goal:
+Built and merged as #534. Planned by Opus (read-only) against `main` at
+beefc13c on 2026-11-24. Goal:
 the uncoded-site ratchet goes from 15 to 0. The last tag is v0.24.0, so
 every new entry has `since="0.25.0"`.
 

@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-21
-Last-Modified: 2026-11-26
+Last-Modified: 2026-11-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -111,6 +111,10 @@ from the server's own branches and tags, longest match first.
   naming the right call (`pypi-url-unusable`). A link to a file on
   `files.pythonhosted.org` is a PyPI URL too: never cloned, and refused by
   `loom wheel` and `loom project` with the release page to give instead.
+- A URL names a host: one with none (`https://`, `https:///owner/repo`,
+  `https://:443/owner/repo`) is refused before git runs
+  ([`git-url-invalid`](message-codes-git.md#git-url-invalid), `the URL names
+  no host; nothing fetched`).
 - A host is written in plain ASCII (an international name in its `xn--`
   form): a host with a non-ASCII character or a percent-encoding is refused
   before git runs

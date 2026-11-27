@@ -174,12 +174,6 @@ def _loopback_only(real_connect: Callable[..., Any]) -> Callable[..., Any]:
     return connect
 
 
-@pytest.fixture
-def fixtures_dir() -> Path:
-    """Return the path to the test fixtures directory."""
-    return FIXTURES_DIR
-
-
 @pytest.fixture(autouse=True)
 def _reset_license_matcher_cache() -> None:
     """Clear the cached ``LicenseDetector`` and the declared-value answers

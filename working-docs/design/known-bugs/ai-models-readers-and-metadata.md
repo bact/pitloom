@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-02
-Last-Modified: 2026-11-23
+Last-Modified: 2026-11-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -282,7 +282,7 @@ Found by the fact-check of the AI SBOM workshop paper against 0.24.0
 (2026-11-14).
 
 - [x] **ONNX `framework` provenance cited a value the SBOM never showed
-  (S).** Fixed (model-reader gaps PR, 2026-11-21): `producer_name`/
+  (S).** Fixed (#509, 2026-11-21): `producer_name`/
   `producer_version` are the tool that wrote the file, now
   `format_info.writing_tool*`, written as the package comment line `Model
   file written by: <tool> <version>` (FG-16) and kept as properties; ONNX

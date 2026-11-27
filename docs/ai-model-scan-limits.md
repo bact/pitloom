@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-01
-Last-Modified: 2026-11-26
+Last-Modified: 2026-11-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -165,7 +165,9 @@ INFO: AI models in a wheel in these formats are listed without metadata, their r
 ```
 
 A library call ends the line with `set trust_model_files=True for a wheel
-you trust`. To read them, for a wheel you trust:
+you trust`, and `embed_wheel_sbom()`, which takes its settings as
+`ConfigOverrides` fields, with `set ConfigOverrides.trust_model_files=True
+for a wheel you trust`. To read them, for a wheel you trust:
 
 | Surface | How |
 | :------ | :-- |

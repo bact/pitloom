@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-23
-Last-Modified: 2026-11-23
+Last-Modified: 2026-11-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -15,20 +15,9 @@ See also: [message-catalogue-pr16-plan.md](message-catalogue-pr16-plan.md)
 [message-catalogue-pr15-build.md](message-catalogue-pr15-build.md) (the
 layout this log follows).
 
-Status: not started. The integrator fills each section; section numbers
-continue the plan's.
-
-## 6. Files and sizes
-
-## 7. Tests (one per boundary, mutation-sensitive)
-
-## 8. Steps and agents (branch from fresh `origin/main`, created by the user)
-
-### 8.1 Stderr sweep (HEAD versus the tree, offline)
-
-## 9. Gates
-
-## 10. Risks (ranked) and unknowns
+Status: built and merged as #515. Section numbers continue the plan's;
+sections 6 to 10 were never filled in (the plan and its steps page hold
+them).
 
 ## 11. Step 1 result
 

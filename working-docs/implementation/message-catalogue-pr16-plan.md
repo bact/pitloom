@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-23
-Last-Modified: 2026-11-23
+Last-Modified: 2026-11-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -11,17 +11,17 @@ SPDX-License-Identifier: CC0-1.0
 See also: [message-catalogue-pr16-plan-steps.md](message-catalogue-pr16-plan-steps.md)
 (steps, agents, tests, verification, risks),
 [message-catalogue-pr16-build.md](message-catalogue-pr16-build.md)
-(the build log), [message-catalogue-migration-plan.md](message-catalogue-migration-plan.md)
+(the build log), [message-catalogue-migration-plan.md](../design/message-catalogue-migration-plan.md)
 (row 16, R1), [message-frames-forward.md](message-frames-forward.md)
 ("PR 16: wheels"), [message-catalogue-pr15-plan.md](message-catalogue-pr15-plan.md)
 (the shape this plan follows; it handed over `utils.py:370,385`),
 [message-catalogue-pr14-rulings.md](message-catalogue-pr14-rulings.md) (Q17:
-`hatch.py` lines), [known-bugs/surfaces-hook-and-wheel.md](known-bugs/surfaces-hook-and-wheel.md).
+`hatch.py` lines), [known-bugs/surfaces-hook-and-wheel.md](../design/known-bugs/surfaces-hook-and-wheel.md).
 
-Status (2026-11-23): planned, not built. Read-only plan by Opus against
-`main` at 01d1a726 (#513 merged; ratchet 85); every line number is that
-tree's. Branch `catalogue-wheels`. Nothing is decided: each Qn in section 5
-is the planner's recommendation.
+Status (2026-11-23): planned; built and merged as #515. Read-only plan by Opus
+against `main` at 01d1a726 (#513 merged; ratchet 85); every line number is that
+tree's. Branch `catalogue-wheels`. Nothing is decided: each Qn in section 5 is
+the planner's recommendation.
 
 Tags: (V) verified by reading or running on 01d1a726; (I) inferred.
 

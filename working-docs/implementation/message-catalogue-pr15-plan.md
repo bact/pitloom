@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-23
-Last-Modified: 2026-11-23
+Last-Modified: 2026-11-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -10,14 +10,14 @@ SPDX-License-Identifier: CC0-1.0
 
 See also: [message-catalogue-pr15-build.md](message-catalogue-pr15-build.md)
 (tests, steps and agents, gates, risks, unknowns),
-[message-catalogue-migration-plan.md](message-catalogue-migration-plan.md)
+[message-catalogue-migration-plan.md](../design/message-catalogue-migration-plan.md)
 (row 15), [message-catalogue-pr10-11-lock-plan.md](message-catalogue-pr10-11-lock-plan.md)
 (the conflict grid, section 3), [message-frames-forward.md](message-frames-forward.md)
 ("PR 15: fragments"), [message-catalogue-pr14-plan.md](message-catalogue-pr14-plan.md).
 
-Status (2026-11-23): planned, not built. Read-only plan written by Opus
-against `main` at a45f9baf (#511 merged; ratchet 108); every line number is
-that tree's. Branch `catalogue-fragments` (worktree
+Status (2026-11-23): planned; built and merged as #513. Read-only plan written
+by Opus against `main` at a45f9baf (#511 merged; ratchet 108); every line number
+is that tree's. Branch `catalogue-fragments` (worktree
 `.claude/worktrees/catalogue-fragments`). Nothing is decided: every Qn in
 section 4 is the planner's recommendation.
 

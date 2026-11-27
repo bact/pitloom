@@ -1,3 +1,11 @@
+---
+Created: 2026-11-16
+Last-Modified: 2026-11-27
+SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+SPDX-FileType: DOCUMENTATION
+SPDX-License-Identifier: CC0-1.0
+---
+
 # Credentials in URLs
 
 An SBOM can be published, so a credential in one is exposed to everyone who
@@ -251,7 +259,7 @@ line is the same on every surface.
 | :--- | :--- | :--- | :--- | :--- |
 | CLI (`loom project`, `generate`, `wheel`, `model`, `env`, `enrich`, `embed-wheel`, `merge`) | SBOM written (to stdout too with `-o -`), `WARNING:` lines, exit 0 | `ERROR:` lines, exit 1, no SBOM (not to stdout with `-o -` either) | `--refuse-url-credentials`, or `url-credentials = "refuse"` in a config file (flags only for `merge` and `embed-wheel --sbom`) | `--accept-url-credential <fingerprint>`; or `accept-url-credentials` in a config file |
 | Hatchling build hook | The build goes on, with the `WARNING:` lines | The build fails; each `ERROR:` line starts `Pitloom build hook: ` | `url-credentials = "refuse"` in `[tool.pitloom]` | `accept-url-credentials` in `[tool.pitloom]` |
-| Python API | Returns; the `WARNING:` lines are logged | `ValueError` carrying the code `credentials-unsafe/refused` (the `ERROR:` lines are logged) | `credentials=CredentialPolicy(refuse=True)`, or `PitloomConfig(url_credentials="refuse")` | `credentials=CredentialPolicy(accepted=["<fingerprint>"])`, or `PitloomConfig(accept_url_credentials=...)` |
+| Python API | Returns; the `WARNING:` lines are logged | `ValueError` carrying the code `credentials-unsafe/refused` (the `ERROR:` lines are logged) | `credentials=CredentialPolicy(refuse=True)` (`ConfigOverrides.credentials=` for `embed_wheel_sbom()`), or `PitloomConfig(url_credentials="refuse")` | `credentials=CredentialPolicy(accepted=["<fingerprint>"])` (`ConfigOverrides.credentials=` for `embed_wheel_sbom()`), or `PitloomConfig(accept_url_credentials=...)` |
 | `loom.Run` | The fragment is written when the run ends | Refused when the run ends: no fragment is written | `credentials=` as above, or the config's `url-credentials` | `credentials=` as above |
 | GitHub Action | The step passes | The step fails | the `url-credentials: refuse` input (`warn` is the default), or `url-credentials` in the project's or the `config` file's `[tool.pitloom]` | the `accept-url-credentials` input (fingerprints separated by commas or line breaks, each passed as `--accept-url-credential`), or `accept-url-credentials` in `[tool.pitloom]` |
 

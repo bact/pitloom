@@ -27,7 +27,6 @@ from tests.core.url_masking._probe_corpus import TOKENS
 #: A character of each escape spelling ``ascii()`` writes: ``\\t``, ``\\n``,
 #: ``\\r``, ``\\xHH``, ``\\uHHHH`` and ``\\UHHHHHHHH``.
 _CONTROLS = ("\t", "\n", "\r", "\x1b", "\x7f", "\u202e", "\U000e0001")
-_CONTROL_IDS = ("tab", "lf", "cr", "esc", "del", "rlo", "tag")
 
 
 def _escaped_forms(raw: str) -> tuple[str, str]:

@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-03
-Last-Modified: 2026-11-26
+Last-Modified: 2026-11-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -41,10 +41,13 @@ Size: S under half a day, M about a day.
   its ID and drops a control or format character at either end of a value.
 - 0.23.4 (released 2026-11-09, #462, #464, #465): requires LicenseID 0.8.4, which
   reads `MIT/Apache-2.0` as `Apache-2.0 OR MIT`.
-- 0.24.0: the uniform `loom <command>:` frame, catalogue PRs 3 to 18
-  (licence included), the licence provenance mapping
+- 0.24.0 (released 2026-11-11, #468, #469, #471): PyPI URL targets and the
+  download caps; the catalogue work planned for it moved on.
+- 0.25.0 (not released): the uniform `loom <command>:` frame, catalogue PRs
+  3 to 18 (licence included), sweeps A to C and the consistency rescan
+  (merged). The licence provenance mapping
   ([licence-resolution-provenance.md](licence-resolution-provenance.md)) and
-  `--report`/SARIF. See
+  `--report`/SARIF are not scheduled. See
   [message-catalogue-migration-plan.md](message-catalogue-migration-plan.md).
 
 ## Open entries by part and priority

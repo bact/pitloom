@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-26
-Last-Modified: 2026-11-26
+Last-Modified: 2026-11-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -29,6 +29,27 @@ The `www.huggingface.co` and `hf.co` forms, `http://` and any case of the host
 are read as `https://huggingface.co/...`, with one `INFO:` line saying so
 ([`target-ambiguous/hf-url`](message-codes-targets.md#target-ambiguoushf-url)):
 `INFO: URL=<url>: read as Hugging Face model <target> [target-ambiguous/hf-url]`.
+A page URL of a model with a one-part id (`https://hf.co/gpt2/tree/main`,
+or another page kind: `blob`, `resolve`, `commit`, `commits`, `discussions`,
+`edit`, `raw`, `blame`, `settings`, with a part after it) names that model,
+here `gpt2`; with nothing after the page kind it is read as a two-part id. A
+bare ID is `owner/name`, and is read as one only when no local path of that
+name exists (a dangling symbolic link is a local path).
+
+A model the Hub does not know is an error: nothing is fetched, no SBOM is
+written, exit 1
+([`input-not-found/hub`](message-codes-targets.md#input-not-foundhub)). Without
+a token the Hub answers a private model the same way, so the line ends with
+the remedy. For an ID it also says no local path of that name exists:
+
+```text
+ERROR: loom model: target not found: '<id>' is no local path, and the Hugging Face Hub knows no model <url>; if it is private, set HF_TOKEN to a token with access, or run 'hf auth login' [input-not-found/hub]
+ERROR: loom model: URL=<url>: the Hugging Face Hub knows no such model; if it is private, set HF_TOKEN to a token with access, or run 'hf auth login' [input-not-found/hub]
+```
+
+`loom generate` and the library (`generate()`, `generate_model_sbom()`) refuse
+it the same way. A page that needs a login (`https://hf.co/gpt2/settings`) is read as
+the model `gpt2/settings` and refused so.
 
 This reads the model card, `config.json`, `tokenizer_config.json`,
 `generation_config.json` and the Hub's model information, and produces an
@@ -60,8 +81,8 @@ holds the model's id and URL only, with one `WARNING:`
 ([`url-unsafe/hf-endpoint`](message-codes-network.md#url-unsafehf-endpoint)).
 `https://HuggingFace.co/` and the port 443 count as the default Hub. A file the
 repository does not hold is skipped silently; any other failed download (a
-gated or private repository read without access, a network failure, a
-timeout, a redirect elsewhere) leaves that file out with a `WARNING:`
+file of a gated repository read without access, a network failure, a
+timeout, a server error, a redirect elsewhere) leaves that file out with a `WARNING:`
 carrying the code a Git or PyPI URL fails with
 ([`download-network-failed`](message-codes-network.md#download-network-failed),
 [`download-timeout`](message-codes-network.md#download-timeout),

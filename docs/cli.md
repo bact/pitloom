@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-11-26
+Last-Modified: 2026-11-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -178,6 +178,14 @@ loom model https://huggingface.co/mistralai/Mistral-7B-v0.1
 loom model Qwen/Qwen3-235B-A22B   # bare model ID also works
 ```
 
+A bare ID (`owner/name`) is read as one only when no local path of that name
+exists. A model the Hub does not know, or a private one asked for without a
+token, is an `ERROR:` with no SBOM and exit 1 (`input-not-found/hub`; set
+`HF_TOKEN` or run `hf auth login` for a private model); a gated model, a
+timeout or a server error leaves the file out with a `WARNING:`. A page URL
+of a one-part id (`https://hf.co/gpt2/tree/main`) names that model. See
+[Hugging Face Hub models](ai-model-formats-hugging-face.md#hugging-face-hub-models).
+
 A Hugging Face **Space** or **dataset** is a Git repository, not a model: give
 its URL to `loom project` ([SBOM from a Git URL](git-urls.md)), or to `loom
 model` to read a model file it holds.
@@ -281,7 +289,7 @@ Independent runs give the same dataset or model different `spdxId`s. Pin ids
 ahead of time, or reuse ids from an existing SBOM:
 
 ```bash
-loom id generate data src --entity model -o loom-id-registry.json
+loom id generate data src -e models/classifier.onnx -o loom-id-registry.json
 loom id import existing-sbom.spdx3.json -o loom-id-registry.json
 ```
 
@@ -296,7 +304,8 @@ bytes read to hash one dataset; default: the project's own
 `max-dataset-hash-bytes`, else 4 GiB), and both
 commands write only a changed registry. The file is JSON (`version: 4`); a
 version 3 or 2 file from an earlier release is an `ERROR:` (exit 1) on every
-command, left as it is: delete it and re-run. Format, flags and log lines:
+command, left as it is: to keep its ids, delete it and run `loom id import`
+on the last SBOM made with it (`loom id generate` alone mints new ids). Format, flags and log lines:
 [Loom ID registry](id-registry.md); keys: [keys and content
 gates](id-registry-keys.md).
 
@@ -342,8 +351,10 @@ The `Hatchling build hook` row is not a command: the hook reads
 `[tool.pitloom]`, not flags, so a key set to `true` there is noted with one
 `INFO:` (same wording, the flag's spelling) rather than a warning. `false`
 agrees with what the hook does and is not noted. `embed-wheel --project-dir`
-does the same for a key in the project's `[tool.pitloom]`, except one whose
-flag was also given (that flag has its own warning).
+does the same for those two keys in the project's `[tool.pitloom]`, except
+one whose flag was also given (that flag has its own warning). Other keys
+these surfaces cannot act on (`pretty`, and `use-lockfile` in the hook) are
+not noted yet.
 
 The `--describe-relationship` warning on `embed-wheel`/`enrich` is a current
 decision, not a permanent one. `--use-lockfile` is offered only by `project`,
@@ -361,7 +372,8 @@ line; counts, hints and `-v` go to stderr as `INFO:`. A written SBOM prints
 With `-o -` stdout is the SBOM alone (`loom project . -o - | jq .`): no path
 line, and the embed record is an `INFO:` line. Others: `verify-wheel`
 `WHEEL=<w> STATUS=ok|failed`; `validate-wheel` `WHEEL=<w>
-STATUS=valid|skipped|failed`; `fragment validate` `FILE=<f> STATUS=valid`;
+STATUS=valid|skipped|failed`; `fragment validate` `FILE=<f> STATUS=valid`
+(only when every check passed, the merged one included);
 `fragment list` one `PATH=<p> ROLE=...` line per fragment ([SBOM
 fragments](fragments.md#list-configured-fragments)); `id`
 `PITLOOM_ID_REGISTRY_PATH=<path>`. A

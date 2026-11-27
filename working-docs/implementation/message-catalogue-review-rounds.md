@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-17
-Last-Modified: 2026-11-26
+Last-Modified: 2026-11-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -104,20 +104,18 @@ cross-references, drift-test markers for 44 unguarded quotes.
 - No skill covers the GitHub Action or `loom merge` / `loom fragment list`
   (known deferrals); the three skill descriptions sit at 999 to 1021 of 1024
   characters, so a trigger needs a trim first.
-- Over the 30 KB limit: `roadmap.md` (36 KB), `skills-trigger-coverage.md`,
-  `file-map.md`, `docs/git-urls.md` (crossed in this range), `docs/cli.md`,
-  `docs/ai-model-formats.md`, `docs/ai-model-scan-limits.md`,
-  `docs/configuration.md`, `skills/sbom-enrich/references/minimum-elements.md`.
-  Near it: `id-registry-followups.md`, `credential-leak-fixes.md`,
-  `docs/id-registry.md`, `docs/python-api.md`.
-- Built plans still in `design/`: `credential-detect-and-refuse.md` (move with
-  `credential-leak-fixes*.md` into an `implementation/credential-leak-fixes/`
-  folder), `message-catalogue-pr6-pr7-plan.md`.
+- Near the 30 KB limit: `credential-leak-fixes.md` (29.8 KB). The files
+  this list had over it are split (#549 and others).
+- `credential-leak-fixes.md`, `credential-leak-fixes-pr3-detector.md` and
+  `credential-detect-and-refuse.md` belong in an
+  `implementation/credential-leak-fixes/` folder; a test docstring
+  (`tests/core/url_masking/test_url_masking_nested_values.py`) names the
+  first by its path.
 - CLAUDE.md rules whose detail docs are missing: "Write the key the lookup
   used", the `provenance_source` rule, the pyrefly interpreter note.
 - CHANGELOG bullets over 160 characters (with the PR links): seven; `CHANGELOG.md`
   itself is 60 KB.
-- Out of scope of catalogue PRs 10 and 11 (2026-11-17): `loom fragment list` reading lock files (only to work out a document id), and a requirements file with `--generate-hashes` that is ignored; both in [message-catalogue-pr10-11-lock-plan.md](../design/message-catalogue-pr10-11-lock-plan.md).
+- Out of scope of catalogue PRs 10 and 11 (2026-11-17): `loom fragment list` reading lock files (only to work out a document id), and a requirements file with `--generate-hashes` that is ignored; both in [message-catalogue-pr10-11-lock-plan.md](message-catalogue-pr10-11-lock-plan.md).
 - Out of scope of catalogue PRs 8 and 9 (2026-11-18), found by review: (1) `read_pitloom_config` on a project `pyproject.toml` (CLI project route, hook) still raises an uncoded `TOMLDecodeError`/`UnicodeDecodeError` with no `FILE=` (same as before; belongs to PR 12, project metadata); an sdist's invalid TOML is also still `config file '...': ...` uncoded (PR 12); (2) an unknown config key is masked only by the CLI/hook log handler, not at source, for a library caller (same as before; `entry` is a shared free-text field); (3) a `[tool:pitloom]` `no-creation-tool` error in setup.cfg names `[tool:pitloom:creation]`, because the INI reader moves the key into the creation table before parsing (wrong at HEAD too); (4) the `config file '...'` wrapper in `load_config_file` still catches an uncoded `ValueError` from `parse_pitloom_config` (stays in the baseline, 1 site).
 - Out of scope of catalogue PRs 8 and 9, second review (2026-11-18): (1) a hook error for a `hatch.toml` names `[tool.hatch.build.hooks.pitloom]` and no file, though that file spells it `[build.hooks.pitloom]` (Hatchling's `ProjectMetadata.hatch` lets a `hatch.toml` replace `tool.hatch` wholesale, so the source is knowable: name `FILE=hatch.toml`); (2) an offset time out of range as UTC says "must be an ISO 8601 date and time" (an "out of range" id would be exact), a date-only `2024-01-01` passes as a date-time, and Python 3.10 refuses fractional seconds of one digit and `+0000` that 3.11 and later accept, so one `pyproject.toml` is `config-invalid` on 3.10 only; (3) `sbom-basename = "con"` (a Windows device name) says "not a path"; (4) on `main` too: `SOURCE_DATE_EPOCH` after 2107 fails `embed-wheel` with an uncoded `ushort format requires ...` (`_embed_wheel.py` `_resolve_zip_timestamp` has the 1980 floor and no 2107 ceiling).
 - Found by mutation testing of PRs 8 and 9 (2026-11-18): `id-registry = ""` in a `--config` file resolves to the config file's directory (`GivenPath(<dir>, "")`), not to unset; whether `""` means unset or is refused is a design call (`core/config_cascade.py`, `apply_overrides` path join).

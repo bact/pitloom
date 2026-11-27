@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-18
-Last-Modified: 2026-11-26
+Last-Modified: 2026-11-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -12,22 +12,22 @@ See also: [message-catalogue-pr8-9-config-plan.md](message-catalogue-pr8-9-confi
 (the shape of this plan; `config-malformed`),
 [message-catalogue-pr8-12-plan.md](message-catalogue-pr8-12-plan.md) (rulings
 1 to 4, the family 12 contract),
-[message-catalogue-migration-plan.md](message-catalogue-migration-plan.md)
+[message-catalogue-migration-plan.md](../design/message-catalogue-migration-plan.md)
 (rows 12 to 18, R1 to R7),
 [message-frames-forward.md](message-frames-forward.md) ("PR 12", "PR 18",
 the dynamic-level rule, "Cross-PR interfaces"),
-[message-catalogue-review-rounds.md](../implementation/message-catalogue-review-rounds.md)
+[message-catalogue-review-rounds.md](message-catalogue-review-rounds.md)
 (the PRs 8 and 9 out-of-scope items),
-[licence-resolution-provenance.md](licence-resolution-provenance.md) (T14
+[licence-resolution-provenance.md](../design/licence-resolution-provenance.md) (T14
 task 4, unblocked by PR 18),
 [message-catalogue-pr12-18-rulings.md](message-catalogue-pr12-18-rulings.md)
 (sections 4 to 7: rulings Q1 to Q11, tests, risks, order of steps; split
 out for size).
 
 Status: PR 18 BUILT and merged (#498, 2026-11-18); PR 12a merged (#499,
-2026-11-19); PR 12 BUILT and reviewed on `catalogue-metadata` (#501, ratchet
+2026-11-19); PR 12 BUILT and merged (#501, ratchet
 211 to 154, row 57 left for PR 17; review findings in
-[message-catalogue-review-rounds.md](../implementation/message-catalogue-review-rounds.md),
+[message-catalogue-review-rounds.md](message-catalogue-review-rounds.md),
 round 3). PR 12 plan refreshed
 2026-11-18 on c4674613 (the tree of `main` 9b1454da, the #498 merge).
 Sites from `message_inventory --jsonl`, `_scope.in_scope` and not `coded`,

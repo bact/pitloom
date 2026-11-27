@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-29
-Last-Modified: 2026-11-26
+Last-Modified: 2026-11-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -20,15 +20,18 @@ Status: decided 2026-10-29 (the four decisions, then decisions A to L of
 the review of #390, then M after it merged, built in #395). Scope was split
 between 0.22.0 and 0.23.0, then re-cut on 2026-11-04 (maintainer ruling):
 0.23.0 held PRs 1b, 1c and 2b only; the frames, PRs 3 to 18, the licence
-provenance mapping and `--report`/SARIF come after 0.24.0 (PRs 3 to 7 target
-0.25.0, the rest is not set; counts and order:
+provenance mapping and `--report`/SARIF come after 0.24.0: the frames and
+PRs 3 to 18 are merged for 0.25.0 (not released); T14 and `--report`/SARIF
+are not scheduled (counts and order:
 [message-catalogue-migration-plan.md](message-catalogue-migration-plan.md)).
 Built: the inventory (step 1; results and the printed form it settled are in
 "Inventory results"); the `lfs-pointer` families with the plumbing, schema and
 ratchet (#390); the `over-cap` family (#396); the model-stub causes (#404, PR
 1a); unreadable files and directories (#408, PR 2a); cards, Croissant files
 and lone surrogates (#444, PR 2b); the model fields and import failures (#446,
-PRs 1b and 1c). Decisions: "The families built".
+PRs 1b and 1c); for 0.25.0, the frames (#481), catalogue PRs 3 to 18, sweeps
+A to C and the consistency rescan (ratchet 0). Decisions: "The families
+built".
 
 ## Core idea
 
@@ -195,11 +198,11 @@ adoption shipped in 0.23.0.
 **0.23.0** (shipped 2026-11-05): the LicenseID adoption (#437 to #440) and
 PRs 2b, 1b and 1c.
 
-**0.24.0** (moved from 0.23.0 by the ruling of 2026-11-04):
-`--report FILE` (JSON Lines, SARIF-compatible field names), the
-SARIF 2.1.0 export, and the licence resolver's result nested in a record
-(LicenseID's `Resolution` as it is, not re-modelled). Deferred so that the
-nested shape is real, not guessed.
+**Not scheduled** (moved from 0.23.0 to 0.24.0 by the ruling of 2026-11-04; not
+built in 0.24.0 or 0.25.0): `--report FILE` (JSON Lines, SARIF-compatible field
+names), the SARIF 2.1.0 export, and the licence resolver's result nested in a
+record (LicenseID's `Resolution` as it is, not re-modelled). Deferred so that
+the nested shape is real, not guessed.
 
 ## Order
 
@@ -211,26 +214,26 @@ nested shape is real, not guessed.
 | 3a | **`lfs-pointer` family first, with the plumbing** (code on the record and on exceptions, formatter and `print_error`, the catalogue module, the drift test), then the #390 review's schema (decisions A to L): **done (#390)** | Opus design, Sonnet | 0.22.0 |
 | 3b | Remaining families in the migration order above, grammar ratchet, generated skills reference | Opus design, Sonnet | 0.22.0 |
 | 4 | Fix outliers family by family, smallest first (licence families after the adoption) | Sonnet | 0.22.0 |
-| 5 | `--report` JSON Lines, SARIF export, resolver detail, scenario checks | decide after step 3 | 0.24.0 |
+| 5 | `--report` JSON Lines, SARIF export, resolver detail, scenario checks | decide after step 3 | not scheduled |
 
 Steps 1 and 2 are independent. Compatibility is not a constraint (alpha).
 
 ## Decisions
 
 Decided 2026-10-29 (the maintainer took the recommendations; SARIF and the
-resolver JSON deferred to 0.23.0, then to 0.24.0):
+resolver JSON deferred to 0.23.0, then to 0.24.0, now not scheduled):
 
 1. **Condition token.** Every catalogued message has a stable code. In 0.22.0
    the printed line carries it only for catalogued messages, as a trailing `
    [code]` (settled by the inventory; see the results) so `LEVEL:` stays first
    and the existing text is unchanged. A message without a token is "not
-   catalogued yet"; the ratchet shrinks that set. `--report` (0.24.0) will give
-   every record a code, `uncatalogued` where there is none. (A code was first
-   to hold dots, as `RemoteSourceError` codes do, `git.too-large`; decision A
-   replaced them with `/`.)
+   catalogued yet"; the ratchet shrinks that set. `--report` (not scheduled)
+   will give every record a code, `uncatalogued` where there is none. (A code
+   was first to hold dots, as `RemoteSourceError` codes do, `git.too-large`;
+   decision A replaced them with `/`.)
 2. **`--report`.** JSON Lines first, SARIF-compatible names (`ruleId`, `level`,
    `message`, a location from `FILE=`); SARIF export and the licence
-   resolver's nested result follow. All 0.24.0 now.
+   resolver's nested result follow. Not scheduled.
 3. **Skill body size.** Target 16 KB and 400 lines; hard limits 20 KB and 500
    lines (the Agent Skills guidance is under 500 lines and about 5,000 tokens,
    roughly 20 KB). Ratchet down from today's 24.5 KB.
