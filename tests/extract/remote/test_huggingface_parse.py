@@ -145,7 +145,7 @@ def test_parse_hf_model_id_invalid(source: str) -> None:
         "legacy-edit",
         "no-such-page",
         "model-named-tree-settings",
-        "bare-page-read-later",
+        "bare-page-two-parts",
         "two-part-tree",
         "two-part-blob",
         "model-named-tree",

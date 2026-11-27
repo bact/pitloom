@@ -401,12 +401,15 @@ URL-rewrite `INFO:` is said by `read_huggingface` alone, before the offline
 check. A page URL `<id>/<page>/<part>` with a page kind (`tree`, `blob`,
 `resolve`, `commit`, `commits`, `discussions`, `edit`, `raw`, `blame`) and
 a part that is none names the one-part id (ruling 7); `org/tree/tree/main`
-stays the model `org/tree`. A URL whose name part is a page kind with
-nothing after it (`gpt2/settings`, a page the Hub has; also `settings` as a
-page kind, measured) is read as the two parts first and, when the Hub knows
-no such model, as the one-part id, with one `INFO:`
-(`target-ambiguous/hf-url`); a typed id is never read again (the first
-review round found the bare page refused). An id-shaped target that is a dangling symbolic
+stays the model `org/tree` (`settings` is a page kind too, measured). A
+page kind with nothing after it is read as the two parts
+(`https://huggingface.co/gpt2/settings` is refused naming
+`gpt2/settings`): nothing tells it from a model of that name. Measured on
+the Hub: bare `gpt2/tree` and `gpt2/commits` are 401 there too (no page),
+`gpt2/settings` is a page that needs a login, `gpt2/discussions` is read
+as before (no refusal). A retry as the one-part id was tried and dropped:
+it named the output file and the rewrite `INFO:` after an id the run then
+did not read. An id-shaped target that is a dangling symbolic
 link is a local path (`os.path.lexists`), so "is no local path" stays true.
 
 The other items: `fetch_git_project()` checks its URL argument
@@ -424,7 +427,7 @@ code; the no-host `git-url-invalid` line beside `url-unsafe/host-spelling`
 at line 49), `docs/git-urls.md:114-125` (the no-host refusal),
 `docs/api.md:25-28` (`fetch_git_project()` now checks its URL).
 
-Follow-ups (next release): `docs/message-codes-targets.md` is 213 bytes
+Follow-ups (next release): `docs/message-codes-targets.md` is 163 bytes
 under its 30,000-byte cap: the next `targets` entry needs a topic split; a
 one-part URL with no page (`https://huggingface.co/gpt2`) is still
 `hf-url-invalid`; the model id kept is the one typed, not the Hub's current

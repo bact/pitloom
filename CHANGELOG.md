@@ -89,7 +89,7 @@ and this project adheres to
 - Credentials in encoded query and fragment values and in a `u:?pw@host`
   password are found ([#491])
 - Git URLs: a NUL in user information, a host no host name spells and a missing
-  host (its own line) are refused before git runs; more `GIT_*` variables are
+  host (said as such) are refused before git runs; more `GIT_*` variables are
   dropped ([#491], [#560], [#561])
 - `verify-wheel`, `validate-wheel` and `embed-wheel`: a pattern nested too
   deeply is `input-not-found`, not a crash; a `[` in a path is taken as typed
