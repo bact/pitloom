@@ -10,9 +10,8 @@
 
 **Pitloom** automates the generation of [SPDX 3]-compliant
 software bills of materials (SBOMs) for Python applications and AI models.
-Use it as a [CLI](docs/cli.md), a [Hatchling build hook](docs/hatchling-build-hook.md),
-a [Python API](docs/python-api.md), a [GitHub Action](docs/github-action.md),
-[Agent Skills](docs/agent-skills.md) or a [Claude Code plugin](docs/claude-code-plugin.md).
+Use it as a [CLI], a [Hatchling build hook], a [Python API], a [GitHub Action],
+[Agent Skills] or a [Claude Code plugin].
 
 It extracts metadata directly from Python projects, whether declared in
 the standard `[project]` table (Flit, Hatchling, PDM, uv_build and others),
@@ -20,7 +19,7 @@ Poetry's `[tool.poetry]`, or setuptools' `setup.cfg` and `setup.py`,
 and from leading AI model formats,
 including PyTorch, ONNX, Safetensors, GGUF, and fastText.
 
-With native Hatchling integration and an official GitHub Action,
+With native Hatchling integration and the official GitHub Action,
 Pitloom embeds SBOMs directly into your wheel distribution under
 `.dist-info/sboms`, following the
 PyPA [Package Installation Metadata][dist-info] specification ([PEP 770]) --
@@ -30,6 +29,12 @@ the build pipeline.
 User manual: <https://bact.github.io/pitloom/>
 
 [SPDX 3]: https://spdx.github.io/spdx-spec/
+[CLI]: https://bact.github.io/pitloom/cli/
+[Hatchling build hook]: https://bact.github.io/pitloom/hatchling-build-hook/
+[Python API]: https://bact.github.io/pitloom/python-api/
+[GitHub Action]: https://bact.github.io/pitloom/github-action/
+[Agent Skills]: https://bact.github.io/pitloom/agent-skills/
+[Claude Code plugin]: https://bact.github.io/pitloom/claude-code-plugin/
 [dist-info]: https://packaging.python.org/en/latest/specifications/recording-installed-packages/#the-dist-info-directory
 [PEP 770]: https://peps.python.org/pep-0770/
 
