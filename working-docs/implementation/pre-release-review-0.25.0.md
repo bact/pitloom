@@ -209,7 +209,7 @@ Order: the review PR; A and B in parallel; E after B; C after A, B and E;
 D last. Then Gate A and Gate B on the release commit and the release
 checklist (policy step 7).
 
-## Fix status: catalogue batch (PR B, branch `review-catalogue-fixes`)
+## Fix status: catalogue batch (#559)
 
 All seven items fixed; each has a regression test that fails on the
 review's base tree. Files outside the written fence, both needed by the
@@ -237,7 +237,11 @@ three lines).
   first review round) the two `credentials-unsafe` library lines, which
   said `credentials=CredentialPolicy(...)` on the embed route.
   `option-no-effect`'s bare names stay (section 8 there).
-  PR C: `docs/ai-model-scan-limits.md:167` says only the keyword form.
+  PR C: `docs/ai-model-scan-limits.md:167`, `docs/python-api.md:160-163`
+  and the by-surface table of `docs/url-credentials.md:254` give only the
+  keyword form (`set trust_model_files=True`,
+  `credentials=CredentialPolicy(...)`); add the `embed_wheel_sbom()` form
+  (`ConfigOverrides.trust_model_files`, `ConfigOverrides.credentials`).
 - **MSG-6**: `set BuildOptions.allow=True`.
 - **LIB-7**: the line's `option` value is picked per surface
   (`ALLOW_SIGNED_NAMES`, as `ALLOW_BUILD_NAMES`): `allow_signed_wheel=True`
@@ -252,6 +256,17 @@ three lines).
   the validator's text escaped (`escape_controls`, one longest-first
   pass) before the text is split: `bad\nERROR: forged.json` stays on its
   line, as the coded `FILE=` line shows it.
+
+Gates of this batch: the full suite, every CI linter, the message checks,
+branch coverage of the changed files, two fresh-context Opus review rounds
+(round 1: the credential lines and three stale tests; round 2: catalogue
+prose only), 26 mutants of the selection logic (all killed after two added
+tests and one redundant check removed), a Windows dry run (no new test
+creates a file name with a line break; disk tests are `platform`) and the
+manual CLI checks (`-j 8`). One manual check, `O1/src/fresh-loom` (the
+loom SDK's dataset key sets), failed once under `-j 8` and passed alone
+on this tree and on the base: load-dependent, in code this batch does not
+touch; a rerun does not prove it gone.
 
 ## Rulings (user, 2026-11-27)
 

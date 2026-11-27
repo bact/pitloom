@@ -342,21 +342,38 @@ def test_a_line_naming_an_overrides_setting_as_a_keyword_has_its_field_twin() ->
     assert not missing, missing
 
 
-def test_a_module_saying_an_overrides_line_asks_for_the_route() -> None:
-    """A line picked by its own branch per surface, not a :class:`Twins`,
-    is said on the overrides route only where its module asks
-    ``on_overrides_route()``."""
+#: Modules that pick a wording by ``current_surface()`` and need no
+#: overrides wording: what each names on the library surface is right for
+#: ``embed_wheel_sbom()`` too.
+_ROUTE_BLIND = {
+    # allow_signed_wheel=True: a keyword embed_wheel_sbom() takes.
+    "messages/_wheels_say.py",
+    # A bare option name in a condition (pretty), which names the keyword and
+    # the ConfigOverrides field alike (a follow-up may qualify it).
+    "core/option_names.py",
+}
+
+
+def test_a_module_picking_a_surface_wording_asks_for_the_route() -> None:
+    """A line picked by its own branch on ``current_surface()``, not a
+    :class:`Twins`, is said on the overrides route only where its module
+    asks ``on_overrides_route()``; a module that needs no such wording is
+    listed with its reason."""
+    found = set()
     unasked = []
     for path in sorted(SRC_ROOT.rglob("*.py")):
-        tree = ast.parse(path.read_bytes())
-        # Read, not defined: a module that says the line, not the entry's.
-        names = {
-            node.id
-            for node in ast.walk(tree)
-            if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load)
+        name = path.relative_to(SRC_ROOT).as_posix()
+        if name == "messages/_surface.py":
+            continue
+        calls = {
+            node.func.id
+            for node in ast.walk(ast.parse(path.read_bytes()))
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
         }
-        if any(name.endswith("_OVERRIDES_LINE") for name in names) and (
-            "on_overrides_route" not in names
-        ):
-            unasked.append(str(path.relative_to(SRC_ROOT)))
+        if "current_surface" not in calls:
+            continue
+        found.add(name)
+        if "on_overrides_route" not in calls and name not in _ROUTE_BLIND:
+            unasked.append(name)
     assert not unasked, unasked
+    assert _ROUTE_BLIND <= found, "a stale entry"
