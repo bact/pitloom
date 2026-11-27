@@ -160,6 +160,31 @@ def test_a_run_given_an_empty_output_is_refused_at_the_call(
     assert not list(project.glob("*.json"))
 
 
+@pytest.mark.platform
+@pytest.mark.parametrize("given", ["", "  ", "\t"], ids=["empty", "spaces", "tab"])
+@pytest.mark.parametrize(
+    "call",
+    ["add_dataset", "add_validation_dataset", "add_input_dataset", "set_model"],
+)
+def test_a_blank_name_is_refused_at_the_call(
+    project: Path, call: str, given: str, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A dataset's ``""`` would be hashed as the current directory (which
+    holds ``a.txt`` here), and a blank name names nothing: refused, nothing
+    hashed, no fragment."""
+    out = project / "out.json"
+    with pytest.raises(ValueError) as raised:
+        with loom.run(out):
+            getattr(loom, call)(given)
+    assert not isinstance(raised.value, TypeError)
+    assert code_of(raised.value) == "option-invalid"
+    assert str(raised.value) == (
+        f"loom SDK: name: must be a non-empty string, got a string {given!r}"
+    )
+    assert not out.exists()
+    assert "Merkle" not in caplog.text
+
+
 @pytest.mark.usefixtures("project")
 def test_a_run_given_an_empty_registry_is_refused_at_the_call() -> None:
     """``option-invalid``, as an empty ``--id-registry`` is, not a registry

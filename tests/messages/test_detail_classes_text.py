@@ -332,6 +332,7 @@ _ARGPARSE_CASES = [
         "--sbom-basename",
         "",
     ),
+    _option("_non_blank", _PARSER, "project", "--creator-name", " "),
     *(
         _option(
             f"{action}.__call__",

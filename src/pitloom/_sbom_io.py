@@ -24,12 +24,14 @@ import stat
 import sys
 from collections.abc import Iterator
 from pathlib import Path
-from typing import TextIO
+from typing import TextIO, cast
 
 from pitloom.core.current_dir import absolute_path
+from pitloom.core.given_path import given_spelling
 from pitloom.messages import code_of
 from pitloom.messages.config import Parameter, invalid_value, require_path_argument
 from pitloom.messages.files import SBOM_USE, file_unwritable_error
+from pitloom.messages.targets import is_empty_input
 
 #: The ``-o`` value that means "write to standard output".
 STDOUT = "-"
@@ -140,9 +142,34 @@ def refuse_empty_output(output_path: Path | str | None) -> None:
         pitloom.messages.CodedValueError: *output_path* is ``""``.
     """
     if output_path is not None:
-        require_path_argument(output_path, "output_path")
-    if isinstance(output_path, str) and not output_path:
-        raise invalid_value(Parameter("output_path"), "non-empty", got="")
+        refuse_empty_path(output_path, "output_path")
+
+
+def is_named_path(value: object) -> bool:
+    """Whether *value* is a path (a ``str`` or an :class:`os.PathLike`) not
+    spelt as nothing (``""``), which :class:`pathlib.Path` would read as
+    the current directory: the test :func:`refuse_empty_path` refuses by."""
+    return isinstance(value, (str, os.PathLike)) and not is_empty_input(value)
+
+
+def refuse_empty_path(value: object, name: str) -> None:
+    """Refuse *value*, given to the library parameter *name* that takes a
+    path Pitloom writes or looks in (``output_path``, ``project_dir``,
+    ``sbom_path``), when it is not a path or is spelt as nothing (``""``),
+    which :class:`pathlib.Path` would read as the current directory: the
+    library twin of the CLI's ``-o ''`` or ``--project-dir ''``.
+
+    Raises:
+        pitloom.messages.CodedTypeError: *value* is not a ``str`` or an
+            :class:`os.PathLike` (``option-invalid``).
+        pitloom.messages.CodedValueError: *value* is spelt ``""``
+            (``option-invalid``, ``non-empty``).
+    """
+    require_path_argument(value, name)
+    if not is_named_path(value):
+        # A str or a typed spelling is named as text, another PathLike by type.
+        path = cast("str | os.PathLike[str]", value)
+        raise invalid_value(Parameter(name), "non-empty", got=given_spelling(path))
 
 
 def write_sbom_output(sbom_json: str, output_path: Path | str | None) -> None:

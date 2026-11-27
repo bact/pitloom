@@ -21,13 +21,16 @@ import logging
 import os
 from collections.abc import Sequence
 from pathlib import Path
+from typing import cast
 from uuid import uuid4
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
+from pitloom._sbom_io import refuse_empty_path
 from pitloom.core.bool_arguments import checked_bools
 from pitloom.core.current_dir import absolute_path
-from pitloom.core.given_path import keep_spelling
+from pitloom.core.given_path import TypedPath
+from pitloom.core.internal_error import InternalError
 from pitloom.core.iri import doc_namespace, iri_segment, namespace_problem
 from pitloom.core.walk_rules import same_path
 from pitloom.id_registry._ambiguous import RecordedHashes, RecordedKeys
@@ -66,9 +69,11 @@ from pitloom.id_registry._types import (
     type_id_prefix,
 )
 from pitloom.id_registry.import_keys import import_keys, report_imported
+from pitloom.logging_config import configure_logging
 from pitloom.messages import CodedValueError, emit
 from pitloom.messages.config import (
     Parameter,
+    invalid_type,
     invalid_value,
     require_path_argument,
 )
@@ -91,13 +96,47 @@ from pitloom.messages.options import (
 from pitloom.messages.targets import (
     SBOM_INVALID,
     SBOM_NAMESPACE_LINE,
-    is_empty_input,
+    refuse_empty_input,
 )
 from pitloom.messages.text import registry_name_error
 
 log = logging.getLogger("pitloom.id_registry")
 
 __all__ = ["IdRegistry"]
+
+
+def _input_path(value: object) -> Path:
+    """*value*, a path :meth:`IdRegistry.generate` indexes, as
+    :func:`_path_argument` gives it; an empty one is a path where nothing
+    is (``input-not-found``, as ``loom id generate ''`` says), not an
+    option's error.
+
+    Raises:
+        pitloom.messages.CodedTypeError: *value* is not a path
+            (``option-invalid``).
+        pitloom.messages.CodedFileNotFoundError: *value* is spelt ``""``.
+    """
+    require_path_argument(value, "paths")
+    refuse_empty_input(cast("str | os.PathLike[str]", value), "PATH")
+    return _path_argument(value, "paths")
+
+
+def _path_argument(value: object, name: str) -> Path:
+    """*value*, given to the parameter *name* that takes a path, as a
+    :class:`~pathlib.Path` keeping its spelling (a ``str`` as a
+    :class:`~pitloom.core.given_path.TypedPath`).
+
+    Raises:
+        pitloom.messages.CodedTypeError: *value* is not a path
+            (``option-invalid``).
+        pitloom.messages.CodedValueError: *value* is spelt ``""``, which
+            :class:`pathlib.Path` would read as the current directory
+            (``option-invalid``, ``non-empty``).
+    """
+    refuse_empty_path(value, name)
+    if isinstance(value, Path):
+        return value
+    return TypedPath(cast("str | os.PathLike[str]", value))
 
 
 class IdRegistry:
@@ -129,12 +168,17 @@ class IdRegistry:
         self,
         namespace: str,
         elements: dict[tuple[str, str], RegistryEntry] | None = None,
-        path: Path | None = None,
-        project_root: Path | None = None,
+        path: str | os.PathLike[str] | None = None,
+        project_root: str | os.PathLike[str] | None = None,
         *,
         id_counters: Counters | None = None,
         refuse_credentials: bool = False,
     ) -> None:
+        configure_logging()  # a library entry: every method logs through it
+        #: The registry file, a ``str`` held as a path keeping its spelling.
+        self.path: Path | None = None if path is None else _path_argument(path, "path")
+        if project_root is not None:
+            project_root = _path_argument(project_root, "project_root")
         self.namespace = require_registry_namespace(namespace)
         #: The ``refuse`` mode for a key or file entry holding a credential.
         self.refuse_credentials = refuse_credentials
@@ -145,7 +189,6 @@ class IdRegistry:
         #: Id prefix -> the highest number minted or seen in
         #: :attr:`namespace`; never lowered, and never below a held id's.
         self.id_counters: Counters = dict(id_counters or {})
-        self.path = path
         #: Absolute and realpath'd; ``None`` until set or saved.
         self.project_root: Path | None = (
             Path(os.path.realpath(project_root)) if project_root is not None else None
@@ -162,10 +205,10 @@ class IdRegistry:
     def new(
         cls,
         project_name: str,
-        path: Path | None = None,
+        path: str | os.PathLike[str] | None = None,
         *,
         namespace: str | None = None,
-        project_root: Path | None = None,
+        project_root: str | os.PathLike[str] | None = None,
         refuse_credentials: bool = False,
     ) -> IdRegistry:
         """Create a fresh, empty registry (*refuse_credentials*: see
@@ -180,9 +223,6 @@ class IdRegistry:
         A name-derived UUID would give two unrelated projects of one name the
         same ids.
         """
-        for name, value in (("path", path), ("project_root", project_root)):
-            if value is not None:
-                require_path_argument(value, name)
         if namespace is None:
             namespace = doc_namespace(project_name, str(uuid4()))
         return cls(
@@ -225,10 +265,8 @@ class IdRegistry:
                 directory (``option-invalid``, ``non-empty``), as an empty
                 ``--id-registry`` is.
         """
-        require_path_argument(path, "path")
-        if is_empty_input(path):
-            raise invalid_value(Parameter("path"), "non-empty", got="")
-        path = keep_spelling(Path(path), path)
+        configure_logging()
+        path = _path_argument(path, "path")
         contents = read_registry_file(path)
         check_entries_credentials(contents.elements, path, refuse=refuse_credentials)
         registry = cls(
@@ -429,8 +467,8 @@ class IdRegistry:
         *prefix* is raw: the library's :meth:`register` takes any compact
         type, so it passes through :func:`iri_segment` too.
         """
-        if not prefix:
-            raise ValueError("ID registry: no id prefix for an empty type name")
+        if not prefix:  # register() refuses an empty type name
+            raise InternalError("ID registry: no id prefix for an empty type name")
         prefix = iri_segment(prefix)
         self._reserve_held()
         held = {entry.spdx_id for entry in self.elements.values()}
@@ -464,8 +502,22 @@ class IdRegistry:
                 (the file could never be saved), or *name* is a URL holding
                 credentials in the ``refuse`` mode
                 (``credentials-unsafe/registry``; the ``warn`` mode stores
-                it with a ``WARNING:``).
+                it with a ``WARNING:``); *type_name* is empty or blank, or
+                *name* empty (``option-invalid``,
+                :class:`~pitloom.messages.CodedValueError`).
+            pitloom.messages.CodedTypeError: *type_name* or *name* is not a
+                ``str``, or *sha256* neither ``None`` nor one
+                (``option-invalid``).
         """
+        for label, value in (("type_name", type_name), ("name", name)):
+            if not isinstance(value, str):
+                raise invalid_type(Parameter(label), "string", value)
+        if sha256 is not None and not isinstance(sha256, str):
+            raise invalid_type(Parameter("sha256"), "sha-256", sha256)
+        if not type_name.strip():
+            raise invalid_value(Parameter("type_name"), "non-empty", got=type_name)
+        if not name:  # no element is named ""; a blank file name can be one
+            raise invalid_value(Parameter("name"), "non-empty", got=name)
         for label, text in (("type name", type_name), ("name", name)):
             if not is_utf8_text(text):
                 raise registry_name_error(label, text)
@@ -531,8 +583,24 @@ class IdRegistry:
         (``option-invalid``). With *explicit* false (default roots the caller
         chose, not the user), a missing path is left out silently, and one
         that cannot be read or listed with a ``WARNING:``.
+
+        Raises:
+            pitloom.messages.CodedTypeError: *paths* is not a list or tuple,
+                or it, *project_root* or *exclude* holds something that is
+                not a path (``option-invalid``), before anything is read.
+            pitloom.messages.CodedValueError: one of them is spelt ``""``,
+                which :class:`pathlib.Path` would read as the current
+                directory (``option-invalid``, ``non-empty``).
         """
-        index_files(self, paths, project_root, exclude, explicit=explicit)
+        if not isinstance(paths, (list, tuple)):
+            raise invalid_type(Parameter("paths"), "list-of-strings", paths)
+        index_files(
+            self,
+            [_input_path(path) for path in paths],
+            _path_argument(project_root, "project_root"),
+            None if exclude is None else _path_argument(exclude, "exclude"),
+            explicit=explicit,
+        )
 
     def import_sbom(self, sbom_path: Path) -> frozenset[tuple[str, str]]:
         """Harvest ids from an existing SPDX 3 JSON-LD SBOM into this registry.
@@ -548,7 +616,17 @@ class IdRegistry:
         whose ``INFO:`` lines are logged for the elements written), any
         other element under its name; none moves an id another key of its
         type holds.
+
+        Raises:
+            pitloom.messages.CodedTypeError: *sbom_path* is not a path
+                (``option-invalid``).
+            pitloom.messages.CodedFileNotFoundError: *sbom_path* is empty,
+                not there or not a regular file (``input-not-found``).
+            pitloom.messages.CodedValueError: the SBOM is refused (see
+                :func:`~pitloom.id_registry._sbom_read.read_sbom_objects`).
         """
+        require_path_argument(sbom_path, "sbom_path")
+        refuse_empty_input(sbom_path, "SBOM file")
         sorted_objects = read_sbom_objects(sbom_path)
         self._reserve_held()
         if not self.elements:
@@ -607,7 +685,7 @@ class IdRegistry:
         changed = self.elements != before or self.id_counters != counters
         return added_ids(before, self.elements), changed
 
-    def save(self, path: Path | None = None) -> None:
+    def save(self, path: str | os.PathLike[str] | None = None) -> None:
         """Write this registry as JSON to *path* (default: :attr:`path`).
 
         With no :attr:`project_root` yet, the registry file's directory
@@ -621,14 +699,15 @@ class IdRegistry:
                 ``non-empty``), which :class:`pathlib.Path` would read as
                 the current directory; or it is relative and the current
                 directory is gone (``file-unreadable``, ``DIR=.``).
+            pitloom.messages.CodedTypeError: *path* is not a path
+                (``option-invalid``).
+            pitloom.messages.CodedOSError: the system refused the write
+                (``file-unwritable``, naming *path* as given).
         """
-        if path is not None:
-            require_path_argument(path, "path")
-        target = self.path if path is None else path
-        if target is None:
+        given = self.path if path is None else path
+        if given is None:
             raise CodedValueError(REGISTRY_FILE_MISSING, line=SAVE_PATH_MISSING_LINE)
-        if is_empty_input(target):
-            raise invalid_value(Parameter("path"), "non-empty", got="")
+        target = _path_argument(given, "path")
         where = absolute_path(target)  # a gone cwd is DIR=., not a failed write
         root = (
             self.project_root if self.project_root is not None else registry_dir(where)

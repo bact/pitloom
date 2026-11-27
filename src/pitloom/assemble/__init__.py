@@ -25,7 +25,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from pitloom._sbom_io import refuse_empty_output
+from pitloom._sbom_io import refuse_empty_output, refuse_empty_path
 from pitloom.assemble._generators import generate_project_sbom
 from pitloom.assemble._generators_env import generate_env_sbom
 from pitloom.assemble._generators_git import (
@@ -328,6 +328,9 @@ def generate(
         pitloom.messages.CodedTypeError: An argument is of the wrong type
             (a path that is no ``str`` or ``os.PathLike``, a ``bool``
             that is not one): ``option-invalid``, before anything is read.
+        pitloom.messages.CodedValueError: *project_dir* is given as ``""``
+            (``option-invalid``), refused before anything is read: never
+            read as the current directory.
         pitloom.messages.CodedFileNotFoundError: *target* is given as empty
             or blank, which :class:`pathlib.Path` or the stripping of a URL
             would read as the current directory, or is a local path where
@@ -342,7 +345,7 @@ def generate(
     # Here, not in a delegate: Path(target) has lost the empty spelling.
     require_path_argument(target, "target")
     if project_dir is not None:
-        require_path_argument(project_dir, "project_dir")
+        refuse_empty_path(project_dir, "project_dir")
     refuse_empty_input(target, "target")
     if max_model_extract_bytes is not None:
         require_model_extract_override(max_model_extract_bytes)  # even if inert

@@ -260,7 +260,9 @@ class _ActiveRun:
         croissant: str | os.PathLike[str] | None = None,
         declared_license: str | None = None,
     ) -> None:
-        """Add a dataset used for training in the current run."""
+        """Add a dataset the run's model uses: trained on, or tested on in
+        a run that only uses the model (see
+        :meth:`_emit_model_dataset_relationships`)."""
         _append_once(
             self.datasets,
             self._build_dataset_package(
@@ -362,15 +364,25 @@ class _ActiveRun:
             self.exporter.add_relationship(rel)
 
     def _emit_model_dataset_relationships(self) -> None:
-        """Emit trainedOn and testedOn relationships for models and datasets."""
+        """Relate the run's model to its datasets: ``trainedOn`` each one
+        :meth:`add_dataset` added, ``testedOn`` each validation dataset. A
+        run that only uses the model (``use_model()``, ``generated=False``)
+        did not train it: every dataset it added is ``testedOn``, once."""
         if not self.model:
             return
+        used_only = self._model_generated is False
+        trained = [] if used_only else self.datasets
+        tested = (
+            [*self.datasets, *self.validation_datasets]
+            if used_only
+            else self.validation_datasets
+        )
         for datasets, rel_type in (
-            (self.datasets, spdx3.RelationshipType.trainedOn),
-            (self.validation_datasets, spdx3.RelationshipType.testedOn),
+            (trained, spdx3.RelationshipType.trainedOn),
+            (tested, spdx3.RelationshipType.testedOn),
         ):
-            for dataset in datasets:
-                self._relate(self.model.spdxId, [require_spdx_id(dataset)], rel_type)
+            for dataset_id in dict.fromkeys(require_spdx_id(d) for d in datasets):
+                self._relate(self.model.spdxId, [dataset_id], rel_type)
 
     def _resolve_input_ids_for_output(
         self,

@@ -23,6 +23,7 @@ from typing import Final, NamedTuple
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
+from pitloom._sbom_io import is_named_path
 from pitloom.core.config import PitloomConfig
 from pitloom.core.config_cascade import load_config_file
 from pitloom.core.creation import CreationMetadata
@@ -90,25 +91,25 @@ def _is_str(value: object) -> bool:
     return isinstance(value, str)
 
 
-def _is_named(value: object) -> bool:
-    """A path (:func:`_is_path`) not spelt as nothing (``""``), which
-    :class:`pathlib.Path` would read as the current directory."""
-    return isinstance(value, (str, os.PathLike)) and os.fspath(value) != ""
+def _is_non_blank(value: object) -> bool:
+    """A ``str`` with more than white space: a dataset's ``""`` would be
+    read as the current directory, and a blank name names nothing."""
+    return isinstance(value, str) and bool(value.strip())
 
 
 #: Each SDK parameter by name.
 _RULES: Final[Mapping[str, _Rule]] = {
-    "output_file": _Rule("path", _is_path, _is_named, "non-empty"),
+    "output_file": _Rule("path", _is_path, is_named_path, "non-empty"),
     "pretty": _Rule("python-bool", _of(bool)),
     "creation_metadata": _Rule("creation-metadata", _of(CreationMetadata)),
     "id_registry": _Rule(
         "registry-source",
         lambda v: _is_path(v) or isinstance(v, IdRegistry),
-        lambda v: isinstance(v, IdRegistry) or _is_named(v),
+        lambda v: isinstance(v, IdRegistry) or is_named_path(v),
         "non-empty",
     ),
     "credentials": _Rule("credential-policy", _of(CredentialPolicy)),
-    "name": _Rule("string", _is_str),
+    "name": _Rule("string", _is_str, _is_non_blank, "non-empty"),
     "model_type": _Rule("string", _is_str),
     "hyperparameters": _Rule("mapping-of-strings", _is_string_mapping),
     "generated": _Rule("python-bool", _of(bool)),

@@ -17,6 +17,7 @@ import itertools
 import os
 from pathlib import Path, PurePath
 
+from pitloom._sbom_io import refuse_empty_path
 from pitloom.core.bool_arguments import checked_bools
 from pitloom.core.current_dir import absolute_path, current_dir
 from pitloom.core.given_path import GivenPath, TypedPath, given_spelling
@@ -24,7 +25,7 @@ from pitloom.core.path_confine import is_inside
 from pitloom.core.walk_rules import PROJECT_FILES, RegistryCopy
 from pitloom.id_registry._registry import IdRegistry
 from pitloom.id_registry.keys import path_key
-from pitloom.messages.config import Parameter, invalid_value, require_path_argument
+from pitloom.logging_config import configure_logging
 from pitloom.messages.targets import input_not_found, is_input_file
 
 __all__ = [
@@ -147,10 +148,9 @@ def resolve_registry(
     again here and raises ``credentials-unsafe/registry`` for that entry;
     a registry passed in the ``refuse`` mode stays so in a ``warn`` run.
     """
+    configure_logging()
     if id_registry is not None and not isinstance(id_registry, IdRegistry):
-        require_path_argument(id_registry, "id_registry")
-    if isinstance(id_registry, (str, os.PathLike)) and os.fspath(id_registry) == "":
-        raise invalid_value(Parameter("id_registry"), "non-empty", got=id_registry)
+        refuse_empty_path(id_registry, "id_registry")
     source = id_registry if id_registry is not None else configured
     if source is None:
         return None

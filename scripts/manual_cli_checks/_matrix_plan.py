@@ -321,7 +321,8 @@ PLAN: dict[str | tuple[str, str], str | list[Variant]] = {
         ),
     ],
     "--creator-name": [
-        _v("name", "contains:Jane Matrix", "--creator-name", "Jane Matrix")
+        _v("name", "contains:Jane Matrix", "--creator-name", "Jane Matrix"),
+        _v("blank", "exit:2", "--creator-name", " "),
     ],
     "--creator-type": [
         _v(
@@ -342,10 +343,12 @@ PLAN: dict[str | tuple[str, str], str | list[Variant]] = {
             "Jane Matrix",
             "--creator-email",
             "jane@example.org",
-        )
+        ),
+        _v("empty", "exit:2", "--creator-name", "Jane Matrix", "--creator-email", ""),
     ],
     "--creation-tool": [
-        _v("name", "contains:MatrixTool", "--creation-tool", "MatrixTool")
+        _v("name", "contains:MatrixTool", "--creation-tool", "MatrixTool"),
+        _v("empty", "exit:2", "--creation-tool", ""),
     ],
     "--no-creation-tool": [_v("--no-creation-tool", "changes", "--no-creation-tool")],
     "--creation-comment": [

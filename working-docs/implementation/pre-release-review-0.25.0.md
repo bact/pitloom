@@ -226,6 +226,56 @@ by the review's definition; SKL-2 is the tracked cut sweep.
    not found too: a 0.25.0 fix (PR E).
 5. **TRY-7, TRY-8**: next release.
 
+## PR A, argument checks: what was done
+
+Branch `review-argument-fixes`. Every PR A item is fixed; the rulings below
+had an Opus second opinion, whose amendments were taken unless noted.
+
+- LIB-1, LIB-4: one helper, `pitloom._sbom_io.refuse_empty_path()` (type,
+  then `""`), at the start of `generate()`, `generate_project_sbom()`,
+  `generate_wheel_sbom()` (before a PyPI download),
+  `generate_wheel_sbom_with_metadata()`, `embed_wheel_sbom()`,
+  `resolve_registry()`, `refuse_empty_output()` and `IdRegistry`;
+  `_loom_args` shares its predicate (`is_named_path`). It lives in
+  `_sbom_io` (the fence); `pitloom.core` would fit better (follow-up).
+- LIB-2: the loom `name` rule refuses empty or blank on every call taking it
+  (`set_model`/`use_model` too: no model is named blank).
+- LIB-5, REG-3: `IdRegistry(path=, project_root=)`, `new()`, `save()`,
+  `generate()` (paths, root, exclude), `import_sbom()` and `register()`
+  (types; empty or blank type name; empty name) refuse with
+  `option-invalid`; a `str` path is held as a `TypedPath`; `save()` over a
+  directory is `file-unwritable` naming the path given (`coded_write` in
+  `write_registry_file`); `_mint_id`'s empty prefix is an `InternalError`.
+- LIB-8: `configure_logging()` in `IdRegistry.__init__`/`load()` (every
+  method runs on such an object), `resolve_registry()`,
+  `find_embedded_sbom()` (which now refuses an empty `wheel_path`,
+  `input-not-found`) and `fetch_git_project()`.
+- LIB-10: a Git URL with no host is refused before git runs, with the
+  existing `url-unsafe/host-spelling` line (its text does not name a
+  missing host: a catalogue follow-up for PR B).
+- CLI-1, CLI-2, CLI-9 (`''`): `type=` in `cli/parser.py` refuses an empty
+  or blank `--creator-name`, `--creator-email`, `--creation-tool` at parse:
+  `argument --x: must be a non-empty string`, `option-invalid`, exit 2.
+- TRY-2 (ruled): `_emit_model_dataset_relationships()` relates every
+  `add_dataset()` dataset `testedOn` when the run's model was declared with
+  `generated=False` (`use_model()`), once even when also a validation
+  dataset; `None` (not given) stays training, as `generates` reads it.
+- LIB-9: the CHANGELOG bullet now names what is checked.
+
+Left for later (next-release list): `IdRegistry` methods not on the
+findings list (`lookup`, `get`, `has_name`, `reserve_id`,
+`promote_alias`, `require_project_root`) still raise uncoded errors for a
+wrong type; `set_model(path="")` warns `model-file-missing` at exit rather
+than refusing; `generate_pypi_sbom(project_dir="")` only warns
+(`_generators_pypi.py`, PR B's fence); a `list-of-paths` EXPECTED id;
+`id_registry/_registry.py` is 690 lines (over the soft limit); a blank
+`email` in `[[tool.pitloom.creator]]` or `Creator(email="")` is still dropped
+silently (the CLI flag now refuses it); `extract.remote.pypi.fetch_pypi_file`
+(public) never calls `configure_logging()`. For PR C: `docs/api.md:16` says
+"choice arguments" are checked (true once LIB-6 lands); the no-host Git URL
+refusal and the blank creator/tool refusal are not on the Git URL and CLI
+flag pages.
+
 ## Handoff prompt for spdx3-validate (TRY-1)
 
 For a session in the spdx3-validate repository (`bact/spdx3-validate`); the

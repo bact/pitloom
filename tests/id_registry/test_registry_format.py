@@ -342,3 +342,50 @@ def test_require_project_root_rejects_another_root(tmp_path: Path) -> None:
     ) as caught:
         registry.require_project_root(tmp_path / "build")
     assert code_of(caught.value) == "option-conflict"
+
+
+@pytest.mark.platform
+@pytest.mark.parametrize("given", ["x.json", "sub/x.json"], ids=["name", "nested"])
+def test_a_registry_made_with_a_str_path_saves(
+    given: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``new(name, "x.json").save()`` writes the file (the ``str`` held as
+    a path, spelt as given), not an ``AttributeError`` at the write."""
+    monkeypatch.chdir(tmp_path)
+    registry = IdRegistry.new("p", given)
+    assert isinstance(registry.path, Path)
+    assert str(registry.path) == str(Path(given))
+    registry.save()
+    assert json.loads((tmp_path / given).read_bytes())["version"] == 4
+
+
+@pytest.mark.platform
+def test_a_save_over_a_directory_is_file_unwritable(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The write the system refuses is coded and names the path given,
+    never the temporary file beside it; the directory is left as it was."""
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "taken").mkdir()
+    registry = IdRegistry.new("p")
+    with pytest.raises(OSError) as raised:
+        registry.save(Path("taken"))
+    assert code_of(raised.value) == "file-unwritable"
+    assert str(raised.value).startswith(
+        "FILE=taken: could not write for the ID registry; "
+    )
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["taken"]
+    assert not list((tmp_path / "taken").iterdir())
+
+
+@pytest.mark.platform
+def test_load_names_a_str_path_as_typed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``load("./gone.json")`` says ``'./gone.json'``, as the constructor
+    keeps a ``str`` spelling, not the path ``Path`` makes of it."""
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(FileNotFoundError) as raised:
+        IdRegistry.load("./gone.json")
+    assert code_of(raised.value) == "input-not-found"
+    assert str(raised.value) == "ID registry file not found: './gone.json'"

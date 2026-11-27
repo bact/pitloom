@@ -48,17 +48,16 @@ def scalar_text(value):
 def other(value):
     raise TypeError(f"not a scalar: {type(value).__name__}")  # in: other
 """
-#: ``IdRegistry._mint_id``: its library raise, and a new uncoded one.
+#: ``_require_names``: its library raise, and a new uncoded one.
 REGISTRY_SOURCE = """\
-class IdRegistry:
-    def _mint_id(self, prefix):
-        raise ValueError("ID registry: no id prefix for an empty type name")  # out: reg
-        raise ValueError("ID registry: id number past the ceiling")  # in: reg-new
+def _require_names(names):
+    raise TypeError("names must be a sequence of names, not one str")  # out: reg
+    raise TypeError("names must be a list")  # in: reg-new
 """
 _FILES = {
     "caller.py": SOURCE,
     "core/scalar_text.py": SITE_SOURCE,
-    "id_registry/_registry.py": REGISTRY_SOURCE,
+    "id_registry/_types.py": REGISTRY_SOURCE,
 }
 
 _MARK = re.compile(r"# (in|out): (\S+)$")
@@ -111,11 +110,9 @@ def test_only_the_helper_or_a_named_site_is_library_misuse(
 #: of each is checked against the tree by tests/test_message_ratchet.py): a
 #: new helper name or a new raise is a decision, so it changes this test too.
 _LIBRARY_EXC = frozenset({"_no_active_run"})
-_REGISTRY = "src/pitloom/id_registry/_registry.py"
 _LIBRARY_SITES = frozenset(
     {
         ("src/pitloom/core/scalar_text.py", "scalar_text", "TypeError"),
-        (_REGISTRY, "IdRegistry._mint_id", "ValueError"),
         ("src/pitloom/id_registry/_types.py", "_require_names", "TypeError"),
     }
 )

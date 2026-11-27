@@ -11,7 +11,8 @@ branch named with an encoded ``/`` (Bitbucket's ``feature%2Fx``) is still
 read, as is a name that starts with ``.git`` (``.github``). A host that is
 not plain ASCII, or is percent-encoded, is refused before any git process
 starts (curl would map it to another host), and before ``offline``; so is
-one no host name spells (``=``, ``!``, white space, a leading ``-``).
+one no host name spells (``=``, ``!``, white space, a leading ``-``), and a
+URL with no host at all.
 
 See also: :mod:`tests.extract.remote.test_git_url` (the page forms) and
 :mod:`tests.extract.remote.test_git_target_named` and
@@ -257,6 +258,23 @@ def test_a_host_no_host_name_spells_is_refused_masked(url: str, shown: str) -> N
     assert raised_as(error, URL_HOST_SPELLING)
     assert str(error) == GIT_HOST_SPELLING_LINE.render({"url": shown})
     assert "S3CRET" not in str(error)
+
+
+@pytest.mark.parametrize("offline", [False, True], ids=["online", "offline"])
+@pytest.mark.parametrize(
+    "url",
+    ["https://", "https:///o/r", "https://:443/o/r", "http://?x=1"],
+    ids=["bare", "empty-host", "port-only", "query-only"],
+)
+@pytest.mark.usefixtures("no_git")
+def test_a_url_with_no_host_is_refused_unfetched(url: str, offline: bool) -> None:
+    """No host names none git could be given (it would resolve one the URL
+    does not spell): refused before any git process, and before
+    ``offline``."""
+    error = _refusal(url, offline)
+    assert error.code == "git.url-invalid"
+    assert raised_as(error, URL_HOST_SPELLING)
+    assert str(error) == GIT_HOST_SPELLING_LINE.render({"url": url})
 
 
 @pytest.mark.parametrize(

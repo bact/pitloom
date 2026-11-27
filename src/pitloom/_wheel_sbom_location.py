@@ -31,7 +31,14 @@ from pitloom.core.wheel_dist_info import (
     resolve_own_dist_info,
     wheel_members,
 )
-from pitloom.messages.config import Parameter, invalid_type, invalid_value
+from pitloom.logging_config import configure_logging
+from pitloom.messages.config import (
+    Parameter,
+    invalid_type,
+    invalid_value,
+    require_path_argument,
+)
+from pitloom.messages.targets import refuse_empty_input
 from pitloom.messages.wheel_sboms import wheel_sbom_ambiguous
 from pitloom.messages.wheels import DIST_INFO_NONE, refuse_dist_info, warn_dist_info
 
@@ -181,6 +188,9 @@ def find_embedded_sbom(
             (see :func:`pitloom.core.wheel_dist_info.open_wheel_zip`), so a
             caller can distinguish "this wheel is bad" from "try again."
     """
+    configure_logging()
+    require_path_argument(wheel_path, "wheel_path")
+    refuse_empty_input(wheel_path, "wheel file")
     if sbom_filename is not None and not isinstance(sbom_filename, str):
         raise invalid_type(Parameter("sbom_filename"), "file-name", sbom_filename)
     if sbom_filename == "":

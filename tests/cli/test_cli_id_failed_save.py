@@ -144,12 +144,15 @@ def test_a_failed_registry_write_is_one_failed_save_line_on_every_surface(
     with patch(
         "pitloom.id_registry._format.replace_text_lf",
         autospec=True,
-        side_effect=OSError("disk full"),
+        # As the system raises it: with an errno, which the line reports.
+        side_effect=OSError(errno.ENOSPC, os.strerror(errno.ENOSPC)),
     ):
         rc = __main__.main()
 
     assert rc == code
-    _assert_one_failed_save(capsys.readouterr().err, surface, level, "disk full")
+    _assert_one_failed_save(
+        capsys.readouterr().err, surface, level, os.strerror(errno.ENOSPC)
+    )
     assert registry.read_bytes() == before
 
 

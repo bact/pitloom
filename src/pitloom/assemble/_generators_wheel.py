@@ -22,7 +22,11 @@ from pathlib import Path
 
 from spdx_python_model.bindings import v3_0_1 as spdx3_bindings
 
-from pitloom._sbom_io import refuse_empty_output, write_sbom_output
+from pitloom._sbom_io import (
+    refuse_empty_output,
+    refuse_empty_path,
+    write_sbom_output,
+)
 from pitloom.assemble._generators_pypi import generate_pypi_sbom
 from pitloom.assemble._generators_shared import _sync_registry, archive_project_dir
 from pitloom.assemble.spdx3.document import build
@@ -134,6 +138,9 @@ def generate_wheel_sbom(
         pitloom.messages.CodedTypeError: An argument is of the wrong type
             (a path that is no ``str`` or ``os.PathLike``, a ``bool``
             that is not one): ``option-invalid``, before anything is read.
+        pitloom.messages.CodedValueError: *project_dir* is given as ``""``
+            (``option-invalid``), refused before anything is read: never
+            read as the current directory.
         ValueError: The wheel is refused as a whole
             (:class:`~pitloom.core.wheel_dist_info.WheelRefused`): not a ZIP
             archive, a member cannot be read, two members have one name or
@@ -154,6 +161,9 @@ def generate_wheel_sbom(
             (``file-unwritable``): the ``-o`` copy at *output_path* (as
             given).
     """
+    if project_dir is not None:
+        # Before a PyPI URL's download, not after it.
+        refuse_empty_path(project_dir, "project_dir")
     if isinstance(wheel_path, str) and is_pypi_url(wheel_path):
         return generate_pypi_sbom(
             wheel_path,
@@ -244,6 +254,9 @@ def generate_wheel_sbom_with_metadata(
         pitloom.messages.CodedTypeError: An argument is of the wrong type
             (a path that is no ``str`` or ``os.PathLike``, a ``bool``
             that is not one): ``option-invalid``, before anything is read.
+        pitloom.messages.CodedValueError: *project_dir* is given as ``""``
+            (``option-invalid``), refused before anything is read: never
+            read as the current directory.
         ValueError: The wheel is refused as a whole
             (:class:`~pitloom.core.wheel_dist_info.WheelRefused`): not a ZIP
             archive, a member cannot be read, two members have one name or
@@ -265,6 +278,8 @@ def generate_wheel_sbom_with_metadata(
     configure_logging()
     refuse_empty_output(output_path)
     require_path_argument(wheel_path, "wheel_path")
+    if project_dir is not None:
+        refuse_empty_path(project_dir, "project_dir")
     del check_url  # nothing is fetched for a local wheel
     if max_download_bytes is not None:
         require_download_override(max_download_bytes)  # even if inert

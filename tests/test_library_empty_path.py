@@ -7,8 +7,10 @@
 as ``os.stat("")`` says, and reads nothing of the current directory that
 ``Path("")`` would name. An empty ``output_path``, ``id_registry``
 (anywhere: a keyword, ``PitloomConfig``, ``IdRegistry.load``),
-``pitloom_config``, ``sbom_path``, ``sbom_basename`` or ``sbom_filename``
-is ``option-invalid`` (``non-empty``), as the CLI's ``-o ""`` is.
+``pitloom_config``, ``sbom_path``, ``sbom_basename``, ``sbom_filename``,
+``project_dir`` or registry path (``IdRegistry`` ``path``, ``project_root``,
+``generate()``'s paths) is ``option-invalid`` (``non-empty``), as the CLI's
+``-o ""`` is.
 
 See also: tests/cli/test_empty_path.py (every command).
 """
@@ -33,6 +35,7 @@ from pitloom.assemble import (
     generate_project_sbom,
     generate_pypi_sbom,
     generate_wheel_sbom,
+    generate_wheel_sbom_with_metadata,
 )
 from pitloom.core.config import PitloomConfig
 from pitloom.core.given_path import TypedPath
@@ -98,6 +101,37 @@ def test_library_empty_path(
     assert code_of(caught.value) == "input-not-found"
     assert str(caught.value) == said
     assert not (tmp_path / "out.json").exists()
+
+
+@pytest.mark.parametrize("given", ["", TypedPath("")], ids=["str", "typed"])
+@pytest.mark.parametrize(
+    ("call", "said"),
+    [
+        (find_embedded_sbom, "wheel file not found: ''"),
+        (
+            lambda given: IdRegistry.new("p").import_sbom(given),
+            "SBOM file not found: ''",
+        ),
+        (
+            lambda given: IdRegistry.new("p").generate([given], Path(".")),
+            "PATH not found: ''",
+        ),
+    ],
+    ids=["find-embedded-sbom", "registry-import", "registry-generate"],
+)
+def test_library_empty_input_without_output(
+    call: Callable[[Any], object],
+    said: str,
+    given: str | Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Not read as the current directory (``FILE=.: not a .whl file``)."""
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(CodedFileNotFoundError) as caught:
+        call(given)
+    assert code_of(caught.value) == "input-not-found"
+    assert str(caught.value) == said
 
 
 @pytest.mark.parametrize("given", ["   ", " \t"], ids=["spaces", "tab"])
@@ -253,6 +287,57 @@ _EMPTY_OPTIONS: list[tuple[str, Callable[[str | Path], object], str]] = [
         lambda given: find_embedded_sbom(_WHEEL, cast(str, given)),
         "sbom_filename",
     ),
+    (
+        "embed-project-dir",
+        lambda given: embed_wheel_sbom(_WHEEL, project_dir=given),
+        "project_dir",
+    ),
+    (
+        "wheel-project-dir",
+        lambda given: generate_wheel_sbom(_WHEEL, project_dir=given),
+        "project_dir",
+    ),
+    (
+        "wheel-metadata-project-dir",
+        lambda given: generate_wheel_sbom_with_metadata(_WHEEL, project_dir=given),
+        "project_dir",
+    ),
+    (
+        "pypi-wheel-project-dir",
+        lambda given: generate_wheel_sbom(
+            "https://pypi.org/project/x/1/", check_url=_no_fetch, project_dir=given
+        ),
+        "project_dir",
+    ),
+    (
+        "generate-project-dir",
+        # A model target: no delegate of generate() checks project_dir.
+        lambda given: generate("m.gguf", output_path=Path("o.json"), project_dir=given),
+        "project_dir",
+    ),
+    (
+        "project-project-dir",
+        lambda given: generate_project_sbom(".", project_dir=given),
+        "project_dir",
+    ),
+    ("registry-new", lambda given: IdRegistry.new("p", path=cast(Path, given)), "path"),
+    (
+        "registry-root",
+        lambda given: IdRegistry.new("p", project_root=cast(Path, given)),
+        "project_root",
+    ),
+    (
+        "registry-generate-exclude",
+        lambda given: IdRegistry.new("p").generate(
+            [Path("x")], Path("."), exclude=cast(Path, given)
+        ),
+        "exclude",
+    ),
+    (
+        "registry-generate-root",
+        lambda given: IdRegistry.new("p").generate([Path("x")], cast(Path, given)),
+        "project_root",
+    ),
 ]
 
 
@@ -304,7 +389,7 @@ def test_id_registry_save_empty_is_option_invalid(
     path = None if default is None else tmp_path / default
     registry = IdRegistry(namespace="https://example.org/ns/", path=path)
     with pytest.raises(CodedValueError) as caught:
-        registry.save(given)  # type: ignore[arg-type]
+        registry.save(given)
     assert code_of(caught.value) == "option-invalid"
     assert str(caught.value) == ("path: must be a non-empty string, got a string ''")
     assert not list(tmp_path.iterdir())

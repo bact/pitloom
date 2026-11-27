@@ -22,7 +22,11 @@ from pathlib import Path
 
 from spdx_python_model.bindings import v3_0_1 as spdx3_bindings
 
-from pitloom._sbom_io import refuse_empty_output, write_sbom_output
+from pitloom._sbom_io import (
+    refuse_empty_output,
+    refuse_empty_path,
+    write_sbom_output,
+)
 from pitloom.assemble._generators_pypi import generate_pypi_sbom
 from pitloom.assemble._generators_shared import _sync_registry, archive_project_dir
 from pitloom.assemble.spdx3.document import build
@@ -185,6 +189,9 @@ def generate_project_sbom(
         pitloom.messages.CodedTypeError: An argument is of the wrong type
             (a path that is no ``str`` or ``os.PathLike``, a ``bool``
             that is not one): ``option-invalid``, before anything is read.
+        pitloom.messages.CodedValueError: *project_dir* is given as ``""``
+            (``option-invalid``), refused before anything is read: never
+            read as the current directory.
         FileNotFoundError: *project_dir* is given for an sdist and is not a
             directory; *project_target* is given as empty
             (``input-not-found``).
@@ -201,6 +208,8 @@ def generate_project_sbom(
     configure_logging()
     refuse_empty_output(output_path)
     require_path_argument(project_target, "project_target")
+    if project_dir is not None:
+        refuse_empty_path(project_dir, "project_dir")
     refuse_empty_input(project_target, "project path")
     refuse_hub_model_target(project_target)
     if isinstance(project_target, str) and is_pypi_url(project_target):

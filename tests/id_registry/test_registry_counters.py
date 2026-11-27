@@ -21,6 +21,7 @@ from pathlib import Path
 import pytest
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
+from pitloom.core.internal_error import InternalError
 from pitloom.id_registry import (
     FILE_TYPE,
     IdRegistry,
@@ -218,10 +219,19 @@ def test_register_refuses_a_type_with_no_id_prefix() -> None:
     cannot hold. Refused, with nothing changed."""
     registry = IdRegistry(namespace=_NS)
 
-    with pytest.raises(ValueError, match="^ID registry: no id prefix"):
+    with pytest.raises(ValueError, match="^type_name: must be a non-empty string"):
         registry.register("", "x")
 
     assert (registry.elements, registry.id_counters) == ({}, {})
+
+
+def test_an_empty_prefix_past_register_is_a_programming_error() -> None:
+    """``register()`` refuses an empty type name first; the mint's own
+    guard is then a programming error, never a user's ``ValueError``."""
+    registry = IdRegistry(namespace=_NS)
+    with pytest.raises(InternalError, match="no id prefix"):
+        # pylint: disable-next=protected-access
+        registry._mint_id("")
 
 
 def _with_counters(path: Path, counters: dict[str, int]) -> None:
