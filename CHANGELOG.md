@@ -195,6 +195,9 @@ and this project adheres to
   refuse a wrong type or an empty path or name (`option-invalid`) ([#560], [#561])
 - A Hugging Face model id or URL the Hub does not know (or a private one read
   without a token) is `input-not-found/hub`: no SBOM, exit 1 ([#561])
+- `loom fragment validate A B` is documented to fail the merged check for two valid
+  SBOMs whose `created` differ (spdx3-validate shares blank nodes across files);
+  `--no-merge` checks each on its own ([#562])
 
 ### Fixed
 
@@ -320,6 +323,7 @@ and this project adheres to
 [#559]: https://github.com/bact/pitloom/pull/559
 [#560]: https://github.com/bact/pitloom/pull/560
 [#561]: https://github.com/bact/pitloom/pull/561
+[#562]: https://github.com/bact/pitloom/pull/562
 
 ## [0.24.0] - 2026-11-11
 
