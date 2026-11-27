@@ -90,7 +90,7 @@ and this project adheres to
   password are found ([#491])
 - Git URLs: a NUL in user information, a host no host name spells and a missing
   host (its own line) are refused before git runs; more `GIT_*` variables are
-  dropped ([#491], [#560], [#NNN])
+  dropped ([#491], [#560], [#561])
 - `verify-wheel`, `validate-wheel` and `embed-wheel`: a pattern nested too
   deeply is `input-not-found`, not a crash; a `[` in a path is taken as typed
   ([#491])
@@ -192,9 +192,9 @@ and this project adheres to
   `testedOn` the model, not `trainedOn` ([#560])
 - A blank loom dataset or model `name` is `option-invalid` ([#560])
 - `IdRegistry()`, `load()`, `save()`, `generate()`, `import_sbom()` and `register()`
-  refuse a wrong type or an empty path or name (`option-invalid`) ([#560], [#NNN])
+  refuse a wrong type or an empty path or name (`option-invalid`) ([#560], [#561])
 - A Hugging Face model id or URL the Hub does not know (or a private one read
-  without a token) is `input-not-found/hub`: no SBOM, exit 1 ([#NNN])
+  without a token) is `input-not-found/hub`: no SBOM, exit 1 ([#561])
 
 ### Fixed
 
@@ -246,14 +246,14 @@ and this project adheres to
   `1 seconds` ([#546])
 - `generate_git_sbom()`, `generate_pypi_sbom()` and `fetch_git_project()` refuse
   an unknown kind or an empty or non-string URL as `option-invalid`, not an
-  internal error ([#559], [#NNN])
+  internal error ([#559], [#561])
 - An empty or blank `--creator-name`, `--creator-email` or `--creation-tool` is
   `option-invalid`, exit 2: no traceback, no silent drop ([#560])
 - `IdRegistry`, `resolve_registry()`, `find_embedded_sbom()` and
   `fetch_git_project()` tag and code their lines when no other Pitloom call came
   first ([#560])
 - A Hub page of a one-part model id (`https://huggingface.co/gpt2/tree/main`) is
-  read as that model; `loom model` reads a URL as `loom generate` does ([#NNN])
+  read as that model; `loom model` reads a URL as `loom generate` does ([#561])
 
 ### Security
 
@@ -319,7 +319,7 @@ and this project adheres to
 [#557]: https://github.com/bact/pitloom/pull/557
 [#559]: https://github.com/bact/pitloom/pull/559
 [#560]: https://github.com/bact/pitloom/pull/560
-[#NNN]: https://github.com/bact/pitloom/pull/NNN
+[#561]: https://github.com/bact/pitloom/pull/561
 
 ## [0.24.0] - 2026-11-11
 
