@@ -187,7 +187,7 @@ class _FakePackagePath:
 
 # pylint: disable-next=too-few-public-methods
 class _FakeDistribution:
-    def __init__(self, root: Path, files: list[_FakePackagePath]):
+    def __init__(self, root: Path, files: list[_FakePackagePath] | None):
         self._root = root
         self.files = files
 

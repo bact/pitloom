@@ -163,13 +163,20 @@ def _classifier_names(classifiers: Iterable[str]) -> list[str]:
     return [n for n in dict.fromkeys(names) if n]
 
 
+def licence_classifier_names(classifiers: Iterable[object]) -> list[str]:
+    """The licence names the ``License ::`` classifiers in *classifiers*
+    give (categories and trove parents left out), sorted, no repeats: more
+    than one is several licences."""
+    return _classifier_names(_licence_classifiers(classifiers))
+
+
 def license_from_classifiers(classifiers: Iterable[str]) -> str | None:
     """The licence the ``License ::`` trove classifiers state, or ``None``:
     one licence name as written; several, their ``AND``
     (:func:`~pitloom.extract.license_refs.classifier_expression`), in sorted
     classifier order so a build tool's reordering changes nothing. A name
     LicenseID reads as one id is that id, as a lone name is."""
-    names = _classifier_names(_licence_classifiers(classifiers))
+    names = licence_classifier_names(classifiers)
     if not names:
         return None
     if len(names) == 1:
@@ -186,8 +193,8 @@ def license_from_classifiers(classifiers: Iterable[str]) -> str | None:
 def _warn_several_classifiers(classifiers: Iterable[str], recorded: str) -> None:
     """One ``WARNING:`` per set when *recorded* is the ``AND`` of several
     licence classifiers, ``license-ambiguous``."""
-    found = _licence_classifiers(classifiers)
-    if len(_classifier_names(found)) > 1:
+    if len(licence_classifier_names(classifiers)) > 1:
+        found = _licence_classifiers(classifiers)
         emit(
             _logger,
             LICENSE_AMBIGUOUS,

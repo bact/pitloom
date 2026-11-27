@@ -25,7 +25,7 @@ and this project adheres to
 ### Changed
 
 - A dependency whose metadata names no SPDX licence gets the one its installed
-  licence files name; its licence classifier breaks a near-tie ([#569])
+  licence files name, concluded beside stated text; dual licences kept ([#569])
 
 [#569]: https://github.com/bact/pitloom/pull/569
 

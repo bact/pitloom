@@ -168,14 +168,16 @@ def build_license_elements(
     *license_provenance*): the package's own statement is declared, a
     third-party record concluded.
 
-    Two-candidate mode (G2, *concluded_license_id* given -- only the main project
-    package path supplies this, since it's the only one with a local
-    directory to independently detect a second opinion from): *license_id*
-    is always the declared value, *concluded_license_id* the independently
-    detected one. Both relationships are built unconditionally, whether or not
-    the two agree -- when they *do* agree, both point at the same deduped
-    license element. When they disagree, an additional G2 conflict Annotation
-    is emitted on *package_spdx_id* recording both candidates; see
+    Two-candidate mode (G2, *concluded_license_id* given: the main project
+    package's licence files, or an installed dependency's when its Core
+    Metadata states licence text that names no SPDX licence --
+    :func:`~pitloom.assemble.spdx3._deps_license_files.license_from_dist_files`):
+    *license_id* is always the declared value, *concluded_license_id* the
+    independently detected one. Both relationships are built
+    unconditionally, whether or not the two agree -- when they *do* agree,
+    both point at the same deduped license element. When they disagree, an
+    additional G2 conflict Annotation is emitted on *package_spdx_id*
+    recording both candidates; see
     :func:`~pitloom.assemble.spdx3.provenance.build_conflict_annotation`.
     ``NOASSERTION`` (also ``UNKNOWN``) only says "not known", so it never
     conflicts: against a real licence both relationships stay, the real
@@ -385,11 +387,15 @@ def _apply_license(
     exporter: Spdx3JsonExporter,
     *,
     weak: WeakLicense | None = None,
+    concluded_license_id: str | None = None,
+    concluded_license_provenance: str | None = None,
     provenance_config: ProvenanceConfig | None = None,
     encoder: ProvenanceEncoder | None = None,
 ) -> bool:
     """Build and add whichever declared/concluded license relationship(s)
-    *license_id* resolves to (see :func:`build_license_elements`). Returns
+    *license_id* resolves to (see :func:`build_license_elements`; with
+    *concluded_license_id*, its two-candidate mode: *license_id* declared,
+    the detection concluded). Returns
     whether a relationship was added: ``False`` for a value that states no
     licence, so the caller falls back to the next source or leaves the
     package without one.
@@ -412,6 +418,8 @@ def _apply_license(
         doc_name=doc_name,
         doc_uuid=doc_uuid,
         exporter=exporter,
+        concluded_license_id=concluded_license_id,
+        concluded_license_provenance=concluded_license_provenance,
         provenance_config=provenance_config,
         encoder=encoder,
     )

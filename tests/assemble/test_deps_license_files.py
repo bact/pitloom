@@ -30,6 +30,7 @@ from pitloom.assemble.spdx3 import deps_installed
 from pitloom.assemble.spdx3._deps_license_files import (
     dist_license_files,
     license_from_dist_files,
+    with_dist_license_files,
 )
 from pitloom.assemble.spdx3.deps import _enrich_from_installed
 from pitloom.assemble.spdx3.provenance import (
@@ -53,6 +54,7 @@ _LGPL3 = (_TEXTS / "fickling-0.1.13-LICENSE").read_text(encoding="utf-8")
 _SEVERAL = (_TEXTS / "numpy-2.5.5-LICENSE").read_text(encoding="utf-8")
 _DI = "dep-1.0.dist-info"
 _APACHE_CLASSIFIER = "License :: OSI Approved :: Apache Software License"
+_BSD_CLASSIFIER = "License :: OSI Approved :: BSD License"
 _LGPL3_PLUS = (
     "License :: OSI Approved :: GNU Lesser General Public License v3 or later (LGPLv3+)"
 )
@@ -94,14 +96,69 @@ def _dist(root: Path, files: dict[str, str]) -> _FakeDistribution:
             [f"{_DI}/LICENSE", f"{_DI}/COPYING"],
         ),
         (["dep/__init__.py"], [], []),
+        # Listed and at both places: under licenses/ first.
+        (
+            [f"{_DI}/LICENSE", f"{_DI}/licenses/LICENSE"],
+            ["LICENSE"],
+            [f"{_DI}/licenses/LICENSE"],
+        ),
+        # Two .dist-info trees in RECORD: the first by name.
+        (
+            ["z-1.dist-info/LICENSE", "a-1.dist-info/LICENSE"],
+            [],
+            ["a-1.dist-info/LICENSE"],
+        ),
     ],
-    ids=["pep639", "root", "not-basename", "once", "unlisted", "no-dist-info"],
+    ids=[
+        "pep639",
+        "root",
+        "not-basename",
+        "once",
+        "unlisted",
+        "no-dist-info",
+        "licenses-first",
+        "two-dist-info",
+    ],
 )
 def test_dist_license_files(
     tmp_path: Path, files: list[str], license_files: list[str], expected: list[str]
 ) -> None:
     dist = _dist(tmp_path, dict.fromkeys(files, "x"))
     assert [str(p) for p in dist_license_files(dist, license_files)] == expected
+
+
+def test_no_record_lists_no_file(tmp_path: Path) -> None:
+    """A distribution without ``RECORD`` (``files`` is ``None``) lists
+    none."""
+    assert not dist_license_files(_FakeDistribution(tmp_path, None), ["LICENSE"])
+
+
+class _NulPackagePath:
+    """A ``RECORD`` entry holding a NUL: no file can have its name."""
+
+    def __init__(self, root: Path, path: str):
+        self._path, self._root = path, root
+
+    def __str__(self) -> str:
+        return self._path
+
+    def locate(self) -> Path:
+        return self._root / self._path
+
+
+def test_a_nul_in_license_file_names_no_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A ``License-File`` value holding a NUL names no file, even when a
+    ``RECORD`` entry spells it: not read (``os.stat`` would raise
+    ``ValueError``)."""
+    value = "LIC\x00ENSE"
+    entry = _NulPackagePath(tmp_path, f"{_DI}/licenses/{value}")
+    dist = _FakeDistribution(tmp_path, [entry])  # type: ignore[list-item]
+    assert not dist_license_files(dist, [value])
+    _patch_dist(monkeypatch, dist)
+    meta = _FakeMetadata({}, license_files=[value])
+    assert license_from_dist_files("dep", meta, None, "s") is None
 
 
 def _patch_dist(monkeypatch: pytest.MonkeyPatch, dist: Any) -> list[str]:
@@ -127,7 +184,15 @@ def _patch_dist(monkeypatch: pytest.MonkeyPatch, dist: Any) -> list[str]:
             "MIT",
         ),
         (None, [], {f"{_DI}/LICENSE": _MIT}, "MIT"),
+        ("", [], {f"{_DI}/LICENSE": _MIT}, "MIT"),
         ("UNKNOWN", [], {f"{_DI}/LICENSE": _MIT}, "MIT"),
+        # Several licences (python-dateutil): no file narrows them to one.
+        (
+            "Dual License",
+            [_BSD_CLASSIFIER, _APACHE_CLASSIFIER],
+            {f"{_DI}/LICENSE": _MIT},
+            None,
+        ),
         # A verbatim LGPL 3 text: the LGPLv3+ classifier wins the tie.
         (_LGPL3, [_LGPL3_PLUS], {f"{_DI}/LICENSE": _LGPL3}, "LGPL-3.0-or-later"),
         (None, [], {f"{_DI}/LICENSE": _LGPL3}, "LGPL-3.0-only"),
@@ -144,7 +209,9 @@ def _patch_dist(monkeypatch: pytest.MonkeyPatch, dist: Any) -> list[str]:
     ids=[
         "classifier-name",
         "absent",
+        "blank",
         "unknown",
+        "dual",
         "classifier-breaks-tie",
         "tie-unstated",
         "several-texts",
@@ -174,6 +241,41 @@ def test_license_from_dist_files(
         )
 
 
+@pytest.mark.parametrize(
+    ("stated", "g2"),
+    [
+        ("Apache Software License", True),
+        (None, False),
+        ("", False),
+        ("  ", False),
+        ("UNKNOWN", False),
+        ("NOASSERTION", False),
+    ],
+    ids=["text", "absent", "empty", "blank", "unknown", "noassertion"],
+)
+def test_stated_text_keeps_its_place(
+    monkeypatch: pytest.MonkeyPatch, stated: str | None, g2: bool
+) -> None:
+    """Stated text stays the declared licence, the files' the concluded
+    one (G2); a placeholder or nothing gives way to the files' licence."""
+    monkeypatch.setattr(
+        files_mod, "license_from_dist_files", lambda *_: ("MIT", "from-file")
+    )
+    found = with_dist_license_files("dep", _FakeMetadata({}), (stated, "meta"), "s")
+    if g2:
+        assert found == (stated, "meta", ("MIT", "from-file"))
+    else:
+        assert found == ("MIT", "from-file", (None, None))
+
+
+def test_no_file_licence_keeps_the_stated_one(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(files_mod, "license_from_dist_files", lambda *_: None)
+    found = with_dist_license_files("dep", _FakeMetadata({}), ("x y", "meta"), "s")
+    assert found == ("x y", "meta", (None, None))
+
+
 @pytest.mark.parametrize("stated", ["MIT", "Apache-2.0 OR MIT", "NONE"])
 def test_a_named_licence_reads_no_file(
     monkeypatch: pytest.MonkeyPatch, stated: str
@@ -192,21 +294,63 @@ def test_a_missing_distribution_gives_none(monkeypatch: pytest.MonkeyPatch) -> N
     assert license_from_dist_files("dep", _FakeMetadata({}), None, "s") is None
 
 
+def _licence_of(element: dict[str, Any]) -> str:
+    return str(
+        element.get("simplelicensing_licenseExpression")
+        or element.get("simplelicensing_licenseText")
+    )
+
+
 @pytest.mark.usefixtures("licenseid_db_path")
 @pytest.mark.parametrize(
     "source", [INSTALLED_DEPENDENCY_SOURCE, DEPLOYED_PACKAGE_SOURCE]
 )
+@pytest.mark.parametrize(
+    ("fields", "classifiers", "expected", "conflicts"),
+    [
+        # Stated text is the declared licence, the file's the concluded one
+        # (G2), as for a project's own; they differ, so a conflict is noted.
+        (
+            {},
+            [_APACHE_CLASSIFIER],
+            {
+                "hasDeclaredLicense": "Apache Software License",
+                "hasConcludedLicense": "MIT",
+            },
+            1,
+        ),
+        # Nothing stated: the file's licence, declared or concluded by its
+        # source (single mode).
+        ({}, [], {"single": "MIT"}, 0),
+        # python-dateutil: a dual licence the file would narrow, not read.
+        (
+            {"License": "Dual License"},
+            [_BSD_CLASSIFIER, _APACHE_CLASSIFIER],
+            {"single": "Dual License"},
+            0,
+        ),
+    ],
+    ids=["stated-text", "unstated", "dual"],
+)
+# pylint: disable-next=too-many-arguments,too-many-positional-arguments,too-many-locals
 def test_dependency_licence_from_its_file(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, source: str
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    source: str,
+    fields: dict[str, str],
+    classifiers: list[str],
+    expected: dict[str, str],
+    conflicts: int,
 ) -> None:
-    """A dependency whose metadata gives only the classifier name
-    ``Apache Software License`` gets the licence its file names, on the
-    project and the environment route alike, with the file in provenance."""
+    """A dependency's licence file is read on the project and the
+    environment route alike, with the file in provenance: beside stated
+    text (the classifier name ``Apache Software License``) as the concluded
+    second opinion, else as the licence."""
     monkeypatch.setattr(
         deps_installed,
         "get_pkg_metadata",
         lambda name: _FakeMetadata(
-            {"Version": "1.0"}, classifiers=[_APACHE_CLASSIFIER]
+            {"Version": "1.0", **fields}, classifiers=classifiers
         ),
     )
     _patch_dist(monkeypatch, _dist(tmp_path, {f"{_DI}/LICENSE": _MIT}))
@@ -227,13 +371,31 @@ def test_dependency_licence_from_its_file(
     assert "license" in filled
     graph = json.loads(exporter.to_json(pretty=False))["@graph"]
     by_id = {e.get("spdxId"): e for e in graph}
-    [rel] = [
-        e
+    custom = {
+        d["key"]: d["value"]
+        for e in graph
+        for d in e.get("simplelicensing_customIdToUri", ())
+    }
+
+    def licence(ref: str) -> str:
+        value = _licence_of(by_id[ref])
+        return _licence_of(by_id[custom[value]]) if value in custom else value
+
+    found = {
+        e["relationshipType"]: licence(e["to"][0])
         for e in graph
         if e.get("type") == "Relationship" and e["relationshipType"].endswith("License")
-    ]
-    assert by_id[rel["to"][0]]["simplelicensing_licenseExpression"] == "MIT"
-    assert f"File: {_DI}/LICENSE" in json.dumps(graph)
+    }
+    if "single" in expected:
+        single = (
+            "hasDeclaredLicense"
+            if source == DEPLOYED_PACKAGE_SOURCE
+            else "hasConcludedLicense"
+        )
+        expected = {single: expected["single"]}
+    assert found == expected
+    assert (f"File: {_DI}/LICENSE" in json.dumps(graph)) == ("MIT" in found.values())
+    assert json.dumps(graph).count('\\"kind\\":\\"conflict\\"') == conflicts
 
 
 @pytest.mark.parametrize(

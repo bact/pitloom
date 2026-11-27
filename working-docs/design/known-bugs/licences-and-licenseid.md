@@ -157,6 +157,16 @@ entries come first; fixed entries stay in the last section for history.
   paths for the licence; reusing it here changes the copyright text of
   such packages, so it needs a before/after sweep.
   *Found 2026-11-27, review of the dependency licence-file fallback.*
+- [ ] **A G2 conflict on every dependency whose stated text names its
+  file's licence (S, to decide).** With #569 a dependency's stated licence
+  text stays declared and its licence file's detection is concluded, as for
+  a project; `same_licence` matches only an SPDX List name, so a classifier
+  name (`Apache Software License` vs `Apache-2.0`, `BSD License` vs
+  `BSD-3-Clause`) or a `License` header holding the whole text (fickling,
+  pyshacl) is a conflict annotation. Pitloom's own environment: 15 of 15
+  such packages (2 in its project SBOM). Options: a text LicenseID resolves to the detected id is
+  no conflict; or note it as agreement, not conflict. Not suppressed.
+  *Found 2026-11-27, before/after sweep of the #569 G2 change.*
 
 ## Fixed
 

@@ -26,7 +26,10 @@ from typing import TYPE_CHECKING, Any
 
 from pitloom.core._models_wheel_types import is_dist_info_path
 from pitloom.core.provenance import provenance_segment
-from pitloom.extract._core_metadata import license_from_classifiers
+from pitloom.extract._core_metadata import (
+    licence_classifier_names,
+    license_from_classifiers,
+)
 from pitloom.extract._license import classify_license, license_from_candidates
 from pitloom.extract._license_detect import pick_license_names
 from pitloom.extract.copyright_notices import read_license_text
@@ -57,7 +60,10 @@ def read_dist_info_text(candidate: Any, dist: Any) -> str | None:
 def _listed_path(dist_info: str, value: str, entries: dict[str, Any]) -> str | None:
     """The ``RECORD`` entry the ``License-File`` *value* names: under
     ``<dist_info>/licenses/`` (PEP 639), else at the ``<dist_info>`` root;
-    ``None`` when neither is in *entries*."""
+    ``None`` when neither is in *entries*, or when *value* holds a NUL
+    (it names no file)."""
+    if "\x00" in value:
+        return None
     for path in (f"{dist_info}/licenses/{value}", f"{dist_info}/{value}"):
         if path in entries:
             return path
@@ -108,9 +114,15 @@ def license_from_dist_files(
     several licences; the licence its ``License ::`` classifiers name wins a
     near-tie (a verbatim LGPL-3.0 text scores ``-only`` and ``-or-later``
     alike; ``LGPLv3+`` says which). Each provenance is *source* with the
-    file's ``RECORD`` entry as ``File``."""
+    file's ``RECORD`` entry as ``File``.
+
+    ``None`` too when the ``License ::`` classifiers name several licences
+    (python-dateutil's ``BSD License`` and ``Apache Software License``): a
+    dual licence whose files LicenseID reads as one would narrow it."""
     classified = classify_license(stated, warn=False)
     if classified is not None and classified.kind not in _UNNAMED_KINDS:
+        return None
+    if len(licence_classifier_names(pkg_meta.get_all("Classifier") or [])) > 1:
         return None
     try:
         dist = get_pkg_distribution(dist_name)
@@ -127,6 +139,30 @@ def license_from_dist_files(
     return license_from_candidates(candidates, stated=_classifier_expression(pkg_meta))
 
 
+def with_dist_license_files(
+    dist_name: str,
+    pkg_meta: CoreMetadata,
+    stated: tuple[str | None, str],
+    source: str,
+) -> tuple[str | None, str, tuple[str, str] | tuple[None, None]]:
+    """``(licence, provenance, (concluded, provenance))`` for *dist_name*
+    from its Core Metadata licence *stated* ``(licence, provenance)`` and
+    its licence files (:func:`license_from_dist_files`), by a project's own
+    rule (G2): stated text (``Apache Software License``) stays the declared
+    licence, the files' licence its concluded second opinion; an absent or
+    blank one, or ``UNKNOWN``/``NOASSERTION`` (a placeholder, no claim),
+    gives way to the files' licence. ``(None, None)`` when there is no
+    second opinion."""
+    license_id, provenance = stated
+    found = license_from_dist_files(dist_name, pkg_meta, license_id, source)
+    if found is None:
+        return license_id, provenance, (None, None)
+    classified = classify_license(license_id, warn=False)
+    if classified is not None and classified.kind == "text":
+        return license_id, provenance, found
+    return found[0], found[1], (None, None)
+
+
 def _classifier_expression(pkg_meta: CoreMetadata) -> str | None:
     """The SPDX expression the ``License ::`` classifiers of *pkg_meta*
     name, or ``None`` when they name none (``Apache Software License`` has
@@ -141,4 +177,5 @@ __all__ = [
     "dist_license_files",
     "license_from_dist_files",
     "read_dist_info_text",
+    "with_dist_license_files",
 ]
