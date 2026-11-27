@@ -183,7 +183,8 @@ entries come first; fixed entries stay in the last section for history.
   such a value a bug at the reader, not a concluded licence. Start with an
   inventory of the readers that can leave the source empty (a library
   caller's value, a fragment, a dataset or model with no provenance), then
-  fix each reader rather than the class. Kept as is in #569 by the user's
+  decide between raising `InternalError` for a missing source and fixing
+  each reader. Kept as is in #569 by the user's
   ruling (2026-11-28): a separate follow-up.
   *Found 2026-11-28, #569 dependency licences declared.*
 

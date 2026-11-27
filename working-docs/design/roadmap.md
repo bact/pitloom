@@ -197,15 +197,18 @@ Seen in Pitloom's own published wheel SBOM. The first two are priority.
   in #569 (2026-11-28): PyPI, the installed copy and its licence files are
   the originator's claims (`hasDeclaredLicense`); Pitloom concludes nothing
   about a dependency. The project's own G2 path and a licence with no source
-  are not changed (separate follow-ups). See
+  are not changed: separate follow-ups, the next bullet and the ledger entry
+  "A licence with no source is concluded"
+  ([licences-and-licenseid.md](known-bugs/licences-and-licenseid.md)). See
   [asserter-licence.md](provenance-taxonomy/asserter-licence.md).
 - [ ] **The project's own licence file is declared, not concluded** (follow-up
   of #569, ruled separate 2026-11-28): per
   [asserter-licence.md](provenance-taxonomy/asserter-licence.md) ("LICENSE
   text matched, manifest states a licence": "today concluded"), the
   project's licence-file detection beside its manifest licence is the
-  originator's declaration (equal: one declared; different: both declared
-  and a conflict). It changes every project SBOM's main package, so it
+  originator's declaration, so the main package's G2 pair (declared manifest
+  plus concluded detection) becomes declared plus declared (equal: one
+  declared; different: both declared and a conflict). It changes every project SBOM's main package, so it
   needs its own before/after. The empty-source rule is a ledger entry
   ([licences-and-licenseid.md](known-bugs/licences-and-licenseid.md)).
 - [ ] **Priority: author typing (#170)**: an exact known list of
