@@ -399,7 +399,7 @@ codes 0.25.0 introduced); Pitloom requires `licenseid>=0.9.4,<0.10`.
   licence file of several texts giving no licence (#554), the Hub timeout
   (#507) and "not found" (#561), the usage-scan hang (#539), the GGUF
   provenance source (#540). `CHANGELOG.md` lists the rest.
-- [x] **Pre-release review** and its fixes (#558 to #562); the bump (#563)
+- [x] **Pre-release review** and its fixes (#558 to #562); the bump (#564)
   raised the skills' floor and LicenseID's after a licence-answer sweep
   ([floor-0-9-4-sweep.md](licenseid/floor-0-9-4-sweep.md)). See
   [pre-release-review-0.25.0.md](pre-release-review-0.25.0.md).
