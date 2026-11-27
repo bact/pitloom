@@ -42,6 +42,7 @@ from pitloom.messages.build import (
     HOOK_NOT_WHEEL_LINE,
     HOOK_SBOM_STAGED,
 )
+from scripts.message_reference.sections import section
 from tests._message_drift import SAMPLES
 from tests.extract.conftest import (
     make_hook,
@@ -360,3 +361,11 @@ def test_the_debug_line_names_the_build_variant(
     with caplog.at_level(logging.DEBUG, logger="pitloom"):
         hook.initialize("standard", {})
     assert f"{HOOK_PREFIX}build variant 'standard'" in caplog.messages
+
+
+def test_the_reference_says_a_name_clash_fails_the_build_not_a_command() -> None:
+    """Only the hook says ``sbom-name-conflict``: its reference section says
+    the build fails, never a command's exit status."""
+    text = " ".join(" ".join(section(MESSAGES["sbom-name-conflict"])).split())
+    assert "the Hatchling build hook only), the build fails" in text
+    assert "exit 1" not in text

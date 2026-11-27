@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import logging
 import os
-from collections.abc import Iterable
+from collections.abc import Collection, Iterable
 from typing import Any, Final
 
 from pitloom.core.internal_error import InternalError
@@ -269,6 +269,42 @@ def require_path_argument(value: object, name: str) -> None:
     """
     if not isinstance(value, (str, os.PathLike)):
         raise invalid_type(Parameter(name), "path", value)
+
+
+def require_text_argument(value: object, name: str) -> None:
+    """Refuse *value*, given to the library parameter *name* that takes a
+    string with text in it (a URL), unless it is a ``str`` that is not
+    empty or white space only.
+
+    Raises:
+        pitloom.messages.CodedTypeError: *value* is no ``str``
+            (``option-invalid``).
+        pitloom.messages.CodedValueError: It is empty or white space only
+            (``option-invalid``).
+    """
+    if not isinstance(value, str):
+        raise invalid_type(Parameter(name), "string", value)
+    if not value.strip():
+        raise invalid_value(Parameter(name), "non-empty", got=value)
+
+
+def require_choice_argument(
+    value: object, name: str, choices: Collection[str], expected: str
+) -> None:
+    """Refuse *value*, given to the library parameter *name* that takes one
+    of the strings *choices*, which the ``one-of-*`` id *expected* of
+    :data:`EXPECTED` lists.
+
+    Raises:
+        pitloom.messages.CodedTypeError: *value* is no ``str``
+            (``option-invalid``).
+        pitloom.messages.CodedValueError: A string none of *choices*
+            (``option-invalid``).
+    """
+    if not isinstance(value, str):
+        raise invalid_type(Parameter(name), expected, value)
+    if value not in choices:
+        raise invalid_value(Parameter(name), expected, got=value)
 
 
 def loom_sdk_invalid_value(

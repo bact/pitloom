@@ -112,6 +112,8 @@ from pitloom.messages._surface import (
     Twins,
     advice_surface,
     current_surface,
+    on_overrides_route,
+    overrides_route,
     strict_surfaces,
     unreachable_on_hook,
 )
@@ -194,6 +196,8 @@ __all__ = [
     "emit",
     "escaped_name",
     "line_kind",
+    "on_overrides_route",
+    "overrides_route",
     "recoded",
     "relay_extra",
     "say_summary",

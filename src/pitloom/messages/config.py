@@ -62,7 +62,9 @@ from pitloom.messages._config_say import (
     loom_sdk_invalid_value,
     loom_sdk_type_error,
     must_be,
+    require_choice_argument,
     require_path_argument,
+    require_text_argument,
     warn_config_unknown_key,
 )
 from pitloom.messages._field_tables import CONFIG_USE
@@ -114,6 +116,8 @@ __all__ = [
     "loom_sdk_invalid_value",
     "loom_sdk_type_error",
     "must_be",
+    "require_choice_argument",
     "require_path_argument",
+    "require_text_argument",
     "warn_config_unknown_key",
 ]

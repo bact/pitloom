@@ -252,6 +252,9 @@ def test_every_expected_id_has_a_case() -> None:
         "registry-source",
         "credential-policy",
     }
+    # A remote generator's choice argument
+    # (tests/assemble/test_generators_remote_arguments.py).
+    library_only |= {"one-of-pypi-kind", "one-of-sbom-kind"}
     # Said by the project metadata readers (metadata-invalid), not config.
     metadata_only = {"array-of-strings", "string-or-array"}
     not_config = library_only | metadata_only

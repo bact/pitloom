@@ -247,18 +247,20 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
   named.
 - **Tell the user**: which formats in the wheel were not read, and why. If they
   trust the wheel, they pass --trust-model-files (trust_model_files=True in the
-  library; the trust-model-files input of the GitHub Action, with embed-wheel
-  and an empty project-path) and generate again; no config file can set it. Do
-  not add the flag or generate again for them; ask first, and with nobody to
-  ask, report it only.
+  library, ConfigOverrides.trust_model_files=True for embed_wheel_sbom(); the
+  trust-model-files input of the GitHub Action, with embed-wheel and an empty
+  project-path) and generate again; no config file can set it. Do not add the
+  flag or generate again for them; ask first, and with nobody to ask, report it
+  only.
 - **Lines**:
 
   ```text
   INFO: AI models in a wheel in these formats are listed without metadata, their reader not being run on a wheel's files: <formats>; pass --trust-model-files for a wheel you trust [reader-unsafe]
   INFO: AI models in a wheel in these formats are listed without metadata, their reader not being run on a wheel's files: <formats>; set trust_model_files=True for a wheel you trust [reader-unsafe]
+  INFO: AI models in a wheel in these formats are listed without metadata, their reader not being run on a wheel's files: <formats>; set ConfigOverrides.trust_model_files=True for a wheel you trust [reader-unsafe]
   ```
 
-- **Since**: 0.22.0; line 2: 0.25.0
+- **Since**: 0.22.0; lines 2-3: 0.25.0
 
 ### `reader-unsafe/remote`
 
@@ -357,7 +359,8 @@ there is nothing to do.
 
 - Models were found and the usage scan is off: it reads every Python file for
   references to them only on request. Said once per run, naming the flag, the
-  library parameter or the [tool.pitloom] key of the surface that runs.
+  library parameter (the ConfigOverrides field for embed_wheel_sbom()) or the
+  [tool.pitloom] key of the surface that runs.
 
   ```text
   INFO: Found <number> AI model file(s); pass --scan-model-usage (or set scan-model-usage = true in a --config file) to also record which Python files reference them.
@@ -365,7 +368,8 @@ there is nothing to do.
 
 - Models were found and the usage scan is off: it reads every Python file for
   references to them only on request. Said once per run, naming the flag, the
-  library parameter or the [tool.pitloom] key of the surface that runs.
+  library parameter (the ConfigOverrides field for embed_wheel_sbom()) or the
+  [tool.pitloom] key of the surface that runs.
 
   ```text
   INFO: Found <number> AI model file(s); pass --scan-model-usage (or set scan-model-usage = true) to also record which Python files reference them.
@@ -373,7 +377,26 @@ there is nothing to do.
 
 - Models were found and the usage scan is off: it reads every Python file for
   references to them only on request. Said once per run, naming the flag, the
-  library parameter or the [tool.pitloom] key of the surface that runs.
+  library parameter (the ConfigOverrides field for embed_wheel_sbom()) or the
+  [tool.pitloom] key of the surface that runs.
+
+  ```text
+  INFO: Found <number> AI model file(s); set ConfigOverrides.scan_model_usage=True (or set it in pitloom_config) to also record which Python files reference them.
+  ```
+
+- Models were found and the usage scan is off: it reads every Python file for
+  references to them only on request. Said once per run, naming the flag, the
+  library parameter (the ConfigOverrides field for embed_wheel_sbom()) or the
+  [tool.pitloom] key of the surface that runs.
+
+  ```text
+  INFO: Found <number> AI model file(s); set ConfigOverrides.scan_model_usage=True (or set scan-model-usage = true) to also record which Python files reference them.
+  ```
+
+- Models were found and the usage scan is off: it reads every Python file for
+  references to them only on request. Said once per run, naming the flag, the
+  library parameter (the ConfigOverrides field for embed_wheel_sbom()) or the
+  [tool.pitloom] key of the surface that runs.
 
   ```text
   INFO: Found <number> AI model file(s); set scan-model-usage = true in [tool.pitloom] to also record which Python files reference them.
@@ -381,7 +404,8 @@ there is nothing to do.
 
 - Models were found and the usage scan is off: it reads every Python file for
   references to them only on request. Said once per run, naming the flag, the
-  library parameter or the [tool.pitloom] key of the surface that runs.
+  library parameter (the ConfigOverrides field for embed_wheel_sbom()) or the
+  [tool.pitloom] key of the surface that runs.
 
   ```text
   INFO: Found <number> AI model file(s); set scan_model_usage=True (or set it in pitloom_config) to also record which Python files reference them.
@@ -389,7 +413,8 @@ there is nothing to do.
 
 - Models were found and the usage scan is off: it reads every Python file for
   references to them only on request. Said once per run, naming the flag, the
-  library parameter or the [tool.pitloom] key of the surface that runs.
+  library parameter (the ConfigOverrides field for embed_wheel_sbom()) or the
+  [tool.pitloom] key of the surface that runs.
 
   ```text
   INFO: Found <number> AI model file(s); set scan_model_usage=True (or set scan-model-usage = true) to also record which Python files reference them.

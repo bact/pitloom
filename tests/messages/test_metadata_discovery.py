@@ -285,7 +285,7 @@ def test_a_backend_without_a_discoverer_says_so_with_its_hint_and_build_failure(
     ("surface", "ask"),
     [
         (SURFACE_CLI, "pass --allow-build"),
-        (SURFACE_LIBRARY, "pass BuildOptions(allow=True)"),
+        (SURFACE_LIBRARY, "set BuildOptions.allow=True"),
     ],
     ids=["cli", "library"],
 )

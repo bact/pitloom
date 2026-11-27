@@ -24,9 +24,9 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
 | [`credentials-unsafe/git-line-break`](#credentials-unsafegit-line-break) | WARNING | The user name or password of a Git URL holds a line break (an encoded %0A or %0D). A line break would add a line to what the credential helper hands git, so git could be told another value. | 0.25.0 |
 | [`credentials-unsafe/git-userinfo`](#credentials-unsafegit-userinfo) | ERROR | A Git URL holds user information (an @ before the first /) that Pitloom cannot split off the command line the way git reads it: a bracket or port that is not valid, an empty host, or an @ git reads as a password where the URL parser sees a query. Or the user name or password holds a NUL (an encoded %00), which cannot be handed to git at all. | 0.25.0 |
 | [`credentials-unsafe/http-clear`](#credentials-unsafehttp-clear) | WARNING | A plain http:// Git URL holds a user name or password: git sends it to the server unencrypted, readable by anyone on the path. | 0.25.0 |
-| [`credentials-unsafe/refused`](#credentials-unsaferefused) | ERROR | A URL-typed value the SBOM would state (a dependency's direct URL, a download location, a PURL, an external reference's locator) holds a user name or password, a query parameter named like a secret, an access token's shape, an scp-style address with a password, or a query nested or encoded too deeply to read, and the run is in the refuse mode (url-credentials = "refuse" in [tool.pitloom], --refuse-url-credentials, the library's CredentialPolicy(refuse=True)). An SBOM can be published, so it must not carry one. Each such value is one line naming the element and field that hold it and its fingerprint; the last line counts them and names no URL. Each line says how the surface that ran accepts the value: the command line's option, the build hook's [tool.pitloom] list, or the library's credentials argument. | 0.25.0 |
+| [`credentials-unsafe/refused`](#credentials-unsaferefused) | ERROR | A URL-typed value the SBOM would state (a dependency's direct URL, a download location, a PURL, an external reference's locator) holds a user name or password, a query parameter named like a secret, an access token's shape, an scp-style address with a password, or a query nested or encoded too deeply to read, and the run is in the refuse mode (url-credentials = "refuse" in [tool.pitloom], --refuse-url-credentials, the library's CredentialPolicy(refuse=True)). An SBOM can be published, so it must not carry one. Each such value is one line naming the element and field that hold it and its fingerprint; the last line counts them and names no URL. Each line says how the surface that ran accepts the value: the command line's option, the build hook's [tool.pitloom] list, or the library's credentials argument (ConfigOverrides.credentials for embed_wheel_sbom()). | 0.25.0 |
 | [`credentials-unsafe/registry`](#credentials-unsaferegistry) | ERROR, WARNING | A key or namespace given to the ID registry (an external reference URL), or the key or id of an SBOM element it would record, holds a user name or password, a query parameter named like a secret or an access token (also percent-encoded in a PURL qualifier), or a query nested too deeply to read (a value with more than 16 ?) or a PURL qualifier encoded too deeply to read (still encoded after five decodes). The registry file stores a key, an id and its namespace as written. A key given (register, 'loom id generate -e') and a registry file's entry follow the run's url-credentials mode; a namespace is refused in either mode. | 0.25.0 |
-| [`credentials-unsafe/written`](#credentials-unsafewritten) | WARNING | A URL-typed value the SBOM states (a dependency's direct URL, a download location, a PURL, an external reference's locator) holds a user name or password, a query parameter named like a secret, an access token's shape, an scp-style address with a password, or a query nested or encoded too deeply to read, and the run is in the warn mode, the default (Pitloom runs in CI and build hooks and does not fail them by default). Each such value is one line naming the element and field that hold it and its fingerprint, and how the surface that ran turns the refuse mode on: the command line's --refuse-url-credentials, the build hook's [tool.pitloom] url-credentials, or the library's credentials argument. | 0.25.0 |
+| [`credentials-unsafe/written`](#credentials-unsafewritten) | WARNING | A URL-typed value the SBOM states (a dependency's direct URL, a download location, a PURL, an external reference's locator) holds a user name or password, a query parameter named like a secret, an access token's shape, an scp-style address with a password, or a query nested or encoded too deeply to read, and the run is in the warn mode, the default (Pitloom runs in CI and build hooks and does not fail them by default). Each such value is one line naming the element and field that hold it and its fingerprint, and how the surface that ran turns the refuse mode on: the command line's --refuse-url-credentials, the build hook's [tool.pitloom] url-credentials, or the library's credentials argument (ConfigOverrides.credentials for embed_wheel_sbom()). | 0.25.0 |
 
 ### `credentials-unsafe`
 
@@ -154,7 +154,8 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
   one. Each such value is one line naming the element and field that hold it and
   its fingerprint; the last line counts them and names no URL. Each line says
   how the surface that ran accepts the value: the command line's option, the
-  build hook's [tool.pitloom] list, or the library's credentials argument.
+  build hook's [tool.pitloom] list, or the library's credentials argument
+  (ConfigOverrides.credentials for embed_wheel_sbom()).
 - **SBOM effect**: not-written: no SBOM is written for the input.
 - **Pitloom did**: Wrote no SBOM: the command exits 1 (the Action step fails),
   the build hook fails the build, and the library raises ValueError carrying the
@@ -167,15 +168,17 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
   example URL in a README) do they accept that value alone, the way the line
   gives with its fingerprint: --accept-url-credential, accept-url-credentials in
   [tool.pitloom] (also for the command line), the GitHub Action's
-  accept-url-credentials input, or the library's credentials argument. Do not
-  suggest turning the refuse mode off to get past it. Do not edit their files;
-  ask first, and with nobody to ask, report it only.
+  accept-url-credentials input, or the library's credentials argument
+  (ConfigOverrides.credentials for embed_wheel_sbom()). Do not suggest turning
+  the refuse mode off to get past it. Do not edit their files; ask first, and
+  with nobody to ask, report it only.
 - **Lines**:
 
   ```text
   ERROR: URL=<url>: holds a credential (<element> <pointer>, <fingerprint>); remove it from the source, or accept this value with <option> <fingerprint> [credentials-unsafe/refused]
   ERROR: URL=<url>: holds a credential (<element> <pointer>, <fingerprint>); remove it from the source, or accept this value by listing it in [tool.pitloom] <setting> [credentials-unsafe/refused]
   ERROR: URL=<url>: holds a credential (<element> <pointer>, <fingerprint>); remove it from the source, or accept this value with credentials=CredentialPolicy(accepted=["<fingerprint>"]) [credentials-unsafe/refused]
+  ERROR: URL=<url>: holds a credential (<element> <pointer>, <fingerprint>); remove it from the source, or accept this value with ConfigOverrides.credentials=CredentialPolicy(accepted=["<fingerprint>"]) [credentials-unsafe/refused]
   ERROR: <number> URL value(s) in the SBOM hold credentials; the SBOM is refused [credentials-unsafe/refused]
   ```
 
@@ -237,7 +240,8 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
   naming the element and field that hold it and its fingerprint, and how the
   surface that ran turns the refuse mode on: the command line's
   --refuse-url-credentials, the build hook's [tool.pitloom] url-credentials, or
-  the library's credentials argument.
+  the library's credentials argument (ConfigOverrides.credentials for
+  embed_wheel_sbom()).
 - **SBOM effect**: none: the SBOM states what the input holds.
 - **Pitloom did**: Wrote the SBOM with the value as written: the command exits
   0, the build hook does not fail the build, and the library returns. Said once
@@ -260,4 +264,5 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
   WARNING: URL=<url>: holds a credential (<element> <pointer>, <fingerprint>); the SBOM states it as written; remove it from the source, or refuse such values with <option> [credentials-unsafe/written]
   WARNING: URL=<url>: holds a credential (<element> <pointer>, <fingerprint>); the SBOM states it as written; remove it from the source, or refuse such values with [tool.pitloom] <setting> = "refuse" [credentials-unsafe/written]
   WARNING: URL=<url>: holds a credential (<element> <pointer>, <fingerprint>); the SBOM states it as written; remove it from the source, or refuse such values with credentials=CredentialPolicy(refuse=True) [credentials-unsafe/written]
+  WARNING: URL=<url>: holds a credential (<element> <pointer>, <fingerprint>); the SBOM states it as written; remove it from the source, or refuse such values with ConfigOverrides.credentials=CredentialPolicy(refuse=True) [credentials-unsafe/written]
   ```

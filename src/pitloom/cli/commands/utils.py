@@ -424,10 +424,15 @@ def _validate_spdx3_documents(
         # unhandled exception.
         if per_document:
             say_validator_failure(
-                exc, file=paths[0] if len(paths) == 1 else None, names=names
+                exc,
+                file=paths[0] if len(paths) == 1 else None,
+                names=names,
+                paths=paths,
             )
         else:
-            relay_validator_text(str(exc) or type(exc).__name__, names=names)
+            relay_validator_text(
+                str(exc) or type(exc).__name__, names=names, paths=paths
+            )
         return 1
 
     if not result:

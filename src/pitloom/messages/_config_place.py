@@ -253,6 +253,8 @@ EXPECTED: Final[Mapping[str, str]] = MappingProxyType(
         "one-of-schema": "one of pitloom/1",
         "one-of-preserve": "one of always, auto, never",
         "one-of-method": "one of auto, extension, magika",
+        "one-of-pypi-kind": "one of sdist, wheel",
+        "one-of-sbom-kind": "one of auto, model, project",
         "creator-type": "one of agent, organization, person, software-agent",
         "media-type": "a media type type/subtype (image/png)",
         "file-name": "a file name, not a path",

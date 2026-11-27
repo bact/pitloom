@@ -46,6 +46,10 @@ ERROR_RULE_OVERRIDES: Final = {
         "As an ERROR (the library's IdRegistry.save() only), nothing is written;"
         " no command stops on it."
     ),
+    "sbom-name-conflict": (
+        "As an ERROR (the Hatchling build hook only), the build fails and"
+        " writes no wheel; no command stops on it."
+    ),
 }
 
 
