@@ -221,10 +221,9 @@ def test_authors_minted_last_and_shared_with_dependency(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A dependency originator's Agent id is the same with or without the
-    project's authors; an author who is that originator is that Agent (also
-    when an SBOM creator has the same name and address: the creator's Agent
-    is not merged into it after the fact); a new author's Agent comes after
-    every other one."""
+    project's authors; an SBOM creator of the same type, name and address as
+    that originator is that Agent, and so is an author who is both; a new
+    author's Agent comes after every other one."""
     originators = {"alpha": f"{_DEP_AUTHOR} <{_DEP_EMAIL}>", "beta": "Tee <t@x.org>"}
     monkeypatch.setattr(
         deps_installed,
@@ -249,15 +248,37 @@ def test_authors_minted_last_and_shared_with_dependency(
         return int(spdx_id.rsplit("-", 1)[1])
 
     before, after = people(without), people(with_authors)
+    # no author: the creator still is the dependency's originator
+    [creator] = next(e for e in without if e["type"] == "CreationInfo")["createdBy"]
+    assert _package(without, "alpha")["originatedBy"] == [creator]
+    assert [n for n, _ in before].count(_DEP_AUTHOR) == 1
     assert before < after
     [(name, zed)] = after - before
     assert name == "Zed"
     assert number(zed) == max(number(i) for _, i in after)
     originated_by = _package(with_authors, "demo")["originatedBy"]
     assert originated_by[0] == zed
-    assert originated_by[1] in _package(with_authors, "alpha")["originatedBy"]
     creation_info = next(e for e in with_authors if e["type"] == "CreationInfo")
-    assert originated_by[1] not in creation_info["createdBy"]
+    assert creation_info["createdBy"] == [originated_by[1]]
+    assert _package(with_authors, "alpha")["originatedBy"] == [originated_by[1]]
+    assert [n for n, _ in after].count(_DEP_AUTHOR) == 1
+
+
+def test_first_of_two_same_creators_is_the_originator(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Two creators of one identity: a dependency originator who is that
+    identity is the first creator's Agent."""
+    monkeypatch.setattr(
+        deps_installed,
+        "get_pkg_metadata",
+        lambda name: _FakeMetadata({"Author-email": f"{_DEP_AUTHOR} <{_DEP_EMAIL}>"}),
+    )
+    same = Creator(name=_DEP_AUTHOR, email=_DEP_EMAIL)
+    graph = _sbom(tmp_path, [], dependencies=("alpha",), creators=(same, same))
+    created_by = next(e for e in graph if e["type"] == "CreationInfo")["createdBy"]
+    assert len(created_by) == 2
+    assert _package(graph, "alpha")["originatedBy"] == [created_by[0]]
 
 
 def test_blank_author_entry_is_skipped() -> None:
