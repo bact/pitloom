@@ -167,7 +167,9 @@ entries come first; fixed entries stay in the last section for history.
   classifier, 6 by a short `License` header (`BSD`, `Apache Software
   License`, `Expat license`, `PSFL`) whose package's classifier narrows
   the same way or, for mccabe, names `MIT`. Waits on LicenseID relation API
-  (narrowing): `trovenames` reads these generic names as `none` today.
+  (narrowing): `trovenames` reads these generic names as `none` today; the
+  ask is
+  [licence-families-handoff.md](../../implementation/licenseid/licence-families-handoff.md).
   Narrowing then needs a Pitloom record (perhaps `Relation: narrowing` in
   provenance, not decided); widening (`-only` stated, `-or-later`
   detected) and a different family stay conflicts.

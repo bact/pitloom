@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-06
-Last-Modified: 2026-11-27
+Last-Modified: 2026-11-28
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -30,3 +30,7 @@ See also:
   reproducers, ready to file as one issue.
 - [floor-0-9-4-sweep.md](floor-0-9-4-sweep.md): the licence answers under
   LicenseID 0.9.3 and 0.9.4, before the 0.25.0 floor raise.
+- [licence-families-handoff.md](licence-families-handoff.md): the ask for
+  licence families (`in_family`, `family_of`, `relation`) so a generic
+  trove classifier can narrow to its file's licence without a conflict
+  (#569).

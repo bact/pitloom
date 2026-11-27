@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-02
-Last-Modified: 2026-11-27
+Last-Modified: 2026-11-28
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -48,14 +48,6 @@ entries stay in the last section for history.
   document's (S).** Its Merkle root takes the `oid`; the hook's package root
   takes the text's digest.
   *Found 2026-10-29, Git LFS pointer work.*
-- [x] **`git.py` said the blob filter omits blobs over 10 MB (S), fixed.** The module
-  docstring and `BLOB_LIMIT` comment (`extract/remote/git.py`) describe
-  `--filter=blob:limit=10m` as leaving out large files. It leaves out only
-  blobs the checkout does not need: the WP0 probe of the Git model URL work
-  (2026-11-09, local smart HTTP) cloned a 12 MB file of the checked-out tree in full. Also `10m` is
-  10 MiB. `docs/git-urls.md` and the `git.py` docstring now say 10 MiB and that only
-  blobs the checkout does not need are left out.
-  *Found 2026-11-09, Git model URL work.*
 - [ ] **A dataset's identity can change from a hash to omitted after a pull
   (S).** A pointer-based dataset is hashed from the `oid`s; once pulled, stated
   sizes above the ceiling mean no hash. The SHA-256 is otherwise unchanged.
@@ -130,14 +122,6 @@ entries stay in the last section for history.
   time-of-check to time-of-use gap; not exploitable today, as nothing writes
   into the clone.
   *Found 2026-11-09, review of #464.*
-
-- [x] **FIXED (round 4 of #464): credentials, `[global]`, code execution,
-  link loops.** A clone's `.git/config` no longer holds the URL's user
-  information; setup.cfg `[global]` (`src_root`) is not applied; discovery no
-  longer imports repository code through `sys.path`/the working directory;
-  folder links are dropped and discovery stops after 60 s; Poetry `from` and
-  other path entries are filtered; interleaved `fetch_git_project` blocks keep
-  their own confinement.
 - [ ] **Residuals of round 4 (S).** The 60 s cap cannot stop a call blocked in
   C and is lost if a library swallows `BaseException` (dropping folder links is
   the main loop guard). A licence file pointing into `.git` now fails to read.
@@ -158,6 +142,21 @@ release ships.
 
 ### Fixed, Found in review rounds, not yet prioritised
 
+- [x] **`git.py` said the blob filter omits blobs over 10 MB (S), fixed.** The module
+  docstring and `BLOB_LIMIT` comment (`extract/remote/git.py`) describe
+  `--filter=blob:limit=10m` as leaving out large files. It leaves out only
+  blobs the checkout does not need: the WP0 probe of the Git model URL work
+  (2026-11-09, local smart HTTP) cloned a 12 MB file of the checked-out tree in full. Also `10m` is
+  10 MiB. `docs/git-urls.md` and the `git.py` docstring now say 10 MiB and that only
+  blobs the checkout does not need are left out.
+  *Found 2026-11-09, Git model URL work.*
+- [x] **FIXED (round 4 of #464): credentials, `[global]`, code execution,
+  link loops.** A clone's `.git/config` no longer holds the URL's user
+  information; setup.cfg `[global]` (`src_root`) is not applied; discovery no
+  longer imports repository code through `sys.path`/the working directory;
+  folder links are dropped and discovery stops after 60 s; Poetry `from` and
+  other path entries are filtered; interleaved `fetch_git_project` blocks keep
+  their own confinement.
 - [x] **A Git URL with no repository path is cloned, not refused (S).**
   `loom model https://github.com/` prints `read as repository
   https://github.com` (`[target-ambiguous/git-page]`), runs `git clone`, and
