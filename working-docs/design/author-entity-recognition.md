@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-10
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -16,9 +16,47 @@ built today),
 [sbom-generator-field-notes/spdx-modelling.md](../implementation/sbom-generator-field-notes/spdx-modelling.md)
 (paper note, section 5).
 
-**Status:** a warning, not a heuristic, is built. The NLP / named-entity
-recognition (NER) approach below is a candidate follow-up, not planned for a
-release.
+**Status:** a warning, not a heuristic, is built. Typing by a known list
+with an `Agent` default is decided, not built (next section). The NLP /
+named-entity recognition (NER) approach below is a candidate follow-up, not
+planned for a release.
+
+## Decided 2026-11-27: known list, `Agent` when unsure
+
+User rulings after the 0.25.0 post-publish verification:
+
+- **An untyped author is an `Agent`**, not a `Person`: a type comes only
+  from the source itself or from a deterministic rule below. Answers open
+  question 3 for every author, not only hub namespaces.
+- **A known-organisation list** ([#170](https://github.com/bact/pitloom/issues/170))
+  types an exact name match, or an exact address match, as `Organization`.
+  Match exact role addresses (`opensource@trailofbits.com`,
+  `distutils-sig@python.org`), never a domain: `luc@huggingface.co` is a
+  person at Hugging Face, and so is the address on the `Hugging Face, Inc.`
+  entry.
+- **A Person merges with a Person of the same name and email**, across
+  routes: the SBOM creator and a dependency originator were two agents in
+  0.25.0 (fixed with this ruling; `_add_creation_bundle` in
+  `assemble/spdx3/document.py` registers Person and Organization creators
+  first).
+
+Ground truth, the 31 agents of the published 0.25.0 SBOM under these rules
+(the 20 personal names become `Agent` unless their source types them):
+
+| Rule | Type | Agents |
+| - | - | - |
+| On the list | `Organization` | Trail of Bits, Python Packaging Authority, GGML |
+| Legal suffix, or on the list | `Organization` | Hugging Face, Inc. |
+| Group wording (today's rule, widened) | `Organization` | ONNX Contributors, Magika Developers, Thomas Kluyver & contributors, Travis E. Oliphant et al. |
+| Anything else | `Agent` | layday and 20 personal names |
+
+Open before a plan: whether a legal suffix and group wording beyond
+`others`/`et al` count as deterministic rules; who keeps the list and where
+(a packaged data file, offline); the `Method` provenance of each rule; that
+retyping changes agent ids (the type is in `agent_key`), so a registry note;
+which routes share the one typing function (project authors, dependency
+originators, model producer, dataset `publishedBy`, SBOM creators stay as
+configured).
 
 ## Problem
 
@@ -113,8 +151,8 @@ guess. Legal readings need review before they reach user docs.
 
 1. Is a fuzzy classifier core or an optional extra / Skill?
 2. Which rows of the provenance taxonomy record "typed by heuristic"?
-3. Does the `Agent` fallback belong now for every unknown author, or only for
-   hub namespaces?
+3. Decided 2026-11-27: the `Agent` fallback is for every untyped author
+   (see the decision above).
 4. Evaluation set: how many real `Author` strings, labelled by whom?
-5. A list of known organisations
-   ([#170](https://github.com/bact/pitloom/issues/170)) is one candidate.
+5. Decided 2026-11-27: a list of known organisations
+   ([#170](https://github.com/bact/pitloom/issues/170)) types an exact match.

@@ -62,11 +62,11 @@ lists its open entries first, ranked as described under
 | [Licences and LicenseID](known-bugs/licences-and-licenseid.md) | - | - | 2 | 3 | 9 | - | 14 | 14 |
 | [ID registry and identity](known-bugs/id-registry-and-identity.md) | - | 3 | - | - | 11 | 1 | 15 | 11 |
 | [Messages, catalogue and provenance](known-bugs/messages-and-provenance.md) | - | - | - | 2 | 18 | - | 20 | 17 |
-| [Remote sources, Git LFS and datasets](known-bugs/remote-sources-lfs-and-datasets.md) | - | - | - | - | 12 | - | 12 | 8 |
-| [Extraction, fragments and merge](known-bugs/extraction-and-fragments.md) | 1 | - | 3 | 8 | 13 | - | 25 | 11 |
+| [Remote sources, Git LFS and datasets](known-bugs/remote-sources-lfs-and-datasets.md) | - | - | - | - | 20 | - | 20 | 10 |
+| [Extraction, fragments and merge](known-bugs/extraction-and-fragments.md) | 1 | - | 3 | 8 | 14 | - | 26 | 11 |
 | [CLI, Action, hook and wheel](known-bugs/surfaces-hook-and-wheel.md) | - | - | - | 7 | 2 | 2 | 11 | 5 |
 | [Process, tooling and release checks](known-bugs/process-tooling-and-release-checks.md) | - | - | - | 2 | 11 | - | 13 | 9 |
-| **Total** | **1** | **3** | **5** | **60** | **80** | **3** | **152** | **88** |
+| **Total** | **1** | **3** | **5** | **60** | **89** | **3** | **161** | **90** |
 
 Open = the `- [ ]` entries plus the Leads, which are plain bullets with no box;
 Fixed = the `- [x]` entries. The P and Found columns count `- [ ]` entries only.
