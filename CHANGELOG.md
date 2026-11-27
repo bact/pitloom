@@ -164,10 +164,10 @@ and this project adheres to
   credential: refused or warned of in an SBOM ([#544])
 - An empty input path is `input-not-found`, an empty `-o`, `--project-dir`,
   `--id-registry`, `--config` or SBOM file name `option-invalid`: `""` (blank in
-  `generate()`) never reads the cwd ([#545], [#550], [#NNN])
+  `generate()`) never reads the cwd ([#545], [#550], [#557])
 - loom SDK and library calls refuse an argument of the wrong type (`CodedTypeError`,
   `option-invalid`; a `bool` refuses `"false"`); an unknown `dataset_type` is
-  refused, not `text`; a symlinked script keeps its own name ([#545], [#NNN])
+  refused, not `text`; a symlinked script keeps its own name ([#545], [#557])
 - `loom id generate --namespace` holding a credential is `credentials-unsafe/registry`,
   exit 1, as in the library ([#545])
 - The message reference dates a line newer than its code ([#546]); `line_kind()`
@@ -181,10 +181,10 @@ and this project adheres to
 - A message's advice names the flag, library parameter (`BuildOptions.timeout`)
   or `[tool.pitloom]` key of the surface that ran ([#556])
 - `IdRegistry.save()` with no path is `registry-file-missing`, not a plain
-  `ValueError` ([#NNN])
+  `ValueError` ([#557])
 - A missing `loom generate` or `generate()` target is `target not found`, `loom
   project`'s `project path not found`; `loom generate ''` says so before a missing
-  `-o` ([#NNN])
+  `-o` ([#557])
 
 ### Fixed
 
@@ -296,7 +296,7 @@ and this project adheres to
 [#554]: https://github.com/bact/pitloom/pull/554
 [#555]: https://github.com/bact/pitloom/pull/555
 [#556]: https://github.com/bact/pitloom/pull/556
-[#NNN]: https://github.com/bact/pitloom/pull/NNN
+[#557]: https://github.com/bact/pitloom/pull/557
 
 ## [0.24.0] - 2026-11-11
 
