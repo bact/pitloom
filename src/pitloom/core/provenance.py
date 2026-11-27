@@ -23,7 +23,12 @@ import rfc8785
 
 from pitloom.core.internal_error import InternalError
 from pitloom.core.untrusted_text import escape_display_controls, escape_lone_surrogates
-from pitloom.messages.config import ConfigPlace, Parameter, invalid_value
+from pitloom.messages.config import (
+    ConfigPlace,
+    Parameter,
+    invalid_type,
+    invalid_value,
+)
 
 DEFAULT_PROVENANCE_SCHEMA = "pitloom/1"
 #: The provenance schemas an encoder writes: a drift test holds it equal to
@@ -110,9 +115,12 @@ def require_max_source_metadata_bytes(
     or a ``float`` does not.
 
     Raises:
-        ValueError: *value* is not an integer, is negative, or is below the
-            minimum without being ``0`` (a
-            :class:`~pitloom.messages.CodedValueError`).
+        TypeError: at a ``Parameter`` stage, *value* is not an integer
+            (a :class:`~pitloom.messages.CodedTypeError`).
+        ValueError: *value* is negative or below the minimum without
+            being ``0``, or any invalid value from a file
+            (``config-invalid``); a
+            :class:`~pitloom.messages.CodedValueError`.
     """
     problem = budget_problem(value)
     if problem is not None:
@@ -294,7 +302,9 @@ def require_provenance_choices(
             "one-of-preserve",
         ),
     ):
-        if not isinstance(value, str) or value not in choices:
+        if not isinstance(value, str):
+            raise invalid_type(Parameter(owner + name), expected, value)
+        if value not in choices:
             raise invalid_value(Parameter(owner + name), expected, got=value)
 
 

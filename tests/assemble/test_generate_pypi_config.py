@@ -41,6 +41,7 @@ from pitloom.extract.remote import pypi
 from pitloom.extract.remote.errors import RemoteSourceError
 from pitloom.extract.remote.pypi import SDIST
 from tests._fake_pypi_server import FakePypi
+from tests.argument_errors import integer_refusal
 from tests.assemble._pypi_dists import (
     CREATION,
     URL,
@@ -163,7 +164,7 @@ _BAD = [0, -1, True, 1.5, "8"]
 def test_an_invalid_cap_is_refused_before_any_request(
     fake: FakePypi, call: Callable[[object], str], bad: object
 ) -> None:
-    with pytest.raises(ValueError, match="max.download.bytes"):
+    with pytest.raises(integer_refusal(bad), match="max.download.bytes"):
         call(bad)
     assert not fake.seen
 

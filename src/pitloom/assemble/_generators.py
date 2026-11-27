@@ -29,6 +29,7 @@ from pitloom.assemble.spdx3.document import build
 from pitloom.assemble.spdx3.fragments import merge_fragments
 from pitloom.core._models_wheel_dispatch import _noop_cleanup
 from pitloom.core.acquisition import Acquisition
+from pitloom.core.bool_arguments import checked_bools
 from pitloom.core.build_options import BuildOptions
 from pitloom.core.build_signals import TerminationGuard
 from pitloom.core.config import PitloomConfig
@@ -66,6 +67,7 @@ from pitloom.id_registry import (
     resolve_registry,
 )
 from pitloom.logging_config import configure_logging
+from pitloom.messages.config import require_path_argument
 from pitloom.messages.targets import refuse_empty_input
 
 
@@ -91,6 +93,7 @@ def _warn_if_metadata_without_config(
 
 
 # pylint: disable=too-many-arguments,too-many-locals,too-many-positional-arguments
+@checked_bools
 def generate_project_sbom(
     project_target: Path | str,
     *,
@@ -179,6 +182,9 @@ def generate_project_sbom(
     adds to the credentials *pitloom_config* accepts; it never replaces them.
 
     Raises:
+        pitloom.messages.CodedTypeError: An argument is of the wrong type
+            (a path that is no ``str`` or ``os.PathLike``, a ``bool``
+            that is not one): ``option-invalid``, before anything is read.
         FileNotFoundError: *project_dir* is given for an sdist and is not a
             directory; *project_target* is given as empty
             (``input-not-found``).
@@ -194,6 +200,7 @@ def generate_project_sbom(
     """
     configure_logging()
     refuse_empty_output(output_path)
+    require_path_argument(project_target, "project_target")
     refuse_empty_input(project_target, "project path")
     refuse_hub_model_target(project_target)
     if isinstance(project_target, str) and is_pypi_url(project_target):

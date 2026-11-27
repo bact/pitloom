@@ -44,7 +44,8 @@ def test_validate_build_timeout_rejects_out_of_range(value: int) -> None:
 
 @pytest.mark.parametrize("value", [True, False, 1.5, "10", None], ids=repr)
 def test_validate_build_timeout_rejects_non_int(value: object) -> None:
-    with pytest.raises(TypeError, match="build timeout"):
+    """Named by the library's spelling: argparse hands over an int only."""
+    with pytest.raises(TypeError, match="^BuildOptions.timeout: must be an integer"):
         validate_build_timeout(value)
 
 

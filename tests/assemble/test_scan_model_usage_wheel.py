@@ -33,6 +33,7 @@ from pitloom.embed import ConfigOverrides, embed_wheel_sbom
 from pitloom.id_registry import IdRegistry
 from pitloom.messages import code_of
 from tests._wheel_models import safetensors_bytes, write_model_wheel
+from tests.argument_errors import integer_refusal
 from tests.assemble.embed_surfaces_shared import run_cli
 from tests.assemble.test_scan_model_usage import (
     _MODEL,
@@ -382,7 +383,7 @@ def test_library_ceiling_is_validated_before_scanning(
     if surface.startswith("cli-"):
         pytest.skip("the config reader rejects it: test_config")
     with pytest.raises(
-        ValueError, match=r"^PitloomConfig\.max_model_extract_bytes: must be"
+        integer_refusal(bad), match=r"^PitloomConfig\.max_model_extract_bytes: must be"
     ) as exc:
         _SURFACES[surface](tmp_path, monkeypatch, None, None, bad)
     assert code_of(exc.value) == "option-invalid"

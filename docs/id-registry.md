@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-07
-Last-Modified: 2026-11-26
+Last-Modified: 2026-11-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -246,7 +246,10 @@ as `pitloom_config=`; its own `id_registry=` resolves against the current
 directory, a `pitloom_config=` file's `id-registry` against that file's
 directory.
 
-`IdRegistry.load()` takes a `str` or path-like (else `TypeError`). `register()`
+`IdRegistry.load()` takes a `str` or path-like (else `TypeError`), not
+empty (else `ValueError`), as `--id-registry ""` is refused; both carry the
+code `option-invalid`. `save()` with no path, for a registry made without
+one, raises `ValueError` (`registry-file-missing`). `register()`
 and the loader reject a name that UTF-8 cannot hold (a lone surrogate) with
 `ValueError` (`text-malformed/registry`, `registry-malformed`); `generate()`
 skips such a file with the `PATH` `WARNING:`, and harvest and `id import`

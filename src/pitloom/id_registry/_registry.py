@@ -25,6 +25,7 @@ from uuid import uuid4
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
+from pitloom.core.bool_arguments import checked_bools
 from pitloom.core.current_dir import absolute_path
 from pitloom.core.given_path import keep_spelling
 from pitloom.core.iri import doc_namespace, iri_segment, namespace_problem
@@ -66,8 +67,17 @@ from pitloom.id_registry._types import (
 )
 from pitloom.id_registry.import_keys import import_keys, report_imported
 from pitloom.messages import CodedValueError, emit
-from pitloom.messages.config import Parameter, invalid_value
-from pitloom.messages.id_registry import MINT_LINE, REGISTRY_MALFORMED
+from pitloom.messages.config import (
+    Parameter,
+    invalid_value,
+    require_path_argument,
+)
+from pitloom.messages.id_registry import (
+    MINT_LINE,
+    REGISTRY_FILE_MISSING,
+    REGISTRY_MALFORMED,
+    SAVE_PATH_MISSING_LINE,
+)
 from pitloom.messages.id_registry_ids import (
     HASH_CHANGED_LINE,
     PIN_GATED_LINE,
@@ -82,28 +92,12 @@ from pitloom.messages.targets import (
     SBOM_INVALID,
     SBOM_NAMESPACE_LINE,
     is_empty_input,
-    refuse_empty_input,
 )
 from pitloom.messages.text import registry_name_error
 
 log = logging.getLogger("pitloom.id_registry")
 
 __all__ = ["IdRegistry"]
-
-
-def _require_bool(refuse_credentials: object) -> bool:
-    """*refuse_credentials* if it is a ``bool``: ``1`` or ``"refuse"`` is
-    a wrong argument, never read as either mode.
-
-    Raises:
-        TypeError: it is not a ``bool``.
-    """
-    if not isinstance(refuse_credentials, bool):
-        raise TypeError(
-            "refuse_credentials must be a bool, "
-            f"not {type(refuse_credentials).__name__}"
-        )
-    return refuse_credentials
 
 
 class IdRegistry:
@@ -125,8 +119,12 @@ class IdRegistry:
             (:func:`~pitloom.id_registry._credentials.require_registry_namespace`:
             ``credentials-unsafe/registry`` when it holds credentials, in
             either mode), so no id is minted in it.
+        pitloom.messages.CodedTypeError: *refuse_credentials* (here, in
+            :meth:`new` or :meth:`load`) is not a ``bool`` (``option-invalid``):
+            ``1`` or ``"refuse"`` is never read as either mode.
     """
 
+    @checked_bools
     def __init__(
         self,
         namespace: str,
@@ -139,7 +137,7 @@ class IdRegistry:
     ) -> None:
         self.namespace = require_registry_namespace(namespace)
         #: The ``refuse`` mode for a key or file entry holding a credential.
-        self.refuse_credentials = _require_bool(refuse_credentials)
+        self.refuse_credentials = refuse_credentials
         #: Keyed by :func:`~pitloom.id_registry._types._element_key`.
         self.elements: dict[tuple[str, str], RegistryEntry] = (
             elements if elements is not None else {}
@@ -160,6 +158,7 @@ class IdRegistry:
         self._reserve_held()
 
     @classmethod
+    @checked_bools
     def new(
         cls,
         project_name: str,
@@ -181,6 +180,9 @@ class IdRegistry:
         A name-derived UUID would give two unrelated projects of one name the
         same ids.
         """
+        for name, value in (("path", path), ("project_root", project_root)):
+            if value is not None:
+                require_path_argument(value, name)
         if namespace is None:
             namespace = doc_namespace(project_name, str(uuid4()))
         return cls(
@@ -191,13 +193,13 @@ class IdRegistry:
         )
 
     @classmethod
+    @checked_bools
     def load(
         cls, path: str | os.PathLike[str], *, refuse_credentials: bool = False
     ) -> IdRegistry:
         """Load a registry from *path*.
 
-        A file that is not there (or not a file), or *path* given as
-        empty, raises
+        A file that is not there (or not a file) raises
         :class:`~pitloom.messages.CodedFileNotFoundError`
         (``input-not-found``); every other failure raises a ``ValueError``
         carrying its code (:func:`~pitloom.id_registry._format.read_registry_file`);
@@ -214,17 +216,18 @@ class IdRegistry:
         masked): nothing is dropped or rewritten, the user edits the file.
 
         Raises:
-            TypeError: *path* is not a ``str`` or ``os.PathLike`` (bytes
-                included), or *refuse_credentials* is not a ``bool``: a
-                wrong argument, not a bad file.
+            pitloom.messages.CodedTypeError: *path* is not a ``str`` or
+                ``os.PathLike`` (bytes included), or *refuse_credentials*
+                is not a ``bool``: a wrong argument, not a bad file
+                (``option-invalid``).
+            pitloom.messages.CodedValueError: *path* is given as empty,
+                which :class:`pathlib.Path` would read as the current
+                directory (``option-invalid``, ``non-empty``), as an empty
+                ``--id-registry`` is.
         """
-        _require_bool(refuse_credentials)
-        if not isinstance(path, (str, os.PathLike)):
-            raise TypeError(
-                "ID registry file path must be a str or os.PathLike, "
-                f"not {type(path).__name__}"
-            )
-        refuse_empty_input(path, "ID registry file")  # Path("") reads "."
+        require_path_argument(path, "path")
+        if is_empty_input(path):
+            raise invalid_value(Parameter("path"), "non-empty", got="")
         path = keep_spelling(Path(path), path)
         contents = read_registry_file(path)
         check_entries_credentials(contents.elements, path, refuse=refuse_credentials)
@@ -309,6 +312,7 @@ class IdRegistry:
         """Return the entry for *name* under *type_name*, or ``None``."""
         return self.elements.get(_element_key(type_name=type_name, name=name))
 
+    @checked_bools
     def lookup(
         self,
         type_name: str,
@@ -494,6 +498,7 @@ class IdRegistry:
         self.elements[key] = RegistryEntry(spdx_id=spdx_id, sha256=given)
         return spdx_id
 
+    @checked_bools
     def generate(
         self,
         paths: list[Path],
@@ -606,19 +611,22 @@ class IdRegistry:
         """Write this registry as JSON to *path* (default: :attr:`path`).
 
         With no :attr:`project_root` yet, the registry file's directory
-        becomes the project root. Raises ``ValueError`` when there is no
-        path, or when the project root cannot be stored relative to it.
+        becomes the project root. Raises ``ValueError`` when the project
+        root cannot be stored relative to the path.
 
         Raises:
-            pitloom.messages.CodedValueError: *path* (else :attr:`path`) is
-                given as empty (``option-invalid``, ``non-empty``), which
-                :class:`pathlib.Path` would read as the current directory;
-                or it is relative and the current directory is gone
-                (``file-unreadable``, ``DIR=.``).
+            pitloom.messages.CodedValueError: neither *path* nor
+                :attr:`path` is given (``registry-file-missing``); *path* (else
+                :attr:`path`) is given as empty (``option-invalid``,
+                ``non-empty``), which :class:`pathlib.Path` would read as
+                the current directory; or it is relative and the current
+                directory is gone (``file-unreadable``, ``DIR=.``).
         """
+        if path is not None:
+            require_path_argument(path, "path")
         target = self.path if path is None else path
         if target is None:
-            raise ValueError("No path given and registry has no default path")
+            raise CodedValueError(REGISTRY_FILE_MISSING, line=SAVE_PATH_MISSING_LINE)
         if is_empty_input(target):
             raise invalid_value(Parameter("path"), "non-empty", got="")
         where = absolute_path(target)  # a gone cwd is DIR=., not a failed write

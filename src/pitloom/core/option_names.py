@@ -67,8 +67,8 @@ PARAM_TO_FLAG: Final[Mapping[str, str]] = MappingProxyType(
     }
 )
 
-#: An option a reason or a build line names that is no parameter of
-#: :data:`PARAM_TO_FLAG`: its placeholder -> (its flag, its library name).
+#: An option a reason, a build line or a refusal names that is no parameter
+#: of :data:`PARAM_TO_FLAG`: its placeholder -> (its flag, its library name).
 REASON_NAMES: Final[Mapping[str, tuple[str, str]]] = MappingProxyType(
     {
         **{
@@ -80,6 +80,7 @@ REASON_NAMES: Final[Mapping[str, tuple[str, str]]] = MappingProxyType(
             )
         },
         "sbom": ("--sbom", "sbom_path"),
+        "sbom_basename": ("--sbom-basename", "sbom_basename"),
         # enrich_model() names the project it enriches project_target.
         "enrich_project_dir": ("--project-dir", "project_target"),
     }

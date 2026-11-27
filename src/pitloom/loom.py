@@ -110,16 +110,16 @@ class Run(contextlib.ContextDecorator):
             refused and no fragment written (the ``refuse`` mode).
 
     Raises:
-        TypeError: An argument other than *pitloom_config* and
-            *max_dataset_hash_bytes* is of the wrong type
-            (``option-invalid``, a :class:`~pitloom.messages.CodedTypeError`),
-            as every loom call refuses one.
+        TypeError: An argument is of the wrong type (``option-invalid``,
+            a :class:`~pitloom.messages.CodedTypeError`), as every loom
+            call refuses one: at the call, or as the run begins
+            (``__enter__``) for *pitloom_config* and
+            *max_dataset_hash_bytes*, which keep their own checks.
         ValueError: *output_file* is empty (``option-invalid``), at the
-            call; *pitloom_config* or *max_dataset_hash_bytes*, which keep
-            their own checks, has a value it does not take, of any type
-            (``option-invalid``, a
-            :class:`~pitloom.messages.CodedValueError`), as the run begins
-            (``__enter__``).
+            call; *pitloom_config* or *max_dataset_hash_bytes* has a value
+            of the right type it does not take (``option-invalid``, a
+            :class:`~pitloom.messages.CodedValueError`), as the run
+            begins.
     """
 
     # pylint: disable-next=too-many-arguments

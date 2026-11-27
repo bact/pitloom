@@ -4,8 +4,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """The ``type=`` of a path option that names where Pitloom writes or looks
-(``-o``, ``--project-dir``, ``--id-registry``): an empty one is refused as
-the option's own error (``option-invalid``), never read as ``.``.
+(``-o``, ``--project-dir``, ``--id-registry``, ``--config``, ``--sbom``):
+an empty one is refused as the option's own error (``option-invalid``),
+never read as ``.``; likewise an empty file name (``--sbom-basename``,
+``--sbom-filename``), never read as the default.
 
 An empty *input* path (a command's positional target) is ``input-not-found``
 instead, said where the target is probed.
@@ -18,7 +20,7 @@ import argparse
 from pitloom.core.given_path import TypedPath
 from pitloom.messages.config import must_be
 
-__all__ = ["non_empty_path"]
+__all__ = ["non_empty_name", "non_empty_path"]
 
 
 def non_empty_path(text: str) -> TypedPath:
@@ -32,3 +34,17 @@ def non_empty_path(text: str) -> TypedPath:
     if not text:
         raise argparse.ArgumentTypeError(must_be("non-empty", got=text))
     return TypedPath(text)
+
+
+def non_empty_name(text: str) -> str:
+    """*text*, a file name an option gives (``--sbom-basename``,
+    ``--sbom-filename``), refused when empty: an empty name is no request
+    for the default.
+
+    Raises:
+        argparse.ArgumentTypeError: *text* is empty (``must be a non-empty
+            string, got ''``).
+    """
+    if not text:
+        raise argparse.ArgumentTypeError(must_be("non-empty", got=text))
+    return text

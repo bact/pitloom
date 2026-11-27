@@ -24,6 +24,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
+from pitloom.core.bool_arguments import check_bool_fields
 from pitloom.core.internal_error import InternalError
 from pitloom.core.model_extract_limit import (
     DEFAULT_MAX_DOWNLOAD_BYTES,
@@ -48,11 +49,13 @@ class RemoteFetchPolicy:
             be fetched. Compared by identity.
 
     Raises:
-        ValueError: *max_bytes* is not an integer of at least 1 (a ``bool``
-            or a ``float`` is none); an
+        TypeError: *max_bytes* is not an integer (a ``bool`` or a
+            ``float`` is none), or *offline* is not a ``bool``
+            (``option-invalid``).
+        ValueError: *max_bytes* is an integer below 1; an
             :class:`~pitloom.core.internal_error.InternalError` (a
-            ``ValueError``) when *offline* is not a ``bool`` or *check_url*
-            is neither callable nor ``None``.
+            ``ValueError``) when *check_url* is neither callable nor
+            ``None``.
     """
 
     max_bytes: int = DEFAULT_MAX_DOWNLOAD_BYTES
@@ -67,11 +70,7 @@ class RemoteFetchPolicy:
             "max_bytes",
             require_positive_ceiling(self.max_bytes, Parameter("max_bytes")),
         )
-        if not isinstance(self.offline, bool):
-            raise InternalError(
-                "offline must be a bool, got "
-                f"{type(self.offline).__name__}: {self.offline!r}"
-            )
+        check_bool_fields(self)
         if self.check_url is not None and not callable(self.check_url):
             raise InternalError(
                 "check_url must be callable or None, got "

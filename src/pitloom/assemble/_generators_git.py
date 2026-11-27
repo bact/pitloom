@@ -24,6 +24,7 @@ from typing import Any
 from pitloom._sbom_io import refuse_empty_output
 from pitloom.assemble._generators import generate_project_sbom
 from pitloom.assemble._model_generator import generate_model_sbom
+from pitloom.core.bool_arguments import checked_bools
 from pitloom.core.build_options import REMOTE_REPOSITORY_REASON, BuildOptions
 from pitloom.core.config import PitloomConfig
 from pitloom.core.config_cascade import resolve_fetch_policy
@@ -74,6 +75,7 @@ def _git_model_sbom(
 
 
 # pylint: disable=too-many-arguments,too-many-locals,too-many-positional-arguments
+@checked_bools
 def generate_git_sbom(
     url: str,
     *,
@@ -126,8 +128,10 @@ def generate_git_sbom(
     Raises:
         pitloom.core.internal_error.InternalError: *sbom_kind* is none of
             the three (a :class:`ValueError`).
-        ValueError: *max_download_bytes* (or the config's) is not an
-            integer of at least 1.
+        TypeError: *max_download_bytes* is not an integer
+            (``option-invalid``).
+        ValueError: *max_download_bytes* is an integer below 1, or the
+            config's is not an integer of at least 1.
         pitloom.extract.remote.errors.RemoteSourceError: the repository could
             not be fetched, the named file is not in it
             (``git.path-not-found``), or ``git.no-project``.
@@ -217,6 +221,7 @@ def generate_git_sbom(
 
 
 # pylint: disable=too-many-arguments,too-many-locals,too-many-positional-arguments
+@checked_bools
 def generate_git_project_sbom(
     url: str,
     *,

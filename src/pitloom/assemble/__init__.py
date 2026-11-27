@@ -25,6 +25,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+from pitloom._sbom_io import refuse_empty_output
 from pitloom.assemble._generators import generate_project_sbom
 from pitloom.assemble._generators_env import generate_env_sbom
 from pitloom.assemble._generators_git import (
@@ -47,6 +48,7 @@ from pitloom.assemble._model_generator import (
     project_document_id,
 )
 from pitloom.assemble.spdx3.fragments import FragmentMergeError, merge_fragments
+from pitloom.core.bool_arguments import checked_bools
 from pitloom.core.build_options import NON_PROJECT_TARGET_REASON, BuildOptions
 from pitloom.core.config import PitloomConfig
 from pitloom.core.config_cascade import (
@@ -88,7 +90,12 @@ from pitloom.extract.remote.pypi import sdist_hint
 from pitloom.extract.remote.pypi_url import is_pypi_url
 from pitloom.id_registry import IdRegistry
 from pitloom.logging_config import configure_logging
-from pitloom.messages.targets import input_not_found, refuse_empty_input
+from pitloom.messages.config import require_path_argument
+from pitloom.messages.targets import (
+    input_exists,
+    input_not_found,
+    refuse_empty_input,
+)
 
 __all__ = [
     "BuildOptions",
@@ -240,6 +247,7 @@ def _generate_remote(
 
 
 # pylint: disable=too-many-arguments,too-many-locals,too-many-positional-arguments
+@checked_bools
 def generate(
     target: Path | str = ".",
     *,
@@ -317,22 +325,32 @@ def generate(
     adds to the URL credentials *pitloom_config* accepts, for every target.
 
     Raises:
+        pitloom.messages.CodedTypeError: An argument is of the wrong type
+            (a path that is no ``str`` or ``os.PathLike``, a ``bool``
+            that is not one): ``option-invalid``, before anything is read.
         pitloom.messages.CodedFileNotFoundError: *target* is given as empty
-            or blank (``input-not-found``), which :class:`pathlib.Path` or
-            the stripping of a URL would read as the current directory.
+            or blank, which :class:`pathlib.Path` or the stripping of a URL
+            would read as the current directory, or is a local path where
+            nothing is (``input-not-found``, named as a ``target``: nothing
+            tells its kind).
     """
     # Before the no-effect warnings below, which precede any delegate's own
     # configure_logging() call.
     configure_logging()
+    # Before the target is looked at, as each delegate refuses it.
+    refuse_empty_output(output_path)
     # Here, not in a delegate: Path(target) has lost the empty spelling.
-    refuse_empty_input(target, "project path")
+    require_path_argument(target, "target")
+    if project_dir is not None:
+        require_path_argument(project_dir, "project_dir")
+    refuse_empty_input(target, "target")
     if max_model_extract_bytes is not None:
         require_model_extract_override(max_model_extract_bytes)  # even if inert
     if max_download_bytes is not None:
         require_download_override(max_download_bytes)  # even if inert
     target_str = str(target).strip()
     if not target_str:  # blank: stripping must not turn it into "."
-        raise input_not_found("project path", target)
+        raise input_not_found("target", target)
     classification = _classify_target(target_str)
 
     if classification not in ("project", "git", "pypi"):
@@ -396,6 +414,9 @@ def generate(
             _model_file_of(target_str), **forwarded, check_url=check_url
         )
     project_target = Path(target_str)
+    if not input_exists(project_target, shown=target):
+        # Named as loom generate names it: nothing tells its kind.
+        raise input_not_found("target", target)
     kind = project_target_kind(project_target)
     return generate_project_sbom(
         project_target,

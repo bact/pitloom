@@ -22,7 +22,9 @@ from typing import TYPE_CHECKING, NamedTuple, Protocol, TypedDict
 from pitloom.core.clone_mark import in_remote_clone
 from pitloom.core.content_type_config import ContentTypeOverride
 from pitloom.logging_config import one_line
-from pitloom.messages import CodedValueError
+from pitloom.messages import SURFACE_LIBRARY, CodedValueError
+from pitloom.messages.build import BUILD_TIMEOUT_NAMES
+from pitloom.messages.config import Parameter, invalid_type
 from pitloom.messages.file_discovery import FAILED_LINE, warn_discovery
 from pitloom.messages.options import OPTION_INVALID
 
@@ -307,17 +309,19 @@ def _out_of_range(shown: str) -> ValueError:
 def validate_build_timeout(value: object) -> int:
     """Return *value* if it is a valid build timeout in whole seconds.
 
-    Raises :class:`TypeError` for a non-``int`` (``bool`` included, even
-    though it subclasses ``int``) and :class:`ValueError` outside
-    ``1..MAX_BUILD_TIMEOUT_SECONDS``. Messages carry no ``Build:`` prefix:
-    argparse prefixes its own ``argument --build-timeout:``.
+    Raises a :class:`~pitloom.messages.CodedTypeError` for a non-``int``
+    (``bool`` included, even though it subclasses ``int``), named
+    ``BuildOptions.timeout`` (argparse hands over an ``int`` only), and
+    a :class:`~pitloom.messages.CodedValueError` outside
+    ``1..MAX_BUILD_TIMEOUT_SECONDS``, whose line carries no ``Build:``
+    prefix: argparse prefixes its own ``argument --build-timeout:``.
+    Both are ``option-invalid``.
     """
     # bool subclasses int; True must not pass as a one-second timeout.
     if isinstance(value, bool) or not isinstance(value, int):
-        raise TypeError(
-            f"build timeout must be an int number of seconds, "
-            f"got {type(value).__name__}"
-        )
+        # Only a library caller can pass one: argparse hands over an int.
+        where = Parameter(BUILD_TIMEOUT_NAMES[SURFACE_LIBRARY])
+        raise invalid_type(where, "integer", value)
     if value > MAX_BUILD_TIMEOUT_SECONDS:
         shown = (
             str(value)

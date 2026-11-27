@@ -225,7 +225,7 @@ the table of prefixes.
 | [`registry-conflict/spelling`](messages-id-registry-ids.md#registry-conflictspelling) | WARNING | 0.25.0 |
 | [`registry-conflict/type`](messages-id-registry-ids.md#registry-conflicttype) | WARNING | 0.25.0 |
 | [`registry-entry-missing`](messages-id-registry-ids.md#registry-entry-missing) | WARNING | 0.25.0 |
-| [`registry-file-missing`](messages-id-registry.md#registry-file-missing) | WARNING | 0.25.0 |
+| [`registry-file-missing`](messages-id-registry.md#registry-file-missing) | ERROR, WARNING | 0.25.0 |
 | [`registry-hash-conflict`](messages-id-registry-ids.md#registry-hash-conflict) | WARNING, INFO | 0.25.0 |
 | [`registry-hash-conflict/gate`](messages-id-registry-ids.md#registry-hash-conflictgate) | INFO | 0.25.0 |
 | [`registry-hash-missing`](messages-id-registry-ids.md#registry-hash-missing) | WARNING, INFO | 0.25.0 |

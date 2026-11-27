@@ -312,6 +312,7 @@ _MARKERS: dict[str, tuple[str, ...]] = {
         "is outside --project-dir",
         "not inside the project root",
         "must be a local file, not a URL",
+        "must be True or False",
     ),
     "option-missing": (
         "the following arguments are required",

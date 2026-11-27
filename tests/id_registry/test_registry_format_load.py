@@ -372,8 +372,11 @@ def test_load_of_a_file_gone_since_it_was_found_is_not_found(
 
 @pytest.mark.parametrize("bad", [None, 5, b"r.json", ["r.json"]], ids=repr)
 def test_load_refuses_an_argument_that_is_not_a_path(bad: Any) -> None:
-    with pytest.raises(TypeError, match="str or os.PathLike"):
+    """A wrong argument, not a bad file: ``option-invalid``."""
+    said = r"^path: must be a path \(a str or an os\.PathLike\), got "
+    with pytest.raises(TypeError, match=said) as raised:
         IdRegistry.load(bad)
+    assert code_of(raised.value) == "option-invalid"
 
 
 def test_load_takes_a_str_and_names_a_directory_or_missing_file(

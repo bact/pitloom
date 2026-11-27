@@ -33,6 +33,7 @@ from pitloom.core._models_wheel_types import (
     resolve_build_timeout,
     validate_build_timeout,
 )
+from pitloom.core.bool_arguments import check_bool_fields
 from pitloom.core.no_effect import warn_no_effect
 from pitloom.core.option_names import option_name
 from pitloom.core.project import is_sdist_archive
@@ -103,11 +104,12 @@ class BuildOptions:
     The default instance means "no build flag given".
 
     Raises:
-        TypeError: ``allow``/``no_isolation`` is not a ``bool`` (a truthy
-            string such as ``"false"`` must never enable code execution),
-            or ``timeout`` is not an ``int``.
-        ValueError: ``timeout`` is outside
-            ``1..MAX_BUILD_TIMEOUT_SECONDS``.
+        pitloom.messages.CodedTypeError: ``allow``/``no_isolation`` is not a
+            ``bool`` (a truthy string such as ``"false"`` must never enable
+            code execution), or ``timeout`` is not an ``int``
+            (``option-invalid``).
+        pitloom.messages.CodedValueError: ``timeout`` is outside
+            ``1..MAX_BUILD_TIMEOUT_SECONDS`` (``option-invalid``).
     """
 
     allow: bool = False
@@ -115,12 +117,7 @@ class BuildOptions:
     timeout: int | None = None
 
     def __post_init__(self) -> None:
-        for name in ("allow", "no_isolation"):
-            value = getattr(self, name)
-            if not isinstance(value, bool):
-                raise TypeError(
-                    f"build option {name!r} must be bool, got {type(value).__name__}"
-                )
+        check_bool_fields(self)
         if self.timeout is not None:
             validate_build_timeout(self.timeout)
 

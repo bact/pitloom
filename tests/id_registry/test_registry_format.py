@@ -140,8 +140,11 @@ def test_saved_registry_is_canonical_text_with_indentation(tmp_path: Path) -> No
 
 
 def test_save_without_path_raises() -> None:
-    with pytest.raises(ValueError, match="No path given"):
+    with pytest.raises(
+        ValueError, match="^ID registry: no file to save to; "
+    ) as raised:
         IdRegistry.new("test").save()
+    assert code_of(raised.value) == "registry-file-missing"
 
 
 def test_save_defaults_project_root_to_the_registry_directory(tmp_path: Path) -> None:

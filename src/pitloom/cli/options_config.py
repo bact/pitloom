@@ -38,7 +38,7 @@ from pitloom.core.build_options import BuildOptions
 from pitloom.core.config import PitloomConfig
 from pitloom.core.config_cascade import ConfigOverrides
 from pitloom.core.current_dir import absolute_path
-from pitloom.core.given_path import GivenPath, TypedPath
+from pitloom.core.given_path import GivenPath
 from pitloom.core.no_effect import warn_no_effect
 
 #: Shared flags whose ``argparse`` dest is also the library parameter name.
@@ -187,7 +187,7 @@ def add_config_argument(parser: argparse.ArgumentParser) -> None:
     """Add the shared ``--config FILE`` option."""
     parser.add_argument(
         "--config",
-        type=TypedPath,
+        type=non_empty_path,
         default=None,
         metavar="FILE",
         help=(

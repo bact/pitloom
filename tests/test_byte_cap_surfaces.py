@@ -34,6 +34,7 @@ from pitloom.core.config_cascade import ConfigOverrides, apply_overrides
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.embed import embed_wheel_sbom
 from pitloom.messages import MESSAGES, code_of
+from tests.argument_errors import integer_refusal
 from tests.assemble.conftest import _make_dummy_wheel
 from tests.test_config_key_surfaces import (
     _HEAD,
@@ -176,7 +177,9 @@ def test_library_refuses_an_invalid_budget(
     calls = _library_calls(tmp_path)
     with (
         caplog.at_level(logging.WARNING),
-        pytest.raises(ValueError, match="max_source_metadata_bytes: must be") as exc,
+        pytest.raises(
+            integer_refusal(value), match="max_source_metadata_bytes: must be"
+        ) as exc,
     ):
         calls[call](value)
     assert code_of(exc.value) == "option-invalid"
@@ -254,7 +257,9 @@ def test_library_refuses_an_invalid_model_cap(
     assert sorted(calls) == sorted(_MODEL_CAP_CALLS)
     with (
         caplog.at_level(logging.WARNING),
-        pytest.raises(ValueError, match="^max_model_extract_bytes: must be") as exc,
+        pytest.raises(
+            integer_refusal(value), match="^max_model_extract_bytes: must be"
+        ) as exc,
     ):
         calls[call](value)
     assert code_of(exc.value) == "option-invalid"

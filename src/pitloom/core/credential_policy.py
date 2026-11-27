@@ -39,6 +39,7 @@ from pitloom.messages.config import (
     ConfigPlace,
     Parameter,
     config_invalid,
+    invalid_type,
     invalid_value,
 )
 from pitloom.messages.options import (
@@ -159,8 +160,10 @@ class CredentialPolicy:
     Raises:
         ValueError: an entry of *accepted* or *inherited* is not a
             fingerprint (a string given for the set is read as its
-            characters, so it fails too), or *refuse* is not a ``bool``
-            (``1`` or ``"refuse"`` is refused, never read as either mode).
+            characters, so it fails too).
+        TypeError: *refuse* is not a ``bool`` (``1`` or ``"refuse"`` is
+            refused, never read as either mode); a
+            :class:`~pitloom.messages.CodedTypeError`.
     """
 
     accepted: frozenset[str] = frozenset()
@@ -259,16 +262,16 @@ def require_mode(value: object, *, table: str | None = _TABLE) -> str:
     Raises:
         pitloom.messages.CodedValueError: ``config-invalid`` or
             ``option-invalid``.
+        pitloom.messages.CodedTypeError: ``option-invalid``: a library
+            *value* (*table* ``None``) that is not a string.
     """
     if isinstance(value, str) and value in _MODES:
         return value
     if table is None:
-        raise invalid_value(
-            Parameter("PitloomConfig.url_credentials"),
-            "url-credentials-mode",
-            value,
-            secret=True,
-        )
+        where = Parameter("PitloomConfig.url_credentials")
+        if not isinstance(value, str):
+            raise invalid_type(where, "url-credentials-mode", value, secret=True)
+        raise invalid_value(where, "url-credentials-mode", value, secret=True)
     raise config_invalid(
         _place(table, MODE_KEY), "url-credentials-mode", value, secret=True
     )

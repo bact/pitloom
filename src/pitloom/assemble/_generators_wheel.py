@@ -27,6 +27,7 @@ from pitloom.assemble._generators_pypi import generate_pypi_sbom
 from pitloom.assemble._generators_shared import _sync_registry, archive_project_dir
 from pitloom.assemble.spdx3.document import build
 from pitloom.core.acquisition import Acquisition
+from pitloom.core.bool_arguments import checked_bools
 from pitloom.core.config import PitloomConfig
 from pitloom.core.config_cascade import (
     ConfigOverrides,
@@ -49,9 +50,11 @@ from pitloom.extract.scanner_wheel import scan_wheel_for_ai_models
 from pitloom.extract.wheel import read_wheel, wheel_document_identity
 from pitloom.id_registry import IdRegistry, registry_copy, resolve_registry
 from pitloom.logging_config import configure_logging
+from pitloom.messages.config import require_path_argument
 
 
 # pylint: disable=too-many-arguments,too-many-locals
+@checked_bools
 def generate_wheel_sbom(
     wheel_path: Path | str,
     *,
@@ -128,11 +131,16 @@ def generate_wheel_sbom(
     dependency originator enrichment fetches a remote authors file.
 
     Raises:
+        pitloom.messages.CodedTypeError: An argument is of the wrong type
+            (a path that is no ``str`` or ``os.PathLike``, a ``bool``
+            that is not one): ``option-invalid``, before anything is read.
         ValueError: The wheel is refused as a whole
             (:class:`~pitloom.core.wheel_dist_info.WheelRefused`): not a ZIP
             archive, a member cannot be read, two members have one name or
-            one holds a NUL; or *max_model_extract_bytes* is not an
-            integer of at least 1.
+            one holds a NUL; or *max_model_extract_bytes* is an integer
+            below 1.
+        TypeError: *max_model_extract_bytes* is not an integer
+            (``option-invalid``).
         FileNotFoundError: Nothing is at *wheel_path*, or not a regular
             file; or *project_dir* is given and is not a directory
             (``input-not-found``, carrying the code).
@@ -192,6 +200,7 @@ def generate_wheel_sbom(
     )[0]
 
 
+@checked_bools
 def generate_wheel_sbom_with_metadata(
     wheel_path: Path | str,
     *,
@@ -232,11 +241,16 @@ def generate_wheel_sbom_with_metadata(
     wheel's; *trust_model_files* lifts the gate the same way.
 
     Raises:
+        pitloom.messages.CodedTypeError: An argument is of the wrong type
+            (a path that is no ``str`` or ``os.PathLike``, a ``bool``
+            that is not one): ``option-invalid``, before anything is read.
         ValueError: The wheel is refused as a whole
             (:class:`~pitloom.core.wheel_dist_info.WheelRefused`): not a ZIP
             archive, a member cannot be read, two members have one name or
-            one holds a NUL; or *max_model_extract_bytes* is not an
-            integer of at least 1.
+            one holds a NUL; or *max_model_extract_bytes* is an integer
+            below 1.
+        TypeError: *max_model_extract_bytes* is not an integer
+            (``option-invalid``).
         FileNotFoundError: Nothing is at *wheel_path*, or not a regular
             file; or *project_dir* is given and is not a directory
             (``input-not-found``, carrying the code).
@@ -250,6 +264,7 @@ def generate_wheel_sbom_with_metadata(
     """
     configure_logging()
     refuse_empty_output(output_path)
+    require_path_argument(wheel_path, "wheel_path")
     del check_url  # nothing is fetched for a local wheel
     if max_download_bytes is not None:
         require_download_override(max_download_bytes)  # even if inert

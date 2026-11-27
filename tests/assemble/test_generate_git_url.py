@@ -40,6 +40,7 @@ from pitloom.id_registry import IdRegistry
 from pitloom.logging_config import CODE_ATTR
 from pitloom.messages import GIT_FRAME
 from pitloom.messages.targets import CONFIG_UNSAFE
+from tests.argument_errors import integer_refusal
 
 _URL = "https://gitlab.example.org/g/p"
 
@@ -174,9 +175,9 @@ def test_the_download_cap_cascades_to_the_fetch(
 def test_an_invalid_download_cap_is_refused_before_the_fetch(
     seen: dict[str, object], call: Callable[..., str], bad: object
 ) -> None:
-    with pytest.raises(ValueError, match="max.download.bytes"):
+    with pytest.raises(integer_refusal(bad), match="max.download.bytes"):
         call(_URL, max_download_bytes=bad)
-    with pytest.raises(ValueError, match="max.download.bytes"):
+    with pytest.raises(integer_refusal(bad), match="max.download.bytes"):
         call(_URL, pitloom_config=PitloomConfig(max_download_bytes=cast(int, bad)))
     assert "max_bytes" not in seen
 

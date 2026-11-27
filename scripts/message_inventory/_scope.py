@@ -93,27 +93,14 @@ LIBRARY_EXC = frozenset({"_no_active_run"})
 #: Raises, by file, function, exception class and template, that only a
 #: library caller's wrong argument reaches: a value of the wrong Python type
 #: (a ``TypeError``), or a call that leaves out what the object lacks
-#: (``IdRegistry.save()`` with no path, ``register()`` with an empty type
-#: name). No command, hook, Action or file reaches them (the CLI passes only
-#: its own types and a registry with a path). Named one raise at a time, not
+#: (``register()`` with an empty type name). No command, hook, Action or
+#: file reaches them (the CLI passes only its own types and a registry with
+#: a path). Named one raise at a time, not
 #: one function: another raise in the same function (``--build-timeout 0``'s
 #: ``_out_of_range``, a registry file past ``MAX_ID_NUMBER``), a new one, or
 #: a listed one whose text changes stays counted.
 LIBRARY_SITES = frozenset(
     {
-        (
-            "src/pitloom/core/_models_wheel_types.py",
-            "validate_build_timeout",
-            "TypeError",
-            "build timeout must be an int number of seconds, "
-            "got {type(value).__name__}",
-        ),
-        (
-            "src/pitloom/core/build_options.py",
-            "BuildOptions.__post_init__",
-            "TypeError",
-            "build option {name} must be bool, got {type(value).__name__}",
-        ),
         (
             "src/pitloom/core/scalar_text.py",
             "scalar_text",
@@ -122,29 +109,9 @@ LIBRARY_SITES = frozenset(
         ),
         (
             "src/pitloom/id_registry/_registry.py",
-            "_require_bool",
-            "TypeError",
-            "refuse_credentials must be a bool, not "
-            "{type(refuse_credentials).__name__}",
-        ),
-        (
-            "src/pitloom/id_registry/_registry.py",
-            "IdRegistry.load",
-            "TypeError",
-            "ID registry file path must be a str or os.PathLike, not "
-            "{type(path).__name__}",
-        ),
-        (
-            "src/pitloom/id_registry/_registry.py",
             "IdRegistry._mint_id",
             "ValueError",
             "ID registry: no id prefix for an empty type name",
-        ),
-        (
-            "src/pitloom/id_registry/_registry.py",
-            "IdRegistry.save",
-            "ValueError",
-            "No path given and registry has no default path",
         ),
         (
             "src/pitloom/id_registry/_types.py",

@@ -25,7 +25,7 @@ from pitloom._wheel_sbom_location import (
     read_wheel_name_version_from_path,
 )
 from pitloom.assemble import VALIDATED_FORMATS, detect_sbom_format
-from pitloom.cli._path_args import non_empty_path
+from pitloom.cli._path_args import non_empty_name, non_empty_path
 from pitloom.cli.commands._embed_wheel_batch import (
     EmbedBatchContext,
     batch_options,
@@ -56,7 +56,6 @@ from pitloom.core.build_options import (
     NO_PROJECT_DIR_REASON,
     BuildOptions,
 )
-from pitloom.core.given_path import TypedPath
 from pitloom.embed import EmbedFileCache, checked_embed_basename
 from pitloom.logging_config import print_error
 from pitloom.messages import emit
@@ -276,7 +275,7 @@ def add_parser(subparsers: Any, parent_parser: argparse.ArgumentParser) -> None:
     )
     embed_parser.add_argument(
         "--sbom",
-        type=TypedPath,
+        type=non_empty_path,
         default=None,
         metavar="FILE",
         help=(
@@ -289,7 +288,7 @@ def add_parser(subparsers: Any, parent_parser: argparse.ArgumentParser) -> None:
     )
     embed_parser.add_argument(
         "--sbom-basename",
-        type=str,
+        type=non_empty_name,
         default=None,
         metavar="NAME",
         help="Custom basename for the embedded SBOM inside .dist-info/sboms/.",

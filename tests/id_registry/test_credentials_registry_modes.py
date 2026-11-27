@@ -25,7 +25,7 @@ import pytest
 from pitloom.__main__ import main
 from pitloom.id_registry import IdRegistry, resolve_registry, save_registry
 from pitloom.logging_config import CODE_ATTR
-from pitloom.messages import code_of
+from pitloom.messages import CodedTypeError, code_of
 
 #: A registry file is named by a path, spelt per platform.
 pytestmark = pytest.mark.platform
@@ -220,11 +220,15 @@ def test_id_import_reads_the_mode_like_generate(
 
 @pytest.mark.parametrize("value", [1, "refuse", None], ids=["one", "refuse", "none"])
 def test_the_registry_mode_takes_only_a_bool(value: Any, tmp_path: Path) -> None:
+    """Never read as either mode: ``option-invalid``, a ``TypeError``."""
     path = _registry_file(tmp_path / "ids.json")
-    with pytest.raises(TypeError, match="refuse_credentials must be a bool"):
+    said = "^refuse_credentials: must be True or False, got "
+    with pytest.raises(CodedTypeError, match=said):
         IdRegistry(namespace=_NS, refuse_credentials=value)
-    with pytest.raises(TypeError, match="refuse_credentials must be a bool"):
+    with pytest.raises(CodedTypeError, match=said):
         IdRegistry.load(path, refuse_credentials=value)
+    with pytest.raises(CodedTypeError, match=said):
+        IdRegistry.new("p", refuse_credentials=value)
 
 
 @pytest.mark.parametrize("command", ["generate", "import"])

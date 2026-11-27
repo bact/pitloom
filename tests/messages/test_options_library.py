@@ -141,9 +141,11 @@ def test_provenance_settings_are_refused_when_built(
     field: str, value: object, text: str
 ) -> None:
     """The ``ProvenanceConfig`` (and ``PitloomConfig.provenance``) refuses
-    a value when built or read, not when provenance is first written."""
+    a value when built or read, not when provenance is first written: a
+    ``TypeError`` for a value that is no string."""
+    error = ValueError if isinstance(value, str) else TypeError
     settings: dict[str, Any] = {field: value}
-    with pytest.raises(ValueError) as caught:
+    with pytest.raises(error) as caught:
         ProvenanceConfig(**settings)
     assert str(caught.value).startswith(f"ProvenanceConfig.{field}: {text}, got ")
     assert code_of(caught.value) == _INVALID
@@ -151,7 +153,7 @@ def test_provenance_settings_are_refused_when_built(
 
     config_settings: dict[str, Any] = {f"provenance_{field}": value}
     config = PitloomConfig(**config_settings)
-    with pytest.raises(ValueError) as caught:
+    with pytest.raises(error) as caught:
         _ = config.provenance
     assert str(caught.value).startswith(
         f"PitloomConfig.provenance_{field}: {text}, got "

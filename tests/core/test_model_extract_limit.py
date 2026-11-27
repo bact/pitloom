@@ -22,6 +22,7 @@ from pitloom.core.model_extract_limit import (
 )
 from pitloom.messages import code_of
 from pitloom.messages.config import ConfigPlace, Parameter
+from tests.argument_errors import integer_refusal
 
 _FILE = ConfigPlace("tool.pitloom").at("k")
 _PARAM = Parameter("pc")
@@ -67,8 +68,10 @@ def test_ceiling_rejects_and_names_its_stage(
     code: str,
 ) -> None:
     """The stage is the type of *where*: a file setting is ``config-invalid``,
-    a library parameter ``option-invalid`` (never picked from the text)."""
-    with pytest.raises(ValueError, match=message) as exc:
+    a library parameter ``option-invalid`` (never picked from the text), a
+    ``TypeError`` for a value that is no integer."""
+    error = ValueError if code == "config-invalid" else integer_refusal(value)
+    with pytest.raises(error, match=message) as exc:
         require_positive_ceiling(value, where)
     assert str(exc.value).startswith(prefix)
     assert code_of(exc.value) == code

@@ -198,8 +198,9 @@ def test_arrays_nested_past_the_parsers_limit_are_config_malformed(
 
 @pytest.mark.parametrize("value", [{"pretty": True}, 7, b"c.toml", ["c.toml"]])
 def test_a_loom_run_config_of_the_wrong_type_is_option_invalid(value: Any) -> None:
-    """Not a bare ``TypeError`` from ``Path()``: a library caller's bad value."""
-    with pytest.raises(ValueError, match="^pitloom_config: must be a path") as exc:
+    """Not a bare ``TypeError`` from ``Path()``: a library caller's value of
+    the wrong type, coded."""
+    with pytest.raises(TypeError, match="^pitloom_config: must be a path") as exc:
         loom_config(value)
     assert code_of(exc.value) == "option-invalid"
 

@@ -24,7 +24,7 @@ from __future__ import annotations
 import logging
 import os
 from collections.abc import Iterable
-from typing import Any
+from typing import Any, Final
 
 from pitloom.core.internal_error import InternalError
 from pitloom.messages._config import (
@@ -170,19 +170,40 @@ def warn_config_unknown_key(
     emit(log, CONFIG_UNKNOWN_KEY, logging.WARNING, once=once, **values)
 
 
+#: The :data:`EXPECTED` ids that name a Python type alone: a library value
+#: refused against one failed a type test, so it is a :class:`TypeError`
+#: (:func:`invalid_value` routes it to :func:`invalid_type`).
+TYPE_EXPECTED: Final = frozenset(
+    {
+        "config-source",
+        "creation-metadata",
+        "credential-policy",
+        "integer",
+        "list-of-strings",
+        "mapping-of-strings",
+        "path",
+        "python-bool",
+        "registry-source",
+        "string",
+    }
+)
+
+
 def invalid_value(
     where: ConfigPlace | Parameter,
     expected: str,
     got: object = MISSING,
     *,
     secret: bool = False,
-) -> CodedValueError:
+) -> CodedValueError | CodedTypeError:
     """The refusal of a shared validator, by the stage *where* says: a
     :class:`ConfigPlace` (a configuration file) is ``config-invalid``
     (:func:`config_invalid`), a :class:`Parameter` (a library caller's
-    value) the ``option-invalid`` line ``<parameter>: must be X, got Y``.
-    *secret*: the value may be a credential, so the line names its type
-    only.
+    value) the ``option-invalid`` line ``<parameter>: must be X, got Y``, a
+    :class:`~pitloom.messages.CodedValueError`, or for an *expected* of
+    :data:`TYPE_EXPECTED` (a type test failed) :func:`invalid_type`'s
+    :class:`~pitloom.messages.CodedTypeError`. *secret*: the value may be a
+    credential, so the line names its type only.
 
     Raises:
         pitloom.core.internal_error.InternalError: *expected* is not an id
@@ -192,6 +213,8 @@ def invalid_value(
         return config_invalid(where, expected, got, secret=secret)
     if not isinstance(where, Parameter):
         raise InternalError(f"not a stage: {where!r}")
+    if expected in TYPE_EXPECTED:
+        return invalid_type(where, expected, got, secret=secret)
     return CodedValueError(
         OPTION_INVALID,
         line=VALUE_LINE,
@@ -199,6 +222,53 @@ def invalid_value(
         expected=_known(expected),
         got=Found(kind_text(got)) if secret else got,
     )
+
+
+def invalid_type(
+    where: ConfigPlace | Parameter,
+    expected: str,
+    got: object,
+    *,
+    secret: bool = False,
+) -> CodedValueError | CodedTypeError:
+    """The refusal of *got*, a value of the wrong type given at *where*: in
+    a configuration file (a :class:`ConfigPlace`) ``config-invalid``, as
+    any bad setting; given to the library (a :class:`Parameter`) the
+    ``option-invalid`` line ``<parameter>: must be X, got Y`` as the
+    :class:`TypeError` a Python caller expects
+    (:class:`~pitloom.messages.CodedTypeError`). A value of the right type
+    the parameter does not take is :func:`invalid_value`'s ``ValueError``.
+    *secret*: as for :func:`invalid_value`.
+
+    Raises:
+        pitloom.core.internal_error.InternalError: *expected* is not an id
+            of the table, or *where* is neither stage.
+    """
+    if isinstance(where, ConfigPlace):
+        return config_invalid(where, expected, got, secret=secret)
+    if not isinstance(where, Parameter):
+        raise InternalError(f"not a stage: {where!r}")
+    return CodedTypeError(
+        OPTION_INVALID,
+        line=VALUE_LINE,
+        option=where.name,
+        expected=_known(expected),
+        got=Found(kind_text(got)) if secret else got,
+    )
+
+
+def require_path_argument(value: object, name: str) -> None:
+    """Refuse *value*, given to the library parameter *name* that takes a
+    path, unless it is a ``str`` or an :class:`os.PathLike`: never left
+    for :func:`os.fspath` or :class:`pathlib.Path` to raise a plain
+    ``TypeError``. Called before the path's own checks (an empty one).
+
+    Raises:
+        pitloom.messages.CodedTypeError: *value* is of another type
+            (``option-invalid``, ``must be a path``).
+    """
+    if not isinstance(value, (str, os.PathLike)):
+        raise invalid_type(Parameter(name), "path", value)
 
 
 def loom_sdk_invalid_value(

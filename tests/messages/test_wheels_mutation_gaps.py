@@ -155,9 +155,13 @@ def test_an_empty_sbom_filename_is_a_name_not_an_absent_one() -> None:
     assert "named" not in str(s.wheel_sbom_missing("w.whl", None))
 
 
-def test_an_empty_sbom_filename_finds_nothing(tmp_path: Path) -> None:
+def test_an_empty_sbom_filename_is_refused(tmp_path: Path) -> None:
+    """``""`` is no request for the one SBOM (``None`` is): refused before the
+    wheel is read, as ``--sbom-filename ''`` is."""
     wheel = make_wheel(tmp_path, sboms={"one.spdx3.json": spdx3_sbom()})
-    assert find_embedded_sbom(wheel, "") is None
+    with pytest.raises(ValueError) as caught:
+        find_embedded_sbom(wheel, "")
+    assert code_of(caught.value) == "option-invalid"
     found = find_embedded_sbom(wheel)
     assert found is not None and found.arcname.endswith("one.spdx3.json")
 

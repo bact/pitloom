@@ -19,7 +19,7 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
 
 | Code | Level | Means | Since |
 | --- | --- | --- | --- |
-| [`registry-file-missing`](#registry-file-missing) | WARNING | A run that saves the ids it added to the ID registry was given a registry with no file: an IdRegistry made in memory, without a path. The CLI and the build hook always name a file. | 0.25.0 |
+| [`registry-file-missing`](#registry-file-missing) | ERROR, WARNING | A run that saves the ids it added to the ID registry was given a registry with no file: an IdRegistry made in memory, without a path. The CLI and the build hook always name a file. The ERROR: line is IdRegistry.save() called with no path for such a registry (the library only). | 0.25.0 |
 | [`registry-malformed`](#registry-malformed) | ERROR, WARNING | An ID registry file is a JSON object but not a registry: a key named twice, a namespace, id counter, project root or entry of the wrong shape, a key the format needs missing, two entries for one key, or a key or spdxId holding a lone surrogate (a \ud800 escape). Most often a hand edit or a merge of two versions of the file. A counter a save would write out of range says the same, before the file is written; so does a mint past the largest id, which only a counter or an id edited to near it reaches. | 0.25.0 |
 | [`registry-unknown-key`](#registry-unknown-key) | ERROR, WARNING | An ID registry file holds a key its format does not have, at the top level or in an entry. The version is checked first, so a registry from a newer Pitloom says registry-wrong-format instead: the key comes from a hand edit or another tool. | 0.25.0 |
 | [`registry-unusable`](#registry-unusable) | ERROR, WARNING | An ID registry file cannot record its project root: the file stores the root relative to its own directory, and there is no such path (on Windows, the file and the project on two drives) or it would not load back. Said when the registry is saved. | 0.25.0 |
@@ -27,16 +27,19 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
 
 ### `registry-file-missing`
 
-- **Level**: WARNING.
+- **Level**: ERROR, WARNING. As an ERROR (the library's IdRegistry.save() only),
+  nothing is written; no command stops on it.
 - **Means**: A run that saves the ids it added to the ID registry was given a
   registry with no file: an IdRegistry made in memory, without a path. The CLI
-  and the build hook always name a file.
+  and the build hook always name a file. The ERROR: line is IdRegistry.save()
+  called with no path for such a registry (the library only).
 - **SBOM effect**: none: the SBOM states what the input holds.
 - **Pitloom did**: Said by loom generate (a project, wheel or environment),
   project, wheel and env, the library's generate_project_sbom,
   generate_wheel_sbom, generate_env_sbom and the PyPI and Git URL functions that
   call them, and loom.Run. The ids are used in the SBOM, which is written, but
-  are not saved: the next run mints them again.
+  are not saved: the next run mints them again. IdRegistry.save() with no path
+  raises ValueError carrying the code and writes nothing.
 - **The caller may fix**: The caller may give the IdRegistry a path
   (IdRegistry.load, or IdRegistry.new with path=) to keep the ids, or turn the
   update off (update-id-registry = false; update_id_registry=False in the
@@ -45,6 +48,7 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
 
   ```text
   WARNING: ID registry: no file to save to; the ids this run added are not saved [registry-file-missing]
+  ERROR: ID registry: no file to save to; pass save(path), or create the registry with a path [registry-file-missing]
   ```
 
 ### `registry-malformed`

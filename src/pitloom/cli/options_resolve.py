@@ -103,7 +103,9 @@ def _resolve_project_paths(args: argparse.Namespace) -> tuple[Path | None, Path 
     if not input_exists(args.project_dir):
         # A URL Pitloom does not read (user information in a Hugging Face
         # one) reaches here as a path: the line masks it.
-        say_input_not_found("project directory", args.project_dir)
+        # "project path", as generate_project_sbom() and read_project()
+        # name it: the target may be an sdist archive as well as a directory.
+        say_input_not_found("project path", args.project_dir)
         return None, None
     project_dir = args.project_dir.resolve()
 

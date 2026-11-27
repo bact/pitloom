@@ -18,7 +18,7 @@ from pathlib import Path
 import pytest
 
 from pitloom import __main__
-from pitloom.assemble import generate_merged_sbom
+from pitloom.assemble import generate, generate_merged_sbom
 from pitloom.core.config_cascade import load_config_file
 from pitloom.core.wheel_dist_info import WheelRefused, require_wheel_path
 from pitloom.extract.project.pyproject import read_pyproject
@@ -28,7 +28,7 @@ from pitloom.extract.project.setuptools_cfg import read_setup_cfg
 from pitloom.extract.project.setuptools_py import read_setup_py
 from pitloom.id_registry import IdRegistry
 from pitloom.logging_config import CODE_ATTR
-from pitloom.messages import INPUT_KINDS
+from pitloom.messages import INPUT_KINDS, CodedFileNotFoundError, code_of
 from pitloom.messages.targets import (
     INPUT_NOT_FOUND,
     TARGET_WRONG_FORMAT,
@@ -157,10 +157,10 @@ _WHL = "gone-1.0-py3-none-any.whl"
     [
         (["wheel", _WHL], f"loom wheel: wheel file not found: '{_WHL}'"),
         (["embed-wheel", _WHL], f"loom embed-wheel: wheel file not found: '{_WHL}'"),
-        (["project", "gone"], "loom project: project directory not found: 'gone'"),
+        (["project", "gone"], "loom project: project path not found: 'gone'"),
         (
             ["generate", "gone", "-o", "o.json"],
-            "loom generate: project path not found: 'gone'",
+            "loom generate: target not found: 'gone'",
         ),
         (["merge", "gone"], "loom merge: fragments directory not found: 'gone'"),
         (["model", "gone.gguf"], "loom model: model file not found: 'gone.gguf'"),
@@ -192,6 +192,19 @@ def test_the_command_line_names_a_missing_path_as_typed(
     monkeypatch.chdir(tmp_path)
     found = [ln for ln in _loom(argv, monkeypatch, capsys) if " not found: " in ln]
     assert found == [f"ERROR: {line} [input-not-found]"]
+
+
+def test_the_library_generate_names_a_missing_target_as_the_cli_does(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``generate("gone")`` is ``target not found``, as ``loom generate gone``
+    is: nothing tells a missing path's kind, so not ``project path``."""
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(CodedFileNotFoundError) as caught:
+        generate("gone", output_path=Path("o.json"))
+    assert code_of(caught.value) == "input-not-found"
+    assert str(caught.value) == "target not found: 'gone'"
+    assert not list(tmp_path.iterdir())
 
 
 _ANY_WHEEL = "x-1-py3-none-any.whl"

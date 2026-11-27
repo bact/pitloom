@@ -81,7 +81,7 @@ holds the value there. The table lists every name a line or a prefix uses.
 | `'<holder-type>'` | the SPDX 3 type of the element that already holds the id, in quotes (`'software_Package'`), escaped when it holds a control character |
 | `<hosts>` | the hosts Pitloom fetches PyPI files from, comma-separated (`files.pythonhosted.org`) |
 | `<part>` | the part of a wheel's identity: `name` or `version` |
-| `<input>` | what the path was named as: `config file`, `Croissant document`, `fragments directory`, `ID registry file`, `model file`, `PATH`, `project directory`, `project path`, `pyproject.toml`, `SBOM file`, `sdist archive`, `setup.cfg`, `setup.py`, `wheel file` |
+| `<input>` | what the path was named as: `config file`, `Croissant document`, `fragments directory`, `ID registry file`, `model file`, `PATH`, `project directory`, `project path`, `pyproject.toml`, `SBOM file`, `sdist archive`, `setup.cfg`, `setup.py`, `target`, `wheel file` |
 | `'<install-name>'` | the name a member installs under, separators as `/`, empty and `.` segments dropped; in quotes, a URL's credentials masked, cut to 500 characters with `...` before the closing quote, escaped when it holds a control character |
 | `<kept>` | what a conflict kept (a lock file, a version, a value), on one line, a URL's credentials masked, cut to 120 characters (`...` after it when cut), in quotes, escaped when it holds a control character; a value merged from SBOM fragments that is not a text: an element (`ai_AIPackage <spdx-id> 'name'`), a structure (`Hash(algorithm=..., hashValue='...')`) or a number, not in quotes |
 | `<key>` | the key naming the input: `FILE`, `DIR`, `FIELD` (a metadata field or table), `DATASET`, `MARKER` or `REQUIREMENT` |

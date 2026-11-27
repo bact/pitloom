@@ -69,6 +69,7 @@ from pitloom.assemble.spdx3._fragments_unify import (
 )
 from pitloom.assemble.spdx3._licensing_profiles import apply_licensing_profiles
 from pitloom.assemble.spdx3.provenance import build_unification_annotation
+from pitloom.core.bool_arguments import checked_bools
 from pitloom.core.config import FragmentConfig
 from pitloom.core.given_path import given_spelling
 from pitloom.core.path_probe import is_missing_errno
@@ -408,6 +409,7 @@ def _shown_fragment(
     return os.path.join(os.fspath(given_spelling(project_dir)), frag.path)
 
 
+@checked_bools
 def merge_fragments(
     project_dir: Path,
     fragments: list[FragmentConfig],

@@ -51,6 +51,7 @@ from pitloom.messages._registry_save import (
     FILE_MISSING_LINE,
     HOLDS_IDS,
     REGISTRY_FILE_MISSING,
+    SAVE_PATH_MISSING_LINE,
     STALE_UPDATED,
 )
 from pitloom.messages._registry_save_say import (
@@ -87,6 +88,7 @@ __all__ = [
     "REGISTRY_VERSION",
     "REGISTRY_WRONG_FORMAT",
     "ROOT_NOT_STORABLE_LINE",
+    "SAVE_PATH_MISSING_LINE",
     "SHA256_LINE",
     "SPDX_ID_LINE",
     "STALE_UPDATED",

@@ -1,5 +1,5 @@
 ---
-Last-Modified: 2026-11-26
+Last-Modified: 2026-11-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -162,11 +162,12 @@ and this project adheres to
   no broad handler reports one as a bad file, a warning or a skip ([#550])
 - An scp-style address whose password holds `@` (`a:b@c@host:o/r`) is found as a
   credential: refused or warned of in an SBOM ([#544])
-- An empty input path is `input-not-found`, an empty `-o`, `--project-dir` or
-  `--id-registry` `option-invalid`: `""` (blank in `generate()`) never reads
-  the cwd ([#545], [#550])
-- loom SDK calls check argument types (`TypeError`, `option-invalid`); an unknown
-  `dataset_type` is refused, not `text`; a symlinked script keeps its own name ([#545])
+- An empty input path is `input-not-found`, an empty `-o`, `--project-dir`,
+  `--id-registry`, `--config` or SBOM file name `option-invalid`: `""` (blank in
+  `generate()`) never reads the cwd ([#545], [#550], [#NNN])
+- loom SDK and library calls refuse an argument of the wrong type (`CodedTypeError`,
+  `option-invalid`; a `bool` refuses `"false"`); an unknown `dataset_type` is
+  refused, not `text`; a symlinked script keeps its own name ([#545], [#NNN])
 - `loom id generate --namespace` holding a credential is `credentials-unsafe/registry`,
   exit 1, as in the library ([#545])
 - The message reference dates a line newer than its code ([#546]); `line_kind()`
@@ -179,6 +180,11 @@ and this project adheres to
   detected licence, stated or not, and no later licence file is read ([#554])
 - A message's advice names the flag, library parameter (`BuildOptions.timeout`)
   or `[tool.pitloom]` key of the surface that ran ([#556])
+- `IdRegistry.save()` with no path is `registry-file-missing`, not a plain
+  `ValueError` ([#NNN])
+- A missing `loom generate` or `generate()` target is `target not found`, `loom
+  project`'s `project path not found`; `loom generate ''` says so before a missing
+  `-o` ([#NNN])
 
 ### Fixed
 
@@ -290,6 +296,7 @@ and this project adheres to
 [#554]: https://github.com/bact/pitloom/pull/554
 [#555]: https://github.com/bact/pitloom/pull/555
 [#556]: https://github.com/bact/pitloom/pull/556
+[#NNN]: https://github.com/bact/pitloom/pull/NNN
 
 ## [0.24.0] - 2026-11-11
 

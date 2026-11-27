@@ -224,7 +224,7 @@ def test_build_creator_agents_invalid_type_raises(value: Any, text: str) -> None
     creator = Creator(name="Bad", type="person")
     creator.type = value
     metadata = CreationMetadata(creators=[creator])
-    with pytest.raises(ValueError) as caught:
+    with pytest.raises(ValueError if isinstance(value, str) else TypeError) as caught:
         build_creator_agents(metadata, _DOC_NAME, _DOC_UUID, spdx_ci)
     assert str(caught.value) == text
     assert code_of(caught.value) == "option-invalid"
@@ -355,17 +355,28 @@ _WRONG: Any = 5  # a caller of the library may hand over any type
 
 
 @pytest.mark.parametrize(
-    ("build", "text"),
+    ("build", "text", "error"),
     [
-        (lambda: Creator(_WRONG), "Creator.name: must be a non-empty string"),
-        (lambda: Creator("x", type=_WRONG), "Creator.type: must be a string"),
-        (lambda: Tool(" "), "Tool.name: must be a non-empty string"),
-        (lambda: Tool(_WRONG), "Tool.name: must be a non-empty string"),
+        (
+            lambda: Creator(_WRONG),
+            "Creator.name: must be a non-empty string",
+            TypeError,
+        ),
+        (
+            lambda: Creator("x", type=_WRONG),
+            "Creator.type: must be a string",
+            TypeError,
+        ),
+        (lambda: Tool(" "), "Tool.name: must be a non-empty string", ValueError),
+        (lambda: Tool(_WRONG), "Tool.name: must be a non-empty string", TypeError),
     ],
     ids=["name-int", "type-int", "tool-blank", "tool-int"],
 )
-def test_a_bad_creator_or_tool_is_option_invalid(build: Any, text: str) -> None:
-    with pytest.raises(ValueError) as caught:
+def test_a_bad_creator_or_tool_is_option_invalid(
+    build: Any, text: str, error: type[Exception]
+) -> None:
+    """A wrong type is a ``TypeError``, a blank name a ``ValueError``."""
+    with pytest.raises(error) as caught:
         build()
     assert code_of(caught.value) == "option-invalid"
     assert str(caught.value).startswith(text)

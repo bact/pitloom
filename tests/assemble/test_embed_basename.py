@@ -22,7 +22,12 @@ import pytest
 
 from pitloom import __main__
 from pitloom.embed import checked_embed_basename, embed_wheel_sbom
-from pitloom.messages import code_of
+from pitloom.messages import (
+    SURFACE_CLI,
+    SURFACE_LIBRARY,
+    advice_surface,
+    code_of,
+)
 
 from .conftest import _make_dummy_wheel
 
@@ -54,10 +59,20 @@ def _sboms(wheel: Path) -> list[str]:
         return [n.rsplit("/", 1)[-1] for n in zf.namelist() if "/sboms/" in n]
 
 
+@pytest.mark.parametrize(
+    ("surface", "name"),
+    [(SURFACE_CLI, "--sbom-basename"), (SURFACE_LIBRARY, "sbom_basename")],
+    ids=["cli", "library"],
+)
 @pytest.mark.parametrize("value", _REFUSED.values(), ids=_REFUSED)
-def test_the_checker_refuses_a_path_as_an_invalid_option(value: str) -> None:
-    with pytest.raises(ValueError, match="^--sbom-basename: must be a") as caught:
-        checked_embed_basename(value)
+def test_the_checker_refuses_a_path_as_an_invalid_option(
+    value: str, surface: str, name: str
+) -> None:
+    """Named as the surface that runs spells it, not as the call site
+    chooses."""
+    with advice_surface(surface):
+        with pytest.raises(ValueError, match=f"^{name}: must be a") as caught:
+            checked_embed_basename(value)
     assert code_of(caught.value) == "option-invalid"
 
 
@@ -74,9 +89,18 @@ def test_the_checker_accepts_what_the_embed_accepts(
     assert _sboms(wheel) == [name]
 
 
-@pytest.mark.parametrize("value", [None, ""], ids=["none", "empty"])
-def test_no_name_is_none_given(value: str | None) -> None:
-    assert checked_embed_basename(value) == value
+def test_no_name_is_none_given() -> None:
+    assert checked_embed_basename(None) is None
+
+
+def test_an_empty_name_is_refused() -> None:
+    """``""`` is no request for the default name: ``option-invalid``."""
+    with pytest.raises(ValueError) as caught:
+        checked_embed_basename("")
+    assert code_of(caught.value) == "option-invalid"
+    assert str(caught.value) == (
+        "sbom_basename: must be a non-empty string, got a string ''"
+    )
 
 
 @pytest.mark.parametrize("value", _REFUSED.values(), ids=_REFUSED)

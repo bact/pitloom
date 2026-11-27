@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-11-09
+Last-Modified: 2026-11-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -12,6 +12,16 @@ Auto-generated from docstrings -- full signatures, parameter types, and
 defaults for the same [Python API](python-api.md) surface that page
 introduces narratively. Start there for how to use it; come here for the
 exact call signature.
+
+The functions and classes below check their path, file name, `bool`, byte cap
+and choice arguments before they read, fetch or build anything. A value of the
+wrong type raises `TypeError`
+(`pretty="false"`: a `bool` parameter takes `True` or `False` only, so a
+string never switches an option on); a value of the right type that the
+parameter does not take, an empty path or file name included, raises
+`ValueError`. Both carry the code `option-invalid` and name the parameter
+(`pretty: must be True or False, got a string 'false'`), as `loom` names
+the flag; see [message codes: options](message-codes-options.md).
 
 ## Generator functions
 

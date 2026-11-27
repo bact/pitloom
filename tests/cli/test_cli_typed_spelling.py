@@ -76,7 +76,7 @@ def _error(
         (["id", "import", _JSON], f"SBOM file not found: '{_JSON}' [input-not-found]"),
         (
             ["project", "gone//dir"],
-            "project directory not found: 'gone//dir' [input-not-found]",
+            "project path not found: 'gone//dir' [input-not-found]",
         ),
         (
             ["merge", "gone//dir"],
@@ -98,7 +98,7 @@ def _error(
         (["enrich", "s.json", "--project-dir", "gone//d"], _gone("project path")),
         (["fragment", "list", "--project-dir", "gone//d"], _gone("project directory")),
         (["embed-wheel", _W, "--sbom", "gone//d"], _gone("SBOM file")),
-        (["generate", "gone//d", "-o", "o.json"], _gone("project path")),
+        (["generate", "gone//d", "-o", "o.json"], _gone("target")),
         (
             ["generate", "p.WHL//", "-o", "o.json"],
             "FILE=p.WHL//: not a .whl file [target-wrong-format]",

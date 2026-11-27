@@ -15,6 +15,7 @@ from typing import Any
 from pitloom._sbom_format import check_spdx3_name_version
 from pitloom._wheel_sbom_location import read_wheel_name_version_from_path
 from pitloom.assemble import RECOMMENDED_EXTENSIONS, EmbeddedSbomLocation
+from pitloom.cli._path_args import non_empty_name
 from pitloom.cli.commands.utils import (
     _collect_wheel_paths,
     _locate_and_detect,
@@ -180,7 +181,7 @@ def add_parser(subparsers: Any, _parent_parser: argparse.ArgumentParser) -> None
     )
     verify_parser.add_argument(
         "--sbom-filename",
-        type=str,
+        type=non_empty_name,
         default=None,
         metavar="NAME",
         help="Expect this exact filename under .dist-info/sboms/.",

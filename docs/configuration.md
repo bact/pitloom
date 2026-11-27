@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-12
-Last-Modified: 2026-11-26
+Last-Modified: 2026-11-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -133,10 +133,11 @@ and the hook's own `[tool.hatch.build.hooks.pitloom]` options.
 **Invalid values / fallback behaviour:** every boolean above set to a
 non-boolean (e.g. the TOML string `"true"`) is
 [`config-invalid`](message-codes-config.md#config-invalid) -- no silent
-coercion. So is a non-string `sbom-basename`/`id-registry`, and an
-`sbom-basename` that is a path rather than a file name (a `/`, `\`, `:` or
-NUL, or `.`/`..`), or is only `.spdx3.json` -- the same rules as
-`embed-wheel --sbom-basename`. `extract-file-header` off never errors and never blocks content-type detection -- see below.
+coercion. So is a non-string or empty `sbom-basename`/`id-registry` (an
+empty `sbom-basename` is no request for the default name: leave the key
+out), and an `sbom-basename` that is a path rather than a file name (a
+`/`, `\`, `:` or NUL, or `.`/`..`), or is only `.spdx3.json` -- the same
+rules as `embed-wheel --sbom-basename`. `extract-file-header` off never errors and never blocks content-type detection -- see below.
 
 In `setup.cfg`'s `[tool:pitloom]`, where every value is text, a boolean is
 `true`/`false`, `yes`/`no` or `1`/`0` (any case) and an integer is base 10;

@@ -35,6 +35,7 @@ from pitloom._wheel_sbom_location import (
     read_wheel_member,
     read_wheel_name_version,
 )
+from pitloom.core.bool_arguments import checked_bools
 from pitloom.core.creation import resolve_source_date_epoch
 from pitloom.core.file_names import (
     default_sbom_basename,
@@ -52,7 +53,12 @@ from pitloom.core.wheel_dist_info import (
 from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
 from pitloom.logging_config import configure_logging
 from pitloom.messages import emit
-from pitloom.messages.config import Parameter, invalid_value
+from pitloom.messages.config import (
+    Parameter,
+    invalid_type,
+    invalid_value,
+    require_path_argument,
+)
 from pitloom.messages.files import (
     FILE_UNWRITABLE_MODE,
 )
@@ -158,9 +164,13 @@ def _validate_sbom_filename(sbom_file_name: str) -> None:
     """Guard against path traversal in an embedded SBOM file name (CWE-22).
 
     Raises:
+        pitloom.messages.CodedTypeError: *sbom_file_name* is not a string
+            (``option-invalid``).
         pitloom.messages.CodedValueError: (a ``ValueError``) *sbom_file_name*
             is not a plain file name (``option-invalid``).
     """
+    if not isinstance(sbom_file_name, str):
+        raise invalid_type(Parameter("sbom_filename"), "file-name", sbom_file_name)
     if not is_plain_file_name(sbom_file_name):
         raise invalid_value(Parameter("sbom_filename"), "file-name", got=sbom_file_name)
 
@@ -388,6 +398,7 @@ def _rewrite_wheel_archive(
         raise
 
 
+@checked_bools
 def embed_sbom_in_wheel(
     wheel_path: Path | str,
     sbom_content: str | bytes,
@@ -414,6 +425,9 @@ def embed_sbom_in_wheel(
         earliest a ZIP can hold.
 
     Raises:
+        pitloom.messages.CodedTypeError: An argument is of the wrong type
+            (a path that is no ``str`` or ``os.PathLike``, a ``bool``
+            that is not one): ``option-invalid``, before anything is read.
         FileNotFoundError: Nothing is at *wheel_path*, or not a regular
             file (``input-not-found``, carrying the code).
         ValueError: *sbom_content* is empty or white space only
@@ -437,9 +451,14 @@ def embed_sbom_in_wheel(
             exception type, not folded into ``ValueError``.
     """
     configure_logging()
+    require_path_argument(wheel_path, "wheel_path")
+    if sbom_filename is not None:
+        _validate_sbom_filename(sbom_filename)
     require_wheel_file(wheel_path)
     wheel_obj = Path(wheel_path).resolve()
 
+    if not isinstance(sbom_content, (str, bytes)):
+        raise invalid_type(Parameter("sbom_content"), "sbom-content", sbom_content)
     sbom_bytes = (
         sbom_content.encode("utf-8") if isinstance(sbom_content, str) else sbom_content
     )
