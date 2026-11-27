@@ -175,6 +175,12 @@ and counts are in
   provenance annotations and verbatim source metadata off by default, a
   flag each. Plan written 2026-11-11, **deferred**: see
   [provenance-off-by-default.md](provenance-off-by-default.md).
+- [ ] **Creator-supplied known values** ([#570](https://github.com/bact/pitloom/issues/570),
+  to design): a way for the SBOM creator to state values it knows for a
+  package (a data file or `pyproject.toml`, beside the creation info there
+  today), such as a dependency's licence where its files do not decide it
+  (rfc8785's Apache 2.0 text near-ties `Pixar`, #569) or its supplier.
+  Related: a fragment value beating a read one (#349, above).
 - [ ] **Action builds the LicenseID database** (to decide): the Action
   installs only Pitloom, so a fresh runner matches no `LICENSE` text (a
   declared licence is still read). `pitloom-install.sh` could run

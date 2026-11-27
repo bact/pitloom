@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-23
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -47,6 +47,7 @@ old row.
 | [#154] Provenance vocabularies | Open | Parked draft | To design: Provenance vocabulary |
 | [#170] Known organisations | Open | Not built: a project author is a `Person` unless its source types it; a warning, no guess | To design: Author strings |
 | [#186] Sigstore model signing | Open | Not built; Sigstore signs only Pitloom's own release files (#180) | Long-term: PEP 740 |
+| [#570] Creator-supplied known values | Open | Not built: a value the SBOM creator knows (a dependency's licence, its supplier) has no input; a fragment value beating a read one is open (#349) | Next: Creator-supplied known values |
 
 [#30]: https://github.com/bact/pitloom/issues/30
 [#41]: https://github.com/bact/pitloom/issues/41
@@ -74,3 +75,4 @@ old row.
 [#154]: https://github.com/bact/pitloom/issues/154
 [#170]: https://github.com/bact/pitloom/issues/170
 [#186]: https://github.com/bact/pitloom/issues/186
+[#570]: https://github.com/bact/pitloom/issues/570

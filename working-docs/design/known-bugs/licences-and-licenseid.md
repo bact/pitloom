@@ -143,7 +143,9 @@ entries come first; fixed entries stay in the last section for history.
   whose metadata named no SPDX licence (a 101-package environment) were
   identified. The near-variant ranking is LicenseID's
   ([licenseid-handoff.md](../licenseid-handoff.md)); a family hint from a
-  versionless classifier (`Apache-*`) is the other way, not built.
+  versionless classifier (`Apache-*`) is another way, not built; a licence
+  the SBOM creator states is a third
+  ([#570](https://github.com/bact/pitloom/issues/570), in the roadmap).
   *Found 2026-11-27, post-publish verification of 0.25.0.*
 - [ ] **A dependency's copyright notices match `License-File` by base name
   (S-M).** `_find_license_copyright` (`assemble/spdx3/deps_originator.py`)
