@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-29
-Last-Modified: 2026-11-26
+Last-Modified: 2026-11-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -325,9 +325,10 @@ with loom.run("fragments/train.spdx3.json", id_registry="loom-id-registry.json")
 
 - `id_registry=` takes a path (relative to the current directory) or an
   `IdRegistry`; without it the registry comes from `pitloom_config=` (a path to
-  a config file or a `PitloomConfig`; its `id-registry`, `update-id-registry`
-  and `max-dataset-hash-bytes` are the only keys loom reads; the keyword
-  `max_dataset_hash_bytes=` beats the last). No
+  a config file or a `PitloomConfig`; its `id-registry`, `update-id-registry`,
+  `max-dataset-hash-bytes`, `url-credentials` and `accept-url-credentials` are
+  the only keys loom reads; the keyword `max_dataset_hash_bytes=` beats its
+  key, and `credentials=` adds to the last two). No
   `[tool.pitloom]` is read implicitly; a missing `pitloom_config` file is a
   `ValueError`. With neither, no registry.
 - `set_model()`/`use_model()` take `path=`; the model resolves when the block

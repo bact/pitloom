@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-04
-Last-Modified: 2026-11-26
+Last-Modified: 2026-11-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -190,6 +190,25 @@ finding(s) above) [sbom-invalid]` for the merged graph), and no empty `ERROR:`
 line. A document the validator could not load says why the same way, then ends
 `could not be validated; spdx3-validate says why above`. See
 [Message codes: Targets](message-codes-targets.md#sbom-invalid).
+
+`FILE=<file> STATUS=valid` lines are printed only when every check
+passes: if only the merged check fails, no document gets one, though each
+is valid on its own.
+
+**The merged check can fail two valid SBOMs.** spdx3-validate builds the
+merged graph by joining the documents' blank nodes, which are local to
+each file, by their labels. Two valid SBOMs whose `created` times differ
+(two Pitloom runs at different times, each with its own
+`_:CreationInfo0`) then fail the merged check with `More than 1 values on
+... _:CreationInfo0` (`sh:MaxCountConstraintComponent` on `created`),
+exit 1. To check several separate SBOMs, pass `--no-merge`. To check a
+base SBOM and its fragments together, validate the output of [`loom
+merge`](#merge-fragments) (or of a `loom project` build that merges them):
+it holds one `CreationInfo` and validates.
+
+A Pitloom enrichment fragment names its base SBOM's ids directly, with no
+`ExternalMap`, so it usually fails on its own and paired with its base,
+even when it is correct: validate the merged SBOM instead.
 
 ## List configured fragments
 

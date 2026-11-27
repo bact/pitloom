@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-11-23
+Last-Modified: 2026-11-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -70,7 +70,7 @@ Every `hatch build`/`python -m build` invocation:
 1. Generates a Build SBOM (`software_SbomType.build`) for the project being
    built.
 2. Merges in any fragments registered under `[tool.pitloom.fragment]`
-   (see the [Python API](python-api.md#tracking-decorator) tracking
+   (see the [Python API](python-api-tracking.md) tracking
    decorator, or a hand-authored fragment).
 3. Embeds the result into the wheel's `.dist-info/sboms/` directory.
 
@@ -126,11 +126,11 @@ project's files [hook-no-effect]`.
 A `[tool.hatch.build.targets.wheel]` `sbom-files` entry with the same file
 name as the hook's SBOM, ignoring case (typically `loom project`'s default
 `<name>-<version>.spdx3.json`), is an `ERROR:`, as the wheel would hold the
-name twice, or two names that Windows and macOS extract onto one file: set
-`[tool.pitloom] sbom-basename` to another name, or drop the entry. The line
-reads `ERROR: FILE=<file>: also the name, ignoring case, of sbom-files entry
-'<path>'; set another sbom-basename in [tool.pitloom] or drop the entry
-[sbom-name-conflict]` (see [Message codes: Embedded
+name twice, or two names that Windows and macOS extract onto one file, and
+the build fails: set `[tool.pitloom] sbom-basename` to another name, or drop
+the entry. The line reads `ERROR: Pitloom build hook: FILE=<file>: also the
+name, ignoring case, of sbom-files entry '<path>'; set another sbom-basename
+in [tool.pitloom] or drop the entry [sbom-name-conflict]` (see [Message codes: Embedded
 SBOMs](message-codes-wheel-sboms.md#sbom-name-conflict)).
 
 ## Reproducible builds

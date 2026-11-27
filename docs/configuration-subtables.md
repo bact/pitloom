@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-26
-Last-Modified: 2026-11-26
+Last-Modified: 2026-11-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -180,10 +180,8 @@ changes in the generated SBOM's Annotations.
 
 **Invalid values / fallback behaviour:** a non-string value, or a
 `format`/`detail`/`preserve-source-metadata` outside its listed set,
-is `config-invalid`. An unknown `schema` id is not
-caught here (`core` doesn't import the assembly layer's encoder
-registry) -- it's caught with a clear error the first time an SBOM is
-actually generated. `max-source-metadata-bytes`: only `0` (unlimited) or
+is `config-invalid`, and so is an unknown `schema` id (`must be one of
+pitloom/1`), when the config is read. `max-source-metadata-bytes`: only `0` (unlimited) or
 at least 8 bytes -- the smallest JSON object it could ever hold -- is
 valid. A non-integer, a `bool`, a negative value or 1 to 7 is an error,
 never "unlimited": at config-read time, on `--max-source-metadata-bytes`

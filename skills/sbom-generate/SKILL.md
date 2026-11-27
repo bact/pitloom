@@ -1,6 +1,6 @@
 ---
 # Created: 2026-07-05
-# Last-Modified: 2026-11-26
+# Last-Modified: 2026-11-27
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -213,8 +213,9 @@ explain it for their wheel, and ask before adding `--allow-signed-wheel`
 (non-interactive: don't; report the refusal and the command to re-run). No
 signature file: embed without asking.
 
-A wheel Pitloom cannot read or place is refused (`ERROR:` ending
-`wheel refused`, nothing written); a missing `METADATA` only warns (`identity
+A wheel Pitloom cannot read or place is refused (an `ERROR:` ending `; wheel
+refused` and a `[code]`, nothing written); one `wheel`/`generate` cannot
+identify (no single own `.dist-info`, no `METADATA`) only warns (`identity
 unknown`). Report either and read `references/known-limitations.md`
 ("Refused wheels and unknown identity").
 
@@ -232,7 +233,7 @@ Never add these unless the request or the user calls for it:
 
 Everything else is on request (`--config FILE`, `--pretty`, `--offline`,
 `-v`, `--creator-*`, `--creation-*`, `--id-registry`, ...). If the user asks
-for one, or a `WARNING: Options:` line names one, read
+for one, or an `[option-no-effect]` line names one, read
 `references/cli-flags.md`.
 
 ## Combine with enrichment or a named standard
@@ -269,9 +270,9 @@ installed.
 Pitloom's own lines start `INFO:`, `WARNING:` or `ERROR:` (argparse usage
 text and a traceback are untagged). Scan stderr for all three after every
 `loom` call and mention any hit, even on exit 0 with a file written; read
-`references/messages.md` for what each level means. A `WARNING: Options: ...`
-line about a flag *you* added means it did not apply to that target: drop it
-next time.
+`references/messages.md` for what each level means. An `[option-no-effect]`
+`WARNING:` about a flag *you* added means it did not apply to that target:
+drop it next time.
 
 For `Build: ...` lines from an `--allow-build` run, read
 `references/build-timeout.md`; for `ID registry:` lines,

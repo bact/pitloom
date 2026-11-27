@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-08
-Last-Modified: 2026-11-26
+Last-Modified: 2026-11-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -32,7 +32,7 @@ A single Pitloom run -- one CLI invocation, one Hatchling build, one
 `pitloom.loom.run` -- produces one such record, shared by every element
 that run generated. When a composite SBOM merges pre-generated fragments
 (see the [Hatchling build hook](hatchling-build-hook.md) and [Python
-API](python-api.md#tracking-decorator) tracking decorator pages) via
+API](python-api-tracking.md) tracking decorator pages) via
 `[tool.pitloom.fragment]`, each fragment keeps the record from whichever
 run actually produced it. The result contains as many of these records as
 generation events contributed to it -- correct provenance to keep, since

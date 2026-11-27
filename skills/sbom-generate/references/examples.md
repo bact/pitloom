@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-05
-Last-Modified: 2026-11-18
+Last-Modified: 2026-11-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -115,7 +115,7 @@ loom wheel dist/mypackage-1.0.0-py3-none-any.whl -o wheel.spdx3.json
 
 ```bash
 loom id generate src data -o loom-id-registry.json   # files, AI models
-loom id generate src -e my-pkg:software_Package -o loom-id-registry.json
+loom id generate src -e my-pkg@1.0:software_Package -o loom-id-registry.json
 loom id import sbom.spdx3.json -o loom-id-registry.json   # reuse an SBOM's ids
 loom project . --id-registry loom-id-registry.json -o sbom.spdx3.json
 ```
@@ -155,6 +155,12 @@ uvx --from "pitloom[ai]>=0.24.1" loom model model.safetensors -o model.spdx3.jso
 uvx --from "pitloom[huggingface_hub]>=0.24.1" loom model mistralai/Mistral-7B-v0.1 \
   -o mistral.spdx3.json --pretty
 ```
+
+A model page URL works too (`https://huggingface.co/gpt2/tree/main` is read as
+`gpt2`). An id or URL the Hub knows no model for (a private model read without
+a token answers the same) is one `ERROR: ... [input-not-found/hub]`, no SBOM,
+exit 1: relay its `HF_TOKEN`/`hf auth login` advice; never sign in for the
+user. A gated model is read; a timeout or server failure only warns.
 
 ## Deployed SBOM, currently installed environment
 

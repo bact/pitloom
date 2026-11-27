@@ -127,8 +127,8 @@ directories below the root count: a project that itself lives under a
 directory called `build` is indexed. A dataset directory also leaves out
 symbolic links to directories and the declared registry file. `id generate`
 also leaves out the declared registry, matched by identity and never by name:
-a stray `loom-id-registry.json` that is not the declared file is indexed. The
-set is `IGNORED_DIR_NAMES` in `src/pitloom/core/walk_rules.py`.
+a stray `loom-id-registry.json` that is not the declared file is indexed. From
+Python, the set is `pitloom.core.walk_rules.IGNORED_DIR_NAMES`.
 
 ## Namespaces
 
@@ -246,9 +246,12 @@ as `pitloom_config=`; its own `id_registry=` resolves against the current
 directory, a `pitloom_config=` file's `id-registry` against that file's
 directory.
 
-`IdRegistry.load()` takes a `str` or path-like (else `TypeError`), not
-empty (else `ValueError`), as `--id-registry ""` is refused; both carry the
-code `option-invalid`. `save()` with no path, for a registry made without
+`IdRegistry.load()`, `IdRegistry.new()`, the constructor, `save()`,
+`generate()` and `import_sbom()` take their paths as a `str` or path-like
+(else `TypeError`), not empty (else `ValueError`), as `--id-registry ""` is
+refused; `register()` takes a type name and a name that are non-empty strings;
+each carries the code `option-invalid`. A `str` path is named as typed.
+`save()` to a directory raises `OSError` (`file-unwritable`). `save()` with no path, for a registry made without
 one, raises `ValueError` (`registry-file-missing`). `register()`
 and the loader reject a name that UTF-8 cannot hold (a lone surrogate) with
 `ValueError` (`text-malformed/registry`, `registry-malformed`); `generate()`

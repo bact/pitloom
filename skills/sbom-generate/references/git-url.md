@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-21
-Last-Modified: 2026-11-26
+Last-Modified: 2026-11-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -50,12 +50,15 @@ URL is read by the host's conventions. Rules to state to the user:
   holding a line break are not sent (`WARNING: URL=<url>: credentials
   holding a line break are not sent to git
   [credentials-unsafe/git-line-break]`; a private repository then fails). A
-  URL whose user information git would read differently (an empty host
-  after the `@`, for one) is refused before git runs: `ERROR: loom
-  project: URL=https://***:***@/o/r: user information cannot be taken out
-  of the git command line; not fetched [credentials-unsafe/git-userinfo]`; a
-  malformed port is refused as `ERROR: ... URL=<url>: the port is not a number;
-  nothing fetched [git-url-invalid]`. Never put a credential into a URL for the user.
+  URL whose user information git would read differently (an `@` git takes for
+  part of the password where the URL parser sees a query, for one) or that
+  holds a NUL is refused before git runs: `ERROR: loom <command>: URL=<url>:
+  user information cannot be taken out of the git command line; not fetched
+  [credentials-unsafe/git-userinfo]`. A URL with no host (`https:///o/r`,
+  `https://u:p@/o/r`) is refused with `the URL names no host`
+  (`[git-url-invalid]`), a malformed port as `ERROR: ... URL=<url>: the port is
+  not a number; nothing fetched [git-url-invalid]`. Never put a credential into
+  a URL for the user.
 - `--offline` is an error, not a fallback, for `loom project`, `loom model`
   and `loom generate` (`ERROR: loom <command>: URL=<url>: network
   access is forbidden (offline mode); nothing fetched [offline-unusable]`).

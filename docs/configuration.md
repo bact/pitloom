@@ -8,6 +8,10 @@ SPDX-License-Identifier: CC0-1.0
 
 # Configuration reference
 
+See also: [Configuration reference, sub-tables](configuration-subtables.md)
+for the `[tool.pitloom.*]` sub-tables, and [Command line
+flags](cli-flags.md) for the matching flags.
+
 Every `[tool.pitloom]` setting, its default, and how to reach it from
 each surface (CLI flag, GitHub Action input, Python API parameter).
 This is the exhaustive reference; [Command line](cli.md) and

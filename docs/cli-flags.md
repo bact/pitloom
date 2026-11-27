@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-26
-Last-Modified: 2026-11-26
+Last-Modified: 2026-11-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -63,9 +63,9 @@ Available on `project`/`generate`/`model`/`enrich`/`wheel`/`embed-wheel`/`env`
   SOURCE=<source> VALUE=<value>` (an sdist's own `pyproject.toml` source is
   its member, e.g. `demo-1.0.0.tar.gz:pyproject.toml`). `wheel`/`env`/`model`/
   `enrich` log `PITLOOM_VERSION`, the target, `OUTPUT_PATH` (`-`: standard
-  output; none for `wheel --embed` without `-o`, which writes no copy) and
-  the `PROJECT_DIR` of `enrich` and `wheel`. `generate` on any other target and `embed-wheel`
-  warn that `-v` has no effect.
+  output; none for `wheel --embed` without `-o`, which writes no copy) and,
+  when given, the `PROJECT_DIR` of `enrich` and `wheel`. `generate` on any
+  other target and `embed-wheel` warn that `-v` has no effect.
 - `--project-dir DIR` -- on `wheel`, and `project`/`generate` with an sdist or
   wheel target: the project directory the archive was built from. With a Loom
   ID registry rooted above the project (a monorepo), the archive's files are
@@ -78,6 +78,10 @@ Available on `project`/`generate`/`model`/`enrich`/`wheel`/`embed-wheel`/`env`
   target's own `id-registry` key. Nothing is searched for; a declared file
   that is missing, unreadable or invalid is an `ERROR:` and exit 1. See [Loom ID
   registry](id-registry.md).
+- `--update-id-registry` / `--no-update-id-registry` -- after generating,
+  write newly minted ids back into the declared registry (on by default; no
+  effect without one). `model`, `enrich`, `embed-wheel` and `wheel --embed`
+  never update a registry and warn that the flag has no effect.
 - `--describe-relationship` / `--no-describe-relationship` -- include (or
   suppress) human-readable text on SPDX relationships.
 - `--extract-file-header` / `--no-extract-file-header` -- scan each source
@@ -95,9 +99,9 @@ Available on `project`/`generate`/`model`/`enrich`/`wheel`/`embed-wheel`/`env`
   files reference each discovered AI model file (`hasDataFile`). Off by
   default: it reads every Python file. AI models are found either way. When
   the setting was never given (no flag, no config key), one `INFO:` line says
-  how many were found and names the flag (on a wheel also a `--config` file or
-  `pitloom_config=`, as no config is read implicitly there), once per
-  `embed-wheel` run. Caps and what it misses: [AI model scan
+  how many were found and names the flag and the `scan-model-usage` key (on a
+  wheel, in a `--config` file, as no config is read implicitly there), once
+  per `embed-wheel` run. Caps and what it misses: [AI model scan
   limits](ai-model-scan-limits.md).
 - `--allow-signed-wheel` -- `embed-wheel` and `wheel --embed`: embed into a
   wheel with a `RECORD` signature by removing the signature. See [Signed
@@ -167,7 +171,11 @@ order. `--creator-type` (`person` default, `organization`, `software-agent`,
 creator. `--creation-tool` records *what* produced the SBOM (default
 `"Pitloom"`, repeatable; `--no-creation-tool` omits it).
 `--creation-comment`/`--creation-datetime` set free-text provenance and an ISO
-8601 timestamp:
+8601 timestamp. A blank `--creator-name`, `--creator-email` or
+`--creation-tool`, a `--creator-type` or `--creator-email` before any
+`--creator-name`, and a `--creation-datetime` that is not ISO 8601 are
+refused before anything is read (exit 2,
+[`option-invalid`](message-codes-options.md#option-invalid)):
 
 ```bash
 loom project . --creator-name "Alice" --creator-email "alice@example.com"

@@ -22,11 +22,13 @@ parameter does not take, an empty ID registry path or SBOM file name
 included, raises `ValueError`. Both carry the code `option-invalid` and name
 the parameter (`pretty: must be True or False, got a string 'false'`), as
 `loom` names the flag; see [message codes: options](message-codes-options.md).
-An empty target path (`generate('')`, `generate_wheel_sbom('')`) is a path
-that does not exist: `FileNotFoundError`, code `input-not-found`. A Git URL
-argument (`generate_git_sbom()`, `generate_git_project_sbom()`,
-`fetch_git_project()`) is not checked this way yet: a value that is not a
-string raises a plain `TypeError`.
+An empty `project_dir=` raises `ValueError` the same way, and never reads
+the current directory. An empty target path (`generate('')`,
+`generate_wheel_sbom('')`) is a path that does not exist:
+`FileNotFoundError`, code `input-not-found`. A URL argument
+(`generate_git_sbom()`, `generate_git_project_sbom()`, `fetch_git_project()`,
+`generate_pypi_sbom()`) that is not a string raises `TypeError`, and an
+empty or blank one `ValueError`, both `option-invalid`.
 
 ## Generator functions
 
@@ -83,8 +85,8 @@ string raises a plain `TypeError`.
 ## Tracking decorator
 
 `loom.run` is the `Run` class below (`run = Run`) -- use it as a
-decorator or a context manager, as shown on the [Python
-API](python-api.md#tracking-decorator) page.
+decorator or a context manager, as shown on the [Python API: tracking
+decorator](python-api-tracking.md) page.
 
 ::: pitloom.loom.Run
 

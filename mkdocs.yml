@@ -38,6 +38,7 @@ nav:
   - Python API:
       - Guide: python-api.md
       - Python API, remote targets: python-api-remote.md
+      - Python API, tracking decorator: python-api-tracking.md
       - API reference: api.md
   - Hatchling build hook: hatchling-build-hook.md
   - GitHub Action: github-action.md

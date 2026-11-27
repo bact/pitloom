@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-11-23
+Last-Modified: 2026-11-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -147,7 +147,8 @@ fails the step and is not printed. See [Credentials in URLs](url-credentials.md)
 - uses: bact/pitloom@v0.24.0
   with:
     # Needs v0.25.0 or later (change the tag above): an older tag warns
-    # "Unexpected input" and ignores both.
+    # "Unexpected input" and ignores both. A pitloom-version, if set, must
+    # be 0.25.0 or later too: an older Pitloom refuses the flags (exit 2).
     url-credentials: refuse
     accept-url-credentials: |
       sha256:0123456789abcdef

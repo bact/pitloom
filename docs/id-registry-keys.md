@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-16
-Last-Modified: 2026-11-16
+Last-Modified: 2026-11-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -10,7 +10,7 @@ SPDX-License-Identifier: CC0-1.0
 
 See also: [Loom ID registry](id-registry.md) (declare, create and harvest a
 registry), [Wheel SBOMs](wheel-sbom.md) and
-[Python API](python-api.md#tracking-decorator) (`loom.Run`).
+[Python API](python-api-tracking.md) (`loom.Run`).
 
 A registry entry maps a **key** to an `spdxId`. What a run looks up, and what
 `id generate`, `id import` and a harvest write, is the key below. One helper
