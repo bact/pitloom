@@ -20,6 +20,15 @@ and this project adheres to
 - Full release notes: <https://github.com/bact/pitloom/releases>
 - Commit history: <https://github.com/bact/pitloom/compare/v0.25.0...HEAD>
 
+## [Unreleased]
+
+### Fixed
+
+- CI reads the `test-all-os` label when it runs: a push and the label within
+  a second no longer leave Windows and macOS on the platform subset ([#566])
+
+[#566]: https://github.com/bact/pitloom/pull/566
+
 ## [0.25.0] - 2026-11-27
 
 Pitloom's messages now come from one catalogue: a stable code, one shape and
@@ -1296,6 +1305,7 @@ Released from `maint-0.21`, on 0.21.1; no other change of 0.22.0 is in it.
 
 ---
 
+[Unreleased]: https://github.com/bact/pitloom/compare/v0.25.0...HEAD
 [0.25.0]: https://github.com/bact/pitloom/compare/v0.24.0...v0.25.0
 [0.24.0]: https://github.com/bact/pitloom/compare/v0.23.4...v0.24.0
 [0.23.4]: https://github.com/bact/pitloom/compare/v0.23.3...v0.23.4

@@ -1,0 +1,55 @@
+# SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+# SPDX-License-Identifier: Apache-2.0
+
+name: Read the test-all-os label
+description: >
+  Sets output `all-os` to "true" when the run should cover every OS: any event
+  but a pull request, or a pull request that has the `test-all-os` label now.
+  The labels are read from the API when the job runs, not from the event
+  payload: a push and a label within a second start two runs, and the one that
+  survives the concurrency cancel may carry a payload taken before the label.
+  Fail open: an API error gives "true". Needs `pull-requests: read`.
+
+inputs:
+  token:
+    description: Token with pull-requests read access.
+    required: true
+
+outputs:
+  all-os:
+    description: '"true" to test and build on every OS.'
+    value: ${{ steps.read.outputs.all-os }}
+
+runs:
+  using: composite
+  steps:
+    - name: Read the pull request's labels
+      id: read
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        EVENT_NAME: ${{ github.event_name }}
+        PR_NUMBER: ${{ github.event.pull_request.number }}
+        REPO: ${{ github.repository }}
+      # Neither the label names nor gh's error text is echoed: a `::` line
+      # would run as a workflow command.
+      run: |
+        if [ "$EVENT_NAME" != "pull_request" ]; then
+          all_os=true
+          reason="not a pull request"
+        elif labels=$(gh api --paginate \
+            "repos/$REPO/issues/$PR_NUMBER/labels" --jq '.[].name' \
+            2>/dev/null); then
+          if printf '%s\n' "$labels" | grep -qx 'test-all-os'; then
+            all_os=true
+            reason="pull request has the test-all-os label"
+          else
+            all_os=false
+            reason="pull request has no test-all-os label"
+          fi
+        else
+          all_os=true
+          reason="labels could not be read; testing every OS"
+        fi
+        echo "INFO: test-all-os: $all_os: $reason"
+        echo "all-os=$all_os" >> "$GITHUB_OUTPUT"
