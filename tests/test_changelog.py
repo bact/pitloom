@@ -13,12 +13,13 @@ from pathlib import Path
 
 import pytest
 
+from tests._changelog import BULLET, newest_bullets
+
 _ROOT = Path(__file__).resolve().parents[1]
 _CHANGELOG = _ROOT / "CHANGELOG.md"
 _FILES = ["CHANGELOG.md", "CHANGELOG-archive.md"]
 _REF_USE = re.compile(r"\[#(\d+)\](?!:)")
 _REF_DEF = re.compile(r"^\[#(\d+)\]:", re.M)
-_BULLET = re.compile(r"^- .*?(?=^- |^#|\Z)", re.M | re.S)
 
 
 def _text(path: Path = _CHANGELOG) -> str:
@@ -35,22 +36,10 @@ def _section_pr_keys(text: str) -> dict[str, list[int]]:
             heading = f"{version.splitlines()[0]} {kind.splitlines()[0]}"
             keys[heading] = [
                 min(int(n) for n in _REF_USE.findall(b))
-                for b in _BULLET.findall(kind)
+                for b in BULLET.findall(kind)
                 if _REF_USE.search(b)
             ]
     return keys
-
-
-def _unreleased_bullets(text: str) -> list[str]:
-    """Entries of ``[Unreleased]``, else (right after a release is cut, with
-    the heading empty or removed) of the newest released section."""
-    _, found_heading, after = text.partition("## [Unreleased]")
-    sections = (after if found_heading else text).split("\n## [")
-    if not found_heading:
-        sections = sections[1:]  # what precedes the first version heading
-    return next(
-        (found for body in sections[:2] if (found := _BULLET.findall(body))), []
-    )
 
 
 _NEW = "### Fixed\n\n- new ([#3])\n"
@@ -67,14 +56,14 @@ _RELEASE_STATES = [
     _RELEASE_STATES,
     ids=["unreleased-filled", "unreleased-empty", "unreleased-removed"],
 )
-def test_unreleased_bullets_in_every_release_state(text: str) -> None:
+def test_newest_bullets_in_every_release_state(text: str) -> None:
     """Right after a release is cut the heading may be empty or gone; the
     newest entry is still found, never the older release's."""
-    assert [b.split(" (")[0] for b in _unreleased_bullets(text)] == ["- new"]
+    assert [b.split(" (")[0] for b in newest_bullets(text)] == ["- new"]
 
 
 def test_every_unreleased_entry_links_its_pr() -> None:
-    bullets = _unreleased_bullets(_text())
+    bullets = newest_bullets(_text())
     assert bullets  # not vacuous: the section was found and split
     missing = [b.splitlines()[0] for b in bullets if not _REF_USE.search(b)]
     assert not missing, missing
@@ -113,10 +102,10 @@ def test_bullet_split_sees_each_entry(section: str, linked: bool) -> None:
     """The first entry of a section is its own bullet, not merged into the
     heading (a split that merged it hid an unlinked entry)."""
     text = f"## [Unreleased]\n\n{section}\n## [0.1.0]\n\n- old\n"
-    bullets = _unreleased_bullets(text)
+    bullets = newest_bullets(text)
     assert all(_REF_USE.search(b) for b in bullets) is linked
 
 
 def test_empty_unreleased_checks_the_release_just_cut() -> None:
     text = "## [Unreleased]\n\n## [0.2.0]\n\n- new, no link\n## [0.1.0]\n\n- old\n"
-    assert _unreleased_bullets(text) == ["- new, no link"]
+    assert newest_bullets(text) == ["- new, no link"]

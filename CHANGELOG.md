@@ -18,263 +18,186 @@ and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Full release notes: <https://github.com/bact/pitloom/releases>
-- Commit history: <https://github.com/bact/pitloom/compare/v0.24.0...HEAD>
+- Commit history: <https://github.com/bact/pitloom/compare/v0.25.0...HEAD>
 
-## [Unreleased]
+## [0.25.0] - 2026-11-27
+
+Pitloom's messages now come from one catalogue: a stable code, one shape and
+advice for the surface that ran (CLI, library or build hook); see
+`docs/message-codes.md`.
 
 ### Added
 
-- Input, option, SBOM, target, ID registry file, id, key, save, file-set, lock
-  file, dependency, configuration, licence, project metadata, file discovery,
-  Git URL, Hugging Face Hub, build, temporary directory, signal, build hook, SBOM
-  fragment, wheel, embedded SBOM, `loom env`, author, loom SDK, SBOM base name
-  and dataset messages carry a message code, and a configuration error names the
-  file; see `docs/message-codes.md` ([#482], [#485], [#486], [#492], [#496],
-  [#497], [#498], [#501], [#503], [#506], [#508], [#511], [#513], [#515], [#524],
-  [#527], [#534])
-- A credential in an SBOM URL field is warned of; `url-credentials = "refuse"`
-  or `--refuse-url-credentials` refuse the SBOM ([#489], [#490])
-- `embed-wheel --sbom` (every string) and `merge` check an SBOM for such
-  credentials; the file is embedded unchanged unless refused ([#489], [#490])
-- `--accept-url-credential` and `accept-url-credentials` accept one value by its
-  fingerprint; `setup.cfg` takes both keys ([#490])
-- Each line names how the surface refuses or accepts the value (flag,
-  `[tool.pitloom]` key or `credentials=`) ([#490])
-- Reference fields (`createdBy`, `from`, `to`, ...), identifiers and Pitloom's
-  JSON statements and comment segments are checked too ([#490])
+- Messages on inputs, options, the ID registry, Git URLs, the Hub, builds, the
+  build hook, fragments, wheels and the loom SDK carry a message code, and a
+  configuration error names the file; see `docs/message-codes.md` ([#482],
+  [#485], [#486], [#492], [#496], [#497], [#498], [#501], [#503], [#506],
+  [#508], [#511], [#513], [#515], [#524], [#527], [#534])
+- A credential in an SBOM URL field, reference field (`createdBy`, `from`, ...),
+  identifier or Pitloom statement is warned of, by `embed-wheel --sbom` (every
+  string; embedded unchanged unless refused) and `merge` too; prose and some
+  shapes are not detected (`docs/url-credentials.md`) ([#487], [#489], [#490])
+- `--refuse-url-credentials` or `url-credentials = "refuse"` refuses such an
+  SBOM; `--accept-url-credential` or `accept-url-credentials` (`setup.cfg` too)
+  accepts one value by fingerprint ([#489], [#490])
 - GitHub Action inputs `url-credentials` and `accept-url-credentials`;
   `::add-mask::` for credential parts of URLs in source inputs ([#491])
-- A direct reference is said, as an `INFO:` line, not to be looked up on PyPI
+- A direct reference gets an `INFO:` line saying it is not looked up on PyPI
   ([#496])
-- GGUF `general.datasets` and `general.dataset.<id>.*` are `trainedOn`
-  datasets, a Hub `repo_url` naming one by its Hub id
-  (`quantize.imatrix.dataset` is not) ([#509])
-- A parameter count for PT2 (stored weights) and CRFsuite (one weight per
-  feature); ONNX `producer_name` is a `Model file written by:` comment line
+- GGUF `general.datasets` and `general.dataset.<id>.*` are `trainedOn` datasets
+  (`quantize.imatrix.dataset` is not); a Hub `repo_url` names one by its Hub id
   ([#509])
+- A parameter count for PT2 (stored weights) and CRFsuite (one weight per
+  feature); ONNX `producer_name` is a `Model file written by:` comment ([#509])
 
 ### Changed
 
-- Missing-input, option and ID registry file errors are reworded; CLI `ERROR:`
-  lines start `loom <command>:`, `loom.Run` registry lines `ID registry:`
-  ([#481], [#482], [#485], [#486])
-- `IdRegistry.load()` and `resolve_registry()` raise `FileNotFoundError`, not
-  `ValueError`, for an ID registry file that is missing or not a file ([#482])
+- Messages share one shape: CLI errors start `loom <command>:`; prefixes
+  `ID registry:`, `Git source:`, `loom SDK:`, `Pitloom build hook:`; fields
+  `URL=`, `PACKAGE=`, `ELEMENT=`, `FILE=`/`MODEL=`; wheel refusals end
+  `; wheel refused [code]`; lower-case, `directory` not `folder` ([#481],
+  [#482], [#485], [#486], [#503], [#506], [#511], [#515], [#527], [#548],
+  [#553])
+- `IdRegistry.load()`, `generate()` and `resolve_registry()` raise
+  `FileNotFoundError` for a missing path (`loom id generate`: exit 1); `save()`
+  with no path is `registry-file-missing`; a failed save prints one coded line;
+  a `str` path saves ([#482], [#485], [#492], [#557], [#560])
 - `id import` and `embed-wheel --sbom` refuse the same SBOMs (UTF-16, a FIFO,
-  over 50 MiB, an `@graph` that is not a list of objects) ([#482])
-- A `.whl` directory, a file given to `merge` and a malformed Hub URL get a
-  coded error; a padded Hub URL is read; a missing input or ID registry is
-  named as given ([#482])
-- An input under a directory without search permission is `file-unreadable`,
-  not "not found" ([#482])
-- Pitloom's log lines, tracebacks and `-v` details mask URL credentials and
-  access tokens; `urllib3` and `requests` lines too ([#482], [#486], [#487],
-  [#489], [#491])
-- A GGUF `general.license` placeholder (`other`, `N/A`, ...) with no
-  `general.license.name` gives no licence; a Hub card's `N/A` falls back to
-  licence files ([#483])
-- Safetensors `ss_base_model_version` (the base model) is no longer read as the
-  model's name; it stays a property ([#483])
-- `loom id generate` with a `PATH` that does not exist is an error (exit 1),
-  not a warning; `IdRegistry.generate()` raises `FileNotFoundError` ([#485])
-- A credential in an ID registry namespace is refused; a key or file entry is
-  warned of, or refused in refuse mode; `id import` skips it ([#487], [#489],
-  [#490])
-- Git URL fetches reset system credential helpers only for a URL with user
-  information; the password is not in git's arguments ([#487])
-- A stale `accept-url-credentials` fingerprint names the SBOM; a bad one fails
-  when `PitloomConfig` is built ([#490])
-- `embed-wheel --sbom` and `id import` refuse an SBOM with a JSON object that
-  holds a key twice ([#490])
-- Credentials in encoded query and fragment values and in a `u:?pw@host`
-  password are found ([#491])
+  over 50 MiB, an `@graph` not a list of objects, a key held twice); `id import`
+  also refuses one the SPDX 3 reader refuses (`sbom-invalid`) and warns of a
+  byte order mark ([#482], [#490], [#492], [#515])
+- A `.whl` directory, a file given to `merge`, a malformed Hub URL and an input
+  in a directory without search permission (`file-unreadable`) get coded errors;
+  a padded Hub URL is read ([#482])
+- A GGUF licence placeholder (`other`, `N/A`) without `general.license.name`
+  gives none; a Hub card's `N/A` falls back to licence files; Safetensors reads
+  `license` and `model_version` after the ModelSpec keys,
+  `ss_base_model_version` is no longer the name ([#483], [#509])
+- A credential in an ID registry namespace (`loom id generate --namespace` too)
+  is refused; a key or file entry is warned of, or refused in refuse mode;
+  `id import` skips it ([#487], [#489], [#490], [#545])
 - Git URLs: a NUL in user information, a host no host name spells and a missing
-  host (said as such) are refused before git runs; more `GIT_*` variables are
-  dropped ([#491], [#560], [#561])
+  host are refused before git runs; credential helpers are reset only for a URL
+  with user information, whose password is not in git's arguments; more `GIT_*`
+  variables are dropped ([#487], [#491], [#560], [#561])
 - `verify-wheel`, `validate-wheel` and `embed-wheel`: a pattern nested too
   deeply is `input-not-found`, not a crash; a `[` in a path is taken as typed
   ([#491])
-- `id import` of an SBOM the SPDX 3 reader refuses is `sbom-invalid`; `-e ...
-  stored as` is said once the registry is saved ([#492], [#494])
-- A `--creation-datetime` that is not a date is refused at parse, exit 2; a
-  `--config` file error names the file once ([#497])
-- A `creation-datetime` in `[tool.pitloom]` that is not a date is refused even
-  when `--creation-datetime` overrides it ([#497])
-- Requires `licenseid>=0.9.4,<0.10`: a bare `GPL-2.0` tag stays as written, not
-  `GPL-2.0-only`; a full GPL text without a variant is still `-only`; rebuild
-  the database with `licenseid update --source packaged` ([#502], [#536], [#551],
-  [#563])
-- Git URL messages say `URL=` and a code after `Git source: `; a Git or PyPI
-  refusal is no longer printed twice, and every `git.*` error has a
-  `pitloom_code` ([#503])
-- Build, temporary directory and signal lines carry a code; a failed build
-  masks a credential in its last output line; the hook's line says
-  `Pitloom build hook: ` ([#506])
-- Safetensors reads a plain `license` and `model_version` after the ModelSpec
-  keys; each field's provenance names the key read ([#509])
-- The build hook's disabled, not-a-wheel and editable lines carry
-  `[hook-no-effect]` and drop the trailing period and the quotes round the
-  target; its staged-SBOM line starts `Pitloom build hook: ` ([#511])
-- `loom merge` of a directory where no fragment could be merged writes nothing
-  and exits 1; `merged N fragment(s)` counts merged fragments; a merge no
-  fragment dates warns `[datetime-missing]` ([#513])
-- `loom fragment list` reads a fragment as the merge does: a required one with an
-  integer beyond 2**53 fails ([#513])
-- A malformed `sha256` in `[tool.pitloom.fragment]` is `config-invalid`; upper-case
-  hex is accepted ([#513])
-- Fragment merge lines name the element, property and values kept and dropped;
-  dangling-reference warnings are sorted ([#513])
-- Wheel refusal lines end `; wheel refused [code]` and quote the archive and
-  member; member lines say `; not listed` or `; not copied`, not `skipped`
-  ([#515])
+- A `creation-datetime` (flag or `[tool.pitloom]`, even when overridden) that is
+  not a date or is outside years 1-9999 in UTC is refused, and left out of a
+  model's release time; a bad `--creation-datetime` exits 2 at parse ([#497])
+- Requires `licenseid>=0.9.4,<0.10`: a bare `GPL-2.0` tag stays as written, a
+  full GPL text without a variant is `-only`; rebuild the database with
+  `licenseid update --source packaged` ([#502], [#536], [#551], [#563])
+- `loom merge` of a directory where no fragment merged writes nothing and exits
+  1; `merged N fragment(s)` counts merged ones; an undated merge warns
+  `[datetime-missing]`; merge lines name the values kept and dropped ([#513])
+- `loom fragment list` reads a fragment as the merge does (a required one with
+  an integer beyond 2**53 fails); a malformed `sha256` in
+  `[tool.pitloom.fragment]` is `config-invalid`, upper-case hex accepted
+  ([#513])
 - `validate-wheel` and `fragment validate` print each finding once as
-  `spdx3-validate: <line>`, then one coded `sbom-invalid` line, no empty
-  `ERROR:` line; a line break in a file name is shown escaped ([#515], [#559])
-- A byte order mark in an SBOM is a coded `WARNING:` for `loom id import` too
-  ([#515])
+  `spdx3-validate: <line>`, then one coded `sbom-invalid` line ([#515], [#559])
 - A GGUF header over a bound is read in part: one `[over-cap]` `WARNING:`,
   annotation `truncated`, a cut array's length `Evidence: declared` ([#517])
 - `ProvenanceConfig` and `PitloomConfig.provenance` refuse a bad format, schema,
-  detail or `preserve_source_metadata` when built ([#524])
-- An unknown `[tool.pitloom.provenance] schema` is `config-invalid`; a
-  namespace error puts the value last ([#524])
-- An exception from an enricher fails the run instead of being skipped; a
-  fickling stderr line reads `fickling: <text>` ([#524])
-- An embed's refused write of the wheel or `-o` copy is a coded `OSError`
-  (`file-unwritable`) naming that file ([#524])
-- loom SDK lines start `loom SDK: `, a model's registry lines `ID registry: `;
-  no model, a `croissant=` URL or an `enrich_model()` Hub source are coded ([#527])
-- Author lines drop the ` -- only authors ...` hint and say `not one valid email
-  address`; a dependency's split or over-cap field starts `PACKAGE=` ([#527], [#548])
-- A bad sdist `pyproject.toml` relays its reader's code ([#527])
-- A library `sbom_basename` refusal names `sbom_basename`, not `--sbom-basename` ([#527])
-- Dataset field, Croissant name, display-text and metadata-budget lines carry
-  codes; a dataset conflict names its model (`FILE=`/`MODEL=`) ([#534], [#548])
-- `generate_model_sbom()` on a PyPI URL raises `pypi-url-unusable` without an
-  uncoded `WARNING:` first; a refused `-o` or hook-staged SBOM write is
-  `file-unwritable` (library: `CodedOSError`, not `PermissionError`) ([#536])
-- A model scanned from a wheel names its own path in `SOURCE=` and a relayed
-  reader line keeps its code; the hook's error line is printed as the CLI's is ([#536])
-- `add_output_dataset(input_datasets=[...])` in a run with no inputs warns `[reference-not-found]`
-  as with inputs; a removed current directory no longer crashes a `loom` path label ([#536])
-- Former `RuntimeError` guards (`EmbedFileCache`, `TerminationGuard`, ...) raise `InternalError`;
-  a non-method `content_type_method` or non-string `Creator.type` is `option-invalid` ([#536])
-- An `InternalError` in one wheel's check stops `verify-wheel`, `validate-wheel` and
-  `embed-wheel --verify/--validate`, not said as that wheel's failure ([#542]);
-  no broad handler reports one as a bad file, a warning or a skip ([#550])
-- An scp-style address whose password holds `@` (`a:b@c@host:o/r`) is found as a
-  credential: refused or warned of in an SBOM ([#544])
-- An empty input path is `input-not-found`, an empty path option (CLI or library)
-  `option-invalid`: `""` never reads the cwd ([#545], [#550], [#557], [#560])
-- loom SDK calls and library path, `bool` and cap arguments refuse a wrong type
-  (`CodedTypeError`, `option-invalid`); an unknown `dataset_type` is refused, not
-  `text`; a symlinked script keeps its own name ([#545], [#557])
-- `loom id generate --namespace` holding a credential is `credentials-unsafe/registry`,
-  exit 1, as in the library ([#545])
-- The message reference dates a line newer than its code ([#546]); `line_kind()`
-  reads a message that could not be shown but kept a catalogued code as `coded`
+  detail or `preserve_source_metadata` when built; an unknown
+  `[tool.pitloom.provenance] schema` is `config-invalid` ([#524])
+- An enricher's exception fails the run instead of being skipped ([#524])
+- A refused write of `-o`, a hook-staged SBOM, an embedded wheel or its copy, or
+  a loom fragment is `file-unwritable` naming that file (library:
+  `CodedOSError`) ([#524], [#536], [#545])
+- A model scanned from a wheel names its own path in `SOURCE=`; the hook's error
+  line is printed as the CLI's is ([#536])
+- Internal guards raise `InternalError`, which stops `verify-wheel`,
+  `validate-wheel` and `embed-wheel --verify/--validate` and is never reported
+  as a bad file, a warning or a skip ([#536], [#542], [#550])
+- An empty input path is `input-not-found`; an empty path option or a blank
+  `--creator-name`, `--creator-email` or `--creation-tool` is `option-invalid`
+  (CLI: exit 2); `""` never reads the cwd ([#545], [#550], [#557], [#560])
+- A library or loom SDK argument of a wrong type (`CodedTypeError`) or refused
+  value (a blank name, an empty path or URL, an unknown kind or `dataset_type`)
+  is `option-invalid`; `bool`s refuse `"false"` ([#545], [#557], [#559], [#560],
+  [#561])
+- The message reference dates a line newer than its code; `line_kind()` reads a
+  message that could not be shown but kept its catalogued code as `coded`
   ([#545], [#546])
-- Metadata-budget lines say the metadata, not the file, is over the cap ([#548])
-- Messages reworded for one shape: lower-case conditions, `directory` not `folder`,
-  `ELEMENT=`, a quoted `MODEL=`, an sdist member as `FILE=` ([#553])
 - A licence file holding several licence texts (numpy's `LICENSE.txt`) gives no
   detected licence, stated or not, and no later licence file is read ([#554],
   [#563])
 - A message's advice names the flag, library parameter (`BuildOptions.timeout`)
-  or `[tool.pitloom]` key of the surface that ran; `embed_wheel_sbom()` names
-  `ConfigOverrides` fields, a signed wheel `allow_signed_wheel=True` ([#556],
-  [#559])
-- `IdRegistry.save()` with no path is `registry-file-missing`, not a plain
-  `ValueError`; a refused write is `file-unwritable` naming the path given, and a
-  `str` path saves ([#557], [#560])
-- A missing `loom generate` or `generate()` target is `target not found`, `loom
-  project`'s `project path not found`; `loom generate ''` says so before a missing
-  `-o` ([#557])
-- A dataset `loom.add_dataset()` adds in a `use_model()` run (`generated=False`) is
-  `testedOn` the model, not `trainedOn` ([#560])
-- A blank loom dataset or model `name` is `option-invalid` ([#560])
-- `IdRegistry()`, `load()`, `save()`, `generate()`, `import_sbom()` and `register()`
-  refuse a wrong type or an empty path or name (`option-invalid`) ([#560], [#561])
-- A Hugging Face model id or URL the Hub does not know (or a private one read
-  without a token) is `input-not-found/hub`: no SBOM, exit 1 ([#561])
-- `loom fragment validate A B` is documented to fail the merged check for two valid
-  SBOMs whose `created` differ (spdx3-validate shares blank nodes across files);
-  `--no-merge` checks each on its own ([#562])
+  or `[tool.pitloom]` key of the surface that ran ([#556], [#559])
+- A missing `loom generate` or `generate()` target is `target not found`,
+  `loom project`'s `project path not found`; `loom generate ''` says so before a
+  missing `-o` ([#557])
+- In a `use_model()` run, a dataset from `loom.add_dataset()` is `testedOn` the
+  model, not `trainedOn` ([#560])
+- A Hub model id or URL the Hub does not know (or a private one without a token)
+  is `input-not-found/hub`, exit 1; a one-part id's page
+  (`https://huggingface.co/gpt2/tree/main`) is that model; `loom model` reads a
+  URL as `loom generate` does ([#561])
+- `loom fragment validate A B` is documented to fail the merged check for two
+  valid SBOMs whose `created` differ (an spdx3-validate limit); `--no-merge`
+  checks each ([#562])
 
 ### Fixed
 
 - PyTorch type of model is the top-level object's class (`Linear` for a full
   save, none for a `dict` checkpoint), not the first class found ([#483])
-- A failed ID registry save prints one coded line naming the file as given
-  (`file-unwritable` for a refused write); left-out and save lines are coded
-  ([#492])
-- A `uv.lock` warning about a package (missing from its table, a version per
-  marker, a malformed key) is said once per run, not per reference ([#496])
-- A `setup.cfg` `[tool:pitloom]` error names that table; a `--config` TOML nested
-  too deep is `config-malformed`; a wrong `pitloom_config` type is `option-invalid` ([#497])
-- A time outside years 1 to 9999 once read as UTC (`0001-01-01T00:00:00+05:00`) is
-  refused as a creation date-time, and left out of a model's release time ([#497])
-- File discovery lines drop the `Build: ` prefix and start `DIR=<dir>:`; a
-  `[build-system]`-only `pyproject.toml` no longer warns of a missing name ([#501])
-- A `[project]` that is not a table, a `name` that is not a string, and a
-  `setup.cfg`/`setup.py` that does not parse are coded errors, not tracebacks ([#501])
-- A project file that does not parse or read is `config-malformed` or
-  `file-unreadable`, whether Pitloom reads its metadata or its `[tool.pitloom]` ([#501])
+- A `uv.lock` warning about a package is said once per run, not per reference
+  ([#496])
+- A project or `--config` file that does not parse (or nests too deep) is
+  `config-malformed`, one that does not read `file-unreadable`; a non-table
+  `[project]` or non-string `name` is coded, not a traceback ([#497], [#501])
+- A `[build-system]`-only `pyproject.toml` no longer warns of a missing name
+  ([#501])
+- A refused Git or PyPI URL is said once; a PyPI one has no `WARNING:` before
+  its `ERROR:`, and `generate_model_sbom()` raises `pypi-url-unusable` ([#503],
+  [#508], [#536])
 - Hugging Face `model_info()` and `dataset_info()` requests time out after 30 s;
   licence file names come from `model_info()`, not a separate listing ([#507])
-- A Hub revision warning is said once per model read, not per file; a refused
-  PyPI URL gives its `ERROR:` line without a `WARNING:` before it; an error text
-  in a `failure` value is cut to 500 characters ([#508])
+- A Hub revision warning is said once per model read; a `failure=` text drops a
+  Hub request id and a memory address and is cut to 500 characters ([#508],
+  [#537])
 - `embed-wheel --sbom-basename` with a path is refused before the SBOM is
-  generated, not after ([#515])
-- GGUF headers are read by Pitloom's own reader: a 262,144-token tokeniser
-  (Gemma 4) is read; ONNX `merged`, `spox_graph`, `mxnet_converted_model` are
-  no model name ([#517])
-- A GGUF tensor of more than 4 dimensions is refused, as llama.cpp does: a
-  hostile file no longer costs minutes of CPU ([#517])
+  generated ([#515])
+- GGUF headers are read by Pitloom's own reader: a 262,144-token tokeniser is
+  read, a tensor over 4 dimensions refused as llama.cpp does; ONNX `merged`,
+  `spox_graph`, `mxnet_converted_model` are no model name ([#517])
 - A loom model whose `path=` is no file at exit no longer claims a name-only
-  lookup when no ID registry is loaded (`model-file-missing`) ([#527])
+  lookup when no ID registry is loaded ([#527])
 - A missing `croissant=` file is `input-not-found`; an unreachable Croissant URL
   is `download-network-failed` or `download-timeout` ([#534])
-- A `failure=` text, an OS error's own description aside, drops a Hub request id
-  (`(Request ID: ...)`) and a memory address before masking and the cut ([#537])
-- The usage scan no longer hangs when its parse thread cannot install a trace
-  or profile hook (Python 3.10 and 3.11, concurrent parses) ([#539])
-- A GGUF in a wheel names its archive member's file name, not a temporary
-  copy, in the provenance of its datasets ([#540])
-- A too-long file name is `input-not-found`; a removed cwd (a relative path too), a
-  refused loom fragment write and a NUL in `croissant=` are coded errors, not
-  tracebacks ([#545], [#550])
-- A missing `input_datasets` name is warned once; `PitloomConfig(sbom_basename=)`
-  is checked when built ([#545])
-- A build, download or git time limit of one second reads `1 second`, not
-  `1 seconds` ([#546])
-- `generate_git_sbom()`, `generate_pypi_sbom()` and `fetch_git_project()` refuse
-  an unknown kind or an empty or non-string URL as `option-invalid`, not an
-  internal error ([#559], [#561])
-- An empty or blank `--creator-name`, `--creator-email` or `--creation-tool` is
-  `option-invalid`, exit 2: no traceback, no silent drop ([#560])
+- `add_output_dataset(input_datasets=[...])` warns `[reference-not-found]` once
+  for a missing name, with or without inputs ([#536], [#545])
+- A Git URL clone's file discovery holds its 60 s cap when a generator is closed
+  early (setuptools' package filter), where a walk could hang ([#538])
+- The usage scan no longer hangs when its parse thread cannot install a trace or
+  profile hook (Python 3.10 and 3.11, concurrent parses) ([#539])
+- A GGUF in a wheel names its archive member's file name, not a temporary copy,
+  in the provenance of its datasets ([#540])
+- A too-long file name is `input-not-found`; a removed cwd and a NUL in
+  `croissant=` are coded errors, not tracebacks ([#545], [#550])
+- A time limit of one second reads `1 second`, not `1 seconds` ([#546])
 - `IdRegistry`, `resolve_registry()`, `find_embedded_sbom()` and
-  `fetch_git_project()` tag and code their lines when no other Pitloom call came
-  first ([#560])
-- A Hub page of a one-part model id (`https://huggingface.co/gpt2/tree/main`) is
-  read as that model; `loom model` reads a URL as `loom generate` does ([#561])
+  `fetch_git_project()` tag and code their lines when called first ([#560])
 
 ### Security
 
-- A URL field credential is written with a warning unless refused; prose is not
-  read, some shapes not detected: `docs/url-credentials.md` ([#487], [#489],
-  [#490])
+- Log lines, tracebacks and `-v` details mask URL credentials, tokens, scp
+  passwords, `Authorization`/`Bearer`/`Basic` values, listed API-key headers and
+  cookies, also after an escape or colour code and in a failed build's last
+  output line, in linear time; `urllib3` and `requests` lines too ([#482],
+  [#486], [#487], [#489], [#491], [#503], [#506], [#526], [#543], [#544])
 - Rotate any credential an SBOM, wheel, registry file or log held (warn mode
   writes it); remove it from git credential stores (`git credential reject`)
   ([#487])
-- Log lines mask a token, scp password or PURL after an escape (`\t`, `\x1b`)
-  or colour code, an `Authorization`, `Bearer` or `Basic` credential, in linear
-  time ([#503], [#526], [#543], [#544])
-- Log lines mask listed API-key headers, cookie values, a quoted credential, and
-  a text before it is put on one line, split or escaped ([#544])
-- A URL credential behind a leading character (`!https://user:pw@host`) in a URL
-  field or a direct reference is warned of and refused ([#555])
+- A credential is found in encoded query and fragment values, a `u:?pw@host`
+  password, an scp password holding `@` and behind a leading character
+  (`!https://user:pw@host`) in a URL field or direct reference ([#491], [#544],
+  [#555])
+- A hostile GGUF tensor of over 4 dimensions is refused instead of costing
+  minutes of CPU ([#517])
 
 [#481]: https://github.com/bact/pitloom/pull/481
 [#482]: https://github.com/bact/pitloom/pull/482
@@ -286,7 +209,6 @@ and this project adheres to
 [#490]: https://github.com/bact/pitloom/pull/490
 [#491]: https://github.com/bact/pitloom/pull/491
 [#492]: https://github.com/bact/pitloom/pull/492
-[#494]: https://github.com/bact/pitloom/pull/494
 [#496]: https://github.com/bact/pitloom/pull/496
 [#497]: https://github.com/bact/pitloom/pull/497
 [#498]: https://github.com/bact/pitloom/pull/498
@@ -307,6 +229,7 @@ and this project adheres to
 [#534]: https://github.com/bact/pitloom/pull/534
 [#536]: https://github.com/bact/pitloom/pull/536
 [#537]: https://github.com/bact/pitloom/pull/537
+[#538]: https://github.com/bact/pitloom/pull/538
 [#539]: https://github.com/bact/pitloom/pull/539
 [#540]: https://github.com/bact/pitloom/pull/540
 [#542]: https://github.com/bact/pitloom/pull/542
@@ -1373,7 +1296,7 @@ Released from `maint-0.21`, on 0.21.1; no other change of 0.22.0 is in it.
 
 ---
 
-[Unreleased]: https://github.com/bact/pitloom/compare/v0.24.0...HEAD
+[0.25.0]: https://github.com/bact/pitloom/compare/v0.24.0...v0.25.0
 [0.24.0]: https://github.com/bact/pitloom/compare/v0.23.4...v0.24.0
 [0.23.4]: https://github.com/bact/pitloom/compare/v0.23.3...v0.23.4
 [0.23.3]: https://github.com/bact/pitloom/compare/v0.23.2...v0.23.3

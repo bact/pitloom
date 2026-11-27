@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-11-26
+Last-Modified: 2026-11-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -41,9 +41,10 @@ the Hatchling floor and latest = `Hook on Python X / Hatchling Y`
 - [ ] Version string consistent across every file that carries one:
       `pyproject.toml`, `src/pitloom/__about__.py`,
       `.claude-plugin/plugin.json`, `CITATION.cff`, `codemeta.json`,
-      `README.md`, `action.yml`, `docs/index.md`, `docs/github-action.md`
-      (also `pip install pitloom==<version>` in its registry recipe),
-      `working-docs/implementation/github-action.md`. Check with
+      `README.md`, `action.yml`, `docs/index.md`, `docs/github-action.md`,
+      `docs/hatchling-build-hook.md` (the `requires` line),
+      `working-docs/implementation/github-action.md` and
+      `working-docs/implementation/hatchling-build-hook.md`. Check with
       `grep -rn "<old-version>"` across those files -- anything left
       over is a missed bump. Dependency floors (e.g. `hatchling>=`) are
       *not* covered by `scripts/check_version_consistency.py`: grep them by
@@ -58,8 +59,9 @@ the Hatchling floor and latest = `Hook on Python X / Hatchling Y`
       `scripts/check_version_consistency.py` does not check this:
       `grep -rn "pitloom.*>=" skills/ docs/agent-skills.md`.
 - [ ] Pinned older releases in prose are deliberate, not missed bumps
-      (`docs/id-registry.md`'s workflow pins, `docs/github-action.md`'s
-      "`@v0.20.2` reads version 2"): when a doc says "the first release
+      (`docs/id-registry.md`'s `0.22.0` workflow pins,
+      `docs/id-registry-keys.md`'s "0.24.0 or earlier", the skills' "0.24.0
+      or later" for a PyPI URL): when a doc says "the first release
       with X", it names the release that introduced X, so re-read each
       such pin against the new version.
 - [ ] Coverage snapshots: `working-docs/implementation/g7-coverage-history/`

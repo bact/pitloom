@@ -10,6 +10,8 @@
 
 **Pitloom** automates the generation of [SPDX 3]-compliant
 software bills of materials (SBOMs) for Python applications and AI models.
+Use it as a [CLI], a [Hatchling build hook], a [Python API], a [GitHub Action],
+[Agent Skills] or a [Claude Code plugin].
 
 It extracts metadata directly from Python projects, whether declared in
 the standard `[project]` table (Flit, Hatchling, PDM, uv_build and others),
@@ -17,7 +19,7 @@ Poetry's `[tool.poetry]`, or setuptools' `setup.cfg` and `setup.py`,
 and from leading AI model formats,
 including PyTorch, ONNX, Safetensors, GGUF, and fastText.
 
-With native Hatchling integration and an official GitHub Action,
+With native Hatchling integration and the official GitHub Action,
 Pitloom embeds SBOMs directly into your wheel distribution under
 `.dist-info/sboms`, following the
 PyPA [Package Installation Metadata][dist-info] specification ([PEP 770]) --
@@ -27,6 +29,12 @@ the build pipeline.
 User manual: <https://bact.github.io/pitloom/>
 
 [SPDX 3]: https://spdx.github.io/spdx-spec/
+[CLI]: https://bact.github.io/pitloom/cli/
+[Hatchling build hook]: https://bact.github.io/pitloom/hatchling-build-hook/
+[Python API]: https://bact.github.io/pitloom/python-api/
+[GitHub Action]: https://bact.github.io/pitloom/github-action/
+[Agent Skills]: https://bact.github.io/pitloom/agent-skills/
+[Claude Code plugin]: https://bact.github.io/pitloom/claude-code-plugin/
 [dist-info]: https://packaging.python.org/en/latest/specifications/recording-installed-packages/#the-dist-info-directory
 [PEP 770]: https://peps.python.org/pep-0770/
 
@@ -95,7 +103,7 @@ Works with remote resources too:
 
 ```bash
 loom project https://gitlab.com/group/project
-loom wheel https://pypi.org/project/pitloom/0.24.0/            # The wheel PyPI holds for this Python
+loom wheel https://pypi.org/project/pitloom/0.25.0/            # The wheel PyPI holds for this Python
 loom model https://github.com/org/repo/blob/main/m.keras
 loom model https://huggingface.co/Qwen/Qwen3.8-27B            # Or just Qwen/Qwen3.8-27B
 ```
@@ -132,7 +140,7 @@ wheel built ([PEP 770], compact canonical JSON). Needs Hatchling **1.29.0+**:
 
 ```toml
 [build-system]
-requires = ["hatchling>=1.29.0", "pitloom>=0.24.0"]
+requires = ["hatchling>=1.29.0", "pitloom>=0.25.0"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.hooks.pitloom]
@@ -202,7 +210,7 @@ SBOM generation in CI, for any Python build backend:
 - uses: actions/setup-python@v7
   with:
     python-version: "3.x"
-- uses: bact/pitloom@v0.24.0
+- uses: bact/pitloom@v0.25.0
 ```
 
 Add `embed-wheel: "dist/*.whl"` to embed the SBOM into built wheels. See
@@ -303,7 +311,7 @@ gh attestation verify <file> -R bact/pitloom \
 
 If you use this software, please cite it as follows:
 
-> Suriyawongkul, A. (2026). Pitloom - SBOM generator for AI models and Python projects (Version 0.24.0) [Computer software]. <https://doi.org/10.5281/zenodo.19246283>
+> Suriyawongkul, A. (2026). Pitloom - SBOM generator for AI models and Python projects (Version 0.25.0) [Computer software]. <https://doi.org/10.5281/zenodo.19246283>
 
 BibTeX:
 
@@ -314,7 +322,7 @@ BibTeX:
     month = nov,
     title = {{Pitloom - SBOM generator for AI models and Python projects}},
     url = {https://github.com/bact/pitloom},
-    version = {0.24.0},
+    version = {0.25.0},
     year = {2026}
 }
 ```
