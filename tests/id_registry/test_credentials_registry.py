@@ -339,3 +339,21 @@ def test_a_refusal_never_shows_what_it_refuses(value: str, raw: str) -> None:
         assert "an access token" in str(error)
         assert raw not in str(error) and raw not in repr(error.args)
         assert raw not in "".join(traceback.format_exception(error))
+
+
+def test_a_library_load_says_its_warning_tagged_and_coded(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """``IdRegistry.load()`` is a library entry: with the ``pitloom`` logger
+    unconfigured (a fresh process; the test harness resets it), its
+    warning for an entry holding a credential is one ``WARNING:`` line with
+    its code, not logging's untagged last-resort text."""
+    path = _registry_file(
+        tmp_path / "ids.json", _NS, f"https://u:{_SECRET}@h/m", f"{_NS}#AIPackage-1"
+    )
+    IdRegistry.load(path)
+    lines = capsys.readouterr().err.splitlines()
+    assert lines, "no warning"
+    assert all(ln.startswith("WARNING: ") for ln in lines), lines
+    assert all(ln.endswith(f"[{_REGISTRY}]") for ln in lines), lines
+    assert _SECRET not in "\n".join(lines)

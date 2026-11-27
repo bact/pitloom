@@ -92,8 +92,7 @@ INTERNAL_EXC = frozenset(
 LIBRARY_EXC = frozenset({"_no_active_run"})
 #: Raises, by file, function, exception class and template, that only a
 #: library caller's wrong argument reaches: a value of the wrong Python type
-#: (a ``TypeError``), or a call that leaves out what the object lacks
-#: (``register()`` with an empty type name). No command, hook, Action or
+#: (a ``TypeError``). No command, hook, Action or
 #: file reaches them (the CLI passes only its own types and a registry with
 #: a path). Named one raise at a time, not
 #: one function: another raise in the same function (``--build-timeout 0``'s
@@ -106,12 +105,6 @@ LIBRARY_SITES = frozenset(
             "scalar_text",
             "TypeError",
             "not a scalar: {type(value).__name__}",
-        ),
-        (
-            "src/pitloom/id_registry/_registry.py",
-            "IdRegistry._mint_id",
-            "ValueError",
-            "ID registry: no id prefix for an empty type name",
         ),
         (
             "src/pitloom/id_registry/_types.py",

@@ -36,7 +36,7 @@ from os.path import relpath
 from pathlib import Path, PureWindowsPath
 from typing import TYPE_CHECKING, Any, NamedTuple
 
-from pitloom._sbom_io import replace_text_lf
+from pitloom._sbom_io import coded_write, replace_text_lf
 from pitloom.core.canonical_json import canonical_json_indented
 from pitloom.core.given_file import read_given_bytes
 from pitloom.core.internal_error import reraise_internal
@@ -378,10 +378,13 @@ def write_registry_file(
     indented, LF line endings and one trailing newline. Replaced atomically
     where the directory takes a temporary file, else written in place
     (:func:`~pitloom._sbom_io.replace_text_lf`). A counter the loader
-    would reject raises ``registry-malformed``, and nothing is written."""
+    would reject raises ``registry-malformed``, and nothing is written. A
+    write the system refuses is ``file-unwritable`` naming *target*, never
+    the temporary file (:func:`~pitloom._sbom_io.coded_write`)."""
     for prefix, number in id_counters.items():
         _check_counter(target, prefix, number)
-    target.parent.mkdir(parents=True, exist_ok=True)
+    with coded_write(target, use=REGISTRY_USE):
+        target.parent.mkdir(parents=True, exist_ok=True)
     by_type: dict[str, dict[str, dict[str, str]]] = {}
     for (type_name, name), entry in sorted(elements.items()):
         record = {"spdxId": entry.spdx_id}
@@ -395,4 +398,5 @@ def write_registry_file(
         "project_root": _stored_project_root(target, project_root),
         "version": _REGISTRY_VERSION,
     }
-    replace_text_lf(target, canonical_json_indented(data) + "\n")
+    with coded_write(target, use=REGISTRY_USE):
+        replace_text_lf(target, canonical_json_indented(data) + "\n")

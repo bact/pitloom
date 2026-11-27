@@ -305,3 +305,61 @@ def test_allow_build_flags_absent_on_non_project_commands(
 
 # The stray/no-effect build-flag warnings for every command and target kind
 # are covered by tests/test_build_flag_warnings.py's cross-surface matrix.
+
+
+def _creator_commands() -> list[str]:
+    """Each command taking the creator options (the real parser's)."""
+    # pylint: disable-next=protected-access
+    (commands,) = [a for a in _build_parser()._actions if a.dest == "command"]
+    return sorted(
+        name
+        for name, sub in commands.choices.items()  # type: ignore[union-attr]
+        # pylint: disable-next=protected-access
+        if any("--creator-name" in a.option_strings for a in sub._actions)
+    )
+
+
+@pytest.mark.parametrize("given", ["", " "], ids=["empty", "blank"])
+@pytest.mark.parametrize(
+    ("option", "before"),
+    [
+        ("--creator-name", []),
+        ("--creator-email", ["--creator-name", "A"]),
+        ("--creation-tool", []),
+    ],
+    ids=["creator-name", "creator-email", "creation-tool"],
+)
+@pytest.mark.parametrize("command", _creator_commands())
+# pylint: disable-next=too-many-arguments,too-many-positional-arguments
+def test_a_blank_creator_or_tool_is_refused_at_parse(
+    command: str,
+    option: str,
+    before: list[str],
+    given: str,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """argparse's ``option-invalid`` line, exit 2, naming the flag: never a
+    traceback (``--creator-name``), the library's field name and exit 1
+    (``--creation-tool``) or a silent drop (``--creator-email``). Offline,
+    from an empty directory: a regression reads and fetches nothing."""
+    monkeypatch.chdir(tmp_path)
+    argv = [command, "--offline", *before, option, given]
+    monkeypatch.setattr(sys, "argv", ["loom", *argv])
+    with pytest.raises(SystemExit) as exited:
+        __main__.main()
+    assert exited.value.code == 2
+    err = capsys.readouterr().err
+    assert "Traceback" not in err
+    assert [ln for ln in err.splitlines() if ln.startswith("ERROR:")] == [
+        f"ERROR: loom {command}: argument {option}: must be a non-empty string, "
+        f"got a string {given!r} [option-invalid]"
+    ]
+
+
+def test_every_generating_command_takes_the_creator_options() -> None:
+    """The walk above is not vacuous."""
+    assert {"generate", "project", "wheel", "model", "env", "embed-wheel"} <= set(
+        _creator_commands()
+    )

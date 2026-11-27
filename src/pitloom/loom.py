@@ -267,7 +267,10 @@ def add_dataset(
     croissant: str | os.PathLike[str] | None = None,
     declared_license: str | None = None,
 ) -> None:
-    """Add a dataset the AI model in the current run uses.
+    """Add a dataset the AI model in the current run uses: the model is
+    recorded as trained on it (``trainedOn``), or tested on it
+    (``testedOn``) when the run only uses the model (:func:`use_model`,
+    or :func:`set_model` with ``generated=False``).
 
     Args:
         name: The dataset: a file, a directory, or a name for one that is
@@ -292,7 +295,8 @@ def add_dataset(
     Raises:
         TypeError: An argument is of the wrong type (``option-invalid``, a
             :class:`~pitloom.messages.CodedTypeError`).
-        ValueError: *dataset_type* names no ``dataset_DatasetType``
+        ValueError: *name* is empty or white space only, or
+            *dataset_type* names no ``dataset_DatasetType``
             (``option-invalid``); *croissant* is a URL, not a regular file,
             or cannot be read as Croissant.
     """

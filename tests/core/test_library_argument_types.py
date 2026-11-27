@@ -128,6 +128,22 @@ _WRONG_TYPE: dict[str, tuple[_Call, str]] = {
         "pitloom_config: must be a path to a configuration file, or a "
         "PitloomConfig, got an integer 5",
     ),
+    "registry-generate-paths": (
+        lambda: IdRegistry.new("p").generate(_NINE, Path(".")),
+        "paths: must be a list or tuple of strings, got a string '9'",
+    ),
+    "register-type": (
+        lambda: IdRegistry.new("p").register(_FIVE, "x"),
+        "type_name: must be a string, got an integer 5",
+    ),
+    "register-name": (
+        lambda: IdRegistry.new("p").register("software_File", _FIVE),
+        "name: must be a string, got an integer 5",
+    ),
+    "register-sha256": (
+        lambda: IdRegistry.new("p").register("software_File", "x", sha256=_FIVE),
+        "sha256: must be a SHA-256 in hex (64 characters), got an integer 5",
+    ),
 }
 
 #: case -> (the call with a path argument that is no path, the parameter):
@@ -167,6 +183,27 @@ _NOT_A_PATH: dict[str, tuple[_Call, str]] = {
     "registry-new": (lambda: IdRegistry.new("p", path=_FIVE), "path"),
     "registry-root": (lambda: IdRegistry.new("p", project_root=_FIVE), "project_root"),
     "registry-save": (lambda: IdRegistry.new("p").save(_FIVE), "path"),
+    "registry-import": (
+        lambda: IdRegistry.new("p").import_sbom(_FIVE),
+        "sbom_path",
+    ),
+    "find-sbom-wheel": (lambda: find_embedded_sbom(_FIVE), "wheel_path"),
+    "registry-init": (
+        lambda: IdRegistry(namespace="https://example.org/ns/", path=_FIVE),
+        "path",
+    ),
+    "registry-generate": (
+        lambda: IdRegistry.new("p").generate([_FIVE], Path(".")),
+        "paths",
+    ),
+    "registry-generate-root": (
+        lambda: IdRegistry.new("p").generate([], _FIVE),
+        "project_root",
+    ),
+    "registry-generate-exclude": (
+        lambda: IdRegistry.new("p").generate([], Path("."), exclude=_FIVE),
+        "exclude",
+    ),
 }
 
 #: case -> (the call with a value of the right type it does not take, the
@@ -200,6 +237,18 @@ _WRONG_VALUE: dict[str, tuple[_Call, str]] = {
     "download-cap": (
         lambda: generate_project_sbom(".", max_download_bytes=0),
         "max_download_bytes: must be an integer of at least 1, got an integer 0",
+    ),
+    "register-type-empty": (
+        lambda: IdRegistry.new("p").register("", "x"),
+        "type_name: must be a non-empty string, got a string ''",
+    ),
+    "register-name-empty": (
+        lambda: IdRegistry.new("p").register("software_File", ""),
+        "name: must be a non-empty string, got a string ''",
+    ),
+    "register-type-blank": (
+        lambda: IdRegistry.new("p").register(" ", "x"),
+        "type_name: must be a non-empty string, got a string ' '",
     ),
 }
 
@@ -277,3 +326,10 @@ def test_saving_a_registry_with_no_path(
         "registry with a path"
     )
     assert not list(tmp_path.iterdir())
+
+
+def test_register_takes_a_blank_name(tmp_path: Path) -> None:
+    """Only ``""`` names no element: a file may be named white space, so a
+    blank name is registered (the other side of ``register-name-empty``)."""
+    registry = IdRegistry.new("p", tmp_path / "r.json")
+    assert registry.register("software_File", " ").endswith("#File-1")

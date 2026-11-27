@@ -72,6 +72,7 @@ from pitloom.extract.remote.git_url import (
     split_ref,
 )
 from pitloom.extract.remote.pypi_url import is_pypi_url
+from pitloom.logging_config import configure_logging
 from pitloom.messages import GIT_FRAME, code_of, emit, url_text
 from pitloom.messages.git import (
     GIT_EMPTY_LINE,
@@ -214,6 +215,7 @@ def fetch_git_project(
             repository is larger than ``max_bytes`` (``over-cap``).
         Exception: whatever ``check_url`` raises, unchanged.
     """
+    configure_logging()
     runner = GitRunner(max_bytes=policy.max_bytes)
     # Each git call has ended (its process group too) before the removal.
     with temp_dir(CHECKOUT_DIR_PREFIX, frame=GIT_FRAME) as work:
@@ -284,8 +286,9 @@ def _read_url(url: str, shown: str) -> GitPage:
 
 
 def _host_as_typed(url: str) -> bool:
-    """Whether the host of *url* is plain (:func:`host_is_plain`; no host at
-    all is left to the later checks): curl maps another spelling
+    """Whether the host of *url* is plain (:func:`host_is_plain`); a URL
+    with no host (``https://``) is not, unless it is a ``file:`` one: git
+    would resolve a host the URL does not spell. curl maps another spelling
     (``pypi%2Eorg``, a full-width dot) to a host the URL's text does not
     name, which no check of that text (a PyPI host is never cloned) would
     see; a host holding ``=``, ``!`` or white space, or starting with
@@ -295,7 +298,10 @@ def _host_as_typed(url: str) -> bool:
     *url* is one :func:`scheme_allowed` accepted, so it parses: a URL
     ``urlsplit`` refuses never reaches here."""
     parts = urlsplit(url)
-    return not parts.hostname or host_is_plain(parts)
+    if not parts.hostname:
+        # Only a file: URL names no host by design (allowed by tests alone).
+        return parts.scheme.lower() == "file"
+    return host_is_plain(parts)
 
 
 def _resolve(

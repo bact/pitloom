@@ -253,8 +253,9 @@ class TestHashFallbackUnification:
         ]
         assert len(datasets) == 1
         rels = _relationships(graph)
-        trained = [r for r in rels if r["relationshipType"] == "trainedOn"]
-        assert trained and trained[0]["to"] == [datasets[0]["spdxId"]]
+        # A used model (generated=False) is tested on its datasets.
+        tested = [r for r in rels if r["relationshipType"] == "testedOn"]
+        assert tested and tested[0]["to"] == [datasets[0]["spdxId"]]
 
     def test_different_content_stays_separate(
         self,

@@ -88,8 +88,9 @@ and this project adheres to
   holds a key twice ([#490])
 - Credentials in encoded query and fragment values and in a `u:?pw@host`
   password are found ([#491])
-- Git URLs: a NUL in user information and a host no host name spells are
-  refused before git runs; more `GIT_*` variables are dropped ([#491])
+- Git URLs: a NUL in user information, a host no host name spells and a missing
+  host are refused before git runs; more `GIT_*` variables are dropped ([#491],
+  [#560])
 - `verify-wheel`, `validate-wheel` and `embed-wheel`: a pattern nested too
   deeply is `input-not-found`, not a crash; a `[` in a path is taken as typed
   ([#491])
@@ -162,12 +163,11 @@ and this project adheres to
   no broad handler reports one as a bad file, a warning or a skip ([#550])
 - An scp-style address whose password holds `@` (`a:b@c@host:o/r`) is found as a
   credential: refused or warned of in an SBOM ([#544])
-- An empty input path is `input-not-found`, an empty `-o`, `--project-dir`,
-  `--id-registry`, `--config` or SBOM file name `option-invalid`: `""` (blank in
-  `generate()`) never reads the cwd ([#545], [#550], [#557])
-- loom SDK and library calls refuse an argument of the wrong type (`CodedTypeError`,
-  `option-invalid`; a `bool` refuses `"false"`); an unknown `dataset_type` is
-  refused, not `text`; a symlinked script keeps its own name ([#545], [#557])
+- An empty input path is `input-not-found`, an empty path option (CLI or library)
+  `option-invalid`: `""` never reads the cwd ([#545], [#550], [#557], [#560])
+- loom SDK calls and library path, `bool` and cap arguments refuse a wrong type
+  (`CodedTypeError`, `option-invalid`); an unknown `dataset_type` is refused, not
+  `text`; a symlinked script keeps its own name ([#545], [#557])
 - `loom id generate --namespace` holding a credential is `credentials-unsafe/registry`,
   exit 1, as in the library ([#545])
 - The message reference dates a line newer than its code ([#546]); `line_kind()`
@@ -183,10 +183,16 @@ and this project adheres to
   `ConfigOverrides` fields, a signed wheel `allow_signed_wheel=True` ([#556],
   [#559])
 - `IdRegistry.save()` with no path is `registry-file-missing`, not a plain
-  `ValueError` ([#557])
+  `ValueError`; a refused write is `file-unwritable` naming the path given, and a
+  `str` path saves ([#557], [#560])
 - A missing `loom generate` or `generate()` target is `target not found`, `loom
   project`'s `project path not found`; `loom generate ''` says so before a missing
   `-o` ([#557])
+- A dataset `loom.add_dataset()` adds in a `use_model()` run (`generated=False`) is
+  `testedOn` the model, not `trainedOn` ([#560])
+- A blank loom dataset or model `name` is `option-invalid` ([#560])
+- `IdRegistry()`, `load()`, `save()`, `generate()`, `import_sbom()` and `register()`
+  refuse a wrong type or an empty path or name (`option-invalid`) ([#560])
 
 ### Fixed
 
@@ -238,6 +244,11 @@ and this project adheres to
   `1 seconds` ([#546])
 - `generate_git_sbom()` and `generate_pypi_sbom()` refuse an unknown kind or an
   empty or non-string URL as `option-invalid`, not an internal error ([#559])
+- An empty or blank `--creator-name`, `--creator-email` or `--creation-tool` is
+  `option-invalid`, exit 2: no traceback, no silent drop ([#560])
+- `IdRegistry`, `resolve_registry()`, `find_embedded_sbom()` and
+  `fetch_git_project()` tag and code their lines when no other Pitloom call came
+  first ([#560])
 
 ### Security
 
@@ -302,6 +313,7 @@ and this project adheres to
 [#556]: https://github.com/bact/pitloom/pull/556
 [#557]: https://github.com/bact/pitloom/pull/557
 [#559]: https://github.com/bact/pitloom/pull/559
+[#560]: https://github.com/bact/pitloom/pull/560
 
 ## [0.24.0] - 2026-11-11
 

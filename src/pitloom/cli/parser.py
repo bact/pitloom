@@ -44,6 +44,7 @@ from pitloom.messages import (
     COMMAND_FRAME,
     TOP_FRAME,
 )
+from pitloom.messages.config import must_be
 from pitloom.messages.options import usage_code
 
 #: Why a creator's type or email given before its name is refused; argparse
@@ -104,6 +105,20 @@ class _CreatorEmailAction(argparse.Action):
             type=creators[-1].type,
             email=values,
         )
+
+
+def _non_blank(text: str) -> str:
+    """*text*, a creator's name or email or a tool's name, refused when
+    empty or white space only: never dropped, never left for
+    :class:`~pitloom.core.creation.Creator` to raise after parsing.
+
+    Raises:
+        argparse.ArgumentTypeError: *text* is blank (``must be a non-empty
+            string, got ''``).
+    """
+    if not text.strip():
+        raise argparse.ArgumentTypeError(must_be("non-empty", got=text))
+    return text
 
 
 #: The ``dest`` of each level of sub-parsers, outermost first.
@@ -321,6 +336,7 @@ def _build_parent_parser() -> argparse.ArgumentParser:
     creator_group.add_argument(
         "--creator-name",
         action=_CreatorNameAction,
+        type=_non_blank,
         dest="creators",
         default=None,
         metavar="NAME",
@@ -341,6 +357,7 @@ def _build_parent_parser() -> argparse.ArgumentParser:
     creator_group.add_argument(
         "--creator-email",
         action=_CreatorEmailAction,
+        type=_non_blank,
         dest="creators",
         default=None,
         metavar="EMAIL",
@@ -349,6 +366,7 @@ def _build_parent_parser() -> argparse.ArgumentParser:
     creator_group.add_argument(
         "--creation-tool",
         action="append",
+        type=_non_blank,
         dest="creation_tools",
         default=None,
         metavar="NAME",

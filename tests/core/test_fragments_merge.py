@@ -136,8 +136,9 @@ def test_duplicate_relationships_deduplicated(
         exporter,
     )
     graph = json.loads(exporter.to_json(pretty=True)).get("@graph", [])
-    trained = [r for r in _relationships(graph) if r["relationshipType"] == "trainedOn"]
-    assert len(trained) == 1
+    # A used model (generated=False) is tested on its datasets.
+    tested = [r for r in _relationships(graph) if r["relationshipType"] == "testedOn"]
+    assert len(tested) == 1
 
 
 def test_fragment_envelope_is_dropped(tmp_path: Path) -> None:

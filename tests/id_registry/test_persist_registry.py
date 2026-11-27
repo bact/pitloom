@@ -199,6 +199,7 @@ def test_an_id_saved_first_by_another_run_is_not_recorded(
     )
     persist_registry(first, 1, True)
     before = path.read_bytes()
+    caplog.clear()  # only the save under test: a loaded registry logs
 
     with caplog.at_level(logging.INFO, logger="pitloom"):
         persist_registry(second, 1, True)
@@ -234,6 +235,7 @@ def test_the_added_count_is_at_most_the_caller_s(
         make_registry(entries, path=path)
         registry = IdRegistry.load(path)
     registry.register(AI_PACKAGE_TYPE, "n" if unread else "m", sha256="1" * 64)
+    caplog.clear()  # only the save under test: a loaded registry logs
 
     with caplog.at_level(logging.INFO, logger="pitloom"):
         persist_registry(registry, new_ids, True)
@@ -253,6 +255,7 @@ def test_the_added_count_leaves_out_a_refused_change(
     mine, theirs = IdRegistry.load(path), IdRegistry.load(path)
     persist_registry(theirs, *theirs.harvest(_files(("b", 9), ("c", 2))))
     new_ids, changed = mine.harvest(_files(("a", 1), (refused, 2)))
+    caplog.clear()  # only the save under test: a loaded registry logs
 
     with caplog.at_level(logging.INFO, logger="pitloom"):
         persist_registry(mine, new_ids, changed)
