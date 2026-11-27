@@ -54,12 +54,39 @@ env:
   SPDX_ANNOTATION_URL_3_1: "https://spdx.github.io/spdx-spec/v3.1/rdf/spdx-json-serialize-annotations.ttl"
 
 jobs:
+  # Pull requests only: whether the PR has the `test-all-os` label when the
+  # job runs (the event payload may predate the label; see the action).
+  labels:
+    name: Read the test-all-os label
+    if: >-
+      ${{ github.event_name == 'pull_request'
+      && (github.event.action != 'labeled'
+      || github.event.label.name == 'test-all-os') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      all-os: ${{ steps.read.outputs.all-os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          sparse-checkout: .github/actions
+
+      - id: read
+        uses: ./.github/actions/test-all-os
+        with:
+          token: ${{ github.token }}
+
   build-wheel:
     name: Python ${{ matrix.python-version }} on ${{ matrix.os }}
+    needs: labels
     # A `labeled` event runs the job only for the `test-all-os` label.
+    # labels is skipped on a push and may fail: !cancelled() lets the job run.
     if: >-
-      ${{ github.event.action != 'labeled'
-      || github.event.label.name == 'test-all-os' }}
+      ${{ !cancelled()
+      && (github.event.action != 'labeled'
+      || github.event.label.name == 'test-all-os') }}
     runs-on: ${{ matrix.os }}
     permissions:
       contents: read
@@ -70,12 +97,13 @@ jobs:
       # 3.15: not run, since the `ai` extra's wheels (such as onnx) are
       # not available for 3.15 yet; the core code is expected to work.
       # A pull request builds on Linux only, unless it has the `test-all-os`
-      # label; a push to main or develop, and a manual run, also build on
+      # label (read by the labels job; an empty output builds on every OS);
+      # a push to main or develop, and a manual run, also build on
       # Windows and macOS (the platform tests in test.yml cover those systems
       # on a pull request).
       matrix: >-
         ${{ fromJSON(github.event_name == 'pull_request'
-        && !contains(github.event.pull_request.labels.*.name, 'test-all-os')
+        && needs.labels.outputs.all-os == 'false'
         && '{"include":[
         {"os":"ubuntu-latest","python-version":"3.10"},
         {"os":"ubuntu-latest","python-version":"3.14"}]}'

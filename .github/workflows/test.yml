@@ -53,11 +53,36 @@ jobs:
           workflow-file: test.yml
           token: ${{ github.token }}
 
+  # Pull requests only: whether the PR has the `test-all-os` label when the
+  # job runs (the event payload may predate the label; see the action).
+  labels:
+    name: Read the test-all-os label
+    if: >-
+      ${{ github.event_name == 'pull_request'
+      && (github.event.action != 'labeled'
+      || github.event.label.name == 'test-all-os') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      all-os: ${{ steps.read.outputs.all-os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          sparse-checkout: .github/actions
+
+      - id: read
+        uses: ./.github/actions/test-all-os
+        with:
+          token: ${{ github.token }}
+
   test:
     name: Test on Python ${{ matrix.python-version }} (${{ matrix.os }})
-    needs: decide
-    # decide is skipped on PRs and may fail: !cancelled() lets the matrix run;
-    # a "true" skip only shrinks the matrix (below).
+    needs: [decide, labels]
+    # decide is skipped on PRs, labels on pushes, and either may fail:
+    # !cancelled() lets the matrix run; a "true" skip only shrinks the matrix
+    # (below).
     # A `labeled` event runs the matrix only for the `test-all-os` label.
     if: >-
       ${{ !cancelled()
@@ -118,7 +143,8 @@ jobs:
         # in the release gate (pypi-publish.yml), not here; a slow host is not a
         # failure of the change under test. Local-server tests (loopback) run.
         env:
-          ALL_OS: ${{ github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'test-all-os') }}
+          # Fail open: a failed labels job (empty output) tests every OS.
+          ALL_OS: ${{ github.event_name != 'pull_request' || needs.labels.outputs.all-os != 'false' }}
         run: |
           if [ "$RUNNER_OS" = "Windows" ]; then
             export TMP="$RUNNER_TEMP" TEMP="$RUNNER_TEMP"
