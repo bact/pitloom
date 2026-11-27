@@ -279,8 +279,8 @@ to the current directory) to set `id-registry`, `update-id-registry`, `max-datas
 `accept-url-credentials` or `url-credentials`; no other key has an effect
 there. `id_registry=` wins
 over the config's `id-registry`, and `max_dataset_hash_bytes=` over its
-`max-dataset-hash-bytes`. A config file that is missing or invalid raises `ValueError` as the run
-begins.
+`max-dataset-hash-bytes`. A config file that is missing, unreadable or invalid raises `ValueError`
+as the run begins.
 
 The merge itself (`pitloom.assemble.merge_fragments`, run by
 `generate()`/`generate_project_sbom()` whenever `[tool.pitloom.fragment]`

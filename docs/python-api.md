@@ -286,9 +286,9 @@ coded `library-missing`, naming the extra to install
 
 ## Tracking decorator
 
-Moved to [Python API: tracking decorator](python-api-tracking.md):
-`@loom.run(...)` and `loom.Run`, which record what a training or evaluation
-run used and produced in a fragment merged into the SBOM later.
+`@loom.run(...)` and `loom.Run` record what a training or evaluation run
+used and produced in a fragment merged into the SBOM later: see [Python API:
+tracking decorator](python-api-tracking.md).
 
 ## See also
 

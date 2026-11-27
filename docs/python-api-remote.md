@@ -81,8 +81,8 @@ plain ASCII or is percent-encoded (`git.url-invalid`, catalogued
 `url-unsafe/host-spelling`). The URL of `fetch_git_project()`,
 `generate_git_sbom()` and `generate_git_project_sbom()` is checked first: one
 that is not a string raises `TypeError`, an empty or blank one `ValueError`,
-both `option-invalid`; `sbom_kind=` that is none of `auto`, `project`,
-`model` raises `ValueError` (`TypeError` for a non-string), `option-invalid`. The policy's `max_bytes` (512 MiB by default)
+both `option-invalid`; `generate_git_sbom()`'s `sbom_kind=` that is none of
+`auto`, `project`, `model` raises `ValueError` (`TypeError` for a non-string), `option-invalid`. The policy's `max_bytes` (512 MiB by default)
 stops the fetch, with `git.too-large`, once the checkout takes more disk than
 that; the generators take `max_download_bytes=` instead (else `pitloom_config=`'s
 `max-download-bytes`, else 512 MiB, as for a PyPI URL; `over-cap` as

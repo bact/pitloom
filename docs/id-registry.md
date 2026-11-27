@@ -248,11 +248,14 @@ directory.
 
 `IdRegistry.load()`, `IdRegistry.new()`, the constructor, `save()`,
 `generate()` and `import_sbom()` take their paths as a `str` or path-like
-(else `TypeError`), not empty (else `ValueError`), as `--id-registry ""` is
-refused; `register()` takes a type name and a name that are non-empty strings;
-each carries the code `option-invalid`. A `str` path is named as typed.
-`save()` to a directory raises `OSError` (`file-unwritable`). `save()` with no path, for a registry made without
-one, raises `ValueError` (`registry-file-missing`). `register()`
+(else `TypeError`). An empty registry path, `project_root=` or `exclude=`
+raises `ValueError`, as `--id-registry ""` is refused; an empty `generate()`
+path or `import_sbom()` SBOM path is a path that does not exist
+(`FileNotFoundError`, `input-not-found`). `register()` takes a type name and a
+name that are non-empty strings; each carries the code `option-invalid`. A
+`str` path is named as typed. `save()` to a directory raises `OSError`
+(`file-unwritable`). `save()` with no path, for a registry made without one,
+raises `ValueError` (`registry-file-missing`). `register()`
 and the loader reject a name that UTF-8 cannot hold (a lone surrogate) with
 `ValueError` (`text-malformed/registry`, `registry-malformed`); `generate()`
 skips such a file with the `PATH` `WARNING:`, and harvest and `id import`

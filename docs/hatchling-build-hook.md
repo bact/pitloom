@@ -130,8 +130,8 @@ name twice, or two names that Windows and macOS extract onto one file, and
 the build fails: set `[tool.pitloom] sbom-basename` to another name, or drop
 the entry. The line reads `ERROR: Pitloom build hook: FILE=<file>: also the
 name, ignoring case, of sbom-files entry '<path>'; set another sbom-basename
-in [tool.pitloom] or drop the entry [sbom-name-conflict]` (see [Message codes: Embedded
-SBOMs](message-codes-wheel-sboms.md#sbom-name-conflict)).
+in [tool.pitloom] or drop the entry [sbom-name-conflict]` (see [Message
+codes: Embedded SBOMs](message-codes-wheel-sboms.md#sbom-name-conflict)).
 
 ## Reproducible builds
 
