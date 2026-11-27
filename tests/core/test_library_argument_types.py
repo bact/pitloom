@@ -130,7 +130,7 @@ _WRONG_TYPE: dict[str, tuple[_Call, str]] = {
     ),
     "registry-generate-paths": (
         lambda: IdRegistry.new("p").generate(_NINE, Path(".")),
-        "paths: must be a list or tuple of strings, got a string '9'",
+        "paths: must be a list or tuple of paths, got a string '9'",
     ),
     "register-type": (
         lambda: IdRegistry.new("p").register(_FIVE, "x"),

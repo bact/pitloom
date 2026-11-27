@@ -6,7 +6,8 @@
 """Say a failed ``huggingface_hub`` API request (``model_info()``,
 ``dataset_info()``) as one catalogued ``WARNING:``, by what failed:
 offline mode, a timeout, a failed request, or an answer that could not be
-read.
+read; or, for the model a run reads, the error that the Hub knows no such
+model (:func:`is_repository_not_found`, :func:`model_not_found`).
 
 ``huggingface_hub`` raises its own HTTP errors and passes on its HTTP
 client's: ``httpx`` from 1.0, ``httpx2`` in 2.x. Both are recognised, each
@@ -26,8 +27,9 @@ import sys
 from typing import Final
 
 from pitloom.core.internal_error import InternalError
-from pitloom.extract.remote._http_errors import shown_url
-from pitloom.extract.remote._hub_files import hub_endpoint
+from pitloom.extract.remote._http_errors import remote_error, shown_url
+from pitloom.extract.remote._hub_files import ROUTE, hub_endpoint
+from pitloom.extract.remote.errors import RemoteSourceError
 from pitloom.messages import emit, whole_seconds
 from pitloom.messages.network import (
     DOWNLOAD_FAILED,
@@ -35,8 +37,23 @@ from pitloom.messages.network import (
     HUB_RESPONSE_INVALID,
     OFFLINE_UNUSABLE,
 )
+from pitloom.messages.targets import (
+    HUB_ID_NOT_FOUND_LINE,
+    HUB_URL_NOT_FOUND_LINE,
+    INPUT_NOT_FOUND_HUB,
+)
 
-__all__ = ["repo_page_url", "say_hub_failure"]
+__all__ = [
+    "REPOSITORY_NOT_FOUND",
+    "is_repository_not_found",
+    "model_not_found",
+    "repo_page_url",
+    "say_hub_failure",
+]
+
+#: The :attr:`~pitloom.extract.remote.errors.RemoteSourceError.code` of a
+#: model the Hub knows no repository for (``input-not-found/hub``).
+REPOSITORY_NOT_FOUND: Final = f"{ROUTE}.repository-not-found"
 
 #: The HTTP clients ``huggingface_hub`` sends its API requests through.
 _HTTP_CLIENTS: Final = ("httpx", "httpx2")
@@ -48,6 +65,49 @@ def repo_page_url(repo_id: str, repo_type: str = "model") -> str:
     writes it: ``<hub>/<repo>``, ``<hub>/datasets/<repo>`` for a dataset."""
     prefix = "datasets/" if repo_type == "dataset" else ""
     return shown_url(f"{hub_endpoint().rstrip('/')}/{prefix}{repo_id}")
+
+
+def is_repository_not_found(exc: BaseException) -> bool:
+    """Whether *exc*, raised by a ``huggingface_hub`` API request about one
+    repository, says the Hub knows no repository by that id that the
+    request could read: a ``RepositoryNotFoundError`` (a 404, or the 401 an
+    anonymous request gets for a missing or a private repository alike),
+    but not its subclass ``GatedRepoError`` (a gated repository is found);
+    or an ``HFValidationError``, an id no repository can have (``a/b--c``),
+    refused before any request. A mirror's 404 without the Hub's
+    ``RepoNotFound`` code is no such answer."""
+    # pylint: disable-next=import-outside-toplevel
+    from huggingface_hub.errors import (
+        GatedRepoError,
+        HFValidationError,
+        RepositoryNotFoundError,
+    )
+
+    if isinstance(exc, HFValidationError):
+        return True
+    return isinstance(exc, RepositoryNotFoundError) and not isinstance(
+        exc, GatedRepoError
+    )
+
+
+def model_not_found(model_id: str, *, as_id: bool) -> RemoteSourceError:
+    """The error for the model *model_id* the Hub knows no repository for
+    (:func:`is_repository_not_found`): :data:`REPOSITORY_NOT_FOUND`,
+    ``input-not-found/hub``, naming its page on the Hub asked
+    (:func:`repo_page_url`). *as_id*: the target was spelt as a model id,
+    which is no local path either, and the line says so too."""
+    url = repo_page_url(model_id)
+    if as_id:
+        return remote_error(
+            REPOSITORY_NOT_FOUND,
+            INPUT_NOT_FOUND_HUB,
+            HUB_ID_NOT_FOUND_LINE,
+            path=model_id,
+            url=url,
+        )
+    return remote_error(
+        REPOSITORY_NOT_FOUND, INPUT_NOT_FOUND_HUB, HUB_URL_NOT_FOUND_LINE, url=url
+    )
 
 
 def _client_errors(name: str) -> tuple[type[BaseException], ...]:

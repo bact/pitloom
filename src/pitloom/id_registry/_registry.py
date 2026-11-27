@@ -595,7 +595,7 @@ class IdRegistry:
                 current directory (``option-invalid``, ``non-empty``).
         """
         if not isinstance(paths, (list, tuple)):
-            raise invalid_type(Parameter("paths"), "list-of-strings", paths)
+            raise invalid_type(Parameter("paths"), "list-of-paths", paths)
         index_files(
             self,
             [_input_path(path) for path in paths],

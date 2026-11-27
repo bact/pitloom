@@ -74,10 +74,12 @@ from pitloom.extract.remote.git_url import (
 from pitloom.extract.remote.pypi_url import is_pypi_url
 from pitloom.logging_config import configure_logging
 from pitloom.messages import GIT_FRAME, code_of, emit, url_text
+from pitloom.messages.config import require_text_argument
 from pitloom.messages.git import (
     GIT_EMPTY_LINE,
     GIT_FILTER_UNUSABLE,
     GIT_REPOSITORY_EMPTY,
+    GIT_URL_HOST_LINE,
     GIT_URL_INVALID,
     GIT_URL_SCHEME_LINE,
 )
@@ -213,9 +215,15 @@ def fetch_git_project(
             (``git.clone-failed``, ``download-network-failed``) or does not
             finish in time (``git.timeout``, ``download-timeout``), or the
             repository is larger than ``max_bytes`` (``over-cap``).
+        pitloom.messages.CodedTypeError: *url* is no ``str``
+            (``option-invalid``), on entering the block, before anything is
+            made.
+        pitloom.messages.CodedValueError: *url* is empty or white space only
+            (``option-invalid``), likewise.
         Exception: whatever ``check_url`` raises, unchanged.
     """
     configure_logging()
+    require_text_argument(url, "url")
     runner = GitRunner(max_bytes=policy.max_bytes)
     # Each git call has ended (its process group too) before the removal.
     with temp_dir(CHECKOUT_DIR_PREFIX, frame=GIT_FRAME) as work:
@@ -269,12 +277,17 @@ def _read_url(url: str, shown: str) -> GitPage:
 
     Raises:
         RemoteSourceError: ``git.url-invalid``, a scheme other than http(s),
-            a host that is not plain (:func:`_host_as_typed`,
-            ``url-unsafe/host-spelling``) or a path that leaves the checkout.
+            no host (``git-url-invalid``), a host that is not plain
+            (:func:`_host_as_typed`, ``url-unsafe/host-spelling``) or a path
+            that leaves the checkout.
     """
     if not scheme_allowed(url.strip()):
         raise remote_error(
             "git.url-invalid", GIT_URL_INVALID, GIT_URL_SCHEME_LINE, url=shown
+        )
+    if not _names_host(url.strip()):
+        raise remote_error(
+            "git.url-invalid", GIT_URL_INVALID, GIT_URL_HOST_LINE, url=shown
         )
     if not _host_as_typed(url.strip()):
         raise RemoteSourceError(
@@ -285,21 +298,28 @@ def _read_url(url: str, shown: str) -> GitPage:
     return parse_git_page(url)
 
 
+def _names_host(url: str) -> bool:
+    """Whether *url* names a host, or is a ``file:`` URL, which names none
+    by design (allowed by tests alone): git would resolve a host a URL with
+    none (``https://``, ``https://u@/o/r``) does not spell. *url* is one
+    :func:`scheme_allowed` accepted, so it parses."""
+    parts = urlsplit(url)
+    return bool(parts.hostname) or parts.scheme.lower() == "file"
+
+
 def _host_as_typed(url: str) -> bool:
-    """Whether the host of *url* is plain (:func:`host_is_plain`); a URL
-    with no host (``https://``) is not, unless it is a ``file:`` one: git
-    would resolve a host the URL does not spell. curl maps another spelling
-    (``pypi%2Eorg``, a full-width dot) to a host the URL's text does not
-    name, which no check of that text (a PyPI host is never cloned) would
-    see; a host holding ``=``, ``!`` or white space, or starting with
-    ``-``, names none; and a bracketed name (``[v1.x]``) would lose its
-    brackets in the clone URL and name a DNS host.
+    """Whether the host of *url* is plain (:func:`host_is_plain`); a
+    ``file:`` URL, which names none (:func:`_names_host`), is. curl maps
+    another spelling (``pypi%2Eorg``, a full-width dot) to a host the URL's
+    text does not name, which no check of that text (a PyPI host is never
+    cloned) would see; a host holding ``=``, ``!`` or white space, or
+    starting with ``-``, names none; and a bracketed name (``[v1.x]``)
+    would lose its brackets in the clone URL and name a DNS host.
 
     *url* is one :func:`scheme_allowed` accepted, so it parses: a URL
     ``urlsplit`` refuses never reaches here."""
     parts = urlsplit(url)
     if not parts.hostname:
-        # Only a file: URL names no host by design (allowed by tests alone).
         return parts.scheme.lower() == "file"
     return host_is_plain(parts)
 

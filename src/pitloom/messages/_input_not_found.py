@@ -7,7 +7,8 @@
 disk or in the repository a Git URL names. ``ERROR``: the read raises, or
 the command stops. ``input-not-found/fragment``: a configured SBOM fragment
 does not exist, a ``WARNING:`` naming it as configured (``FILE=``): the
-merge goes on without it.
+merge goes on without it. ``input-not-found/hub``: a Hugging Face model
+target the Hub knows no model for (and, spelt as an id, no local path).
 
 See also: :mod:`pitloom.messages._input_not_found_say` (the helpers),
 :mod:`pitloom.extract._model_named` (a model file named on its own),
@@ -166,4 +167,44 @@ INPUT_NOT_FOUND_FRAGMENT: Final = Message(
     since=_SINCE,
 )
 
-ENTRIES: Final = (INPUT_NOT_FOUND, INPUT_NOT_FOUND_FRAGMENT)
+#: What a line of ``input-not-found/hub`` ends in: a private model is read
+#: with a token (huggingface_hub's ``HF_TOKEN``, else its stored login).
+_HUB_TOKEN_ACTION: Final = (
+    "if it is private, set HF_TOKEN to a token with access, or run 'hf auth login'"
+)
+#: A target spelt as a Hugging Face model id (``owner/name``) that is no
+#: local path either: *url* is the model's page on the Hub asked.
+HUB_ID_NOT_FOUND_LINE: Final = Line(
+    level="ERROR",
+    template="target not found: %(path)s is no local path, and the Hugging "
+    f"Face Hub knows no model %(url)s; {_HUB_TOKEN_ACTION}",
+)
+#: A Hugging Face model URL the Hub knows no model at.
+HUB_URL_NOT_FOUND_LINE: Final = Line(
+    level="ERROR",
+    template="URL=%(url)s: the Hugging Face Hub knows no such model; "
+    f"{_HUB_TOKEN_ACTION}",
+)
+
+INPUT_NOT_FOUND_HUB: Final = Message(
+    code="input-not-found/hub",
+    condition="not-found",
+    lines=(HUB_ID_NOT_FOUND_LINE, HUB_URL_NOT_FOUND_LINE),
+    summary="A Hugging Face model id (owner/name, no local path) or Hub "
+    "model URL names no model the Hub lets this run read: model_info() "
+    "said not found, or no model can have the id. Without a token the Hub "
+    "answers so for a private model too; a gated model is found.",
+    did="Fetched no file and wrote no SBOM: the command exits 1 (the Action "
+    "step fails); generate and generate_model_sbom raise RemoteSourceError "
+    "(huggingface.repository-not-found) carrying the code. Other Hub "
+    "failures warn (download-network-failed, download-timeout).",
+    effect="not-written",
+    actor="user",
+    advice="Tell the user no local path or Hugging Face model was found, "
+    "as the line names it. They check the path or the model id, or, for a "
+    "private model, set HF_TOKEN or run 'hf auth login', and run again. Do "
+    f"not guess another model and run for them; {ASK_FIRST}",
+    since=_SINCE,
+)
+
+ENTRIES: Final = (INPUT_NOT_FOUND, INPUT_NOT_FOUND_FRAGMENT, INPUT_NOT_FOUND_HUB)

@@ -38,7 +38,12 @@ from pitloom.enrich.readme import MODEL_CARD_CAP, CardKind, read_card
 from pitloom.extract._license_classify import is_vague_license_value
 from pitloom.extract._license_detect import LICENSE_FILE_CAP, read_license_file
 from pitloom.extract.remote._http_fetch import SOCKET_TIMEOUT_SECONDS
-from pitloom.extract.remote._hub_api import repo_page_url, say_hub_failure
+from pitloom.extract.remote._hub_api import (
+    is_repository_not_found,
+    model_not_found,
+    repo_page_url,
+    say_hub_failure,
+)
 from pitloom.extract.remote._hub_files import (
     HUB_JSON_CAP,
     FileKind,
@@ -168,7 +173,7 @@ def _unique_list(value: Any) -> Any:
     return unique
 
 
-def _load_model_info(model_id: str) -> dict[str, Any]:
+def _load_model_info(model_id: str, *, as_id: bool = False) -> dict[str, Any]:
     """Return a subset of ``model_info()`` fields as a plain dict.
 
     The returned dict may contain:
@@ -194,6 +199,12 @@ def _load_model_info(model_id: str) -> dict[str, Any]:
 
     Raises:
         InternalError: Raised while reading the answer, unchanged.
+        pitloom.extract.remote.errors.RemoteSourceError: The Hub knows no
+            repository *model_id* this run can read
+            (:func:`~pitloom.extract.remote._hub_api.is_repository_not_found`):
+            ``huggingface.repository-not-found``, ``input-not-found/hub``,
+            whose line also says *model_id* is no local path when *as_id*
+            (the target was spelt as an id).
     """
     try:
         # pylint: disable=import-outside-toplevel
@@ -229,6 +240,9 @@ def _load_model_info(model_id: str) -> dict[str, Any]:
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
         reraise_internal(exc)
+        if is_repository_not_found(exc):
+            # No such model: nothing of it is read, and no SBOM is written.
+            raise model_not_found(model_id, as_id=as_id) from exc
         say_hub_failure(
             log,
             exc,
@@ -301,13 +315,17 @@ def _detect_license_from_hf_files(
     return None, None
 
 
-def _fetch_all_hf_data(hub: HubFiles, model_id: str) -> dict[str, Any]:
+def _fetch_all_hf_data(
+    hub: HubFiles, model_id: str, *, as_id: bool = False
+) -> dict[str, Any]:
     """Fetch all remote HF data sources and return them as a single dict;
     each file at the revision ``model_info()`` states, else at the default
     branch, said once per model (``hub-revision-unpinned``; not under
     ``HF_HUB_OFFLINE``, which reads no file). With the Hub refused
     (:attr:`HubFiles.asks_hub`), nothing is asked of it: every source is
-    absent, said by nothing more (the refusal was said once)."""
+    absent, said by nothing more (the refusal was said once). A model the
+    Hub knows no repository for raises before any file is fetched
+    (:func:`_load_model_info`, *as_id* as there)."""
     if not hub.asks_hub:
         return {
             "config": None,
@@ -317,7 +335,7 @@ def _fetch_all_hf_data(hub: HubFiles, model_id: str) -> dict[str, Any]:
             "card_data": {},
             "hub_info": {},
         }
-    hub_info = _load_model_info(model_id)
+    hub_info = _load_model_info(model_id, as_id=as_id)
     raw_revision = hub_info.get("sha")
     revision = str(raw_revision) if raw_revision else None
     if revision is None and not hub_offline():

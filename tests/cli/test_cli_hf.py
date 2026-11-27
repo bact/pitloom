@@ -49,7 +49,10 @@ def test_hf_url_routes_to_huggingface_sbom(
     )
 
     assert __main__.main() == 0
-    assert captured["model_source"] == "mistralai/Mistral-7B-v0.1"
+    # As typed, as loom generate gives it: the library reads the URL.
+    assert (
+        captured["model_source"] == "https://huggingface.co/mistralai/Mistral-7B-v0.1"
+    )
 
 
 def test_hf_model_id_routes_to_huggingface_sbom(
@@ -279,8 +282,11 @@ def test_hf_url_with_tree_path_resolves_correctly(
     )
 
     assert __main__.main() == 0
-    # Tree path stripped - only owner/name retained
-    assert captured["model_source"] == "mistralai/Mistral-7B-v0.1"
+    # As typed: the library strips the tree path (owner/name), and the
+    # default output is named after the model.
+    assert captured["model_source"] == (
+        "https://huggingface.co/mistralai/Mistral-7B-v0.1/tree/main"
+    )
 
 
 @pytest.mark.parametrize(
@@ -300,11 +306,11 @@ def test_loom_model_says_a_url_it_rewrites_like_the_other_routes(
     said: str | bool | None,
 ) -> None:
     """``loom model`` logs the same ``INFO:`` as ``loom generate`` and the
-    library, naming the URL as written (credentials and tokens masked)."""
-    monkeypatch.setattr(mod_model, "generate_model_sbom", lambda *a, **k: "{}")
-    monkeypatch.setattr(sys, "argv", ["loom", "model", source])
+    library, once, naming the URL as written (credentials and tokens
+    masked), before an offline run is refused."""
+    monkeypatch.setattr(sys, "argv", ["loom", "model", source, "--offline"])
     with caplog.at_level(logging.INFO, logger="pitloom"):
-        assert __main__.main() == 0
+        assert __main__.main() == 1
     lines = [
         r.getMessage()
         for r in caplog.records

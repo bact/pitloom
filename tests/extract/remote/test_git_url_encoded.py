@@ -12,7 +12,7 @@ read, as is a name that starts with ``.git`` (``.github``). A host that is
 not plain ASCII, or is percent-encoded, is refused before any git process
 starts (curl would map it to another host), and before ``offline``; so is
 one no host name spells (``=``, ``!``, white space, a leading ``-``), and a
-URL with no host at all.
+URL with no host at all (said as such: ``git-url-invalid``).
 
 See also: :mod:`tests.extract.remote.test_git_url` (the page forms) and
 :mod:`tests.extract.remote.test_git_target_named` and
@@ -23,6 +23,7 @@ real checkout).
 from __future__ import annotations
 
 from collections.abc import Iterator
+from typing import cast
 
 import pytest
 
@@ -32,6 +33,8 @@ from pitloom.extract.remote._git_run import GitRunner
 from pitloom.extract.remote.errors import RemoteSourceError
 from pitloom.extract.remote.git import fetch_git_project
 from pitloom.extract.remote.git_url import parse_git_page
+from pitloom.messages import CodedTypeError, CodedValueError
+from pitloom.messages.git import GIT_URL_HOST_LINE, GIT_URL_INVALID
 from pitloom.messages.network import (
     GIT_HOST_SPELLING_LINE,
     URL_HOST_SPELLING,
@@ -262,19 +265,30 @@ def test_a_host_no_host_name_spells_is_refused_masked(url: str, shown: str) -> N
 
 @pytest.mark.parametrize("offline", [False, True], ids=["online", "offline"])
 @pytest.mark.parametrize(
-    "url",
-    ["https://", "https:///o/r", "https://:443/o/r", "http://?x=1"],
-    ids=["bare", "empty-host", "port-only", "query-only"],
+    ("url", "shown"),
+    [
+        ("https://", "https://"),
+        ("https:///o/r", "https:///o/r"),
+        ("https://:443/o/r", "https://:443/o/r"),
+        ("http://?x=1", "http://?x=1"),
+        ("https://u@/o/r", "https://***:***@/o/r"),
+        ("https://u:S3CRET@/o/r", "https://***:***@/o/r"),
+    ],
+    ids=["bare", "empty-host", "port-only", "query-only", "user-only", "credential"],
 )
 @pytest.mark.usefixtures("no_git")
-def test_a_url_with_no_host_is_refused_unfetched(url: str, offline: bool) -> None:
+def test_a_url_with_no_host_is_refused_unfetched(
+    url: str, shown: str, offline: bool
+) -> None:
     """No host names none git could be given (it would resolve one the URL
     does not spell): refused before any git process, and before
-    ``offline``."""
+    ``offline``, by a line that says the host is missing, not that it is
+    misspelt; a credential is masked."""
     error = _refusal(url, offline)
     assert error.code == "git.url-invalid"
-    assert raised_as(error, URL_HOST_SPELLING)
-    assert str(error) == GIT_HOST_SPELLING_LINE.render({"url": url})
+    assert raised_as(error, GIT_URL_INVALID)
+    assert str(error) == GIT_URL_HOST_LINE.render({"url": shown})
+    assert "names no host" in str(error) and "S3CRET" not in str(error)
 
 
 @pytest.mark.parametrize(
@@ -292,3 +306,35 @@ def test_a_url_with_no_host_is_refused_unfetched(url: str, offline: bool) -> Non
 @pytest.mark.usefixtures("no_git")
 def test_a_plain_host_passes(host: str) -> None:
     assert _refusal(f"https://{host}/o/r", True).code == "git.offline"
+
+
+@pytest.mark.parametrize(
+    ("url", "error", "text"),
+    [
+        ("", CodedValueError, "url: must be a non-empty string, got a string ''"),
+        ("  ", CodedValueError, "url: must be a non-empty string, got a string '  '"),
+        (5, CodedTypeError, "url: must be a string, got an integer 5"),
+        (None, CodedTypeError, "url: must be a string, got None"),
+    ],
+    ids=["empty", "blank", "integer", "none"],
+)
+def test_a_url_argument_of_no_text_is_refused_on_entering(
+    url: object,
+    error: type[Exception],
+    text: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """``option-invalid`` as ``generate_git_sbom()`` says it, when the block
+    is entered and before any temporary directory is made: never an
+    ``InternalError`` or a bare ``TypeError``."""
+
+    def made(*_args: object, **_kwargs: object) -> None:
+        raise AssertionError("temporary directory made")
+
+    monkeypatch.setattr(git, "temp_dir", made)
+    fetch = fetch_git_project(cast(str, url))  # nothing checked yet
+    with pytest.raises(error) as raised:
+        with fetch:
+            pytest.fail("entered")  # pragma: no cover
+    assert raised.value.pitloom_code == "option-invalid"  # type: ignore[attr-defined]
+    assert text in str(raised.value)

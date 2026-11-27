@@ -28,7 +28,9 @@ class RemoteSourceError(Exception):
     ``pypi.response-invalid``, ``pypi.digest-mismatch``, ``pypi.too-large``,
     ``pypi.save-failed``,
     ``pypi.download-failed``, ``pypi.download-timeout``; for a Hugging Face
-    model ``huggingface.offline`` and, for one of its files,
+    model ``huggingface.offline``, ``huggingface.repository-not-found``
+    (``input-not-found/hub``: the Hub knows no such model) and, for one of
+    its files,
     ``huggingface.download-failed``, ``huggingface.download-timeout``,
     ``huggingface.too-large``, ``huggingface.url-refused``,
     ``huggingface.too-many-redirects``, ``huggingface.save-failed``; and any
