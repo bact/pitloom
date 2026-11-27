@@ -20,6 +20,7 @@ from pathlib import Path
 from pitloom._sbom_io import refuse_empty_output, write_sbom_output
 from pitloom.assemble._generators_shared import _sync_registry
 from pitloom.assemble.spdx3.document import build_deployed
+from pitloom.core.bool_arguments import checked_bools
 from pitloom.core.config import PitloomConfig
 from pitloom.core.config_cascade import ConfigOverrides, resolve_standalone_config
 from pitloom.core.creation import CreationMetadata
@@ -32,6 +33,7 @@ from pitloom.logging_config import configure_logging
 
 
 # pylint: disable=too-many-arguments,too-many-locals,too-many-positional-arguments
+@checked_bools
 def generate_env_sbom(
     *,
     output_path: Path | None = None,

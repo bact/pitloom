@@ -27,11 +27,13 @@ from pitloom.assemble.spdx3.fragments import (
     fragment_files,
     merge_fragments,
 )
+from pitloom.core.bool_arguments import checked_bools
 from pitloom.core.config import FragmentConfig
 from pitloom.core.credential_policy import CredentialPolicy
 from pitloom.core.given_path import TypedPath
 from pitloom.logging_config import configure_logging
 from pitloom.messages import CodedValueError
+from pitloom.messages.config import require_path_argument
 from pitloom.messages.fragments import FRAGMENT_MISSING, NONE_MERGED_LINE
 from pitloom.messages.targets import (
     INPUT_NOT_FOUND,
@@ -41,6 +43,7 @@ from pitloom.messages.targets import (
 )
 
 
+@checked_bools
 def generate_merged_sbom(
     fragments_dir: Path | str,
     *,
@@ -69,6 +72,9 @@ def generate_merged_sbom(
     merge`` says it).
 
     Raises:
+        pitloom.messages.CodedTypeError: An argument is of the wrong type
+            (a path that is no ``str`` or ``os.PathLike``, a ``bool``
+            that is not one): ``option-invalid``, before anything is read.
         FileNotFoundError: *fragments_dir* does not exist, is given as
             empty, or is not a directory (``input-not-found``, carrying the
             code).
@@ -85,6 +91,7 @@ def generate_merged_sbom(
     """
     configure_logging()
     refuse_empty_output(output_path)
+    require_path_argument(fragments_dir, "fragments_dir")
     # A Path as given (a TypedPath keeps the user's spelling for the lines).
     # A str too: an empty one names nothing (the input probe), not ".".
     fragments_dir = (

@@ -25,6 +25,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, NamedTuple
 
+from pitloom.core.bool_arguments import checked_bools
 from pitloom.core.internal_error import reraise_internal
 from pitloom.id_registry._types import RegistryEntry
 from pitloom.messages import emit, say_summary
@@ -186,6 +187,7 @@ def save_registry(registry: IdRegistry) -> Rebase:
     return rebased
 
 
+@checked_bools
 def persist_registry(registry: IdRegistry, new_ids: int, changed: bool) -> None:
     """Save what a run added to *registry* and log the outcome.
 

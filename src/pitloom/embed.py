@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Final
 
 from pitloom._embed_build_sbom import (
     EmbedFileCache,
@@ -51,17 +50,25 @@ from pitloom._wheel_sbom_location import (
     _find_dist_info_prefix,
     find_embedded_sbom,
 )
+from pitloom.core.bool_arguments import checked_bools
 from pitloom.core.config import PitloomConfig
 from pitloom.core.config_cascade import ConfigOverrides
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.file_names import is_plain_file_name, sbom_base_name, sbom_file_name
+from pitloom.core.option_names import option_name
 from pitloom.core.wheel_dist_info import require_wheel_file
 from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
 from pitloom.extract.authors import AuthorSplit
 from pitloom.extract.wheel import read_wheel, wheel_identity
 from pitloom.id_registry import IdRegistry
 from pitloom.logging_config import configure_logging
-from pitloom.messages.config import Parameter, invalid_value
+from pitloom.messages.config import (
+    Parameter,
+    invalid_type,
+    invalid_value,
+    require_path_argument,
+)
+from pitloom.messages.targets import is_empty_input
 from pitloom.messages.wheel_sboms import (
     identity_mismatch_error,
     say_identity_mismatches,
@@ -108,28 +115,29 @@ def embed_filename(sbom_basename: str | None) -> str | None:
     return sbom_file_name(sbom_basename)
 
 
-#: Where a base name checked by :func:`checked_embed_basename` was given.
-_CLI_BASENAME: Final = Parameter("--sbom-basename")
-_LIBRARY_BASENAME: Final = Parameter("sbom_basename")
-
-
-def checked_embed_basename(
-    sbom_basename: str | None, where: Parameter = _CLI_BASENAME
-) -> str | None:
-    """*sbom_basename*, given as *where* (``--sbom-basename``, or a library
-    caller's ``sbom_basename``), as
-    :func:`~pitloom.core.file_names.sbom_base_name` leaves it (an empty or
-    absent one as given), once the embedded SBOM's file name it makes
+def checked_embed_basename(sbom_basename: str | None) -> str | None:
+    """*sbom_basename*, named as the surface that runs spells it
+    (``--sbom-basename`` on the command line, ``sbom_basename`` in the
+    library: :func:`~pitloom.core.option_names.option_name`), as
+    :func:`~pitloom.core.file_names.sbom_base_name` leaves it (``None``,
+    no name, as given), once the embedded SBOM's file name it makes
     (``<base>.spdx3.json``) is known to be a plain file name. Called before
     anything is generated, so a name that is a path (``../x``) fails before
     the SBOM is made or a build runs, not at the last step.
 
     Raises:
-        pitloom.messages.CodedValueError: *sbom_basename* is not a plain file
-            name (``option-invalid``).
+        pitloom.messages.CodedTypeError: *sbom_basename* is not a string
+            (``option-invalid``).
+        pitloom.messages.CodedValueError: *sbom_basename* is empty or not a
+            plain file name (``option-invalid``).
     """
+    if sbom_basename is None:
+        return None
+    where = Parameter(option_name("sbom_basename"))
+    if not isinstance(sbom_basename, str):
+        raise invalid_type(where, "file-name", sbom_basename)
     if not sbom_basename:
-        return sbom_basename
+        raise invalid_value(where, "non-empty", got=sbom_basename)
     base = sbom_base_name(sbom_basename, where)
     if not is_plain_file_name(f"{base}{SPDX3_JSONLD_EXTENSION}"):
         raise invalid_value(where, "file-name", got=sbom_basename)
@@ -183,6 +191,7 @@ def _enforce_sbom_name_version(
 
 
 # pylint: disable=too-many-arguments
+@checked_bools
 # pylint: disable-next=too-many-locals
 def embed_wheel_sbom(
     wheel_path: Path | str,
@@ -240,6 +249,9 @@ def embed_wheel_sbom(
         returns them, with the SBOM JSON third.
 
     Raises:
+        pitloom.messages.CodedTypeError: An argument is of the wrong type
+            (a path that is no ``str`` or ``os.PathLike``, a ``bool``
+            that is not one): ``option-invalid``, before anything is read.
         ValueError: The wheel is refused as a whole
             (:class:`~pitloom.core.wheel_dist_info.WheelRefused`: not a ZIP
             archive, a member cannot be read, two members have one name or
@@ -249,8 +261,10 @@ def embed_wheel_sbom(
             mismatches (see above). The wheel is left as it was.
         FileNotFoundError: Nothing is at *wheel_path*, or not a regular
             file (``input-not-found``, carrying the code).
-        pitloom.messages.CodedValueError: *output_path* is ``""``
-            (``option-invalid``), refused first; *wheel_path* cannot be looked at
+        pitloom.messages.CodedValueError: *output_path*, *sbom_path* or
+            *sbom_basename* is ``""``, or *sbom_basename* is not a plain file
+            name (``option-invalid``), refused first; *wheel_path* cannot be
+            looked at
             (``file-unreadable``: a directory on its way refuses search), or
             a URL field of the SBOM holds a credential the run does not
             accept in the ``refuse`` mode (``credentials-unsafe/refused``;
@@ -268,7 +282,14 @@ def embed_wheel_sbom(
     """
     configure_logging()
     refuse_empty_output(output_path)
-    sbom_basename = checked_embed_basename(sbom_basename, _LIBRARY_BASENAME)
+    require_path_argument(wheel_path, "wheel_path")
+    for name, value in (("sbom_path", sbom_path), ("project_dir", project_dir)):
+        if value is not None:
+            require_path_argument(value, name)
+    if sbom_path is not None and is_empty_input(sbom_path):
+        # An empty option, as --sbom '' is: never read as ".".
+        raise invalid_value(Parameter("sbom_path"), "non-empty", got="")
+    sbom_basename = checked_embed_basename(sbom_basename)
     require_wheel_file(wheel_path)
     # Not resolved: a symlink's name is the one judged, and the one the
     # embed reports; ``embed_sbom_in_wheel`` resolves to write.

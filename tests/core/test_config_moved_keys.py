@@ -238,11 +238,15 @@ def test_parse_pitloom_config_wrong_shape_raises(
 
 
 def test_parse_pitloom_config_absent_tables_are_defaults() -> None:
-    """Absent is not wrong: no [tool], no [tool.pitloom], an empty
-    ``sbom-basename`` all give the defaults."""
+    """Absent is not wrong: no [tool] and no [tool.pitloom] give the
+    defaults. An empty ``sbom-basename`` is no absence: refused, as
+    ``id-registry = ""`` is."""
     assert parse_pitloom_config({}) == parse_pitloom_config({"tool": {}})
-    config = parse_pitloom_config({"tool": {"pitloom": {"sbom-basename": ""}}})
-    assert config.sbom_basename is None
+    assert parse_pitloom_config({"tool": {"pitloom": {}}}).sbom_basename is None
+    with pytest.raises(
+        ValueError, match=r"sbom-basename: must be a non-empty string, got a string"
+    ):
+        parse_pitloom_config({"tool": {"pitloom": {"sbom-basename": ""}}})
 
 
 def test_parse_pitloom_config_describe_relationship_non_bool_raises() -> None:

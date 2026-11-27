@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-10
-Last-Modified: 2026-11-19
+Last-Modified: 2026-11-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -64,10 +64,11 @@ fetched project yourself, use `pitloom.extract.remote.fetch_git_project(url)`
 (its `policy=` takes a `pitloom.core.fetch_policy.RemoteFetchPolicy`, made by
 `pitloom.core.config_cascade.resolve_fetch_policy()` as every surface makes
 it;
-it is checked when built: a `max_bytes` that is not an integer of at least 1
-(a `bool` or a `float` is none) raises `ValueError` (`option-invalid`), and an `offline` that is
-not a `bool` or a `check_url` that is not callable raises
-`pitloom.core.internal_error.InternalError`, a `ValueError` subclass),
+it is checked when built: a `max_bytes` that is not an integer (a `bool` or a
+`float` is none) or an `offline` that is not a `bool` raises `TypeError`, a
+`max_bytes` below 1 `ValueError` (both `option-invalid`), and a `check_url` that
+is not callable `pitloom.core.internal_error.InternalError`, a `ValueError`
+subclass),
 a context manager yielding a `GitCheckout` (`folder` is the directory to read,
 `commit` the commit checked out). Reads inside the block are confined to the
 checkout and the repository's build-time code is not run, as for

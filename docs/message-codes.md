@@ -202,7 +202,7 @@ the table of prefixes.
 | [`registry-conflict/spelling`](message-codes-id-registry-ids.md#registry-conflictspelling) | WARNING | 0.25.0 |
 | [`registry-conflict/type`](message-codes-id-registry-ids.md#registry-conflicttype) | WARNING | 0.25.0 |
 | [`registry-entry-missing`](message-codes-id-registry-ids.md#registry-entry-missing) | WARNING | 0.25.0 |
-| [`registry-file-missing`](message-codes-id-registry.md#registry-file-missing) | WARNING | 0.25.0 |
+| [`registry-file-missing`](message-codes-id-registry.md#registry-file-missing) | ERROR, WARNING | 0.25.0 |
 | [`registry-hash-conflict`](message-codes-id-registry-ids.md#registry-hash-conflict) | WARNING, INFO | 0.25.0 |
 | [`registry-hash-conflict/gate`](message-codes-id-registry-ids.md#registry-hash-conflictgate) | INFO | 0.25.0 |
 | [`registry-hash-missing`](message-codes-id-registry-ids.md#registry-hash-missing) | WARNING, INFO | 0.25.0 |

@@ -4,9 +4,11 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """An empty path argument names nothing: an input path (a command's
-positional target) is ``input-not-found``, an empty ``-o``,
-``--project-dir`` or ``--id-registry`` is ``option-invalid``; never the
-current directory read as ``.``.
+positional target) is ``input-not-found``, an empty path or file-name
+option (``-o``, ``--project-dir``, ``--id-registry``, ``--config``,
+``--sbom``, ``--sbom-basename``, ``--sbom-filename``) is
+``option-invalid``; never the current directory read as ``.``, nor the
+default name.
 
 The commands and their arguments are read from the real parser, so a new
 command is covered without a new case here.
@@ -24,6 +26,7 @@ from pathlib import Path
 import pytest
 
 from pitloom import __main__
+from pitloom.cli._path_args import non_empty_name, non_empty_path
 from pitloom.cli.parser import _build_parser
 
 pytestmark = pytest.mark.platform
@@ -34,8 +37,16 @@ _NEEDS: dict[tuple[str, ...], list[str]] = {
     ("id", "generate"): ["--id-registry", "r.json"],
     ("id", "import"): ["--id-registry", "r.json"],
 }
-#: Options naming where Pitloom writes or looks.
-_PATH_OPTIONS = ("-o", "--project-dir", "--id-registry")
+#: Options naming where Pitloom writes or looks, or a file name.
+_PATH_OPTIONS = (
+    "-o",
+    "--project-dir",
+    "--id-registry",
+    "--config",
+    "--sbom",
+    "--sbom-basename",
+    "--sbom-filename",
+)
 
 
 def _actions(parser: argparse.ArgumentParser) -> list[argparse.Action]:
@@ -124,9 +135,46 @@ def test_empty_path_option_is_invalid(
     )
 
 
+def test_an_empty_generate_target_comes_before_the_missing_output(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """``loom generate ''`` names the empty target, not the missing ``-o``:
+    nothing is there to read, so ``-o`` is moot."""
+    monkeypatch.chdir(tmp_path)
+    assert _run(["generate", ""], monkeypatch) == 1
+    errors = [ln for ln in capsys.readouterr().err.splitlines() if "ERROR" in ln]
+    assert errors == ["ERROR: loom generate: target not found: '' [input-not-found]"]
+
+
+def test_every_path_option_refuses_an_empty_value() -> None:
+    """Each option taking a path (``FILE``, ``DIR``) or one of the named file
+    names refuses ``''`` in argparse: a new one cannot be added with a plain
+    ``type=TypedPath`` or ``type=str``."""
+    found = {
+        (" ".join(path), action.option_strings[-1]): action.type
+        for path, sub in _commands(_build_parser())
+        for action in _actions(sub)
+        if action.option_strings
+        and (
+            action.metavar in ("FILE", "DIR")
+            or set(action.option_strings) & set(_PATH_OPTIONS)
+        )
+    }
+    assert found, "no path option found"
+    assert {
+        key: kind
+        for key, kind in found.items()
+        if kind not in (non_empty_path, non_empty_name)
+        # ``id``'s -o/--id-registry checks '-' too, then non_empty_path.
+        and getattr(kind, "__name__", "") != "registry_file_arg"
+    } == {}
+
+
 def test_every_command_is_walked() -> None:
     """The walk reaches the commands this file was written against: a guard
     against a walk that finds nothing and passes vacuously."""
     positional = {c.id for c in _positional_cases()}  # type: ignore[attr-defined]
     assert {"wheel", "merge", "project", "fragment validate", "id import"} <= positional
-    assert len(_option_cases()) >= 12
+    assert len(_option_cases()) >= 22

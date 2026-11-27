@@ -92,6 +92,10 @@ _QUOTING_CALLS = frozenset(
         "detect_ai_model_format_from_name",
         "_once_key",
         "len",
+        # pitloom.messages.config: the refused value goes through the value
+        # field writer (``got a string '...'``, ``a value of type bytes``).
+        "invalid_type",
+        "invalid_value",
     }
 )
 

@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-26
-Last-Modified: 2026-11-26
+Last-Modified: 2026-11-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -26,7 +26,8 @@ The work splits into three PRs (the whole is over 1,500 changed lines):
 1. **PR 1 (this branch, `message-consistency-rescan`)**: the permanent tests
    and the wording fixes below.
 2. **PR 2**: per-surface advice twins (section 6).
-3. **PR 3**: library argument validation (section 7).
+3. **PR 3**: library argument validation (section 7, built on
+   `library-argument-validation`).
 
 ## 1. Method
 
@@ -246,20 +247,13 @@ FILE` and `PATH ... outside --project-dir` are CLI-only; the GitHub Action
 names its input (`trust-model-files`) only in the advice prose; `-v/--verbose`,
 `--embed`, `--allow-signed-wheel` reasons are CLI-only.
 
-## 7. PR 3: library argument validation (planned)
+## 7. PR 3: library argument validation (built)
 
-1. An empty ID registry path: four codes by route (`PitloomConfig(id_registry='')`
-   and `IdRegistry.load('')` say `input-not-found`, `save('')`
-   `option-invalid`); one rule: `option-invalid` at the API boundary.
-2. `--config ''` says `input-not-found` (exit 1); `-o ''` and the other empty
-   options `option-invalid` (exit 2).
-3. Plain `TypeError` from `BuildOptions(allow="false")`, `timeout="90"`
-   (`validate_build_timeout`, `core/_models_wheel_types.py`), `IdRegistry.load(b'x')`,
-   `refuse_credentials=1`; plain `ValueError` from `IdRegistry.save()`.
-4. Unvalidated bools: `pretty='false'` writes a pretty SBOM, silently.
-5. `loom generate ''` reports the missing `-o` first, not the empty target.
-6. Input-kind wording: `project directory` (CLI `project`) vs `project path`
-   (library, `generate`) for one input.
+The seven gaps (an empty ID registry path coded by route, `--config ''`,
+plain `TypeError`s, unchecked bools, `loom generate ''` and `-o`, the
+`project directory`/`project path` kind, `checked_embed_basename(where=)`),
+the rulings with their second opinion, the surface x input matrix and what
+was left: [../implementation/library-argument-validation.md](../implementation/library-argument-validation.md).
 
 ## 8. Follow-ups
 

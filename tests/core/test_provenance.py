@@ -21,6 +21,7 @@ from pitloom.core.provenance import (
 )
 from pitloom.messages import code_of
 from pitloom.messages.config import ConfigPlace, Parameter
+from tests.argument_errors import integer_refusal
 
 
 def test_min_floor_is_eight_bytes() -> None:
@@ -50,8 +51,10 @@ def test_require_passes_zero_and_a_usable_budget_unchanged(value: int) -> None:
     ids=repr,
 )
 def test_require_rejects_an_invalid_budget(value: object, text: str) -> None:
-    """The default stage is a library parameter: ``option-invalid``."""
-    with pytest.raises(ValueError, match="^max_source_metadata_bytes: must be") as exc:
+    """The default stage is a library parameter: ``option-invalid``, a
+    ``TypeError`` for a value that is no integer."""
+    error = integer_refusal(value)
+    with pytest.raises(error, match="^max_source_metadata_bytes: must be") as exc:
         require_max_source_metadata_bytes(value)
     assert text in str(exc.value)
     assert code_of(exc.value) == "option-invalid"

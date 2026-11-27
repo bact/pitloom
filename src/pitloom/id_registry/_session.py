@@ -15,6 +15,7 @@ import unicodedata
 from collections.abc import Callable, Mapping, Sequence
 from types import MappingProxyType
 
+from pitloom.core.bool_arguments import checked_bools
 from pitloom.core.internal_error import InternalError
 from pitloom.core.untrusted_text import escape_display_controls
 from pitloom.id_registry._registry import IdRegistry
@@ -228,6 +229,7 @@ class IdRegistrySession:
             self._keys[claimed] = (PACKAGE_TYPE, key)
         return claimed
 
+    @checked_bools
     # pylint: disable-next=too-many-arguments
     def lookup_key(
         self,

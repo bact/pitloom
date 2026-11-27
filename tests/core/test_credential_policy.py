@@ -353,8 +353,9 @@ def test_the_fingerprint_pattern_is_the_message_fields() -> None:
     "value", [1, 0, "refuse", "yes", None], ids=["one", "zero", "refuse", "yes", "none"]
 )
 def test_refuse_takes_only_a_bool(value: Any) -> None:
-    """A truthy non-bool is no silent ``warn``: it is refused."""
-    with pytest.raises(ValueError) as info:
+    """A truthy non-bool is no silent ``warn``: it is refused, a wrong
+    type."""
+    with pytest.raises(TypeError) as info:
         CredentialPolicy(refuse=value)
     assert str(info.value).startswith(
         "CredentialPolicy.refuse: must be True or False, got "
@@ -364,5 +365,8 @@ def test_refuse_takes_only_a_bool(value: Any) -> None:
 
 @pytest.mark.parametrize("value", [True, "Refuse", 1, None], ids=str)
 def test_a_built_config_takes_only_a_mode_string(value: Any) -> None:
-    with pytest.raises(ValueError, match="url_credentials: must be"):
+    """A string that is no mode is a ``ValueError``, another type a
+    ``TypeError``."""
+    error = ValueError if isinstance(value, str) else TypeError
+    with pytest.raises(error, match="url_credentials: must be"):
         PitloomConfig(url_credentials=value)

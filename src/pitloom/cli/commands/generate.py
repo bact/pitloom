@@ -59,12 +59,25 @@ def _run_project_target(args: argparse.Namespace) -> int:
     would name the resolved path)."""
     target_path = absolute_path(args.target).resolve()
     if not input_exists(target_path, shown=args.target):
-        say_input_not_found("project path", args.target)
+        say_input_not_found("target", args.target)
         return 1
     build_options = build_options_from_args(args).settle_target(target_path)
     generate_project_from_args(args, target_path, build_options)
     _print_sbom_output_path(args.output)
     return 0
+
+
+def _refused_before_dispatch(args: argparse.Namespace) -> bool:
+    """Say why ``generate`` cannot start, if it cannot: an empty target
+    (``input-not-found``, before a missing ``-o``, which is moot then) or no
+    ``-o``."""
+    if args.target == "":
+        say_input_not_found("target", args.target)
+        return True
+    if args.output is None:
+        print_error(OUTPUT_REQUIRED_LINE.render({}), code=OPTION_MISSING.code)
+        return True
+    return False
 
 
 @cli_error_handler
@@ -77,9 +90,12 @@ def _run_generate_command(args: argparse.Namespace) -> int:
     project/wheel/model/env targets, each with a different natural
     default name, so guessing one would be arbitrary. Failing fast is
     more transparent than picking a name the user didn't ask for.
+
+    An empty target is refused first, as :func:`generate` refuses it
+    (``input-not-found``): it names nothing to read, so a missing ``-o`` is
+    moot.
     """
-    if args.output is None:
-        print_error(OUTPUT_REQUIRED_LINE.render({}), code=OPTION_MISSING.code)
+    if _refused_before_dispatch(args):
         return 1
 
     if target_is_pypi_url(args.target):

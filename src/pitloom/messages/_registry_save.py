@@ -34,15 +34,26 @@ FILE_MISSING_LINE: Final = Line(
     "not saved",
 )
 
+#: ``IdRegistry.save()`` given no path, for a registry made without one.
+SAVE_PATH_MISSING_LINE: Final = Line(
+    level="ERROR",
+    template=f"{REGISTRY_PREFIX}no file to save to; pass save(path), or create "
+    "the registry with a path",
+)
+
 REGISTRY_FILE_MISSING: Final = Message(
     code="registry-file-missing",
     condition="missing",
-    lines=(FILE_MISSING_LINE,),
+    lines=(FILE_MISSING_LINE, SAVE_PATH_MISSING_LINE),
     summary="A run that saves the ids it added to the ID registry was given "
     "a registry with no file: an IdRegistry made in memory, without a path. "
-    "The CLI and the build hook always name a file.",
+    "The CLI and the build hook always name a file. The ERROR: line is "
+    "IdRegistry.save() called with no path for such a registry (the library "
+    "only).",
     did=f"Said by {SAVE_SURFACES}. The ids are used in the SBOM, which is "
-    "written, but are not saved: the next run mints them again.",
+    "written, but are not saved: the next run mints them again. "
+    "IdRegistry.save() with no path raises ValueError carrying the code and "
+    "writes nothing.",
     effect="none",
     actor="caller",
     advice="The caller may give the IdRegistry a path (IdRegistry.load, or "

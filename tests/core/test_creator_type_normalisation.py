@@ -66,7 +66,7 @@ def test_creator_default_type_is_person() -> None:
 def test_bytes_is_not_a_string_creator_type() -> None:
     """A bytes value is no string, whatever its text says."""
     assert creator_type_problem(b"person") == "string"
-    with pytest.raises(ValueError, match="must be a string"):
+    with pytest.raises(TypeError, match="must be a string"):
         Creator("A", type=b"person")  # type: ignore[arg-type]
 
 

@@ -17,6 +17,7 @@ from pitloom._sbom_io import refuse_empty_output, write_sbom_output
 from pitloom.assemble.spdx3.ai import lookup_model_id
 from pitloom.assemble.spdx3.document import build_enrichment_fragment, build_model
 from pitloom.core.ai_metadata import AiModelMetadata
+from pitloom.core.bool_arguments import checked_bools
 from pitloom.core.config import PitloomConfig
 from pitloom.core.config_cascade import (
     ConfigOverrides,
@@ -57,7 +58,11 @@ from pitloom.id_registry import (
 from pitloom.id_registry.import_keys import name_key_reason
 from pitloom.logging_config import configure_logging
 from pitloom.messages import CodedValueError, url_text
-from pitloom.messages.config import Parameter, invalid_value
+from pitloom.messages.config import (
+    Parameter,
+    invalid_value,
+    require_path_argument,
+)
 from pitloom.messages.files import warn_file_unreadable
 from pitloom.messages.id_registry_ids import info_name_key
 from pitloom.messages.pypi import (
@@ -229,6 +234,7 @@ def _refuse_pypi_url(source: Path | str) -> None:
     raise error
 
 
+@checked_bools
 def generate_model_sbom(
     source: Path | str,
     *,
@@ -280,6 +286,9 @@ def generate_model_sbom(
     adds to the credentials *pitloom_config* accepts.
 
     Raises:
+        pitloom.messages.CodedTypeError: An argument is of the wrong type
+            (a path that is no ``str`` or ``os.PathLike``, a ``bool``
+            that is not one): ``option-invalid``, before anything is read.
         CodedValueError: ``pypi-url-unusable``: *source* is a PyPI URL (a
             release is not a model), refused as ``loom model`` refuses it,
             before anything is read or fetched.
@@ -291,6 +300,7 @@ def generate_model_sbom(
     """
     configure_logging()
     refuse_empty_output(output_path)
+    require_path_argument(source, "source")
     _refuse_pypi_url(source)
     refuse_empty_input(source, MODEL_FILE_KIND)
     if max_download_bytes is not None:
@@ -376,6 +386,7 @@ def generate_model_sbom(
 
 
 # pylint: disable=too-many-arguments,too-many-locals
+@checked_bools
 def enrich_model(
     source: Path | str,
     *,
@@ -401,6 +412,9 @@ def enrich_model(
     (:class:`~pitloom.core.credential_policy.CredentialPolicy`).
 
     Raises:
+        pitloom.messages.CodedTypeError: An argument is of the wrong type
+            (a path that is no ``str`` or ``os.PathLike``, a ``bool``
+            that is not one): ``option-invalid``, before anything is read.
         pitloom.messages.CodedFileNotFoundError: *source* is given as empty
             (``input-not-found``).
         pitloom.messages.CodedOSError: The system refused a write
@@ -409,6 +423,9 @@ def enrich_model(
     """
     configure_logging()
     refuse_empty_output(output_path)
+    require_path_argument(source, "source")
+    if project_target is not None:
+        require_path_argument(project_target, "project_target")
     refuse_empty_input(source, MODEL_FILE_KIND)
     source_str = str(source)
     if is_huggingface_source(source_str):

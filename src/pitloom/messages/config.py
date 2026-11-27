@@ -57,10 +57,12 @@ from pitloom.messages._config_say import (
     config_invalid,
     config_moved,
     hook_unknown_keys,
+    invalid_type,
     invalid_value,
     loom_sdk_invalid_value,
     loom_sdk_type_error,
     must_be,
+    require_path_argument,
     warn_config_unknown_key,
 )
 from pitloom.messages._field_tables import CONFIG_USE
@@ -106,10 +108,12 @@ __all__ = [
     "config_moved",
     "found_text",
     "hook_unknown_keys",
+    "invalid_type",
     "invalid_value",
     "kind_text",
     "loom_sdk_invalid_value",
     "loom_sdk_type_error",
     "must_be",
+    "require_path_argument",
     "warn_config_unknown_key",
 ]

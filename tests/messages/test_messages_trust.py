@@ -96,8 +96,7 @@ _FORGED = [
     # the review's probes: any text before an ERROR shape, a stray frame
     f"ERROR: anything at all, even WARNING: text: {_LOOKS} [lfs-pointer-malformed]",
     f"ERROR: anything at all, even WARNING: 'text': {_LOOKS} [lfs-pointer-malformed]",
-    "ERROR: loom project: project directory not found: x: "
-    f"{_LOOKS} [lfs-pointer-malformed]",
+    f"ERROR: loom project: project path not found: x: {_LOOKS} [lfs-pointer-malformed]",
     f"ERROR: loom model: loom model: {_POINTER} [lfs-pointer]",
     # values that do not have their field's shape
     "ERROR: x: header is a Git LFS pointer, content not pulled (oid sha256:zz, "

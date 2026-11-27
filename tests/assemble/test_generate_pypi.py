@@ -157,8 +157,16 @@ def test_generate_forwards_every_option_to_the_pypi_generator(
     monkeypatch.setattr(assemble, "sdist_hint", lambda url: None)
     names = [n for n in inspect.signature(generate).parameters if n != "target"]
     sentinels: dict[str, object] = {name: object() for name in names}
-    # Checked before the dispatch, so a valid value of each.
+    # Checked before the dispatch, so a valid value of each (a path of its own).
     sentinels.update(max_model_extract_bytes=4321, max_download_bytes=4322)
+    sentinels.update(output_path=Path("sentinel.json"), project_dir=Path("sentinel"))
+    # A bool parameter refuses anything else before it runs: True, which no
+    # parameter defaults to, still tells a forwarded value from a default.
+    sentinels.update(
+        (name, True)
+        for name, parameter in inspect.signature(generate).parameters.items()
+        if parameter.annotation == "bool | None"
+    )
     assert generate(URL, **sentinels) == "sbom"  # type: ignore[arg-type]
     assert called.pop("url") == URL and called.pop("kind") == WHEEL
     assert called == sentinels

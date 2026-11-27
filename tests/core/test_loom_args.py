@@ -174,13 +174,15 @@ def test_a_run_given_an_empty_registry_is_refused_at_the_call() -> None:
 
 @pytest.mark.platform
 def test_an_empty_config_path_is_named_as_given(project: Path) -> None:
-    """``input-not-found`` naming ``''``, as ``--config ''`` does, not the
+    """``option-invalid``, as ``--config ''`` is: an empty option, not the
     current directory ``Path("")`` reads it as."""
     with pytest.raises(ValueError) as raised:
         with loom.run(project / "out.json", pitloom_config=""):
             pass
-    assert code_of(raised.value) == "input-not-found"
-    assert str(raised.value) == "config file not found: ''"
+    assert code_of(raised.value) == "option-invalid"
+    assert str(raised.value) == (
+        "pitloom_config: must be a non-empty string, got a string ''"
+    )
     assert not (project / "out.json").exists()
 
 

@@ -81,8 +81,11 @@ def require_positive_ceiling(value: object, where: ConfigPlace | Parameter) -> i
     large number is the only way to raise it.
 
     Raises:
-        ValueError: *value* is not an integer, or is not positive
-            (a :class:`~pitloom.messages.CodedValueError`).
+        TypeError: at a ``Parameter`` stage, *value* is not an integer
+            (a :class:`~pitloom.messages.CodedTypeError`).
+        ValueError: *value* is an integer that is not positive, or any
+            invalid value from a file (``config-invalid``); a
+            :class:`~pitloom.messages.CodedValueError`.
     """
     problem = positive_problem(value)
     if problem is not None:

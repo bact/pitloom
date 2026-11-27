@@ -325,6 +325,13 @@ _ARGPARSE_CASES = [
     ),
     _option("creation_datetime", _OPTIONS, "project", "--creation-datetime", "now"),
     _option("non_empty_path", "src/pitloom/cli/_path_args.py", "wheel", "-o", ""),
+    _option(
+        "non_empty_name",
+        "src/pitloom/cli/_path_args.py",
+        "embed-wheel",
+        "--sbom-basename",
+        "",
+    ),
     *(
         _option(
             f"{action}.__call__",

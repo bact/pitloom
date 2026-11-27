@@ -36,7 +36,7 @@ from pitloom.messages.config import (
     loom_sdk_invalid_value,
     loom_sdk_type_error,
 )
-from pitloom.messages.targets import refuse_empty_input
+from pitloom.messages.targets import is_empty_input
 
 __all__ = ["DATASET_TYPES", "check_sdk_arguments", "loom_config"]
 
@@ -99,7 +99,7 @@ def _is_named(value: object) -> bool:
 #: Each SDK parameter by name.
 _RULES: Final[Mapping[str, _Rule]] = {
     "output_file": _Rule("path", _is_path, _is_named, "non-empty"),
-    "pretty": _Rule("boolean", _of(bool)),
+    "pretty": _Rule("python-bool", _of(bool)),
     "creation_metadata": _Rule("creation-metadata", _of(CreationMetadata)),
     "id_registry": _Rule(
         "registry-source",
@@ -111,7 +111,7 @@ _RULES: Final[Mapping[str, _Rule]] = {
     "name": _Rule("string", _is_str),
     "model_type": _Rule("string", _is_str),
     "hyperparameters": _Rule("mapping-of-strings", _is_string_mapping),
-    "generated": _Rule("boolean", _of(bool)),
+    "generated": _Rule("python-bool", _of(bool)),
     "path": _Rule("path", _is_path),
     "dataset_type": _Rule("one-of-dataset-type", _is_str, lambda v: v in DATASET_TYPES),
     "croissant": _Rule("path", _is_path),
@@ -168,9 +168,10 @@ def loom_config(pitloom_config: PitloomConfig | str | Path | None) -> PitloomCon
         raise invalid_value(
             Parameter("pitloom_config"), "config-source", pitloom_config
         )
+    if is_empty_input(pitloom_config):
+        # Path("") is the current directory: an empty option, as --config ''.
+        raise invalid_value(Parameter("pitloom_config"), "non-empty", got="")
     try:
-        # Path("") is the current directory: name the empty path as given.
-        refuse_empty_input(pitloom_config, "config file")
         return load_config_file(Path(pitloom_config), source="pitloom_config")
     except FileNotFoundError as exc:
         raise recoded(CodedValueError, exc) from None

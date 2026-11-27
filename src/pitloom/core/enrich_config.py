@@ -9,6 +9,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from pitloom.core.bool_arguments import check_bool_fields
+
 
 @dataclass(frozen=True)
 class EnrichConfig:
@@ -26,3 +28,11 @@ class EnrichConfig:
     """
 
     local: bool = False
+
+    def __post_init__(self) -> None:
+        """Refuse a ``bool`` field given another type.
+
+        Raises:
+            pitloom.messages.CodedTypeError: ``option-invalid``.
+        """
+        check_bool_fields(self)

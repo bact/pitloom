@@ -114,21 +114,8 @@ _LIBRARY_EXC = frozenset({"_no_active_run"})
 _REGISTRY = "src/pitloom/id_registry/_registry.py"
 _LIBRARY_SITES = frozenset(
     {
-        (
-            "src/pitloom/core/_models_wheel_types.py",
-            "validate_build_timeout",
-            "TypeError",
-        ),
-        (
-            "src/pitloom/core/build_options.py",
-            "BuildOptions.__post_init__",
-            "TypeError",
-        ),
         ("src/pitloom/core/scalar_text.py", "scalar_text", "TypeError"),
-        (_REGISTRY, "_require_bool", "TypeError"),
-        (_REGISTRY, "IdRegistry.load", "TypeError"),
         (_REGISTRY, "IdRegistry._mint_id", "ValueError"),
-        (_REGISTRY, "IdRegistry.save", "ValueError"),
         ("src/pitloom/id_registry/_types.py", "_require_names", "TypeError"),
     }
 )

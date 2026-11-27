@@ -23,6 +23,7 @@ from pitloom.core.config_cascade import resolve_fetch_policy
 from pitloom.core.fetch_policy import RemoteFetchPolicy
 from pitloom.core.model_extract_limit import DEFAULT_MAX_DOWNLOAD_BYTES
 from pitloom.messages import code_of
+from tests.argument_errors import integer_refusal
 
 _CONFIG = PitloomConfig(offline=True, max_download_bytes=1000)
 
@@ -57,9 +58,9 @@ def test_the_check_is_kept_as_given() -> None:
 
 @pytest.mark.parametrize("bad", [0, -1, True, 1.5], ids=repr)
 def test_an_invalid_cap_is_refused_from_either_source(bad: object) -> None:
-    with pytest.raises(ValueError, match="max.download.bytes"):
+    with pytest.raises(integer_refusal(bad), match="max.download.bytes"):
         resolve_fetch_policy(None, max_download_bytes=cast(int, bad))
-    with pytest.raises(ValueError, match="max.download.bytes"):
+    with pytest.raises(integer_refusal(bad), match="max.download.bytes"):
         resolve_fetch_policy(PitloomConfig(max_download_bytes=cast(int, bad)))
 
 
@@ -80,8 +81,8 @@ def test_the_policy_is_frozen() -> None:
         ({"max_bytes": True}, "max_bytes: must be an integer, got a boolean true"),
         ({"max_bytes": 1.5}, "max_bytes: must be an integer, got a float 1.5"),
         ({"max_bytes": "5"}, "max_bytes: must be an integer, got a string '5'"),
-        ({"offline": 1}, "offline must be a bool, got int"),
-        ({"offline": None}, "offline must be a bool, got NoneType"),
+        ({"offline": 1}, "^RemoteFetchPolicy.offline: must be True or False"),
+        ({"offline": None}, "^RemoteFetchPolicy.offline: must be True or False"),
         ({"check_url": "https://h/"}, "check_url must be callable or None"),
     ],
     ids=["zero", "negative", "bool", "float", "str", "offline-int",
@@ -91,11 +92,17 @@ def test_a_policy_made_by_hand_is_checked(
     kwargs: dict[str, object], match: str
 ) -> None:
     """Direct construction (a library caller's) is checked as the resolver's
-    value is: a ``ValueError``, never a ``TypeError`` later in a route."""
-    with pytest.raises(ValueError, match=match) as exc:
+    value is, never later in a route: a byte ceiling or ``offline`` of the
+    wrong type is a ``TypeError``, any other refusal a ``ValueError`` (an
+    ``InternalError`` for ``check_url``, which only Pitloom builds)."""
+    if "max_bytes" in kwargs:
+        error = integer_refusal(kwargs["max_bytes"])
+    else:
+        error = TypeError if "offline" in kwargs else ValueError
+    with pytest.raises(error, match=match) as exc:
         RemoteFetchPolicy(**kwargs)  # type: ignore[arg-type]
-    # A byte ceiling is a library parameter here, not a file setting.
-    assert code_of(exc.value) == ("option-invalid" if "max_bytes" in kwargs else None)
+    # A library parameter here, not a file setting.
+    assert code_of(exc.value) == (None if "check_url" in kwargs else "option-invalid")
 
 
 def test_a_valid_policy_made_by_hand_is_kept() -> None:

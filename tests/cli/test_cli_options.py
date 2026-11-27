@@ -121,7 +121,7 @@ def test_resolve_project_paths_not_found(
     monkeypatch.setattr(sys, "argv", ["loom", "project", str(nonexistent)])
     result = __main__.main()
     assert result == 1
-    assert "ERROR: loom project: project directory not found" in capsys.readouterr().err
+    assert "ERROR: loom project: project path not found" in capsys.readouterr().err
 
 
 @pytest.mark.usefixtures("stub_project_pipeline")
@@ -349,5 +349,6 @@ def test_resolve_output_source() -> None:
     )
 
     assert (
-        _resolve_output_source(args, PitloomConfig(sbom_basename=""), None) == "default"
+        _resolve_output_source(args, PitloomConfig(sbom_basename=None), None)
+        == "default"
     )

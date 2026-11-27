@@ -47,6 +47,7 @@ from typing import Any
 
 from pitloom.core._config_types import _require_valid_content_type_method
 from pitloom.core._project_toml import load_project_toml
+from pitloom.core.bool_arguments import check_bool_fields
 from pitloom.core.build_options import BuildOptions
 from pitloom.core.config import PitloomConfig, parse_pitloom_config
 from pitloom.core.credential_policy import MODE_REFUSE, MODE_WARN, CredentialPolicy
@@ -97,20 +98,23 @@ class ConfigOverrides:
             Applied after ``provenance``, so it wins over that object's own
             value. Checked by
             :func:`~pitloom.core.provenance.require_max_source_metadata_bytes`:
-            ``0`` or at least 8, else ``ValueError``.
+            ``0`` or at least 8, else ``ValueError`` (``TypeError`` for a
+            value that is not an integer).
         max_model_extract_bytes: ``--max-model-extract-bytes``: the
             per-model ceiling of a wheel's AI model scan (the wheel's budget
             is four times it). Only a standalone wheel embed reads it; any
             other embed warns. Checked by
             :func:`require_model_extract_override` even there: at least 1,
-            else ``ValueError``.
+            else ``ValueError`` (``TypeError`` for a value that is not an
+            integer).
         max_download_bytes: ``--max-download-bytes``: the most bytes a
             PyPI URL target or each file of a Hugging Face repository
             downloads, or a Git URL target's checkout takes on disk. Only
             those targets read it (:func:`resolve_fetch_policy`); any other
             warns. Checked by
             :func:`require_download_override`: at least 1, else
-            ``ValueError``.
+            ``ValueError`` (``TypeError`` for a value that is not an
+            integer).
         pretty: The embed path (``embed_wheel_sbom(overrides=...)``)
             always writes JCS-canonical JSON and warns that a given value
             has no effect, as it does for ``describe_relationship`` and
@@ -158,13 +162,24 @@ class ConfigOverrides:
     credentials: CredentialPolicy | None = None
     build_options: BuildOptions = BuildOptions()
 
+    def __post_init__(self) -> None:
+        """Refuse a ``bool`` field given another type
+        (``ConfigOverrides.pretty: must be True or False``): ``"false"`` is
+        never read as either value.
+
+        Raises:
+            pitloom.messages.CodedTypeError: ``option-invalid``.
+        """
+        check_bool_fields(self)
+
 
 def require_model_extract_override(value: object) -> int:
     """A ``max_model_extract_bytes`` keyword or override, checked by
     :func:`~pitloom.core.model_extract_limit.require_positive_ceiling`.
 
     Raises:
-        ValueError: *value* is not an integer of at least 1.
+        TypeError: *value* is not an integer.
+        ValueError: *value* is an integer below 1.
     """
     return require_positive_ceiling(value, Parameter("max_model_extract_bytes"))
 
@@ -174,7 +189,8 @@ def require_download_override(value: object) -> int:
     :func:`~pitloom.core.model_extract_limit.require_positive_ceiling`.
 
     Raises:
-        ValueError: *value* is not an integer of at least 1.
+        TypeError: *value* is not an integer.
+        ValueError: *value* is an integer below 1.
     """
     return require_positive_ceiling(value, Parameter("max_download_bytes"))
 
@@ -357,8 +373,9 @@ def resolve_fetch_policy(
     *check_url* is the caller's address policy (no config sets one).
 
     Raises:
-        ValueError: *max_download_bytes* or the config's value is not an
-            integer of at least 1.
+        TypeError: *max_download_bytes* is not an integer.
+        ValueError: *max_download_bytes* is an integer below 1, or the
+            config's value is not an integer of at least 1.
     """
     cfg = resolve_standalone_config(
         pitloom_config,

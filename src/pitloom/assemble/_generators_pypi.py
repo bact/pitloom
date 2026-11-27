@@ -29,6 +29,7 @@ from typing import Any
 
 from pitloom._sbom_io import refuse_empty_output
 from pitloom.core.acquisition import Acquisition
+from pitloom.core.bool_arguments import checked_bools
 from pitloom.core.build_options import BuildOptions
 from pitloom.core.config import PitloomConfig
 from pitloom.core.config_cascade import (
@@ -163,6 +164,7 @@ def _read_download(
     return sbom, metadata
 
 
+@checked_bools
 # pylint: disable-next=too-many-arguments,too-many-locals
 def generate_pypi_sbom_with_download(
     url: str,
@@ -238,8 +240,10 @@ def generate_pypi_sbom_with_download(
 
     Raises:
         pitloom.core.internal_error.InternalError: *kind* is neither.
-        ValueError: *max_download_bytes* (or the config's) or
-            *max_model_extract_bytes* is not an integer of at least 1.
+        TypeError: *max_download_bytes* or *max_model_extract_bytes* is
+            not an integer (``option-invalid``).
+        ValueError: either is an integer below 1, or the config's
+            ``max-download-bytes`` is not an integer of at least 1.
         pitloom.messages.CodedValueError: *url* is not a PyPI project or
             release URL (``pypi-url-invalid``).
         pitloom.extract.remote.errors.RemoteSourceError: the release or the

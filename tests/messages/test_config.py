@@ -46,6 +46,7 @@ from pitloom.messages.config import (
     config_moved,
     found_text,
     hook_unknown_keys,
+    invalid_type,
     invalid_value,
     kind_text,
     must_be,
@@ -316,8 +317,9 @@ def test_a_copy_keeps_its_text_and_code_and_is_not_located_again(
         lambda: must_be("bool"),
         lambda: invalid_value(Parameter("x"), "bool"),
         lambda: invalid_value("max_bytes", "positive"),  # type: ignore[arg-type]
+        lambda: invalid_type("max_bytes", "integer", "5"),  # type: ignore[arg-type]
     ],
-    ids=["id", "table-string", "must-be", "parameter-id", "stage"],
+    ids=["id", "table-string", "must-be", "parameter-id", "stage", "type-stage"],
 )
 def test_an_unknown_id_or_stage_is_a_programming_error(
     build: Callable[[], object],
@@ -341,6 +343,14 @@ def test_the_stage_picks_the_code() -> None:
     assert str(library) == (
         "max_download_bytes: must be an integer of at least 1, got an integer 0"
     )
+    # A wrong type too: config-invalid from a file, a TypeError from a caller.
+    config_type = invalid_type(_TOP.at("max-download-bytes"), "integer", "5")
+    library_type = invalid_type(Parameter("max_download_bytes"), "integer", "5")
+    assert isinstance(config_type, ConfigError) and raised_as(
+        config_type, CONFIG_INVALID
+    )
+    assert isinstance(library_type, TypeError)
+    assert raised_as(library_type, OPTION_INVALID)
     assert must_be("budget", 3) == (
         "must be 0 (no cap) or an integer of at least 8, got an integer 3"
     )

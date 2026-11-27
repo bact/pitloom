@@ -5,8 +5,10 @@
 
 """A library entry given an empty input path raises ``input-not-found``,
 as ``os.stat("")`` says, and reads nothing of the current directory that
-``Path("")`` would name. An empty ``output_path`` or ``id_registry`` is
-``option-invalid`` (``non-empty``), as the CLI's ``-o ""`` is.
+``Path("")`` would name. An empty ``output_path``, ``id_registry``
+(anywhere: a keyword, ``PitloomConfig``, ``IdRegistry.load``),
+``pitloom_config``, ``sbom_path``, ``sbom_basename`` or ``sbom_filename``
+is ``option-invalid`` (``non-empty``), as the CLI's ``-o ""`` is.
 
 See also: tests/cli/test_empty_path.py (every command).
 """
@@ -15,11 +17,12 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import pytest
 
 from pitloom._sbom_io import write_sbom_output
+from pitloom._wheel_sbom_location import find_embedded_sbom
 from pitloom.assemble import (
     enrich_model,
     generate,
@@ -31,6 +34,7 @@ from pitloom.assemble import (
     generate_pypi_sbom,
     generate_wheel_sbom,
 )
+from pitloom.core.config import PitloomConfig
 from pitloom.core.given_path import TypedPath
 from pitloom.embed import embed_wheel_sbom
 from pitloom.id_registry import IdRegistry
@@ -40,12 +44,15 @@ from pitloom.messages.targets import (
     input_exists,
     refuse_empty_input,
 )
+from tests.argument_errors import enter_loom_run
 
 pytestmark = pytest.mark.platform
 
 _NPY = (
     Path(__file__).parent / "fixtures" / "aimodels" / "numpy" / "example-model-v1.npy"
 )
+#: A wheel that is not there: an empty option is refused before it is read.
+_WHEEL = Path("gone-1.0-py3-none-any.whl")
 
 
 # pylint: disable-next=too-few-public-methods
@@ -66,7 +73,7 @@ _ENTRIES: list[tuple[Callable[..., Any], str]] = [
     (generate_model_sbom, "model file not found: ''"),
     (enrich_model, "model file not found: ''"),
     (generate_project_sbom, "project path not found: ''"),
-    (generate, "project path not found: ''"),
+    (generate, "target not found: ''"),
     (generate_merged_sbom, "fragments directory not found: ''"),
 ]
 
@@ -104,7 +111,7 @@ def test_generate_blank_target_is_not_found(
     with pytest.raises(CodedFileNotFoundError) as caught:
         generate(given, output_path=tmp_path / "out.json")
     assert code_of(caught.value) == "input-not-found"
-    assert str(caught.value) == f"project path not found: {given!r}"
+    assert str(caught.value) == f"target not found: {given!r}"
     assert not (tmp_path / "out.json").exists()
 
 
@@ -212,16 +219,74 @@ def test_config_empty_id_registry(
     assert "non-empty" in str(caught.value)
 
 
-@pytest.mark.parametrize("given", ["", TypedPath("")], ids=["str", "typed"])
-def test_id_registry_load_empty_is_not_found(
-    given: str | Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+#: An empty value of an option given to the library (the twin of a flag
+#: argparse refuses): the call -> what the line names.
+_EMPTY_OPTIONS: list[tuple[str, Callable[[str | Path], object], str]] = [
+    ("registry-load", IdRegistry.load, "path"),
+    (
+        "config-registry",
+        lambda given: PitloomConfig(id_registry=given),  # type: ignore[arg-type]
+        "PitloomConfig.id_registry",
+    ),
+    (
+        "config-basename",
+        lambda given: PitloomConfig(sbom_basename=given),  # type: ignore[arg-type]
+        "PitloomConfig.sbom_basename",
+    ),
+    (
+        "loom-config",
+        lambda given: enter_loom_run(pitloom_config=given),
+        "pitloom_config",
+    ),
+    (
+        "embed-sbom",
+        lambda given: embed_wheel_sbom(_WHEEL, sbom_path=given),
+        "sbom_path",
+    ),
+    (
+        "embed-basename",
+        lambda given: embed_wheel_sbom(_WHEEL, sbom_basename=cast(str, given)),
+        "sbom_basename",
+    ),
+    (
+        "wheel-sbom-filename",
+        lambda given: find_embedded_sbom(_WHEEL, cast(str, given)),
+        "sbom_filename",
+    ),
+]
+
+
+#: The cases of :data:`_EMPTY_OPTIONS` that take a file name, not a path:
+#: no ``TypedPath`` spelling.
+_NAMES = {"config-basename", "embed-basename", "wheel-sbom-filename"}
+
+
+@pytest.mark.parametrize(
+    ("call", "name", "given"),
+    [
+        pytest.param(call, name, given, id=f"{case}-{kind}")
+        for case, call, name in _EMPTY_OPTIONS
+        for kind, given in (("str", ""), ("typed", TypedPath("")))
+        if kind == "str" or case not in _NAMES
+    ],
+)
+def test_an_empty_option_is_invalid(
+    call: Callable[[str | Path], object],
+    name: str,
+    given: str | Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """``IdRegistry.load("")`` names the empty spelling, not ``.``."""
+    """Refused as the option's own error, as the CLI's ``--id-registry ''``,
+    ``--config ''``, ``--sbom ''``, ``--sbom-basename ''`` and
+    ``--sbom-filename ''`` are: never read as ``.``, never the default
+    name, and nothing looked at (the wheel named is not there)."""
     monkeypatch.chdir(tmp_path)
-    with pytest.raises(CodedFileNotFoundError) as caught:
-        IdRegistry.load(given)
-    assert code_of(caught.value) == "input-not-found"
-    assert str(caught.value) == "ID registry file not found: ''"
+    with pytest.raises(CodedValueError) as caught:
+        call(given)
+    assert code_of(caught.value) == "option-invalid"
+    assert str(caught.value) == f"{name}: must be a non-empty string, got a string ''"
+    assert not list(tmp_path.iterdir())
 
 
 @pytest.mark.parametrize("default", [None, "r.json"], ids=["no-default", "default"])

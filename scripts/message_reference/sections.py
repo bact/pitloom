@@ -42,6 +42,10 @@ ERROR_RULE_OVERRIDES: Final = {
     "interrupted": (
         "As an ERROR (Ctrl-C), the command stops and writes nothing (exit 130)."
     ),
+    "registry-file-missing": (
+        "As an ERROR (the library's IdRegistry.save() only), nothing is written;"
+        " no command stops on it."
+    ),
 }
 
 

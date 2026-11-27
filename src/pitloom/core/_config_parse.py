@@ -227,10 +227,13 @@ def _check_sbom_basename(value: str | None) -> str | None:
 
     Raises:
         pitloom.messages.config.ConfigError: ``config-invalid``: *value* is
-            not a plain file name.
+            empty (no request for the default name) or not a plain file
+            name.
     """
     if value is None:
         return None
+    if not value:
+        raise config_invalid(CONFIG_BASENAME_PLACE, "non-empty", got=value)
     if not is_plain_file_name(value):
         raise config_invalid(CONFIG_BASENAME_PLACE, "file-name", got=value)
     return sbom_base_name(value, CONFIG_BASENAME_PLACE)
@@ -359,7 +362,7 @@ def _parse_pitloom_config(
     pretty = _read_bool_setting(pitloom_data, "pretty", default=False)
     desc_rel = _read_describe_relationship(pitloom_data)
     sbom_basename = _check_sbom_basename(
-        _picked(_pick_str((pitloom_data, _PITLOOM, ("sbom-basename",)))) or None
+        _picked(_pick_str((pitloom_data, _PITLOOM, ("sbom-basename",))))
     )
     offline = _read_offline_setting(pitloom_data)
     use_lockfile = _read_use_lockfile_setting(pitloom_data)

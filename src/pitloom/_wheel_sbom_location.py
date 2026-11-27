@@ -31,6 +31,7 @@ from pitloom.core.wheel_dist_info import (
     resolve_own_dist_info,
     wheel_members,
 )
+from pitloom.messages.config import Parameter, invalid_type, invalid_value
 from pitloom.messages.wheel_sboms import wheel_sbom_ambiguous
 from pitloom.messages.wheels import DIST_INFO_NONE, refuse_dist_info, warn_dist_info
 
@@ -173,13 +174,19 @@ def find_embedded_sbom(
             missing/ambiguous ``.dist-info`` (see :func:`_find_dist_info_prefix`),
             or *sbom_filename* is unset and more than one file exists
             under ``sboms/`` (``wheel-sbom-ambiguous``: the caller must
-            name one).
+            name one), or it is given as empty (``option-invalid``).
         OSError: An *environment* problem reading *wheel_path* (missing
             file, permission denied, a transient I/O error) -- kept as
             its own exception type rather than folded into ``ValueError``
             (see :func:`pitloom.core.wheel_dist_info.open_wheel_zip`), so a
             caller can distinguish "this wheel is bad" from "try again."
     """
+    if sbom_filename is not None and not isinstance(sbom_filename, str):
+        raise invalid_type(Parameter("sbom_filename"), "file-name", sbom_filename)
+    if sbom_filename == "":
+        # Never read as "no name given": an empty option, as
+        # --sbom-filename '' is.
+        raise invalid_value(Parameter("sbom_filename"), "non-empty", got="")
     with open_wheel_zip(wheel_path) as zf:
         listed = wheel_members(zf, wheel_path.name)
         dist_info = _find_dist_info_prefix(zf, wheel_path, members=listed)

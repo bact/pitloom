@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-07
-Last-Modified: 2026-11-26
+Last-Modified: 2026-11-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -113,7 +113,8 @@ Other flags:
   `.spdx3.json` is optional and dropped with a `WARNING:`. A path (a `/`, `\`,
   `:` or NUL) is an
   [`option-invalid`](message-codes-options.md#option-invalid) `ERROR:`, raised
-  before the SBOM is generated (exit 1, nothing written). The default is
+  before the SBOM is generated (exit 1, nothing written); an empty name is
+  refused by the option itself (exit 2), not read as the default. The default is
   `<name>-<version>.spdx3.json` from the wheel's own name/version, with a
   control character, whitespace, `/`, `\` or `:` becoming `_`; with no name or
   version in `METADATA`, or a name over 255 characters, the wheel's

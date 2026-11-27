@@ -10,6 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TypedDict
 
+from pitloom.core.bool_arguments import check_bool_fields
 from pitloom.core.content_type_config import ContentTypeConfig, ContentTypeOverride
 from pitloom.core.creation import CreationMetadata, Creator, Tool
 from pitloom.core.credential_policy import (
@@ -32,7 +33,13 @@ from pitloom.core.provenance import (
     require_provenance_choices,
 )
 from pitloom.logging_config import configure_logging
-from pitloom.messages.config import Parameter, invalid_value
+from pitloom.messages.config import (
+    Parameter,
+    invalid_type,
+    invalid_value,
+    require_path_argument,
+)
+from pitloom.messages.targets import is_empty_input
 
 _DEFAULT_PROVENANCE_SCHEMA = DEFAULT_PROVENANCE_SCHEMA
 VALID_CONTENT_TYPE_METHODS: frozenset[str] = frozenset({"auto", "magika", "extension"})
@@ -80,13 +87,16 @@ def _require_valid_content_type_method(value: str) -> None:
     reaches it: the TOML reader and the CLI's ``choices=`` refuse first.
 
     Raises:
-        pitloom.messages.CodedValueError: ``option-invalid``, a
-            ``ValueError``.
+        pitloom.messages.CodedTypeError: ``option-invalid``, *value* is
+            not a string.
+        pitloom.messages.CodedValueError: ``option-invalid``, a string
+            that names no method.
     """
+    where = Parameter("content_type_method")
+    if not isinstance(value, str):
+        raise invalid_type(where, "one-of-method", value)
     if value not in VALID_CONTENT_TYPE_METHODS:
-        raise invalid_value(
-            Parameter("content_type_method"), "one-of-method", got=value
-        )
+        raise invalid_value(where, "one-of-method", got=value)
 
 
 class AssembleOptions(TypedDict):
@@ -162,6 +172,14 @@ class FragmentConfig:
     link_to_main: str | None = None
     base_dir: str | None = None
 
+    def __post_init__(self) -> None:
+        """Refuse a ``bool`` field given another type.
+
+        Raises:
+            pitloom.messages.CodedTypeError: ``option-invalid``.
+        """
+        check_bool_fields(self)
+
 
 @dataclass
 # pylint: disable=too-many-instance-attributes
@@ -216,24 +234,42 @@ class PitloomConfig:
     url_credentials: str = MODE_WARN
 
     def __post_init__(self) -> None:
-        """Refuse a bad ``accept_url_credentials`` entry, ``url_credentials``
-        or ``sbom_basename`` when the config is built, as ``loom.Run``
-        refuses one, not at its first use. A ``sbom_basename`` with white
-        space or a trailing ``.spdx3.json`` keeps its base, with one
-        ``WARNING:`` naming ``PitloomConfig.sbom_basename``; an empty one is
-        no name (the default).
+        """Refuse a bad ``bool`` field, ``accept_url_credentials`` entry,
+        ``url_credentials``, ``id_registry`` or ``sbom_basename`` when the
+        config is built, as ``loom.Run`` refuses one, not at its first use.
+        A ``sbom_basename`` with white space or a trailing ``.spdx3.json``
+        keeps its base, with one ``WARNING:`` naming
+        ``PitloomConfig.sbom_basename``; ``None`` is no name (the
+        default), an empty one is refused.
 
         Raises:
+            pitloom.messages.CodedTypeError: a ``bool`` field holds another
+                type (``"false"`` is never read as either value), the mode
+                is not a string, ``id_registry`` is not a path or
+                ``sbom_basename`` not a string (``option-invalid``).
             ValueError: an entry is not a fingerprint, the mode is neither
-                warn nor refuse, or ``sbom_basename`` is not a plain file
-                name (``option-invalid``).
+                warn nor refuse, ``id_registry`` is given as empty (which
+                :class:`pathlib.Path` would read as the current directory),
+                or ``sbom_basename`` is empty or not a plain file name
+                (``option-invalid``).
         """
+        check_bool_fields(self)
         _ = self.credential_policy
+        if self.id_registry is not None:
+            require_path_argument(self.id_registry, "PitloomConfig.id_registry")
+        if self.id_registry is not None and is_empty_input(self.id_registry):
+            raise invalid_value(
+                Parameter("PitloomConfig.id_registry"), "non-empty", got=""
+            )
         base = self.sbom_basename
-        if base is None or base == "":
+        if base is None:
             return
         where = Parameter("PitloomConfig.sbom_basename")
-        if not isinstance(base, str) or not is_plain_file_name(base):
+        if not isinstance(base, str):
+            raise invalid_type(where, "file-name", base)
+        if not base:
+            raise invalid_value(where, "non-empty", got=base)
+        if not is_plain_file_name(base):
             raise invalid_value(where, "file-name", got=base)
         if bare_sbom_base(base) != base:
             # sbom_base_name warns: said here, before any entry point. Only

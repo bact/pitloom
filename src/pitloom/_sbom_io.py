@@ -28,7 +28,7 @@ from typing import TextIO
 
 from pitloom.core.current_dir import absolute_path
 from pitloom.messages import code_of
-from pitloom.messages.config import Parameter, invalid_value
+from pitloom.messages.config import Parameter, invalid_value, require_path_argument
 from pitloom.messages.files import SBOM_USE, file_unwritable_error
 
 #: The ``-o`` value that means "write to standard output".
@@ -135,8 +135,12 @@ def refuse_empty_output(output_path: Path | str | None) -> None:
     library entry calls it first, before anything is read or written.
 
     Raises:
+        pitloom.messages.CodedTypeError: *output_path* is not a path
+            (``option-invalid``), refused here, not at the write.
         pitloom.messages.CodedValueError: *output_path* is ``""``.
     """
+    if output_path is not None:
+        require_path_argument(output_path, "output_path")
     if isinstance(output_path, str) and not output_path:
         raise invalid_value(Parameter("output_path"), "non-empty", got="")
 

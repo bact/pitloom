@@ -45,6 +45,7 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 from urllib.parse import urlsplit
 
+from pitloom.core.bool_arguments import checked_bools
 from pitloom.core.clone_mark import reading_remote_clone
 from pitloom.core.fetch_policy import RemoteFetchPolicy
 from pitloom.core.internal_error import InternalError
@@ -168,6 +169,7 @@ class GitCheckout:
 
 
 @contextmanager
+@checked_bools
 def fetch_git_project(
     url: str,
     *,

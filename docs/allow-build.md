@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-19
-Last-Modified: 2026-11-26
+Last-Modified: 2026-11-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -267,7 +267,10 @@ own `h`/`m`/`s` grammar is a CLI/Action-layer convenience only.
 `BuildOptions(...)` validates its fields when constructed, for every
 target: a non-`bool` `allow`/`no_isolation` (e.g. the string `"false"`)
 or a non-`int` `timeout` raises `TypeError`; a `timeout` outside 1 to
-604800 raises `ValueError`. A field set where it has no effect -- a
+604800 raises `ValueError` (`build timeout must be 1-604800 seconds, got
+604801`). Both carry the code `option-invalid`; a wrong type names the
+field (`BuildOptions.allow: must be True or False, got a string
+'false'`). A field set where it has no effect -- a
 target other than a project directory, or `no_isolation`/`timeout`
 without `allow` -- logs one `WARNING: Build: ...` line per field
 (`[option-no-effect]`),

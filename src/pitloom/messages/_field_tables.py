@@ -160,6 +160,7 @@ INPUT_KINDS: Final = (
     "sdist archive",
     "setup.cfg",
     "setup.py",
+    "target",
     "wheel file",
 )
 

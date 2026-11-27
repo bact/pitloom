@@ -47,7 +47,7 @@ def _project(tmp_path: Path, base: str | None) -> Path:
     (project / "demo" / "__init__.py").write_text("", encoding="utf-8")
     text = (
         _PYPROJECT.format(base=base)
-        if base
+        if base is not None
         else _PYPROJECT.split("[tool", maxsplit=1)[0]
     )
     (project / "pyproject.toml").write_text(text, encoding="utf-8")
@@ -290,16 +290,58 @@ def test_the_line_names_the_parameter_as_the_surface_spells_it(
 
 @pytest.mark.parametrize("base", ["a/b", "..", 5])
 def test_a_built_config_refuses_a_base_name_that_is_no_file_name(base: Any) -> None:
-    """At construction, named as the field, before anything is generated."""
-    with pytest.raises(ValueError) as raised:
+    """At construction, named as the field, before anything is generated: a
+    ``TypeError`` for a value that is no string."""
+    with pytest.raises(ValueError if isinstance(base, str) else TypeError) as raised:
         PitloomConfig(sbom_basename=base)
     assert code_of(raised.value) == "option-invalid"
     assert str(raised.value).startswith("PitloomConfig.sbom_basename: must be ")
 
 
-def test_a_built_config_takes_an_empty_base_name_as_no_name() -> None:
-    """``""`` is the default, as no name is, not a file name refused."""
-    assert PitloomConfig(sbom_basename="").sbom_basename == ""
+def test_a_built_config_refuses_an_empty_base_name() -> None:
+    """``""`` is no request for the default name (``None`` is): refused as
+    ``--sbom-basename ''`` and ``sbom-basename = ""`` are."""
+    with pytest.raises(ValueError) as raised:
+        PitloomConfig(sbom_basename="")
+    assert code_of(raised.value) == "option-invalid"
+    assert str(raised.value) == (
+        "PitloomConfig.sbom_basename: must be a non-empty string, got a string ''"
+    )
+    assert PitloomConfig(sbom_basename=None).sbom_basename is None
+
+
+def test_an_empty_configured_base_name_is_refused_by_the_cli(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """``sbom-basename = ""`` in ``[tool.pitloom]``: ``config-invalid``,
+    nothing written (it was read as the default name)."""
+    project = _project(tmp_path, "")
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(sys, "argv", ["loom", "project", str(project), *_OFFLINE])
+    assert __main__.main() == 1
+    (error,) = [x for x in capsys.readouterr().err.splitlines() if "ERROR:" in x]
+    assert error.endswith(
+        "[tool.pitloom] sbom-basename: must be a non-empty string, got a string '' "
+        "[config-invalid]"
+    )
+    assert not list(tmp_path.glob("*.spdx3.json"))
+
+
+def test_an_empty_configured_base_name_fails_the_hook() -> None:
+    """The build hook reads the key as the CLI does: the build fails rather
+    than embed under a name the user did not choose."""
+    with tempfile.TemporaryDirectory() as tmp:
+        pyproject = _PYPROJECT.format(base="")
+        (Path(tmp) / "pyproject.toml").write_text(pyproject, encoding="utf-8")
+        (Path(tmp) / "demo").mkdir()
+        (Path(tmp) / "demo" / "__init__.py").write_text("", encoding="utf-8")
+        hook = make_hook(tmp, {})
+        with pytest.raises(ValueError) as raised:
+            hook.initialize("standard", {})
+    assert code_of(raised.value) == "config-invalid"
+    assert "sbom-basename: must be a non-empty string" in str(raised.value)
 
 
 def test_a_built_config_keeps_the_callers_logger() -> None:

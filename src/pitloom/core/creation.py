@@ -18,6 +18,7 @@ from pitloom.messages.config import (
     EPOCH_OUT_OF_RANGE_LINE,
     SOURCE_DATE_EPOCH_INVALID,
     Parameter,
+    invalid_type,
     invalid_value,
 )
 
@@ -107,7 +108,9 @@ class Creator:
     email: str | None = None
 
     def __post_init__(self) -> None:
-        name = self.name.strip() if isinstance(self.name, str) else ""
+        if not isinstance(self.name, str):
+            raise invalid_type(Parameter("Creator.name"), "non-empty", self.name)
+        name = self.name.strip()
         if not name:
             raise invalid_value(Parameter("Creator.name"), "non-empty", got=self.name)
         self.name = name
@@ -133,7 +136,9 @@ class Tool:
     name: str
 
     def __post_init__(self) -> None:
-        if not isinstance(self.name, str) or not self.name.strip():
+        if not isinstance(self.name, str):
+            raise invalid_type(Parameter("Tool.name"), "non-empty", self.name)
+        if not self.name.strip():
             raise invalid_value(Parameter("Tool.name"), "non-empty", got=self.name)
 
 

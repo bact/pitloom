@@ -28,6 +28,7 @@ from pitloom import loom
 from pitloom.core.config import PitloomConfig
 from pitloom.id_registry import DATASET_PACKAGE_TYPE
 from pitloom.messages import code_of
+from tests.argument_errors import integer_refusal
 from tests.registry_helpers import make_registry
 
 _NS = "https://spdx.org/spdxdocs/test-1"
@@ -172,11 +173,13 @@ def test_keyword_beats_config_beats_default(
 def test_bad_keyword_fails_before_the_run(
     project: Path, keyword: object, needle: str
 ) -> None:
-    """A keyword that is not a positive integer raises ``ValueError``
-    naming it on entering the run (``0`` is an error, not "unlimited")."""
+    """A keyword that is not a positive integer is refused naming it on
+    entering the run (``0`` is an error, not "unlimited"): a ``TypeError``
+    for no integer, a ``ValueError`` for one below 1."""
     output = project / "out.json"
+    error = integer_refusal(keyword)
 
-    with pytest.raises(ValueError, match=f"^max_dataset_hash_bytes: {needle}$") as exc:
+    with pytest.raises(error, match=f"^max_dataset_hash_bytes: {needle}$") as exc:
         with loom.run(
             output,
             max_dataset_hash_bytes=keyword,  # type: ignore[arg-type]
@@ -246,8 +249,10 @@ def test_bad_config_fails_before_the_run(
         # the real route: load_config_file reads through the project loader
         monkeypatch.setattr("pitloom.core._project_toml.load_toml_file", _denied)
     output = project / "out.json"
+    # An in-memory value of the wrong type is the caller's TypeError.
+    wrong_type = code == "option-invalid" and "must be an integer," in needle
 
-    with pytest.raises(ValueError, match=needle) as exc:
+    with pytest.raises(TypeError if wrong_type else ValueError, match=needle) as exc:
         with loom.run(output, pitloom_config=config):
             pass  # pragma: no cover - never entered
 

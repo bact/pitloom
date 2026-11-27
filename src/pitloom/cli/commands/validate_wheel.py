@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any
 
 from pitloom.assemble import VALIDATED_FORMATS, EmbeddedSbomLocation
+from pitloom.cli._path_args import non_empty_name
 from pitloom.cli.commands.utils import (
     _collect_wheel_paths,
     _locate_and_detect,
@@ -144,7 +145,7 @@ def add_parser(subparsers: Any, _parent_parser: argparse.ArgumentParser) -> None
     )
     validate_parser.add_argument(
         "--sbom-filename",
-        type=str,
+        type=non_empty_name,
         default=None,
         metavar="NAME",
         help="Expect this exact filename under .dist-info/sboms/.",
