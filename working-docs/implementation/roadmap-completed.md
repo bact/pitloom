@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-30
-Last-Modified: 2026-11-17
+Last-Modified: 2026-11-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -373,3 +373,28 @@ Released 2026-11-11, cut for its breaking changes (ruling 2026-11-11). The skill
   (`license-relationship-invalid`). See
   [license-free-text-wrapper.md](license-free-text-wrapper.md).
 
+## Shipped in 0.25.0 (PRs #476-#563)
+
+Cut 2026-11-27. The skills require `pitloom>=0.25.0` (they quote message
+codes 0.25.0 introduced); Pitloom requires `licenseid>=0.9.4,<0.10`.
+
+- [x] **Message catalogue** (ratchet 0): the frames (#481), catalogue PRs
+  (#482 to #534), sweeps (#536, #541, #542, #545, #546, #548, #550), the
+  masking PRs (#526, #543, #544) and the consistency rescan with
+  per-surface advice and library argument checks (#553, #556, #557). See
+  [the done list](../design/message-catalogue-migration-plan.md#done-so-far-moved-from-the-roadmap-2026-11-26),
+  [message-catalogue-finish-plan.md](message-catalogue-finish-plan.md),
+  [message-consistency-rescan.md](../design/message-consistency-rescan.md).
+- [x] **Credentials**: masking at the sinks, git helper and registry refusal
+  (#487); detect, warn by default or refuse, with a per-value override (#489,
+  #490); the Action inputs, Git hardening and encoded values (#491); a URL
+  behind a leading character (#555). See
+  [credential-leak-fixes.md](credential-leak-fixes.md),
+  [credential-detect-and-refuse.md](credential-detect-and-refuse.md).
+- [x] **Namespace mixing in one SBOM**: a registry namespace beside
+  `spdx.org/spdxdocs/demo-<uuid>` ids is by design; documented, not unified.
+  See [id-namespace-mixing.md](id-namespace-mixing.md).
+- [x] **Pre-release review** and its fixes (#558 to #562); the bump (#563)
+  raised the skills' floor and LicenseID's after a licence-answer sweep
+  ([floor-0-9-4-sweep.md](licenseid/floor-0-9-4-sweep.md)). See
+  [pre-release-review-0.25.0.md](pre-release-review-0.25.0.md).

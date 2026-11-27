@@ -1,39 +1,239 @@
-# released-lines 0.24.0
+# released-lines 0.25.0
+archive-member-conflict	WARNING	ARCHIVE=%(archive)s ENTRY=%(member)s: also a directory of other entries; not copied
+archive-member-conflict	WARNING	ARCHIVE=%(archive)s ENTRY=%(member)s: also a directory of other entries; not listed
+archive-member-conflict	WARNING	ARCHIVE=%(archive)s ENTRY=%(member)s: overwritten by later entry %(later_member)s; not copied
+archive-member-conflict	WARNING	ARCHIVE=%(archive)s ENTRY=%(member)s: overwritten by later entry %(later_member)s; not listed
+archive-member-conflict	WARNING	ARCHIVE=%(archive)s: members share a project path (%(project_paths)s); they would share one ID registry key
+archive-member-invalid	WARNING	ARCHIVE=%(archive)s ENTRY=%(member)s: directory entry carries data; not copied
+archive-member-invalid	WARNING	ARCHIVE=%(archive)s ENTRY=%(member)s: directory entry carries data; not listed
+archive-member-invalid	WARNING	ARCHIVE=%(archive)s ENTRY=%(member)s: non-conforming name; copied as %(install_name)s
+archive-member-invalid	WARNING	ARCHIVE=%(archive)s ENTRY=%(member)s: non-conforming name; listed as %(install_name)s
+archive-member-unsafe	WARNING	ARCHIVE=%(archive)s ENTRY=%(member)s: no safe install location; not copied
+archive-member-unsafe	WARNING	ARCHIVE=%(archive)s ENTRY=%(member)s: no safe install location; not listed
+archive-member-unsafe	WARNING	ARCHIVE=%(archive)s ENTRY=%(member)s: resolves outside the extraction directory; not copied
+author-ambiguous	INFO	AUTHOR=%(authors)s: read as one author; it may list several
+author-ambiguous	WARNING	AUTHOR=%(authors)s: split into %(entry_count)s next to an address; a name field is never cut between names
+author-ambiguous	WARNING	AUTHOR_EMAIL=%(authors)s: split into %(entry_count)s on ',' or ';'; an address field cannot tell a list from one name holding a comma
+author-ambiguous	WARNING	PACKAGE=%(package)s %(author_key)s=%(authors)s: split into %(entry_count)s next to an address; a name field is never cut between names; %(dependency_count)s split in all
+author-ambiguous	WARNING	PACKAGE=%(package)s %(author_key)s=%(authors)s: split into %(entry_count)s on ',' or ';'; an address field cannot tell a list from one name holding a comma; %(dependency_count)s split in all
+author-invalid	WARNING	AUTHOR=%(authors)s: not one valid email address; %(entry_count)s not recorded
+author-invalid	WARNING	AUTHOR=%(authors)s: not one valid email address; not recorded
+author-invalid	WARNING	AUTHOR_EMAIL=%(authors)s: not one valid email address; %(entry_count)s not recorded
+author-invalid	WARNING	AUTHOR_EMAIL=%(authors)s: not one valid email address; not recorded
+build-code-unsafe	WARNING	DIR=%(dir)s: --allow-build runs a PEP 517 build for up to %(duration)s (--build-timeout), which executes the project's build code (build-backend %(backend)s, its static discovery failed) in Pitloom's own environment (no build isolation)
+build-code-unsafe	WARNING	DIR=%(dir)s: --allow-build runs a PEP 517 build for up to %(duration)s (--build-timeout), which executes the project's build code (build-backend %(backend)s, its static discovery failed) in an isolated build environment
+build-code-unsafe	WARNING	DIR=%(dir)s: --allow-build runs a PEP 517 build for up to %(duration)s (--build-timeout), which executes the project's build code (build-backend %(backend)s, no discovery module for it) in Pitloom's own environment (no build isolation)
+build-code-unsafe	WARNING	DIR=%(dir)s: --allow-build runs a PEP 517 build for up to %(duration)s (--build-timeout), which executes the project's build code (build-backend %(backend)s, no discovery module for it) in an isolated build environment
+build-code-unsafe	WARNING	DIR=%(dir)s: BuildOptions.allow runs a PEP 517 build for up to %(duration)s (BuildOptions.timeout), which executes the project's build code (build-backend %(backend)s, its static discovery failed) in Pitloom's own environment (no build isolation)
+build-code-unsafe	WARNING	DIR=%(dir)s: BuildOptions.allow runs a PEP 517 build for up to %(duration)s (BuildOptions.timeout), which executes the project's build code (build-backend %(backend)s, its static discovery failed) in an isolated build environment
+build-code-unsafe	WARNING	DIR=%(dir)s: BuildOptions.allow runs a PEP 517 build for up to %(duration)s (BuildOptions.timeout), which executes the project's build code (build-backend %(backend)s, no discovery module for it) in Pitloom's own environment (no build isolation)
+build-code-unsafe	WARNING	DIR=%(dir)s: BuildOptions.allow runs a PEP 517 build for up to %(duration)s (BuildOptions.timeout), which executes the project's build code (build-backend %(backend)s, no discovery module for it) in an isolated build environment
+build-failed	WARNING	DIR=%(dir)s: no Python interpreter to run PyPA build with; not built
+build-failed	WARNING	DIR=%(dir)s: the build could not run or its wheel could not be read; %(failure)s
+build-failed	WARNING	DIR=%(dir)s: the build exited with code %(exit_code)s; last output: %(output)s
+build-failed	WARNING	DIR=%(dir)s: the build wrote %(number)s wheels, not one
+build-failed	WARNING	DIR=%(dir)s: the built wheel holds no file outside .dist-info; read as a failed discovery
+build-processes-unsafe	INFO	the build left processes running (process group %(process_group)s); killed
+build-processes-unsafe	WARNING	the build left processes running (process group %(process_group)s); could not confirm they stopped
+build-timeout	WARNING	DIR=%(dir)s: the build timed out after %(duration)s (--build-timeout); could not confirm its process tree stopped
+build-timeout	WARNING	DIR=%(dir)s: the build timed out after %(duration)s (--build-timeout); its process tree was stopped
+build-timeout	WARNING	DIR=%(dir)s: the build timed out after %(duration)s (BuildOptions.timeout); could not confirm its process tree stopped
+build-timeout	WARNING	DIR=%(dir)s: the build timed out after %(duration)s (BuildOptions.timeout); its process tree was stopped
+caller-info-unreadable	WARNING	loom SDK: caller info not determined: %(failure)s | Field(s) affected (degraded): provenance Source (falls back to 'unknown'; Method: inspect_caller is still recorded)
+caller-info-unreadable	WARNING	loom SDK: caller script path not determined: %(failure)s | Field(s) affected (skipped): caller_script_path
 card-malformed	WARNING	FILE=%(file)s: %(card)s frontmatter is not valid YAML; %(failure)s
+config-invalid	ERROR	%(config_key)s: must be %(expected)s, got %(got)s
+config-invalid	ERROR	FILE=%(file)s: %(config_key)s: must be %(expected)s, got %(got)s
+config-malformed	ERROR	FILE=%(file)s: not valid INI interpolation; %(error)s
+config-malformed	ERROR	FILE=%(file)s: not valid INI; %(failure)s
+config-malformed	ERROR	FILE=%(file)s: not valid TOML; %(failure)s
+config-malformed	ERROR	not valid INI interpolation; %(error)s
+config-malformed	ERROR	not valid INI; %(failure)s
+config-malformed	WARNING	FILE=%(file)s: not valid INI interpolation; %(error)s
+config-malformed	WARNING	FILE=%(file)s: not valid INI; %(failure)s
+config-malformed	WARNING	FILE=%(file)s: not valid TOML; %(failure)s
+config-moved	ERROR	%(config_key)s: moved to %(destination)s
+config-moved	ERROR	FILE=%(file)s: %(config_key)s: moved to %(destination)s
+config-unknown-key	ERROR	%(config_key)s: unknown keys %(entries)s; only enabled and Hatchling's own hook keys go here, other settings go in [tool.pitloom]
+config-unknown-key	WARNING	%(config_key)s: unknown key %(entry)s
+config-unknown-key	WARNING	%(config_key)s: unknown key %(entry)s; did you mean %(setting)s?
+config-unknown-key	WARNING	%(config_key)s: unknown key %(entry)s; it belongs in %(tables)s
+config-unknown-key	WARNING	FILE=%(file)s: %(config_key)s: unknown key %(entry)s
+config-unknown-key	WARNING	FILE=%(file)s: %(config_key)s: unknown key %(entry)s; did you mean %(setting)s?
+config-unknown-key	WARNING	FILE=%(file)s: %(config_key)s: unknown key %(entry)s; it belongs in %(tables)s
 config-unsafe	INFO	FILE=%(file)s: the downloaded sdist's own [tool.pitloom] settings are ignored (untrusted); --config or pitloom_config= applies
-config-unsafe	INFO	Git source: the repository's own [tool.pitloom] settings are ignored (untrusted); --config or pitloom_config= applies
+config-unsafe	INFO	the repository's own [tool.pitloom] settings are ignored (untrusted); --config or pitloom_config= applies
 config-unsafe/build-code	WARNING	FILE=%(file)s: build-time code of the downloaded repository is not run; %(settings)s ignored
+credentials-unsafe	WARNING	URL=%(url)s: holds a code, session, ticket, sid, otp or other _key parameter or an ssh user name; the SBOM states it as written
+credentials-unsafe/accepted	WARNING	URL=%(url)s: holds a credential that %(fingerprint)s accepts; the SBOM states it as written
+credentials-unsafe/git-line-break	WARNING	URL=%(url)s: credentials holding a line break are not sent to git
+credentials-unsafe/git-userinfo	ERROR	URL=%(url)s: user information cannot be taken out of the git command line; not fetched
+credentials-unsafe/http-clear	WARNING	URL=%(url)s: credentials are sent in clear over http; use https
+credentials-unsafe/refused	ERROR	%(number)s URL value(s) in the SBOM hold credentials; the SBOM is refused
+credentials-unsafe/refused	ERROR	URL=%(url)s: holds a credential (%(element)s %(pointer)s, %(fingerprint)s); remove it from the source, or accept this value by listing it in [tool.pitloom] %(setting)s
+credentials-unsafe/refused	ERROR	URL=%(url)s: holds a credential (%(element)s %(pointer)s, %(fingerprint)s); remove it from the source, or accept this value with %(option)s %(fingerprint)s
+credentials-unsafe/refused	ERROR	URL=%(url)s: holds a credential (%(element)s %(pointer)s, %(fingerprint)s); remove it from the source, or accept this value with ConfigOverrides.credentials=CredentialPolicy(accepted=["%(fingerprint)s"])
+credentials-unsafe/refused	ERROR	URL=%(url)s: holds a credential (%(element)s %(pointer)s, %(fingerprint)s); remove it from the source, or accept this value with credentials=CredentialPolicy(accepted=["%(fingerprint)s"])
+credentials-unsafe/registry	ERROR	URL=%(url)s: holds user information, a secret query value or an access token, or a query nested or encoded too deeply to read; ID registry file %(path)s is not loaded; remove the entry
+credentials-unsafe/registry	ERROR	URL=%(url)s: holds user information, a secret query value or an access token, or a query nested or encoded too deeply to read; an ID registry key is stored as written, so it is refused
+credentials-unsafe/registry	ERROR	URL=%(url)s: holds user information, a secret query value or an access token, or a query nested or encoded too deeply to read; an ID registry namespace is stored as written, so it is refused
+credentials-unsafe/registry	WARNING	URL=%(url)s: holds user information, a secret query value or an access token, or a query nested or encoded too deeply to read; ID registry file %(path)s is loaded as it is; remove the entry
+credentials-unsafe/registry	WARNING	URL=%(url)s: holds user information, a secret query value or an access token, or a query nested or encoded too deeply to read; ID registry file %(path)s is not loaded; remove the entry
+credentials-unsafe/registry	WARNING	URL=%(url)s: holds user information, a secret query value or an access token, or a query nested or encoded too deeply to read; the ID registry stores an element's key and id as written, so the element is skipped
+credentials-unsafe/registry	WARNING	URL=%(url)s: holds user information, a secret query value or an access token, or a query nested or encoded too deeply to read; the ID registry stores the key as written
+credentials-unsafe/written	WARNING	URL=%(url)s: holds a credential (%(element)s %(pointer)s, %(fingerprint)s); the SBOM states it as written; remove it from the source, or refuse such values with %(option)s
+credentials-unsafe/written	WARNING	URL=%(url)s: holds a credential (%(element)s %(pointer)s, %(fingerprint)s); the SBOM states it as written; remove it from the source, or refuse such values with ConfigOverrides.credentials=CredentialPolicy(refuse=True)
+credentials-unsafe/written	WARNING	URL=%(url)s: holds a credential (%(element)s %(pointer)s, %(fingerprint)s); the SBOM states it as written; remove it from the source, or refuse such values with [tool.pitloom] %(setting)s = "refuse"
+credentials-unsafe/written	WARNING	URL=%(url)s: holds a credential (%(element)s %(pointer)s, %(fingerprint)s); the SBOM states it as written; remove it from the source, or refuse such values with credentials=CredentialPolicy(refuse=True)
+dataset-conflict	WARNING	FILE=%(file)s DATASET=%(dataset)s FIELD=%(dataset_field)s: references differ; kept the first
+dataset-conflict	WARNING	MODEL=%(model)s DATASET=%(dataset)s FIELD=%(dataset_field)s: references differ; kept the first
+dataset-conflict/spelling	INFO	DATASET=%(dataset)s: %(dataset_spelling)s names it too; kept the first spelling
+dataset-field-invalid	WARNING	dataset metadata: SOURCE=%(dataset_source)s FIELD=%(dataset_field)s: a value of type %(dataset_value_type)s, not text; quote it to keep it as written; skipped
+dataset-field-invalid	WARNING	dataset metadata: SOURCE=%(dataset_source)s FIELD=%(dataset_field)s: a value of type %(dataset_value_type)s, not text; skipped
+dataset-field-invalid	WARNING	dataset metadata: SOURCE=%(dataset_source)s FIELD=%(dataset_field)s: not a URL; skipped
+dataset-field-invalid	WARNING	dataset metadata: SOURCE=%(dataset_source)s FIELD=%(dataset_field)s: not a whole number of zero or more; skipped
+dataset-name-missing	ERROR	FILE=%(file)s: Croissant document has no name; not read
+dataset-name-missing	ERROR	FILE=%(file)s: no dataset name: the Croissant name is a value of type %(dataset_value_type)s, not text; not read
+datetime-missing	WARNING	Merge: no fragment states a creation time; created set to %(datetime)s
+datetime-not-recordable	INFO	ARCHIVE=%(archive)s: SBOM entry dated 1980-01-01, the earliest a ZIP archive can record; the SBOM's created keeps the true date
+datetime-unpinned	INFO	Pitloom build hook: created and builtTime come from the clock; set SOURCE_DATE_EPOCH or creation-datetime to pin them
+dependency-name-ambiguous	INFO	PACKAGE=%(package)s: a direct reference; not looked up on PyPI
+dependency-pin-conflict	WARNING	PACKAGE=%(package)s: lock and declared exact pin disagree; kept the declared %(kept)s, dropped the locked %(dropped)s
+dependency-pin-conflict	WARNING	PACKAGE=%(package)s: locked version does not satisfy the declared constraint; kept the locked %(kept)s, dropped the declared %(dropped)s
 digest-invalid	ERROR	FILE=%(file)s: SHA-256 %(measured)s does not match %(declared)s declared by %(source)s; not read
+dir-unlistable	ERROR	DIR=%(dir)s: could not list %(use)s; %(failure)s
 dir-unlistable	WARNING	DIR=%(dir)s: could not list %(use)s; %(failure)s
+dist-info-ambiguous	ERROR	ARCHIVE=%(archive)s: several top-level .dist-info directories match the file name; wheel refused
+dist-info-ambiguous	ERROR	ARCHIVE=%(archive)s: several top-level .dist-info directories, none the one the file name names; wheel refused
+dist-info-ambiguous	ERROR	ARCHIVE=%(archive)s: the file name is not a wheel name and several top-level .dist-info directories exist; wheel refused
+dist-info-ambiguous	WARNING	ARCHIVE=%(archive)s: several top-level .dist-info directories match the file name; identity unknown
+dist-info-ambiguous	WARNING	ARCHIVE=%(archive)s: several top-level .dist-info directories, none the one the file name names; identity unknown
+dist-info-ambiguous	WARNING	ARCHIVE=%(archive)s: the file name is not a wheel name and several top-level .dist-info directories exist; identity unknown
+dist-info-conflict	WARNING	ARCHIVE=%(archive)s: the file name names no top-level .dist-info; using %(member)s
+dist-info-missing	ERROR	ARCHIVE=%(archive)s: no top-level .dist-info directory; wheel refused
+dist-info-missing	WARNING	ARCHIVE=%(archive)s ENTRY=%(member)s: not in the wheel; identity unknown
+dist-info-missing	WARNING	ARCHIVE=%(archive)s: no top-level .dist-info directory; identity unknown
 download-network-failed	ERROR	URL=%(url)s: %(failure)s; not read
 download-network-failed	ERROR	git %(command)s failed: %(error)s; nothing fetched
 download-network-failed	WARNING	URL=%(url)s: %(failure)s; %(outcome)s
-download-timeout	ERROR	URL=%(url)s: no complete answer within %(seconds)s seconds; not read
-download-timeout	ERROR	git %(command)s did not finish within %(seconds)s seconds; stopped
-download-timeout	WARNING	URL=%(url)s: no complete answer within %(seconds)s seconds; %(outcome)s
+download-timeout	ERROR	URL=%(url)s: no complete answer within %(duration)s; not read
+download-timeout	ERROR	git %(command)s did not finish within %(duration)s; stopped
+download-timeout	WARNING	URL=%(url)s: no complete answer within %(duration)s; %(outcome)s
+dynamic-field-needs-build	WARNING	FILE=%(file)s: PDM version source %(value)s is not resolvable without running project code; version not recorded
+dynamic-field-needs-build	WARNING	FILE=%(file)s: dynamic %(metadata_fields)s not resolved without PKG-INFO; skipped
+dynamic-field-unusable	WARNING	FILE=%(file)s: Flit dynamic metadata not resolved; %(failure)s
+dynamic-field-unusable	WARNING	FILE=%(file)s: PDM dynamic version not resolved; %(failure)s
+environment-unreadable	ERROR	could not run pipdeptree; %(failure)s
+environment-unreadable	ERROR	pipdeptree exited with code %(exit_code)s; last output: %(output)s
+environment-unreadable	ERROR	pipdeptree output is not JSON; %(failure)s
+environment-unreadable	ERROR	pipdeptree output is not its --json list: %(why)s
+extra-gate-ambiguous	WARNING	dependency %(dependency)s: needs extras %(extra_name)s together; recorded as optional for any of them
+extra-gate-unusable	WARNING	PACKAGE=%(package)s: the extra marker of %(dependency)s cannot be isolated; recorded as required
+extra-gate-unusable	WARNING	PACKAGE=%(package)s: the extra marker of self-reference %(dependency)s cannot be isolated; the extras it requests recorded as required
 field-not-recordable	INFO	FORMAT=%(format)s FILE=%(file)s: no SPDX 3.0.1 property: %(elements)s
 file-ambiguous	INFO	PYPI=%(name)s VERSION=%(version)s: %(number)s sdists; using %(file)s
 file-ambiguous	INFO	PYPI=%(name)s VERSION=%(version)s: %(number)s wheels match this environment; using %(file)s, the best-ranked
 file-ambiguous	INFO	PYPI=%(name)s: generate() reads the wheel; generate_pypi_sbom('%(url)s', kind='sdist') reads the sdist
 file-ambiguous	INFO	PYPI=%(name)s: loom generate reads the wheel; 'loom project %(url)s' reads the sdist
+file-discovery-conflict	WARNING	DIR=%(dir)s: two files map to wheel path %(entry)s; kept %(kept)s, dropped %(dropped)s
+file-discovery-needs-build	WARNING	DIR=%(dir)s: [tool.uv.build-backend] overrides the heuristic cannot see; pass --allow-build for an exact file list from a real build
+file-discovery-needs-build	WARNING	DIR=%(dir)s: [tool.uv.build-backend] overrides the heuristic cannot see; set BuildOptions.allow=True for an exact file list from a real build
+file-discovery-needs-build	WARNING	DIR=%(dir)s: build-and-read failed and file discovery not backend-aware for build-backend %(backend)s and no [project] table; file discovery unsupported
+file-discovery-needs-build	WARNING	DIR=%(dir)s: build-and-read failed and file discovery not backend-aware for build-backend %(backend)s; Hatchling heuristic used, file list may be inaccurate
+file-discovery-needs-build	WARNING	DIR=%(dir)s: file discovery not backend-aware for build-backend %(backend)s and no [project] table; file discovery unsupported
+file-discovery-needs-build	WARNING	DIR=%(dir)s: file discovery not backend-aware for build-backend %(backend)s; Hatchling heuristic used, file list may be inaccurate
+file-discovery-needs-build	WARNING	DIR=%(dir)s: no static %(discoverer)s config resolvable and no [project] table; file discovery unsupported
+file-discovery-needs-build	WARNING	DIR=%(dir)s: no static %(discoverer)s config resolvable; Hatchling heuristic used, file list may be inaccurate
+file-discovery-needs-build	WARNING	DIR=%(dir)s: no static version for [tool.flit.external-data] without running the module; external-data files left out
+file-discovery-needs-build	WARNING	DIR=%(dir)s: setup.py passes %(kwargs)s imperatively; file list read from static config may be incomplete
+file-discovery-unusable	WARNING	DIR=%(dir)s: %(discoverer)s file discovery failed; %(error)s
+file-discovery-unusable	WARNING	DIR=%(dir)s: %(discoverer)s static config failed introspection and no [project] table; file discovery unsupported
+file-discovery-unusable	WARNING	DIR=%(dir)s: file discovery failed and no [project] table; file discovery unsupported
+file-discovery-unusable	WARNING	DIR=%(dir)s: file discovery failed; Hatchling heuristic used, file list may be inaccurate
+file-discovery-unusable	WARNING	DIR=%(dir)s: setuptools package auto-discovery is ambiguous; %(error)s
+file-unreadable	ERROR	DIR=%(dir)s: could not read %(use)s; %(failure)s
 file-unreadable	ERROR	FILE=%(file)s: could not read %(use)s; %(failure)s
 file-unreadable	ERROR	FORMAT=%(format)s FILE=%(file)s: could not read header; %(failure)s
+file-unreadable	WARNING	DIR=%(dir)s: could not read %(use)s; %(failure)s
 file-unreadable	WARNING	FILE=%(file)s: could not read %(use)s; %(failure)s
 file-unreadable	WARNING	FILE=%(file)s: could not read for %(field)s; %(failure)s
 file-unreadable	WARNING	FORMAT=%(format)s FILE=%(file)s: could not read header; %(failure)s
+file-unreadable/not-utf8	ERROR	FILE=%(file)s: could not read %(use)s; not UTF-8: %(failure)s
 file-unreadable/not-utf8	WARNING	FILE=%(file)s: could not read %(use)s; not UTF-8: %(failure)s
 file-unreadable/not-utf8	WARNING	FILE=%(file)s: could not read for %(field)s; not UTF-8: %(failure)s
 file-unreadable/outside-project	WARNING	FILE=%(file)s: could not read %(use)s; outside the project directory
 file-unreadable/outside-project	WARNING	FILE=%(file)s: could not read for %(field)s; outside the project directory
 file-unreadable/outside-repository	WARNING	FILE=%(file)s: outside the downloaded repository; not read
 file-unreadable/outside-repository	WARNING	listed files outside the downloaded repository%(count)s; not read
+file-unwritable	ERROR	FILE=%(file)s: could not write %(use)s; %(failure)s
+file-unwritable	WARNING	FILE=%(file)s: could not write %(use)s; %(failure)s
+file-unwritable/mode	WARNING	FILE=%(file)s: file mode not restored; %(failure)s
+fragment-conflict	WARNING	Merge: ELEMENT=%(spdx_id)s: %(property)s differs; kept %(kept)s, dropped %(dropped)s
+fragment-conflict	WARNING	Merge: ELEMENT=%(spdx_id)s: %(property)s key %(entry_key)s differs; kept %(kept)s, dropped %(dropped)s
+fragment-digest-invalid	WARNING	FILE=%(file)s: SHA-256 %(measured)s does not match the configured %(declared)s
+fragment-hash-conflict	WARNING	Merge: ELEMENT=%(spdx_id)s: a %(element_type)s named %(name)s has SHA-256 %(digest)s, another of that name %(other_digest)s; both kept
+fragment-id-conflict	WARNING	Merge: ELEMENT=%(spdx_id)s: id held by a %(holder_type)s, also wanted by a %(element_type)s; both kept, the later is now %(new_id)s
+fragment-id-conflict	WARNING	Merge: ELEMENT=%(spdx_id)s: id held by two %(element_type)s elements of different %(hash_algorithm)s digests; both kept, the later is now %(new_id)s
+fragment-invalid	WARNING	FILE=%(file)s: SBOM fragment is not SPDX 3 JSON-LD Pitloom can merge (%(failure)s); not merged
+fragment-invalid	WARNING	FILE=%(file)s: SBOM fragment is not SPDX 3 JSON-LD Pitloom can merge (%(failure)s); required, so the merge will fail
+fragment-invalid	WARNING	FILE=%(file)s: SBOM fragment is not valid JSON (%(failure)s); not merged
+fragment-invalid	WARNING	FILE=%(file)s: SBOM fragment is not valid JSON (%(failure)s); required, so the merge will fail
+fragment-missing	ERROR	%(number)s required SBOM fragment(s) not merged: %(files)s; fix each as its WARNING says
+fragment-missing	ERROR	no SBOM fragment in %(path)s could be merged; fix each as its WARNING says
+fragment-unreadable	WARNING	FILE=%(file)s: SBOM fragment could not be read (%(failure)s); not merged
+fragment-unreadable	WARNING	FILE=%(file)s: SBOM fragment could not be read (%(failure)s); required, so the merge will fail
+fragment-unusable	WARNING	FILE=%(file)s: SBOM fragment is the document being merged into (%(spdx_id)s); not merged
+fragment-unusable	WARNING	FILE=%(file)s: SBOM fragment is the document being merged into (%(spdx_id)s); required, so the merge will fail
+generated-value-conflict	INFO	Merge: ELEMENT=%(spdx_id)s: %(property)s generated from the model file replaced by a fragment's; kept %(kept)s, dropped %(dropped)s
+generated-value-conflict	INFO	Merge: ELEMENT=%(spdx_id)s: %(property)s now holds a value; dropped its not_measured provenance of %(provenance_field)s
+generated-value-conflict	INFO	Merge: ELEMENT=%(spdx_id)s: name replaced by the one the fragments agree on; kept %(kept)s, dropped %(dropped)s
+git-filter-unusable	INFO	URL=%(url)s: the server rejected the blob filter; fetching without it
+git-link-unsafe	INFO	URL=%(url)s: %(number)s symbolic link(s) leading out of the repository, into its .git directory or to a directory; removed, not followed
+git-missing	ERROR	git is not installed or not on PATH; nothing fetched
+git-redirect-unusable	INFO	URL=%(url)s: could not be checked for a redirect (%(why)s); git asked directly
+git-ref-not-found	ERROR	URL=%(url)s: no branch or tag %(ref)s; a commit needs its full 40 or 64 hex digits
+git-repository-unusable	ERROR	git %(command)s: %(error)s; nothing fetched
+git-repository-unusable/empty	ERROR	URL=%(url)s: an empty repository (no commits); nothing read
+git-url-invalid	ERROR	URL=%(url)s: a path part decodes to ., .., an empty part, a backslash, a NUL or .git; nothing fetched
+git-url-invalid	ERROR	URL=%(url)s: only http and https URLs are fetched (not ssh, git, file or scp-style addresses); nothing fetched
+git-url-invalid	ERROR	URL=%(url)s: the URL names no host; nothing fetched
+git-url-invalid	ERROR	URL=%(url)s: the port is not a number; nothing fetched
+hf-url-invalid	ERROR	URL=%(url)s: not a valid Hugging Face URL or model ID
+hook-no-effect	INFO	build variant 'editable' skipped; its wheel does not hold the project's files
+hook-no-effect	INFO	disabled; skipping SBOM generation
+hook-no-effect	INFO	target %(target)s is not 'wheel'; skipping SBOM generation
+hub-response-invalid	WARNING	URL=%(url)s: the Hub's answer could not be read (%(failure)s); %(outcome)s
+hub-revision-unpinned	WARNING	URL=%(url)s: the Hub stated no revision; files are read at the default branch as it is now
 hyperparameter-conflict	WARNING	FORMAT=%(format)s FILE=%(file)s: hyperparameter parameters replaced by the parameter count
-input-not-found	ERROR	File %(path)s in the repository at that branch is a symbolic link; links are not followed.
-input-not-found	ERROR	Model file not found: %(path)s
-input-not-found	ERROR	No file %(path)s in the repository at that branch.
-input-not-found	ERROR	No folder %(path)s in the repository at that branch.
+index-path-no-effect	WARNING	ID registry: PATH %(path)s is under a skipped directory name (%(name)s); not indexed
+input-not-found	ERROR	%(input)s not found: %(path)s
+input-not-found	ERROR	%(input)s not found: %(path)s is not a directory
+input-not-found	ERROR	%(input)s not found: %(path)s is not a file
+input-not-found	ERROR	file %(path)s in the repository at that branch is a symbolic link; links are not followed
+input-not-found	ERROR	no JSON fragment file in %(path)s
+input-not-found	ERROR	no directory %(path)s in the repository at that branch
+input-not-found	ERROR	no file %(path)s in the repository at that branch
+input-not-found	ERROR	no source or data directory under %(path)s; pass PATH arguments
+input-not-found	ERROR	no wheel file matches %(path)s
+input-not-found	ERROR	no wheel file matches %(path)s: the pattern nests too deeply to expand; name each wheel file without a pattern
+input-not-found	WARNING	%(input)s not found: %(path)s
+input-not-found	WARNING	%(input)s not found: %(path)s is not a file
+input-not-found/fragment	WARNING	FILE=%(file)s: SBOM fragment not found; not merged
+input-not-found/fragment	WARNING	FILE=%(file)s: SBOM fragment not found; required, so the merge will fail
+input-not-found/hub	ERROR	URL=%(url)s: the Hugging Face Hub knows no such model; if it is private, set HF_TOKEN to a token with access, or run 'hf auth login'
+input-not-found/hub	ERROR	target not found: %(path)s is no local path, and the Hugging Face Hub knows no model %(url)s; if it is private, set HF_TOKEN to a token with access, or run 'hf auth login'
+installed-metadata-ambiguous	WARNING	DIR=%(dir)s: several installed-metadata candidates (%(files)s); used %(entry)s
+installed-metadata-unusable	WARNING	DIR=%(dir)s: %(entry)s declares name %(name)s, not the project's; ignored
+installed-metadata-unusable	WARNING	DIR=%(dir)s: %(entry)s declares no name; ignored
+installed-metadata-unusable	WARNING	DIR=%(dir)s: %(entry)s has no %(file)s; ignored
+interrupted	ERROR	interrupted
+interrupted	WARNING	received %(signal)s after %(activity)s; exiting after cleanup
+interrupted	WARNING	received %(signal)s during %(activity)s; exiting after cleanup
 json-malformed	ERROR	FILE=%(file)s: not a JSON object %(use)s
 json-malformed	ERROR	FILE=%(file)s: not valid JSON %(use)s; %(failure)s
+json-malformed	WARNING	FILE=%(file)s: not a JSON object %(use)s
+json-malformed	WARNING	FILE=%(file)s: not valid JSON %(use)s; %(failure)s
+json-malformed/bom	WARNING	FILE=%(file)s: SBOM starts with a byte order mark, which JSON text must not have; dropped
 lfs-pointer	ERROR	%(path)s: header is a Git LFS pointer, content not fetched (oid sha256:%(oid)s, size %(size)s); clone with git lfs, then run on the file
 lfs-pointer	ERROR	%(path)s: header is a Git LFS pointer, content not pulled (oid sha256:%(oid)s, size %(size)s); run 'git lfs pull'
 lfs-pointer	WARNING	FILE=%(file)s: Git LFS pointer, content not read%(count)s; clone with git lfs, then run on the directory
@@ -44,33 +244,117 @@ lfs-pointer-malformed	WARNING	FORMAT=%(format)s FILE=%(file)s: header looks like
 lfs-pointer/shipped	WARNING	FILE=%(file)s: Git LFS pointer shipped%(count)s; the build did not pull LFS content
 library-missing	ERROR	required library not installed: %(module)s; install %(requirement)s
 library-missing	WARNING	FORMAT=%(format)s FILE=%(file)s: required library not installed; install %(requirement)s
+library-missing	WARNING	required library not installed: %(module)s; install %(requirement)s
 library-unusable	ERROR	required library failed to import: %(module)s: %(error)s; reinstall %(requirement)s
 library-unusable	WARNING	FORMAT=%(format)s FILE=%(file)s: required library failed to import: %(error)s; reinstall %(requirement)s
+library-unusable	WARNING	required library API not found: poetry-core: %(error)s; Poetry dependency tables not read; reinstall Pitloom
 library-unusable	WARNING	required library failed to import: %(module)s: %(error)s; content types from file extensions; reinstall %(requirement)s
+library-unusable/hatchling	ERROR	Hatchling %(version)s cannot embed an SBOM (PEP 770 needs %(minimum_version)s or later); upgrade Hatchling
+library-unusable/hatchling	ERROR	Hatchling version unknown (no package metadata found); PEP 770 needs %(minimum_version)s or later, reinstall Hatchling
+license-ambiguous	WARNING	CLASSIFIERS=%(classifiers)s: several licence classifiers; recorded as %(expression)s, assuming AND (they may offer a choice)
+license-conflict	WARNING	FILE=%(file)s: an SPDX license expression and License :: classifiers both state a licence; kept the expression, dropped the classifiers (PEP 639 transitional state)
+license-db-missing	INFO	licenseid database not found: %(path)s; licence text detection skipped; run 'licenseid update --source packaged'
+license-db-missing	WARNING	licenseid database not found: %(path)s; licence text detection skipped; run 'licenseid update --source packaged'
+license-db-unusable	WARNING	licenseid database cannot be used: %(failure)s; licence text detection skipped
+license-expression-invalid	WARNING	FIELD=%(field)s LICENSE=%(license)s: not read as an SPDX license expression (%(license_reason)s); recorded as licence text
+license-expression-invalid	WARNING	LICENSE=%(license)s: not a valid SPDX license expression (%(license_reason)s); recorded as licence text
+license-expression-invalid/resolved	INFO	FIELD=%(field)s LICENSE=%(license)s: read as %(expression)s (%(steps)s)
+license-expression-invalid/resolved	INFO	LICENSE=%(license)s: read as %(expression)s (%(steps)s)
+license-expression-malformed	WARNING	FIELD=%(field)s LICENSE=%(license)s: malformed SPDX license expression (%(license_reason)s); recorded as licence text
+license-expression-malformed	WARNING	LICENSE=%(license)s: malformed SPDX license expression (%(license_reason)s); recorded as licence text
 license-relationship-invalid	ERROR	Fragment merge left a licence relationship of the wrong type; fix the fragment
 license-relationship-invalid	WARNING	RELATIONSHIP=%(name)s: a licence relationship goes to %(target)s, which is not an AnyLicenseInfo; point it at a LicenseExpression
 license-relationship-invalid	WARNING	RELATIONSHIP=%(name)s: a licence relationship starts at %(target)s, which is not a package, file or snippet; start it at one
+lock-entry-conflict	WARNING	FILE=%(file)s PACKAGE=%(package)s: pinned to several versions; no pins read from it, dropped %(dropped)s
+lock-entry-conflict	WARNING	FILE=%(file)s PACKAGE=%(package)s: pinned to several versions; skipped, dropped %(dropped)s
+lock-entry-conflict	WARNING	PACKAGE=%(package)s: pinned to several versions in the locked dependencies; skipped, dropped %(dropped)s
+lock-entry-malformed	WARNING	FILE=%(file)s LINE=%(line_number)s: not a PEP 508 requirement: %(why)s; no pins read from it
+lock-entry-malformed	WARNING	FILE=%(file)s PACKAGE=%(package)s: %(lock_key)s holds a value that is not a string; that value not followed, pin kept
+lock-entry-malformed	WARNING	FILE=%(file)s PACKAGE=%(package)s: %(lock_key)s is %(value_type)s, expected a list; its dependencies not followed, pin kept
+lock-entry-malformed	WARNING	FILE=%(file)s PACKAGE=%(package)s: %(lock_key)s is %(value_type)s, expected a list; skipped
+lock-entry-malformed	WARNING	FILE=%(file)s PACKAGE=%(package)s: %(lock_key)s is %(value_type)s, expected a string or a list; requested extras not followed, pin kept
+lock-entry-malformed	WARNING	FILE=%(file)s PACKAGE=%(package)s: %(lock_key)s is %(value_type)s, expected a string; skipped
+lock-entry-malformed	WARNING	FILE=%(file)s PACKAGE=%(package)s: %(lock_key)s is %(value_type)s, expected a table; requested extras not followed, pin kept
+lock-entry-malformed	WARNING	FILE=%(file)s PACKAGE=%(package)s: %(lock_key)s of extra %(extra_name)s is %(value_type)s, expected a list; extra not followed, pin kept
+lock-entry-malformed	WARNING	FILE=%(file)s PACKAGE=%(package)s: entry is %(value_type)s, expected a table; skipped
+lock-entry-malformed	WARNING	FILE=%(file)s PACKAGE=%(package)s: extra %(extra_name)s requested but not in its %(lock_key)s; extra not followed, pin kept
+lock-entry-malformed	WARNING	FILE=%(file)s PACKAGE=%(package)s: marker %(lock_value)s does not parse: %(failure)s; kept, its marker read as true
+lock-entry-malformed	WARNING	FILE=%(file)s PACKAGE=%(package)s: referenced but not in the lock's package table; skipped
+lock-entry-malformed	WARNING	FILE=%(file)s PACKAGE=%(package)s: version %(lock_value)s is not a version specifier; skipped
+lock-entry-malformed	WARNING	FILE=%(file)s PACKAGE=%(package)s: version missing or not a version; skipped
+lock-entry-malformed	WARNING	FILE=%(file)s: an entry of %(lock_key)s has name %(lock_value)s, not a valid package name; skipped
+lock-entry-malformed	WARNING	FILE=%(file)s: an entry of %(lock_key)s is %(value_type)s, expected a table; skipped
+lock-entry-unusable	WARNING	FILE=%(file)s LINE=%(line_number)s: %(package)s is a direct reference, not a pin; no pins read from it
+lock-entry-unusable	WARNING	FILE=%(file)s LINE=%(line_number)s: %(package)s is not one exact version; no pins read from it
+lock-entry-unusable	WARNING	FILE=%(file)s LINE=%(line_number)s: pip option %(lock_value)s, not a pin; no pins read from it
+lock-entry-unusable	WARNING	FILE=%(file)s PACKAGE=%(package)s: a %(source_kind)s source, not a registry version; skipped
+lock-entry-unusable	WARNING	FILE=%(file)s PACKAGE=%(package)s: its reference states a version per marker; skipped
+lock-entry-unusable	WARNING	FILE=%(file)s PACKAGE=%(package)s: version %(lock_value)s is not one exact version; skipped
+lock-file-conflict	WARNING	two lock files hold resolved dependencies; kept %(kept)s, dropped %(dropped)s
+lock-file-malformed	WARNING	FILE=%(file)s: does not parse: %(failure)s; no pins read from it
+lock-file-malformed	WARNING	FILE=%(file)s: the project's own entry: %(lock_key)s is %(value_type)s, expected a list; no pins read from it
+lock-file-malformed	WARNING	FILE=%(file)s: top-level %(lock_key)s is %(value_type)s, expected a list of strings; read as empty
+lock-file-malformed	WARNING	FILE=%(file)s: top-level %(lock_key)s is %(value_type)s, expected a list; no pins read from it
+lock-file-malformed	WARNING	FILE=%(file)s: top-level %(lock_key)s is %(value_type)s, expected a non-empty string; no pins read from it
+lock-file-malformed	WARNING	FILE=%(file)s: top-level %(lock_key)s is %(value_type)s, expected a table; no pins read from it
+lock-file-malformed	WARNING	FILE=%(file)s: top-level %(lock_key)s missing; no pins read from it
+lock-file-malformed	WARNING	FILE=%(file)s: top-level value is %(value_type)s, expected an object; no pins read from it
+lock-file-unusable	WARNING	FILE=%(file)s: no entry for the project (no editable or virtual source); no pins read from it
+lock-file-unusable	WARNING	FILE=%(file)s: workspace entries: %(number)s, no project name to choose one; no pins read from it
+lock-file-unusable	WARNING	FILE=%(file)s: workspace entries: %(number)s, none named %(package)s; no pins read from it
+lock-file-wrong-format	WARNING	FILE=%(file)s: %(lock_key)s %(lock_value)s is a major version Pitloom does not read (it reads %(number)s); no pins read from it
+lock-file-wrong-format	WARNING	FILE=%(file)s: %(lock_key)s %(lock_value)s is newer than the version Pitloom reads; read; newer keys not read
+lock-file-wrong-format	WARNING	FILE=%(file)s: %(lock_key)s %(lock_value)s is not a major.minor version; no pins read from it
+lock-file-wrong-format	WARNING	FILE=%(file)s: format marker %(lock_key)s missing or of the wrong type; no pins read from it
+metadata-conflict	WARNING	DIR=%(dir)s: %(field)s: declared and installed metadata disagree; kept the declared %(kept)s, dropped the installed %(dropped)s
+metadata-conflict	WARNING	DIR=%(dir)s: %(field)s: setup.py and setup.cfg disagree; kept setup.cfg's %(kept)s, dropped setup.py's %(dropped)s
+metadata-conflict	WARNING	DIR=%(dir)s: %(field)s: setup.py and setup.cfg disagree; kept setup.py's %(kept)s, dropped setup.cfg's %(dropped)s
+metadata-conflict	WARNING	DIR=%(dir)s: names project %(project_value)s, not the wheel's %(wheel_value)s; authors from the wheel METADATA
+metadata-invalid	ERROR	FILE=%(file)s: %(field)s has a number over %(number)s digits
+metadata-invalid	ERROR	FILE=%(file)s: %(field)s is %(got)s, expected %(expected)s
+metadata-invalid	ERROR	FILE=%(file)s: not valid [project] metadata; %(failure)s
+metadata-invalid	WARNING	FILE=%(file)s: %(field)s has 'attr', not supported for requirements; ignored
+metadata-invalid	WARNING	FILE=%(file)s: %(field)s has a number over %(number)s digits
+metadata-invalid	WARNING	FILE=%(file)s: %(field)s is %(got)s, expected %(expected)s
+metadata-invalid	WARNING	FILE=%(file)s: %(field)s is %(got)s, expected %(expected)s; ignored
+metadata-invalid	WARNING	FILE=%(file)s: %(field)s is not a table with 'file'; ignored
+metadata-invalid	WARNING	FILE=%(file)s: [project] has no name; read setup.cfg and setup.py instead
+metadata-invalid	WARNING	FILE=%(file)s: listed by %(field)s, not a file name; skipped
+metadata-invalid	WARNING	FILE=%(file)s: listed by %(field)s, not found; skipped
+metadata-invalid	WARNING	FILE=%(file)s: not valid [project] metadata; %(failure)s
+metadata-invalid	WARNING	FILE=%(file)s: setup() keyword %(name)s has a value Pitloom does not read (%(value)s); treated as undeclared
+metadata-invalid	WARNING	FILE=%(file)s: setup() keyword %(name)s is blank; treated as undeclared
+metadata-invalid	WARNING	FILE=%(file)s: setup() keyword %(name)s is not a literal; treated as undeclared
+metadata-invalid	WARNING	FILE=%(file)s: setup() keyword %(name)s is not read; treated as undeclared
+metadata-malformed	ERROR	FILE=%(file)s: not valid Python; %(failure)s
+metadata-malformed	WARNING	FILE=%(file)s: %(name)s line too deeply nested to parse; skipped for %(field)s
+metadata-malformed	WARNING	FILE=%(file)s: not valid Python; %(failure)s
+metadata-no-effect	WARNING	FILE=%(file)s: %(field)s not read: Poetry reads [project] %(metadata_fields)s instead; ignored
+metadata-no-effect	WARNING	FILE=%(file)s: %(field)s: pip option lines %(entries)s, which setuptools does not accept; skipped
+metadata-no-effect	WARNING	FILE=%(file)s: [tool.poetry] %(entries)s not read: build-backend %(backend)s does not read them; ignored
 model-ambiguous	ERROR	%(path)s: several AI model files%(count)s; name one file
 model-ambiguous	INFO	FILE=%(file)s: one of several AI model files
 model-ambiguous/over-cap	ERROR	%(path)s: more than %(limit)s files that could be AI models, none read; name one file
 model-field-conflict	WARNING	GGUF key %(entry)s is in the file; the length of array %(name)s is not a property
 model-field-conflict	WARNING	ONNX metadata_props: %(number)s key(s) appear more than once; kept the last value of each: %(name)s
+model-field-invalid	WARNING	FORMAT=%(format)s FILE=%(file)s: release time is not ISO 8601; left out
 model-field-unreadable	WARNING	%(part)s %(error)s; kept as properties.model_config_raw | Field(s) affected (skipped): %(fields)s
 model-field-unreadable	WARNING	%(part)s %(error)s; kept as properties.model_config_raw, the first %(limit)s of %(number)s characters | Field(s) affected (skipped): %(fields)s
 model-field-unreadable	WARNING	%(part)s %(error)s; reading stopped there | Field(s) affected (skipped): %(fields)s
 model-field-unreadable	WARNING	%(part)s %(error)s; the fields read before it are kept | Field(s) affected (skipped): %(fields)s
 model-field-unreadable	WARNING	%(part)s %(error)s; the other archive members are read | Field(s) affected (skipped): %(fields)s
 model-field-unreadable	WARNING	%(part)s attribute cannot be read; %(error)s | Field(s) affected (skipped): %(fields)s
-model-field-unreadable	WARNING	Failed to inspect %(entry)s in %(name)s: %(error)s | Field(s) affected (skipped): %(fields)s
-model-field-unreadable	WARNING	Failed to parse PT2 extra/tags as JSON: %(error)s | Field(s) affected (degraded): %(fields)s
-model-field-unreadable	WARNING	Failed to parse PT2 metadata entry %(entry)s: %(error)s | Field(s) affected (skipped): %(fields)s
-model-field-unreadable	WARNING	Failed to parse PT2 model graph %(entry)s: %(error)s | Field(s) affected (skipped): %(fields)s
-model-field-unreadable	WARNING	Failed to read PT2 %(entry)s: %(error)s | Field(s) affected (skipped): %(fields)s
-model-field-unreadable	WARNING	Failed to read PT2 extra file %(entry)s: %(error)s | Field(s) affected (skipped): %(fields)s
-model-field-unreadable	WARNING	Failed to read fastText model labels: %(error)s | Field(s) affected (skipped): %(fields)s
-model-field-unreadable	WARNING	Failed to read fastText model.f.getArgs(): %(error)s | Field(s) affected (skipped): %(fields)s
+model-field-unreadable	WARNING	failed to inspect %(entry)s in %(name)s: %(error)s | Field(s) affected (skipped): %(fields)s
+model-field-unreadable	WARNING	failed to parse PT2 extra/tags as JSON: %(error)s | Field(s) affected (degraded): %(fields)s
+model-field-unreadable	WARNING	failed to parse PT2 metadata entry %(entry)s: %(error)s | Field(s) affected (skipped): %(fields)s
+model-field-unreadable	WARNING	failed to parse PT2 model graph %(entry)s: %(error)s | Field(s) affected (skipped): %(fields)s
+model-field-unreadable	WARNING	failed to read PT2 %(entry)s: %(error)s | Field(s) affected (skipped): %(fields)s
+model-field-unreadable	WARNING	failed to read PT2 extra file %(entry)s: %(error)s | Field(s) affected (skipped): %(fields)s
+model-field-unreadable	WARNING	failed to read fastText model labels: %(error)s | Field(s) affected (skipped): %(fields)s
+model-field-unreadable	WARNING	failed to read fastText model.f.getArgs(): %(error)s | Field(s) affected (skipped): %(fields)s
 model-field-unreadable	WARNING	fickling failed to parse pickle bytes: %(error)s | Field(s) affected (skipped): %(fields)s
 model-field-unreadable	WARNING	fickling parsed pickle but AST walk failed: %(error)s | Field(s) affected (skipped): %(fields)s
+model-file-missing	WARNING	loom SDK: model %(entity)s: path= %(path)s is not a file at exit; not hashed
 model-unreadable	WARNING	FORMAT=%(format)s FILE=%(file)s: %(reason)s; metadata not read
 model-unreadable	WARNING	FORMAT=%(format)s FILE=%(file)s: failed to extract metadata; %(error)s
 model-wrong-format	ERROR	%(path)s: file is empty
@@ -79,18 +363,65 @@ model-wrong-format	ERROR	%(path)s: not an AI model file of a supported format
 model-wrong-format	WARNING	FORMAT=%(format)s FILE=%(file)s: header is not %(format)s; not listed as an AI model
 offline-unusable	ERROR	URL=%(url)s: network access is forbidden (offline mode); nothing fetched
 offline-unusable	WARNING	URL=%(url)s: network access is forbidden (offline mode); %(outcome)s
+option-conflict	ERROR	%(option)s cannot be used %(when)s
+option-conflict	ERROR	ID registry: FILE=%(file)s: namespace %(namespace)s is not --namespace %(given_namespace)s (they differ in masked credentials); delete it to change the namespace
+option-conflict	ERROR	ID registry: FILE=%(file)s: namespace %(namespace)s is not --namespace %(given_namespace)s; delete it to change the namespace
+option-conflict	ERROR	ID registry: FILE=%(file)s: project root %(path)s is not %(root)s; delete it to change the project root
+option-conflict	ERROR	argument %(option)s: not allowed with argument %(other)s
+option-invalid	ERROR	%(option)s: must be %(expected)s, got %(got)s
+option-invalid	ERROR	ID registry: PATH %(path)s is not inside the project root %(root)s
+option-invalid	ERROR	PATH %(path)s is outside --project-dir %(root)s
+option-invalid	ERROR	ambiguous option: %(error)s
+option-invalid	ERROR	argument %(option)s: %(refusal)s
+option-invalid	ERROR	build timeout must be 1-%(limit)s seconds, got %(value)s
+option-invalid	ERROR	loom SDK: %(option)s: must be %(expected)s, got %(got)s
+option-invalid	ERROR	namespace %(namespace_problem)s: %(namespace)s
+option-invalid	ERROR	namespace is empty
+option-invalid	ERROR	not a fingerprint (sha256: and 16 to 64 lowercase hex digits)
+option-invalid	ERROR	unrecognized arguments: %(error)s
+option-missing	ERROR	-o/--output is required: a detected target has no default file name; pass -o FILE, or use 'loom project', 'loom wheel', 'loom model' or 'loom env' for that target's own default
+option-missing	ERROR	argument %(option)s: expected %(arity)s
+option-missing	ERROR	loom SDK: no model set; call set_model() or use_model() first
+option-missing	ERROR	no ID registry declared: pass --id-registry FILE or set id-registry in %(table)s
+option-missing	ERROR	the following arguments are required: %(error)s
+option-missing/project-dir	INFO	--project-dir not given; the SBOM is built from the wheel alone, not from the project in the current directory
+option-no-effect	INFO	Options: %(name)s: %(option)s has no effect %(when)s
+option-no-effect	WARNING	Build: %(name)s: %(option)s has no effect %(when)s
+option-no-effect	WARNING	Options: %(name)s: %(option)s has no effect %(when)s
+option-no-effect	WARNING	Options: DIR=%(dir)s: url-credentials not read: %(failure)s; the warn mode applies; add %(option)s to refuse
+option-no-effect	WARNING	Options: FILE=%(file)s: %(option)s has no [tool.pitloom] table; the defaults apply
+option-no-effect	WARNING	Options: FINGERPRINT=%(fingerprint)s: matches no URL of the SBOM %(element)s
 over-cap	ERROR	FILE=%(file)s: larger than the %(limit)s-%(unit)s %(purpose)s cap %(use)s; not read
 over-cap	ERROR	FILE=%(file)s: larger than the %(limit)s-%(unit)s %(purpose)s cap; not downloaded
-over-cap	ERROR	config file %(path)s: larger than the %(limit)s-%(unit)s %(purpose)s cap; not read
 over-cap	ERROR	git %(command)s produced more than %(size)s
 over-cap	ERROR	the repository is larger than the %(limit)s-%(unit)s %(purpose)s cap; git %(command)s was stopped
 over-cap	WARNING	%(key)s=%(name)s: larger than the %(limit)s-%(unit)s %(purpose)s cap; %(outcome)s
+over-cap	WARNING	FILE=%(file)s: all %(number)s metadata key(s) left out to fit the %(limit)s-byte %(purpose)s cap
+over-cap	WARNING	FILE=%(file)s: its metadata does not fit the %(limit)s-byte %(purpose)s cap even with no key; artifact-metadata annotation left out
+over-cap	WARNING	FILE=%(file)s: larger than the %(limit)s-%(unit)s %(purpose)s cap %(use)s; not read
+over-cap	WARNING	FORMAT=%(format)s FILE=%(file)s: all %(number)s metadata key(s) left out to fit the %(limit)s-byte %(purpose)s cap
+over-cap	WARNING	FORMAT=%(format)s FILE=%(file)s: its metadata does not fit the %(limit)s-byte %(purpose)s cap even with no key; artifact-metadata annotation left out
 over-cap	WARNING	FORMAT=%(format)s FILE=%(file)s: larger than the %(limit)s-%(unit)s %(purpose)s cap; %(outcome)s
+over-cap	WARNING	PACKAGE=%(package)s %(key)s=%(name)s: larger than the %(limit)s-%(unit)s %(purpose)s cap; %(outcome)s
 parameter-count-invalid	WARNING	FORMAT=%(format)s FILE=%(file)s: stated parameter count is not a non-negative integer; parameter count not recorded
 parameter-count-invalid	WARNING	tensor dimension %(value)s is not a non-negative integer; parameter count not recorded
-project-not-found	ERROR	No pyproject.toml, setup.cfg, or setup.py found in %(path)s
-project-not-found/model-files	ERROR	No pyproject.toml, setup.cfg, or setup.py found in %(path)s; it holds files that may be AI models (%(files)s): use 'loom model <url>' or 'loom generate <url>'
-project-or-model-not-found	ERROR	%(path)s: no Python project (pyproject.toml, setup.cfg or setup.py) and no AI model file of a supported format; name a project folder or a model file
+project-name-missing	ERROR	DIR=%(dir)s: no project name in setup.cfg [metadata] or a literal setup(name=...)
+project-name-missing	ERROR	FILE=%(file)s: [metadata] has no project name
+project-name-missing	ERROR	FILE=%(file)s: neither [tool.poetry] nor [project] has a project name
+project-name-missing	ERROR	FILE=%(file)s: no project name: setup(name=...) is not a string literal
+project-name-missing	WARNING	DIR=%(dir)s: no project name in setup.cfg [metadata] or a literal setup(name=...)
+project-name-missing	WARNING	FILE=%(file)s: [metadata] has no project name
+project-name-missing	WARNING	FILE=%(file)s: neither [tool.poetry] nor [project] has a project name
+project-name-missing	WARNING	FILE=%(file)s: no project name: setup(name=...) is not a string literal
+project-not-found	ERROR	%(path)s: no Python project (pyproject.toml, setup.cfg or setup.py)
+project-not-found	ERROR	%(path)s: no Python project (pyproject.toml, setup.cfg or setup.py); Python projects are in subdirectories (%(folders)s); Pitloom reads the directory in the URL only
+project-not-found	ERROR	%(path)s: no Python project (pyproject.toml, setup.cfg or setup.py); Python projects are in subdirectories (%(folders)s); give the URL of one of them
+project-not-found/model-files	ERROR	%(path)s: no Python project (pyproject.toml, setup.cfg or setup.py); it holds files that may be AI models (%(files)s): use 'loom model <url>' or 'loom generate <url>'
+project-not-found/model-files	ERROR	%(path)s: no Python project (pyproject.toml, setup.cfg or setup.py); it holds files that may be AI models (%(files)s): use generate_git_sbom(url, sbom_kind='model') or generate(url)
+project-or-model-not-found	ERROR	%(path)s: no Python project (pyproject.toml, setup.cfg or setup.py) and no AI model file of a supported format; Python projects are in subdirectories (%(folders)s); Pitloom reads the directory in the URL only
+project-or-model-not-found	ERROR	%(path)s: no Python project (pyproject.toml, setup.cfg or setup.py) and no AI model file of a supported format; Python projects are in subdirectories (%(folders)s); give the URL of one of them
+project-or-model-not-found	ERROR	%(path)s: no Python project (pyproject.toml, setup.cfg or setup.py) and no AI model file of a supported format; name a project directory or a model file
+project-unreadable	WARNING	DIR=%(dir)s: project metadata not read; authors from the wheel METADATA; %(failure)s
 pypi-response-invalid	ERROR	FILE=%(file)s: PyPI declares no SHA-256 digest; not downloaded
 pypi-response-invalid	ERROR	PYPI=%(name)s: PyPI answered for project %(answered)s; not read
 pypi-response-invalid	ERROR	PYPI=%(name)s: the PyPI JSON API answer has no valid %(field)s; not read
@@ -104,15 +435,107 @@ pypi-url-invalid	ERROR	URL=%(url)s: not a PyPI project or release page; give htt
 pypi-url-invalid	ERROR	URL=%(url)s: only pypi.org is read; another index is not supported yet
 pypi-url-invalid	ERROR	URL=%(url)s: pypi.python.org is PyPI's old address; give https://pypi.org/project/<name>/
 pypi-url-unusable	ERROR	URL=%(url)s: --embed writes into a wheel file, and a PyPI URL has none to keep; nothing fetched
-pypi-url-unusable	ERROR	URL=%(url)s: a PyPI page is not a Git repository; generate_pypi_sbom(), 'loom wheel' or 'loom project' reads it; nothing fetched
+pypi-url-unusable	ERROR	URL=%(url)s: a PyPI page is not a Git repository; generate_pypi_sbom() reads it; nothing fetched
 pypi-url-unusable	ERROR	URL=%(url)s: a PyPI page is not a model; 'loom wheel' reads its wheel, 'loom project' its sdist; nothing fetched
+pypi-url-unusable	ERROR	URL=%(url)s: a PyPI page is not a model; generate_pypi_sbom() reads its wheel, generate_pypi_sbom(kind='sdist') its sdist; nothing fetched
 query-no-effect	INFO	URL=%(url)s: the query and fragment have no effect; cut
+query-no-effect	INFO	URL=%(url)s: the version names no branch, tag or commit; the default branch is read
 reader-unsafe	INFO	AI models in a wheel in these formats are listed without metadata, their reader not being run on a wheel's files: %(formats)s; pass --trust-model-files for a wheel you trust
+reader-unsafe	INFO	AI models in a wheel in these formats are listed without metadata, their reader not being run on a wheel's files: %(formats)s; set ConfigOverrides.trust_model_files=True for a wheel you trust
+reader-unsafe	INFO	AI models in a wheel in these formats are listed without metadata, their reader not being run on a wheel's files: %(formats)s; set trust_model_files=True for a wheel you trust
 reader-unsafe/remote	INFO	AI models from a Git URL in these formats are listed without metadata, their reader not being run on a downloaded file: %(formats)s; pass --trust-model-files for a repository you trust
+reader-unsafe/remote	INFO	AI models from a Git URL in these formats are listed without metadata, their reader not being run on a downloaded file: %(formats)s; set trust_model_files=True for a repository you trust
 reader-unsafe/remote	INFO	FILE=%(file)s: AI models in these formats are listed without metadata, their reader not being run on a downloaded file: %(formats)s; pass --trust-model-files for a release you trust
+reader-unsafe/remote	INFO	FILE=%(file)s: AI models in these formats are listed without metadata, their reader not being run on a downloaded file: %(formats)s; set trust_model_files=True for a release you trust
+reference-not-found	ERROR	%(number)s reference(s) to elements not in the merged document; regenerate the base SBOM, then run the enrichment again
+reference-not-found	WARNING	Merge: ELEMENT=%(spdx_id)s: %(property)s names %(reference)s, which is not in the merged document; regenerate the base SBOM, then run the enrichment again
+reference-not-found/dataset	WARNING	loom SDK: add_output_dataset(%(dataset)s) names input_datasets=%(dataset_input)s, which no add_input_dataset of this run declared; not linked
+registry-conflict	WARNING	ID registry: %(spdx_id)s is registered for both %(entity)s and %(claimant)s; the second gets a new id
+registry-conflict/concurrent	WARNING	ID registry: another run saved %(spdx_id)s for %(element_type)s %(entity)s first; not recording it for %(claimant)s
+registry-conflict/file-set	WARNING	ID registry: FILE=%(file)s: inside dataset directory %(dir)s; left out of its Merkle root
+registry-conflict/file-set	WARNING	ID registry: FILE=%(file)s: inside the project's file set; left out of it
+registry-conflict/held	INFO	ID registry: %(element_type)s %(entity)s not imported: its id is held under %(claimant)s
+registry-conflict/spelling	WARNING	ID registry: dataset %(entity)s is pinned to %(spdx_id)s, but it is read as %(claimant)s, whose id is used
+registry-conflict/type	WARNING	ID registry: %(entity)s is held under another type; minting a new spdxId
+registry-entry-missing	WARNING	ID registry: %(element_kind)s %(entity)s not found; minting a new spdxId
+registry-file-missing	ERROR	ID registry: no file to save to; pass save(path), or create the registry with a path
+registry-file-missing	WARNING	ID registry: no file to save to; the ids this run added are not saved
+registry-hash-conflict	INFO	ID registry: content changed for %(entity)s; minting a new spdxId (old: %(spdx_id)s)
+registry-hash-conflict	INFO	ID registry: model %(entity)s: no registry entry records its SHA-256; minting a new spdxId
+registry-hash-conflict	WARNING	ID registry: %(element_kind)s %(entity)s: its SHA-256 no longer matches the entry; minting a new spdxId
+registry-hash-conflict/gate	INFO	ID registry: content gate dropped for %(element_type)s %(entity)s: imported id %(spdx_id)s replaces %(claimant)s
+registry-hash-conflict/gate	INFO	ID registry: content gate kept for %(element_type)s %(entity)s: element id %(spdx_id)s with an older SHA-256 not recorded over %(claimant)s
+registry-hash-conflict/gate	INFO	ID registry: content gate kept for %(element_type)s %(entity)s: harvested id %(spdx_id)s not recorded over %(claimant)s
+registry-hash-missing	INFO	ID registry: dataset %(entity)s looked up ungated: not hashed
+registry-hash-missing	INFO	ID registry: dataset %(entity)s matched a pin without SHA-256; content not checked
+registry-hash-missing	INFO	ID registry: dataset %(entity)s pin now gated by its SHA-256
+registry-hash-missing	INFO	ID registry: dataset %(entity)s pinned without SHA-256: %(why)s
+registry-hash-missing	WARNING	ID registry: %(element_kind)s %(entity)s: the entry records a SHA-256 but no content was hashed; minting a new spdxId
+registry-hash-missing	WARNING	ID registry: loom SDK model %(entity)s has no path=; looked up ungated: not hashed
+registry-hash-missing	WARNING	ID registry: loom SDK model %(entity)s: path= %(path)s is not a file at exit; looked up ungated: not hashed
+registry-identity-missing	INFO	ID registry: -e %(entity)s stored without a version: holds only a package that states none
+registry-identity-missing	INFO	ID registry: package identity unknown; not looked up or recorded
+registry-key-ambiguous	INFO	ID registry: %(entity)s matches more than one layout alias (%(entities)s); none reused
+registry-key-ambiguous	INFO	ID registry: %(outcome)s (name held by several elements): %(entities)s
+registry-key-ambiguous	WARNING	ID registry: %(number)s files have one key once NFC-normalised, none is indexed: %(entity)s
+registry-key-moved	INFO	ID registry: %(number)s element(s) matched a registry key through the src/lib layout alias
+registry-key-moved	INFO	ID registry: %(number)s file(s) imported under their layout alias: their own key holds other content
+registry-key-moved	INFO	ID registry: %(number)s key(s) of changed content took their layout alias's id
+registry-key-moved	INFO	ID registry: %(number)s key(s) promoted from a layout alias
+registry-malformed	ERROR	ID registry: FILE=%(file)s: %(registry_part)s %(value)s cannot be encoded as UTF-8 (lone surrogate)
+registry-malformed	ERROR	ID registry: FILE=%(file)s: 'id_counters' %(name)s: %(value)s is not a whole number from 1 to 9007199254740991
+registry-malformed	ERROR	ID registry: FILE=%(file)s: 'id_counters' is not an object
+registry-malformed	ERROR	ID registry: FILE=%(file)s: 'id_counters' key %(name)s is not an id prefix
+registry-malformed	ERROR	ID registry: FILE=%(file)s: 'namespace' %(namespace_problem)s: %(namespace)s
+registry-malformed	ERROR	ID registry: FILE=%(file)s: 'project_root' %(value)s is not a relative POSIX path (relative to the registry file's directory)
+registry-malformed	ERROR	ID registry: FILE=%(file)s: duplicate key %(name)s
+registry-malformed	ERROR	ID registry: FILE=%(file)s: malformed entry: %(element_type)s %(name)s is not an object
+registry-malformed	ERROR	ID registry: FILE=%(file)s: malformed entry: %(element_type)s %(name)s: 'sha256' must be a non-empty string, or left out
+registry-malformed	ERROR	ID registry: FILE=%(file)s: malformed entry: %(element_type)s %(name)s: 'spdxId' must be a non-empty string
+registry-malformed	ERROR	ID registry: FILE=%(file)s: malformed entry: 'elements' is not an object
+registry-malformed	ERROR	ID registry: FILE=%(file)s: malformed entry: elements %(element_type)s is not an object
+registry-malformed	ERROR	ID registry: FILE=%(file)s: missing %(name)s
+registry-malformed	ERROR	ID registry: FILE=%(file)s: missing a valid 'namespace'
+registry-malformed	ERROR	ID registry: FILE=%(file)s: no %(name)s id left to mint in %(namespace)s
+registry-malformed	ERROR	ID registry: FILE=%(file)s: two %(element_type)s entries for %(name)s
+registry-malformed	WARNING	ID registry: FILE=%(file)s: %(registry_part)s %(value)s cannot be encoded as UTF-8 (lone surrogate)
+registry-malformed	WARNING	ID registry: FILE=%(file)s: 'id_counters' %(name)s: %(value)s is not a whole number from 1 to 9007199254740991
+registry-malformed	WARNING	ID registry: FILE=%(file)s: 'id_counters' is not an object
+registry-malformed	WARNING	ID registry: FILE=%(file)s: 'id_counters' key %(name)s is not an id prefix
+registry-malformed	WARNING	ID registry: FILE=%(file)s: 'namespace' %(namespace_problem)s: %(namespace)s
+registry-malformed	WARNING	ID registry: FILE=%(file)s: 'project_root' %(value)s is not a relative POSIX path (relative to the registry file's directory)
+registry-malformed	WARNING	ID registry: FILE=%(file)s: duplicate key %(name)s
+registry-malformed	WARNING	ID registry: FILE=%(file)s: malformed entry: %(element_type)s %(name)s is not an object
+registry-malformed	WARNING	ID registry: FILE=%(file)s: malformed entry: %(element_type)s %(name)s: 'sha256' must be a non-empty string, or left out
+registry-malformed	WARNING	ID registry: FILE=%(file)s: malformed entry: %(element_type)s %(name)s: 'spdxId' must be a non-empty string
+registry-malformed	WARNING	ID registry: FILE=%(file)s: malformed entry: 'elements' is not an object
+registry-malformed	WARNING	ID registry: FILE=%(file)s: malformed entry: elements %(element_type)s is not an object
+registry-malformed	WARNING	ID registry: FILE=%(file)s: missing %(name)s
+registry-malformed	WARNING	ID registry: FILE=%(file)s: missing a valid 'namespace'
+registry-malformed	WARNING	ID registry: FILE=%(file)s: no %(name)s id left to mint in %(namespace)s
+registry-malformed	WARNING	ID registry: FILE=%(file)s: two %(element_type)s entries for %(name)s
+registry-path-key-unusable	INFO	ID registry: %(element_kind)s %(entity)s keyed by its name: %(key_reason)s
+registry-path-key-unusable	INFO	ID registry: %(number)s file(s) keyed by their path as read: %(key_reason)s
+registry-path-key-unusable	INFO	ID registry: -e %(entity)s stored by name: %(key_reason)s
+registry-path-key-unusable	INFO	ID registry: model %(entity)s imported under its name: no unique file with its SHA-256
+registry-path-key-unusable	INFO	ID registry: model %(entity)s not recorded: no unique file with its SHA-256
+registry-path-key-unusable	WARNING	ID registry: file %(entity)s is outside the project root %(root)s; minting a new spdxId
+registry-unknown-key	ERROR	ID registry: FILE=%(file)s: malformed entry: %(element_type)s %(name)s has unknown key(s): %(value)s
+registry-unknown-key	ERROR	ID registry: FILE=%(file)s: unknown top-level key(s): %(name)s
+registry-unknown-key	WARNING	ID registry: FILE=%(file)s: malformed entry: %(element_type)s %(name)s has unknown key(s): %(value)s
+registry-unknown-key	WARNING	ID registry: FILE=%(file)s: unknown top-level key(s): %(name)s
+registry-unusable	ERROR	ID registry: FILE=%(file)s: project root %(path)s cannot be stored as %(value)s
+registry-unusable	ERROR	ID registry: FILE=%(file)s: project root %(path)s has no path relative to the file's directory; %(failure)s
+registry-unusable	WARNING	ID registry: FILE=%(file)s: project root %(path)s cannot be stored as %(value)s
+registry-unusable	WARNING	ID registry: FILE=%(file)s: project root %(path)s has no path relative to the file's directory; %(failure)s
+registry-wrong-format	ERROR	ID registry: FILE=%(file)s: version %(value)s, expected 4 (no migration support)
+registry-wrong-format	WARNING	ID registry: FILE=%(file)s: version %(value)s, expected 4 (no migration support)
 release-file-not-found	ERROR	PYPI=%(name)s VERSION=%(version)s: the release has no wheel; 'loom project %(url)s' reads its sdist
+release-file-not-found	ERROR	PYPI=%(name)s VERSION=%(version)s: the release has no wheel; generate_pypi_sbom('%(url)s', kind='sdist') reads its sdist
 release-file-not-found/compatible-wheel	ERROR	PYPI=%(name)s VERSION=%(version)s: no wheel matches this Python and platform (wheels: %(files)s); 'loom project %(url)s' reads its sdist
+release-file-not-found/compatible-wheel	ERROR	PYPI=%(name)s VERSION=%(version)s: no wheel matches this Python and platform (wheels: %(files)s); generate_pypi_sbom('%(url)s', kind='sdist') reads its sdist
 release-file-not-found/sdist	ERROR	PYPI=%(name)s VERSION=%(version)s: the release has no sdist; 'loom wheel %(url)s' reads a wheel
+release-file-not-found/sdist	ERROR	PYPI=%(name)s VERSION=%(version)s: the release has no sdist; generate_pypi_sbom('%(url)s') reads a wheel
 release-not-found	ERROR	PYPI=%(name)s VERSION=%(version)s: no such release on PyPI
 release-not-found	ERROR	PYPI=%(name)s: no release has a wheel or sdist with a SHA-256 digest
 release-not-found	ERROR	PYPI=%(name)s: no such project on PyPI
@@ -120,13 +543,59 @@ release-unpinned	INFO	PYPI=%(name)s VERSION=%(version)s: no version given; using
 release-unpinned/prerelease	INFO	PYPI=%(name)s VERSION=%(version)s: no version given and no stable release that is not yanked; using the newest pre-release
 release-unpinned/yanked	INFO	PYPI=%(name)s VERSION=%(version)s: no version given and every release is yanked; using the newest (yanked: %(why)s)
 release-unusable	INFO	PYPI=%(name)s VERSION=%(version)s FILE=%(file)s: the file is yanked (%(why)s); reading it anyway
+requirement-invalid	WARNING	dependency %(dependency)s (%(declared_in)s): not a PEP 508 requirement; skipped
+requirement-invalid	WARNING	dependency %(dependency)s (%(declared_in)s): not convertible to PEP 508: %(failure)s; skipped
+requirement-invalid	WARNING	dependency %(dependency)s (%(declared_in)s): optional and in no extra; skipped
+requirement-invalid	WARNING	dependency %(dependency)s: not a PEP 508 requirement; locked version %(version)s used unchecked
+requirement-invalid	WARNING	dependency %(dependency)s: not a PEP 508 requirement; recorded as required
+requirement-invalid	WARNING	extra %(extra_name)s entry %(dependency)s (%(declared_in)s): closes a cycle of self-references; skipped
+requirement-invalid	WARNING	extra %(extra_name)s entry %(dependency)s (%(declared_in)s): its marker does not parse: %(failure)s; skipped
+requirement-invalid	WARNING	extra %(extra_name)s entry %(dependency)s (%(declared_in)s): names an extra the project does not declare; skipped
+requirement-invalid	WARNING	extra %(extra_name)s entry %(dependency)s (%(declared_in)s): not a PEP 508 requirement; skipped
+requirement-invalid	WARNING	extra %(extra_name)s entry %(dependency)s (%(declared_in)s): not a declared Poetry dependency; skipped
+requirement-unusable	WARNING	dependency %(dependency)s (%(declared_in)s): a local %(source_kind)s source, not portable; skipped
+sbom-invalid	ERROR	FILE=%(file)s: SBOM @graph holds an element that is not an object
+sbom-invalid	ERROR	FILE=%(file)s: SBOM @graph is not a list
+sbom-invalid	ERROR	FILE=%(file)s: SBOM cannot be read as SPDX 3; %(failure)s
+sbom-invalid	ERROR	FILE=%(file)s: SBOM holds an object with a key given twice
+sbom-invalid	ERROR	FILE=%(file)s: SBOM is not valid; no wheel was written
+sbom-invalid	ERROR	FILE=%(file)s: could not be validated; spdx3-validate says why above
+sbom-invalid	ERROR	FILE=%(file)s: not valid SPDX 3 (%(number)s finding(s) above)
+sbom-invalid	ERROR	the SBOMs could not be validated; spdx3-validate says why above
+sbom-invalid	ERROR	the SBOMs together are not valid SPDX 3 (%(number)s finding(s) above)
+sbom-invalid	WARNING	FILE=%(file)s: SBOM namespace %(namespace_problem)s; the ID registry keeps its own, not %(namespace)s
+sbom-name-conflict	ERROR	FILE=%(file)s: also the name, ignoring case, of sbom-files entry %(path)s; set another sbom-basename in [tool.pitloom] or drop the entry
+sbom-name-invalid	WARNING	%(config_key)s: %(got)s is not a bare file name (white space or a trailing .spdx3.json); using %(base_name)s
+sbom-name-invalid	WARNING	%(option)s: %(got)s is not a bare file name (white space or a trailing .spdx3.json); using %(base_name)s
+sbom-wrong-format	ERROR	FILE=%(file)s: named .spdx3.json but not SPDX 3 JSON-LD
+source-date-epoch-invalid	ERROR	SOURCE_DATE_EPOCH=%(value)s: not an integer number of seconds since the Unix epoch
+source-date-epoch-invalid	ERROR	SOURCE_DATE_EPOCH=%(value)s: out of range for a date
 target-ambiguous	INFO	FILE=%(file)s: no Python project; reading this AI model file
-target-ambiguous	INFO	FILE=%(file)s: not an AI model file; reading its folder
+target-ambiguous	INFO	FILE=%(file)s: not an AI model file; reading its directory
 target-ambiguous	INFO	FILE=%(file)s: the one AI model file; reading it
+target-ambiguous/git-page	INFO	URL=%(url)s: %(path)s is a directory, not a file; reading it
+target-ambiguous/git-page	INFO	URL=%(url)s: %(path)s is a file, not a directory; read as the file named
+target-ambiguous/git-page	INFO	URL=%(url)s: not a repository; read as repository %(target)s
+target-ambiguous/git-page	INFO	URL=%(url)s: read as repository %(target)s
+target-ambiguous/git-page	INFO	URL=%(url)s: read as repository %(target)s, %(ref_kind)s %(ref)s
+target-ambiguous/git-page	INFO	URL=%(url)s: read as repository %(target)s, %(ref_kind)s %(ref)s, directory %(path)s
+target-ambiguous/git-page	INFO	URL=%(url)s: read as repository %(target)s, directory %(path)s
+target-ambiguous/hf-url	INFO	URL=%(url)s: read as Hugging Face model %(target)s
+target-wrong-format	ERROR	FILE=%(file)s: not a .whl file
+target-wrong-format	ERROR	URL=%(url)s: a Hugging Face model, not a project; use 'loom model'
+target-wrong-format	ERROR	URL=%(url)s: a Hugging Face model, not a project; use generate_model_sbom()
 temp-dir-unusable	ERROR	FILE=%(file)s: could not be saved in the temporary directory (%(failure)s); not downloaded
 temp-dir-unusable	WARNING	FILE=%(file)s: could not be saved in the temporary directory (%(failure)s); %(outcome)s
+temp-dir-unwritable	WARNING	DIR=%(dir)s: could not be fully removed; left in the system temp directory
+text-malformed	WARNING	ELEMENT=%(spdx_id)s: lone surrogates written as \uXXXX
 text-malformed	WARNING	FILE=%(file)s: lone surrogates written as \uXXXX
 text-malformed	WARNING	FORMAT=%(format)s FILE=%(file)s: lone surrogates written as \uXXXX
+text-malformed	WARNING	LICENSE=%(license)s: lone surrogates replaced with U+FFFD
+text-malformed/registry	ERROR	ID registry: %(registry_part)s %(value)s cannot be encoded as UTF-8 (lone surrogate)
+text-malformed/registry	WARNING	ID registry: %(registry_part)s %(value)s cannot be encoded as UTF-8 (lone surrogate); skipped
+text-malformed/registry	WARNING	ID registry: PATH %(path)s: name cannot be encoded as UTF-8 (lone surrogate); not indexed
+text-unsafe	WARNING	FORMAT=%(format)s FILE=%(file)s: invisible or bidi control characters written as \uXXXX in %(properties)s
+text-unsafe	WARNING	loom SDK: DATASET=%(dataset)s: invisible or bidi control characters written as \uXXXX in %(properties)s
 url-moved	INFO	URL=%(url)s: redirects to %(target)s; followed
 url-moved/hf-endpoint	INFO	URL=%(url)s: the Hub HF_ENDPOINT names; Hugging Face files are fetched from it
 url-unsafe	ERROR	FILE=%(file)s: download URL %(target)s is not on %(hosts)s; not fetched
@@ -135,7 +604,36 @@ url-unsafe	ERROR	URL=%(url)s: redirects to %(target)s; not followed (%(why)s)
 url-unsafe	WARNING	URL=%(url)s: more than %(number)s redirects; %(outcome)s
 url-unsafe	WARNING	URL=%(url)s: redirects to %(target)s; not followed (%(why)s); %(outcome)s
 url-unsafe/hf-endpoint	WARNING	URL=%(url)s: HF_ENDPOINT not used (%(why)s); nothing asked of the Hub
-url-unsafe/host-spelling	ERROR	URL=%(url)s: the host is not plain ASCII or is percent-encoded, which git would resolve to a host the URL does not spell; write it in ASCII (an international name in its xn-- form); nothing fetched
+url-unsafe/host-spelling	ERROR	URL=%(url)s: the host is not plain ASCII, is percent-encoded or holds a character no host name holds (=, !, white space, a leading -), which git would resolve to a host the URL does not spell or read as an option; write it in ASCII (an international name in its xn-- form); nothing fetched
 usage-unparseable	WARNING	FILE=%(file)s: could not parse as Python %(python)s for usage scanning; %(failure)s
-usage-unparseable/mention	INFO	FILE=%(file)s MODEL=%(name)s: model file name found; no usage relationship recorded
+usage-unparseable/mention	INFO	FILE=%(file)s MODEL=%(model)s: model file name found; no usage relationship recorded
 usage-unusable	WARNING	FILE=%(file)s: not scanned for usage; only a .py extension is read as Python
+wheel-invalid	ERROR	ARCHIVE=%(archive)s ENTRY=%(member)s: NUL in member name; wheel refused
+wheel-invalid	ERROR	ARCHIVE=%(archive)s ENTRY=%(member)s: duplicate member name; wheel refused
+wheel-sbom-ambiguous	ERROR	ARCHIVE=%(archive)s: %(number)s SBOMs under .dist-info/sboms/ (%(members)s); pass --sbom-filename
+wheel-sbom-ambiguous	ERROR	ARCHIVE=%(archive)s: %(number)s SBOMs under .dist-info/sboms/ (%(members)s); pass sbom_filename
+wheel-sbom-conflict	ERROR	ARCHIVE=%(archive)s: SBOM %(identity_part)s %(sbom_value)s differs from the wheel's METADATA %(wheel_value)s
+wheel-sbom-conflict	WARNING	ARCHIVE=%(archive)s: SBOM %(identity_part)s %(sbom_value)s differs from the wheel's METADATA %(wheel_value)s
+wheel-sbom-conflict/held	INFO	ARCHIVE=%(archive)s ENTRY=%(member)s: an earlier Pitloom SBOM of this wheel; removed
+wheel-sbom-conflict/held	WARNING	ARCHIVE=%(archive)s ENTRY=%(member)s: a Pitloom SBOM, not a build or analyzed one of this wheel's name and version; kept
+wheel-sbom-missing	ERROR	ARCHIVE=%(archive)s: no SBOM under .dist-info/sboms/
+wheel-sbom-missing	ERROR	ARCHIVE=%(archive)s: no SBOM under .dist-info/sboms/ named %(sbom_filename)s
+wheel-sbom-unusable	WARNING	ARCHIVE=%(archive)s ENTRY=%(member)s: SBOM format not recognised; extension not checked
+wheel-sbom-unusable	WARNING	ARCHIVE=%(archive)s ENTRY=%(member)s: no validator for the SBOM's format; not validated
+wheel-sbom-unusable	WARNING	ARCHIVE=%(archive)s: SBOM %(identity_part)s not cross-checked: neither the wheel's METADATA nor the SBOM's subject states one
+wheel-sbom-unusable	WARNING	ARCHIVE=%(archive)s: SBOM %(identity_part)s not cross-checked: the SBOM's subject states none
+wheel-sbom-unusable	WARNING	ARCHIVE=%(archive)s: SBOM %(identity_part)s not cross-checked: the wheel's METADATA states none
+wheel-sbom-unusable	WARNING	ARCHIVE=%(archive)s: SBOM name and version not cross-checked: the SBOM has no SpdxDocument
+wheel-sbom-unusable	WARNING	ARCHIVE=%(archive)s: SBOM name and version not cross-checked: the SBOM is not SPDX 3 JSON-LD
+wheel-sbom-unusable	WARNING	ARCHIVE=%(archive)s: SBOM name and version not cross-checked: the SBOM's subject is of type %(sbom_value)s, not a package
+wheel-sbom-unusable	WARNING	ARCHIVE=%(archive)s: SBOM name and version not cross-checked: the SpdxDocument has no usable rootElement
+wheel-sbom-unusable	WARNING	ARCHIVE=%(archive)s: SBOM name and version not cross-checked: the software_Sbom has no usable rootElement
+wheel-sbom-unusable	WARNING	ARCHIVE=%(archive)s: SBOM name and version not cross-checked: the wheel's METADATA states neither
+wheel-sbom-unusable	WARNING	ARCHIVE=%(archive)s: SBOM version not cross-checked: the SBOM's version %(sbom_value)s is not a PEP 440 version
+wheel-sbom-unusable	WARNING	ARCHIVE=%(archive)s: SBOM version not cross-checked: the wheel's METADATA version %(wheel_value)s is not a PEP 440 version
+wheel-sbom-wrong-format	WARNING	ARCHIVE=%(archive)s ENTRY=%(member)s: SBOM does not end in %(extension)s, its format's recommended extension
+wheel-unreadable	ERROR	ARCHIVE=%(archive)s ENTRY=%(member)s: could not read (%(exception_type)s); wheel refused
+wheel-unreadable	ERROR	ARCHIVE=%(archive)s: could not open as a ZIP archive (%(exception_type)s); wheel refused
+wheel-unusable	ERROR	ARCHIVE=%(archive)s ENTRY=%(member)s: .dist-info member under a non-conforming name; wheel refused
+wheel-unusable/signed	ERROR	ARCHIVE=%(archive)s ENTRY=%(member)s: signs the RECORD the embed rewrites; %(option)s removes it (re-sign the wheel after); wheel refused
+wheel-unusable/signed	INFO	ARCHIVE=%(archive)s ENTRY=%(member)s: signature removed; re-sign the wheel

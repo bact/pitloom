@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-06
-Last-Modified: 2026-11-08
+Last-Modified: 2026-11-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -28,3 +28,5 @@ See also:
   the 0.22.1 to 0.23.0 sweep.
 - [upstream-issues.md](upstream-issues.md): findings for LicenseID, with
   reproducers, ready to file as one issue.
+- [floor-0-9-4-sweep.md](floor-0-9-4-sweep.md): the licence answers under
+  LicenseID 0.9.3 and 0.9.4, before the 0.25.0 floor raise.

@@ -18,9 +18,9 @@ and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Full release notes: <https://github.com/bact/pitloom/releases>
-- Commit history: <https://github.com/bact/pitloom/compare/v0.24.0...HEAD>
+- Commit history: <https://github.com/bact/pitloom/compare/v0.25.0...HEAD>
 
-## [Unreleased]
+## [0.25.0] - 2026-11-27
 
 ### Added
 
@@ -100,9 +100,9 @@ and this project adheres to
   `--config` file error names the file once ([#497])
 - A `creation-datetime` in `[tool.pitloom]` that is not a date is refused even
   when `--creation-datetime` overrides it ([#497])
-- Requires `licenseid>=0.9.3,<0.10`: a bare `GPL-2.0` tag stays as written, not
+- Requires `licenseid>=0.9.4,<0.10`: a bare `GPL-2.0` tag stays as written, not
   `GPL-2.0-only`; a full GPL text without a variant is still `-only`; rebuild the
-  database with `licenseid update --source packaged` ([#502], [#536], [#551])
+  database with `licenseid update --source packaged` ([#502], [#536], [#551], [#563])
 - Git URL messages say `URL=` and a code after `Git source: `; a Git or PyPI
   refusal is no longer printed twice, and every `git.*` error has a
   `pitloom_code` ([#503])
@@ -236,6 +236,8 @@ and this project adheres to
   is `download-network-failed` or `download-timeout` ([#534])
 - A `failure=` text, an OS error's own description aside, drops a Hub request id
   (`(Request ID: ...)`) and a memory address before masking and the cut ([#537])
+- A Git URL clone's file discovery holds its 60 s cap when a generator is closed
+  early (setuptools' package filter), where a walk could hang ([#538])
 - The usage scan no longer hangs when its parse thread cannot install a trace
   or profile hook (Python 3.10 and 3.11, concurrent parses) ([#539])
 - A GGUF in a wheel names its archive member's file name, not a temporary
@@ -305,6 +307,7 @@ and this project adheres to
 [#534]: https://github.com/bact/pitloom/pull/534
 [#536]: https://github.com/bact/pitloom/pull/536
 [#537]: https://github.com/bact/pitloom/pull/537
+[#538]: https://github.com/bact/pitloom/pull/538
 [#539]: https://github.com/bact/pitloom/pull/539
 [#540]: https://github.com/bact/pitloom/pull/540
 [#542]: https://github.com/bact/pitloom/pull/542
@@ -324,6 +327,7 @@ and this project adheres to
 [#560]: https://github.com/bact/pitloom/pull/560
 [#561]: https://github.com/bact/pitloom/pull/561
 [#562]: https://github.com/bact/pitloom/pull/562
+[#563]: https://github.com/bact/pitloom/pull/563
 
 ## [0.24.0] - 2026-11-11
 
@@ -1370,7 +1374,8 @@ Released from `maint-0.21`, on 0.21.1; no other change of 0.22.0 is in it.
 
 ---
 
-[Unreleased]: https://github.com/bact/pitloom/compare/v0.24.0...HEAD
+[Unreleased]: https://github.com/bact/pitloom/compare/v0.25.0...HEAD
+[0.25.0]: https://github.com/bact/pitloom/compare/v0.24.0...v0.25.0
 [0.24.0]: https://github.com/bact/pitloom/compare/v0.23.4...v0.24.0
 [0.23.4]: https://github.com/bact/pitloom/compare/v0.23.3...v0.23.4
 [0.23.3]: https://github.com/bact/pitloom/compare/v0.23.2...v0.23.3

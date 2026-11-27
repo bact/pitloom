@@ -39,12 +39,13 @@ User-facing documentation is in `docs/` ([index](../../docs/index.md)).
 ## Next: release plan
 
 Order (2026-11-04): 0.21.0 -> 0.21.1 -> 0.22.0 -> 0.22.1 -> 0.23.0 -> 0.24.0 ->
-1.0. Every release up to 0.24.0 (2026-11-11) has shipped; what each built, and
-what it requires, is in
+1.0; 0.25.0 was added for the catalogue work. Every release up to 0.24.0
+(2026-11-11) has shipped, and 0.25.0 is cut (2026-11-27); what each built,
+and what it requires, is in
 [roadmap-completed.md](../implementation/roadmap-completed.md), the procedure
-in [release-checklist.md](../implementation/release-checklist.md). The
-catalogue work planned for 0.24.0 is merged for 0.25.0 (not released), under
-"After 0.24.0" below with what is left. No date for 1.0.
+in [release-checklist.md](../implementation/release-checklist.md). What is
+left of the catalogue and licence provenance work is under "After 0.24.0"
+below. No date for 1.0.
 
 **Process (decided 2026-10-30):** two test gates per PR and a pre-release
 review before each release tag. See
@@ -112,37 +113,12 @@ Not built in 0.23.0:
 ### After 0.24.0: message catalogue and licence provenance
 
 Planned for 0.24.0 (ruling of 2026-11-04), not built when it was cut; the
-target is now 0.25.0, which is **not released** (user, 2026-11-16). Each
-item is its own PR; the order and counts are in
+target became 0.25.0 (user, 2026-11-16), cut 2026-11-27 with what was
+merged (now in roadmap-completed.md). Each item is its own PR; the order and counts are in
 [message-catalogue-migration-plan.md](message-catalogue-migration-plan.md).
 
-- [x] **Message catalogue** (merged, unreleased; ratchet 0): the frames
-  (PR 4, #481), catalogue PRs 3 and 5 to 18 (#482 to #534), sweeps A to C
-  (#536, #541, #542, #545, #546, #548, #550), the masking PRs
-  (#526, #543 and #544) and the consistency rescan with per-surface
-  advice and library argument checks (#553, #556, #557). See
-  [the done list](message-catalogue-migration-plan.md#done-so-far-moved-from-the-roadmap-2026-11-26),
-  [message-catalogue-finish-plan.md](../implementation/message-catalogue-finish-plan.md),
-  [message-consistency-rescan.md](message-consistency-rescan.md).
-- [x] **Credentials** (merged, unreleased): masking at the sinks, git helper
-  and registry refusal (#487); detect, warn by default or refuse, with a
-  per-value override (#489, #490); the Action inputs, Git hardening and
-  encoded values (#491); a URL behind a leading character (#555). See
-  [credential-leak-fixes.md](../implementation/credential-leak-fixes.md),
-  [credential-detect-and-refuse.md](../implementation/credential-detect-and-refuse.md).
-- [x] **Namespace mixing in one SBOM**: a registry namespace beside
-  `spdx.org/spdxdocs/demo-<uuid>` ids is by design (the registry pins ids as
-  first minted); documented, not unified. See
-  [id-namespace-mixing.md](../implementation/id-namespace-mixing.md).
-- [ ] **0.25.0 cut sweep** (not released): the skills' floor `pitloom >=
-  0.24.1` names no release (0.24.0 is the last tag; skills document 0.25.0
-  flags and codes): raise to 0.25.0 in every `SKILL.md`, example and install
-  line at the cut, keeping "0.24.0 or later" on the PyPI-URL lines; also
-  "LicenseID 0.8.4" in three `SKILL.md` files (SKL-1 of the pre-release
-  review).
-- [ ] **Pre-release review 0.25.0**: 5 blockers and 39 fixes for 0.25.0 in
-  five PRs; argument checks (#560), catalogue (#559) and Hub "repository not
-  found" (#561) are merged, docs and skills and the bump are left; the
+- [ ] **Pre-release review 0.25.0**: its fixes for 0.25.0 are merged
+  (#559 to #562, and the bump); the
   next-release items (CLI paths as typed, `-v` sources, hook inert keys,
   Action glob count, spdx3-validate blank nodes, ...) are listed there. See
   [pre-release-review-0.25.0.md](../implementation/pre-release-review-0.25.0.md#next-release).
@@ -176,10 +152,6 @@ item is its own PR; the order and counts are in
   (found in PR 14c round 1): a `"` in `sbom-basename` passes
   `sbom_base_name`, then `write_text_lf` fails late with a bare `OSError` on
   Win32. Refuse it where the basename is read (`core/file_names.py`).
-- [x] **The hook's `scan-model-usage` tri-state is unpinned** (found by PR 14c
-  mutation testing): re-measured 2026-11-26, the `is not False` and negation
-  mutants are killed on `main` at all five call sites; see
-  [mutation-backfill.md](../implementation/mutation-backfill.md).
 - [ ] **Mutation backfill, second PR**: `export/_spdx3_credentials` (32
   survivors untriaged), then the `id_registry` modules and the rest changed
   since `v0.24.0` with no pass. See
