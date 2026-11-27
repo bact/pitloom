@@ -228,8 +228,8 @@ by the review's definition; SKL-2 is the tracked cut sweep.
 
 ## PR A, argument checks: what was done
 
-Branch `review-argument-fixes`. Every PR A item is fixed; the rulings below
-had an Opus second opinion, whose amendments were taken unless noted.
+Branch `review-argument-fixes`, #560. Every PR A item is fixed; the rulings
+below had an Opus second opinion, whose amendments were taken unless noted.
 
 - LIB-1, LIB-4: one helper, `pitloom._sbom_io.refuse_empty_path()` (type,
   then `""`), at the start of `generate()`, `generate_project_sbom()`,
@@ -243,7 +243,9 @@ had an Opus second opinion, whose amendments were taken unless noted.
 - LIB-5, REG-3: `IdRegistry(path=, project_root=)`, `new()`, `save()`,
   `generate()` (paths, root, exclude), `import_sbom()` and `register()`
   (types; empty or blank type name; empty name) refuse with
-  `option-invalid`; a `str` path is held as a `TypedPath`; `save()` over a
+  `option-invalid` (an empty path in `generate()`'s *paths* is
+  `input-not-found`, as `loom id generate ''`); a `str` path is held as a
+  `TypedPath`, so `load("./r.json")` names `./r.json` as typed; `save()` over a
   directory is `file-unwritable` naming the path given (`coded_write` in
   `write_registry_file`); `_mint_id`'s empty prefix is an `InternalError`.
 - LIB-8: `configure_logging()` in `IdRegistry.__init__`/`load()` (every
@@ -261,6 +263,15 @@ had an Opus second opinion, whose amendments were taken unless noted.
   `generated=False` (`use_model()`), once even when also a validation
   dataset; `None` (not given) stays training, as `generates` reads it.
 - LIB-9: the CHANGELOG bullet now names what is checked.
+
+Gates: Gate A full suite 31,493 passed, 0 failed (main merged in); ruff,
+flake8, mypy (1,668 files), pyright, pyrefly 0 errors, pylint 10.00 (exit 0),
+bandit; message inventory and reference `--check`; changed lines 100%
+branch-covered; every new regression test fails on 1ebf0201. Mutation: 42
+mutants of the new checks, all killed. Two fresh-context Opus review rounds
+(round 2 found no bug), each with a Windows dry run. Gate B:
+`manual_cli_checks -j 8 --network` 671 pass, 0 fail, 29 known (the tracked
+order-matrix item). Changed `SKILL.md`s: none.
 
 Left for later (next-release list): `IdRegistry` methods not on the
 findings list (`lookup`, `get`, `has_name`, `reserve_id`,
