@@ -340,3 +340,23 @@ def test_a_line_naming_an_overrides_setting_as_a_keyword_has_its_field_twin() ->
             elif f"ConfigOverrides.{name}=" not in templates:
                 missing.append(f"{code}: {name}")
     assert not missing, missing
+
+
+def test_a_module_saying_an_overrides_line_asks_for_the_route() -> None:
+    """A line picked by its own branch per surface, not a :class:`Twins`,
+    is said on the overrides route only where its module asks
+    ``on_overrides_route()``."""
+    unasked = []
+    for path in sorted(SRC_ROOT.rglob("*.py")):
+        tree = ast.parse(path.read_bytes())
+        # Read, not defined: a module that says the line, not the entry's.
+        names = {
+            node.id
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load)
+        }
+        if any(name.endswith("_OVERRIDES_LINE") for name in names) and (
+            "on_overrides_route" not in names
+        ):
+            unasked.append(str(path.relative_to(SRC_ROOT)))
+    assert not unasked, unasked

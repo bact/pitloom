@@ -284,11 +284,11 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
   code. As an INFO line, embedded the SBOM, rewrote RECORD and removed the
   signature: the wheel is unsigned.
 - **Tell the user**: the wheel is signed and an embed would break the signature,
-  as the line says. Only with their say: run again with --allow-signed-wheel,
-  which removes the signature, then they re-sign the wheel with their own key;
-  after an INFO line, they re-sign it before publishing. Do not pass
-  --allow-signed-wheel or sign for them; ask first, and with nobody to ask,
-  report it only.
+  as the line says. Only with their say: run again with --allow-signed-wheel
+  (allow_signed_wheel=True in the library), which removes the signature, then
+  they re-sign the wheel with their own key; after an INFO line, they re-sign it
+  before publishing. Do not pass --allow-signed-wheel or sign for them; ask
+  first, and with nobody to ask, report it only.
 - **Lines**:
 
   ```text

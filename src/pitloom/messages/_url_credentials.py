@@ -258,7 +258,8 @@ CREDENTIALS_UNSAFE_WRITTEN: Final = Message(
     "and field that hold it and its fingerprint, and how the surface that "
     "ran turns the refuse mode on: the command line's "
     "--refuse-url-credentials, the build hook's [tool.pitloom] "
-    "url-credentials, or the library's credentials argument.",
+    "url-credentials, or the library's credentials argument "
+    "(ConfigOverrides.credentials for embed_wheel_sbom()).",
     did="Wrote the SBOM with the value as written: the command exits 0, the "
     "build hook does not fail the build, and the library returns. Said once "
     "per value of each SBOM, shown masked. Nothing is removed or rewritten.",
@@ -303,7 +304,8 @@ CREDENTIALS_UNSAFE_REFUSED: Final = Message(
     "fingerprint; the last line "
     "counts them and names no URL. Each line says how the surface that ran "
     "accepts the value: the command line's option, the build hook's "
-    "[tool.pitloom] list, or the library's credentials argument.",
+    "[tool.pitloom] list, or the library's credentials argument "
+    "(ConfigOverrides.credentials for embed_wheel_sbom()).",
     did="Wrote no SBOM: the command exits 1 (the Action step fails), the "
     "build hook fails the build, and the library raises ValueError carrying "
     "the code; 'embed-wheel --sbom' embeds nothing and leaves the wheel as "
@@ -319,7 +321,8 @@ CREDENTIALS_UNSAFE_REFUSED: Final = Message(
     "they accept that value alone, the way the line gives with its "
     "fingerprint: --accept-url-credential, accept-url-credentials in "
     "[tool.pitloom] (also for the command line), the GitHub Action's "
-    "accept-url-credentials input, or the library's credentials argument. "
+    "accept-url-credentials input, or the library's credentials argument "
+    "(ConfigOverrides.credentials for embed_wheel_sbom()). "
     "Do not suggest turning the refuse mode off to "
     f"get past it. Do not edit their files; {ASK_FIRST}",
     subject_key="URL",

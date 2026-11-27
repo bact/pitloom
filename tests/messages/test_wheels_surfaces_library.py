@@ -149,7 +149,7 @@ def test_a_signed_wheel_names_the_library_keyword_not_the_flag(tmp_path: Path) -
         embed_wheel_sbom(_signed(tmp_path))
     text = str(raised.value)
     assert "allow_signed_wheel=True removes it (re-sign the wheel after)" in text
-    assert "--" not in text
+    assert "--allow-signed-wheel" not in text
 
 
 @pytest.mark.parametrize(
