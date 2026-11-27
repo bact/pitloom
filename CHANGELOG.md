@@ -26,8 +26,11 @@ and this project adheres to
 
 - CI reads the `test-all-os` label when it runs: a push and the label within
   a second no longer leave Windows and macOS on the platform subset ([#566])
+- An SBOM creator and a dependency author of the same name and email are one
+  `Person`, not two ([#568])
 
 [#566]: https://github.com/bact/pitloom/pull/566
+[#568]: https://github.com/bact/pitloom/pull/568
 
 ## [0.25.0] - 2026-11-27
 
