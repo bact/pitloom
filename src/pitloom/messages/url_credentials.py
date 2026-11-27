@@ -34,7 +34,12 @@ from pitloom.messages._options import (
     OPTION_NO_EFFECT,
     STALE_FINGERPRINT_LINE,
 )
-from pitloom.messages._surface import SURFACE_CLI, SURFACE_HOOK, current_surface
+from pitloom.messages._surface import (
+    SURFACE_CLI,
+    SURFACE_HOOK,
+    current_surface,
+    on_overrides_route,
+)
 from pitloom.messages._url_credentials import (
     ACCEPT_OPTION,
     ACCEPT_SETTING,
@@ -54,12 +59,14 @@ from pitloom.messages._url_credentials import (
     REFUSED_COUNT_LINE,
     REFUSED_LIBRARY_LINE,
     REFUSED_LINE,
+    REFUSED_OVERRIDES_LINE,
     REGISTRY_FILE_KEPT_LINE,
     REGISTRY_FILE_REFUSED_LINE,
     WEAK_LINE,
     WRITTEN_CONFIG_LINE,
     WRITTEN_LIBRARY_LINE,
     WRITTEN_LINE,
+    WRITTEN_OVERRIDES_LINE,
 )
 from pitloom.messages._url_credentials_git import (
     CREDENTIALS_UNSAFE_GIT_LINE_BREAK,
@@ -210,7 +217,9 @@ def say_refused(url: str, element: str, pointer: str, fingerprint: str) -> None:
             _log,
             CREDENTIALS_UNSAFE_REFUSED,
             logging.ERROR,
-            line=REFUSED_LIBRARY_LINE,
+            line=(
+                REFUSED_OVERRIDES_LINE if on_overrides_route() else REFUSED_LIBRARY_LINE
+            ),
             url=shown,
             element=element,
             pointer=at,
@@ -265,7 +274,11 @@ def say_written(url: str, element: str, pointer: str, fingerprint: str) -> None:
     elif surface == SURFACE_HOOK:
         say(line=WRITTEN_CONFIG_LINE, setting=MODE_SETTING)
     else:
-        say(line=WRITTEN_LIBRARY_LINE)
+        say(
+            line=(
+                WRITTEN_OVERRIDES_LINE if on_overrides_route() else WRITTEN_LIBRARY_LINE
+            )
+        )
 
 
 def say_accepted(url: str, fingerprint: str) -> None:

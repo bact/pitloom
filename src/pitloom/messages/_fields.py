@@ -275,7 +275,7 @@ _GENERAL: Final[Mapping[str, Field]] = MappingProxyType(
             "`-o/--output`, `--pretty/--no-pretty`), a positional argument as "
             "argparse names it (`command`), a library parameter "
             "(`project_metadata`, `BuildOptions.timeout`, "
-            "`allow_signed_wheel=True` where the line asks to set it), or a "
+            "or with the value to give it, `allow_signed_wheel=True`), or a "
             "`[tool.pitloom]` setting by its TOML key "
             "(`tool.pitloom.describe-relationship`)",
         ),

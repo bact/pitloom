@@ -87,6 +87,13 @@ def current_surface() -> str:
     return _SURFACE.get()
 
 
+def on_overrides_route() -> bool:
+    """Whether the library call that runs takes its settings as
+    ``ConfigOverrides`` fields (:func:`overrides_route`): for a line picked
+    by its own branch per surface rather than a :class:`Twins`."""
+    return _OVERRIDES_ROUTE.get()
+
+
 @contextmanager
 def overrides_route() -> Iterator[None]:
     """Within the block (or the function it decorates), the library's
@@ -226,6 +233,7 @@ __all__ = [
     "Twins",
     "advice_surface",
     "current_surface",
+    "on_overrides_route",
     "overrides_route",
     "strict_surfaces",
     "unreachable_on_hook",

@@ -16,6 +16,7 @@ from types import SimpleNamespace
 import pytest
 
 from pitloom.cli.commands import utils
+from pitloom.messages.targets import say_validator_failure
 
 # pylint: disable=protected-access
 
@@ -301,4 +302,14 @@ def test_the_longest_path_is_shown_first(
     )
     assert capsys.readouterr().err.splitlines()[0] == (
         "ERROR: spdx3-validate: w.whl/\\nb: [shacl] m"
+    )
+
+
+def test_the_failure_line_escapes_the_file_it_names_in_the_relay(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """*file* alone, no other path given: still written escaped."""
+    say_validator_failure(ValueError(f"Invalid JSON in {_FORGED}"), file=_FORGED)
+    assert capsys.readouterr().err.splitlines()[0] == (
+        f"ERROR: spdx3-validate: Invalid JSON in {_SHOWN}"
     )

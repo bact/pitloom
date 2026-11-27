@@ -185,10 +185,14 @@ wording through one mechanism; no call site chooses.
   `overrides_route()` (a second `ContextVar`), where a `Twins` with an
   `overrides` member says it on the library surface
   (`set ConfigOverrides.trust_model_files=True`,
-  `set ConfigOverrides.scan_model_usage=True`); the command line and the
-  hook are not affected. A drift test holds that every library wording
-  saying `set <ConfigOverrides field>=` has one, except the Git and PyPI
-  URL lines the embed route never says. A bare option name in a condition
+  `set ConfigOverrides.scan_model_usage=True`); a line picked by its own
+  branch (the `credentials-unsafe/written` and `/refused` library lines)
+  asks `on_overrides_route()` (`with ConfigOverrides.credentials=
+  CredentialPolicy(...)`). The command line and the hook are not
+  affected. Two drift tests hold that every twin, and every entry, whose
+  library wording names a `ConfigOverrides` field as a keyword
+  (`<field>=`) has the field's wording too, except the Git and PyPI URL
+  lines the embed route never says. A bare option name in a condition
   (`pretty`, `enrich`) names the keyword and the field alike, as both
   spell it; `BuildOptions` fields keep their class, `timeout` alone being
   ambiguous. Qualifying a condition's name on the embed route

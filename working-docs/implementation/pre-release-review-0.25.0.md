@@ -233,7 +233,10 @@ three lines).
   generators; `fetch_git_project()` still is not).
 - **MSG-1**: as ruled; the mechanism is in
   [message-consistency-rescan.md](../design/message-consistency-rescan.md)
-  section 6.1. `option-no-effect`'s bare names stay (section 8 there).
+  section 6.1: the reader-unsafe line, both usage hints and (found by the
+  first review round) the two `credentials-unsafe` library lines, which
+  said `credentials=CredentialPolicy(...)` on the embed route.
+  `option-no-effect`'s bare names stay (section 8 there).
   PR C: `docs/ai-model-scan-limits.md:167` says only the keyword form.
 - **MSG-6**: `set BuildOptions.allow=True`.
 - **LIB-7**: the line's `option` value is picked per surface

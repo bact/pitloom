@@ -25,8 +25,11 @@ import pytest
 from pitloom import __main__
 from pitloom.assemble import generate_project_sbom, generate_wheel_sbom
 from pitloom.core.build_options import BuildOptions
+from pitloom.core.config_cascade import ConfigOverrides
+from pitloom.core.credential_policy import CredentialPolicy
 from pitloom.embed import embed_wheel_sbom
 from pitloom.logging_config import configure_logging
+from tests._wheel_fixtures import DIST_INFO, make_wheel, metadata
 from tests._wheel_models import safetensors_bytes, write_model_wheel
 from tests.extract.ai_model.gguf_builders import gguf_file
 from tests.extract.conftest import make_hook, write_pyproject_with_pitloom_config
@@ -239,3 +242,35 @@ def test_a_project_backed_embed_names_the_overrides_field(
         "(or set scan-model-usage = true) to also record which Python files "
         "reference them."
     ]
+
+
+@pytest.mark.parametrize(
+    ("refuse", "code", "how"),
+    [
+        (False, "credentials-unsafe/written", "CredentialPolicy(refuse=True)"),
+        (True, "credentials-unsafe/refused", "CredentialPolicy(accepted=["),
+    ],
+    ids=["written", "refused"],
+)
+def test_an_embed_names_the_credentials_field(
+    refuse: bool,
+    code: str,
+    how: str,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A credential in a URL of the wheel's metadata: ``embed_wheel_sbom()``
+    takes the policy as ``ConfigOverrides.credentials``, not a keyword."""
+    home = b"Home-page: https://alice:pw@example.com/x\n"
+    wheel = make_wheel(
+        tmp_path, extra={f"{DIST_INFO}/METADATA": metadata("demo", "1.0") + home}
+    )
+    overrides = ConfigOverrides(credentials=CredentialPolicy(refuse=refuse))
+    configure_logging()
+    if refuse:
+        with pytest.raises(ValueError):
+            embed_wheel_sbom(wheel, overrides=overrides)
+    else:
+        embed_wheel_sbom(wheel, overrides=overrides)
+    [said] = _coded(capsys.readouterr().err.splitlines(), code)
+    assert f"with ConfigOverrides.credentials={how}" in said

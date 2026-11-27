@@ -33,12 +33,12 @@ from pitloom.core.ai_metadata import AiModelFormat
 from pitloom.core.clone_mark import reading_remote_clone
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.fetch_policy import RemoteFetchPolicy
-from pitloom.core.internal_error import InternalError
 from pitloom.core.project import ProjectMetadata
 from pitloom.extract.remote import RemoteSourceError
 from pitloom.extract.remote.git import GitCheckout
 from pitloom.extract.scanner_wheel import WHEEL_GATED_FORMATS
 from pitloom.logging_config import CODE_ATTR
+from pitloom.messages import CodedValueError
 from pitloom.messages.models import READER_UNSAFE_REMOTE
 from tests._model_fixtures import (
     FORMATS,
@@ -265,8 +265,9 @@ def test_an_unknown_sbom_kind_is_refused_before_the_fetch(
     monkeypatch.setattr(
         _generators_git, "configure_logging", lambda: calls.append("configure")
     )
-    with pytest.raises(InternalError, match="sbom_kind"):
+    with pytest.raises(CodedValueError, match="sbom_kind: must be one of") as raised:
         generate_git_sbom(_URL, sbom_kind="dataset")
+    assert raised.value.pitloom_code == "option-invalid"
     assert calls == ["configure"] and "url" not in fetched
 
 

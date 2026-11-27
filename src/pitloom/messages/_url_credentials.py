@@ -112,6 +112,13 @@ REFUSED_LIBRARY_LINE: Final = Line(
     template=f"{_REFUSED_HEAD}with credentials=CredentialPolicy("
     'accepted=["%(fingerprint)s"])',
 )
+#: The same from ``embed_wheel_sbom()``, which takes the policy as a
+#: ``ConfigOverrides`` field.
+REFUSED_OVERRIDES_LINE: Final = Line(
+    level="ERROR",
+    template=f"{_REFUSED_HEAD}with ConfigOverrides.credentials=CredentialPolicy("
+    'accepted=["%(fingerprint)s"])',
+)
 #: The closing refusal, naming no URL.
 REFUSED_COUNT_LINE: Final = Line(
     level="ERROR",
@@ -146,6 +153,12 @@ WRITTEN_CONFIG_LINE: Final = Line(
 WRITTEN_LIBRARY_LINE: Final = Line(
     level="WARNING",
     template=f"{_WRITTEN_HEAD}with credentials=CredentialPolicy(refuse=True)",
+)
+#: The same from ``embed_wheel_sbom()``: the ``ConfigOverrides`` field.
+WRITTEN_OVERRIDES_LINE: Final = Line(
+    level="WARNING",
+    template=f"{_WRITTEN_HEAD}with ConfigOverrides.credentials="
+    "CredentialPolicy(refuse=True)",
 )
 CREDENTIALS_UNSAFE: Final = Message(
     code="credentials-unsafe",
@@ -229,7 +242,12 @@ CREDENTIALS_UNSAFE_REGISTRY: Final = Message(
 CREDENTIALS_UNSAFE_WRITTEN: Final = Message(
     code="credentials-unsafe/written",
     condition="unsafe",
-    lines=(WRITTEN_LINE, WRITTEN_CONFIG_LINE, WRITTEN_LIBRARY_LINE),
+    lines=(
+        WRITTEN_LINE,
+        WRITTEN_CONFIG_LINE,
+        WRITTEN_LIBRARY_LINE,
+        WRITTEN_OVERRIDES_LINE,
+    ),
     summary="A URL-typed value the SBOM states (a dependency's direct URL, "
     "a download location, a PURL, an external reference's locator) holds a "
     "user name or password, a query parameter named like a secret, an "
@@ -270,6 +288,7 @@ CREDENTIALS_UNSAFE_REFUSED: Final = Message(
         REFUSED_LINE,
         REFUSED_CONFIG_LINE,
         REFUSED_LIBRARY_LINE,
+        REFUSED_OVERRIDES_LINE,
         REFUSED_COUNT_LINE,
     ),
     summary="A URL-typed value the SBOM would state (a dependency's direct "

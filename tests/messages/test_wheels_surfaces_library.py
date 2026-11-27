@@ -166,14 +166,19 @@ def test_the_signed_refusal_names_the_surface_s_option(
 ) -> None:
     """The hook never embeds: under the suite's strict surfaces the line is
     refused there, else it gets the library's wording."""
-    with advice_surface(surface):
-        if option is None:
-            with pytest.raises(InternalError, match="cannot reach"):
-                refuse_signed(WHEEL_FILE, "d/RECORD.jws")
-            refused = contextvars.Context().run(refuse_signed, WHEEL_FILE, "d/R.jws")
-            option = "allow_signed_wheel=True"
-        else:
-            refused = refuse_signed(WHEEL_FILE, "d/RECORD.jws")
+
+    def refuse_on_the_surface() -> WheelRefused:
+        with advice_surface(surface):
+            return refuse_signed(WHEEL_FILE, "d/RECORD.jws")
+
+    if option is None:
+        with pytest.raises(InternalError, match="cannot reach"):
+            refuse_on_the_surface()
+        # Outside the suite's strict block (a fresh context): the library's.
+        refused = contextvars.Context().run(refuse_on_the_surface)
+        option = "allow_signed_wheel=True"
+    else:
+        refused = refuse_on_the_surface()
     assert f"rewrites; {option} removes it" in str(refused)
 
 

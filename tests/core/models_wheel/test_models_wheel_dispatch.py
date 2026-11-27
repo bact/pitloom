@@ -233,7 +233,7 @@ def test_get_wheel_files_uv_build_fallback_warns_about_wheel_exclude(
         get_wheel_files(tmp_path)
 
     assert "[tool.uv.build-backend]" in caplog.text
-    assert "pass BuildOptions(allow=True)" in caplog.text
+    assert "set BuildOptions.allow=True" in caplog.text
 
 
 def test_get_wheel_files_uv_build_fallback_no_hint_without_file_filter_keys(

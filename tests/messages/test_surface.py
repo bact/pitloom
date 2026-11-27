@@ -315,3 +315,28 @@ def test_a_library_action_naming_an_overrides_setting_has_an_overrides_twin() ->
             assert "set ConfigOverrides." in pair.overrides.template, name
         if name in _OFF_THE_OVERRIDES_ROUTE:
             assert pair.overrides is None, name
+
+
+#: Entries the overrides route never says, by code: it reads neither a Git
+#: URL nor a PyPI URL.
+_OFF_THE_ROUTE_CODES = frozenset({"reader-unsafe/remote"})
+
+
+def test_a_line_naming_an_overrides_setting_as_a_keyword_has_its_field_twin() -> None:
+    """Every catalogue line that names a ``ConfigOverrides`` field as a
+    keyword (``credentials=CredentialPolicy(...)``, ``set
+    trust_model_files=True``), however it is picked, has a sibling line of
+    its entry naming the field (``ConfigOverrides.credentials=``) for
+    ``embed_wheel_sbom()``, unless that route never says the entry."""
+    names = [field.name for field in dataclasses.fields(ConfigOverrides)]
+    missing = []
+    for code, message in sorted(MESSAGES.items()):
+        templates = " ".join(line.template for line in message.lines)
+        for name in names:
+            if not re.search(rf"(?<![.\w]){name}=", templates):
+                continue
+            if code in _OFF_THE_ROUTE_CODES:
+                assert f"ConfigOverrides.{name}=" not in templates, code
+            elif f"ConfigOverrides.{name}=" not in templates:
+                missing.append(f"{code}: {name}")
+    assert not missing, missing

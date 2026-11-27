@@ -177,6 +177,7 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
   ERROR: URL=<url>: holds a credential (<element> <pointer>, <fingerprint>); remove it from the source, or accept this value with <option> <fingerprint> [credentials-unsafe/refused]
   ERROR: URL=<url>: holds a credential (<element> <pointer>, <fingerprint>); remove it from the source, or accept this value by listing it in [tool.pitloom] <setting> [credentials-unsafe/refused]
   ERROR: URL=<url>: holds a credential (<element> <pointer>, <fingerprint>); remove it from the source, or accept this value with credentials=CredentialPolicy(accepted=["<fingerprint>"]) [credentials-unsafe/refused]
+  ERROR: URL=<url>: holds a credential (<element> <pointer>, <fingerprint>); remove it from the source, or accept this value with ConfigOverrides.credentials=CredentialPolicy(accepted=["<fingerprint>"]) [credentials-unsafe/refused]
   ERROR: <number> URL value(s) in the SBOM hold credentials; the SBOM is refused [credentials-unsafe/refused]
   ```
 
@@ -261,4 +262,5 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
   WARNING: URL=<url>: holds a credential (<element> <pointer>, <fingerprint>); the SBOM states it as written; remove it from the source, or refuse such values with <option> [credentials-unsafe/written]
   WARNING: URL=<url>: holds a credential (<element> <pointer>, <fingerprint>); the SBOM states it as written; remove it from the source, or refuse such values with [tool.pitloom] <setting> = "refuse" [credentials-unsafe/written]
   WARNING: URL=<url>: holds a credential (<element> <pointer>, <fingerprint>); the SBOM states it as written; remove it from the source, or refuse such values with credentials=CredentialPolicy(refuse=True) [credentials-unsafe/written]
+  WARNING: URL=<url>: holds a credential (<element> <pointer>, <fingerprint>); the SBOM states it as written; remove it from the source, or refuse such values with ConfigOverrides.credentials=CredentialPolicy(refuse=True) [credentials-unsafe/written]
   ```

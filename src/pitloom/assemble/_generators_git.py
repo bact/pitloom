@@ -288,15 +288,14 @@ def generate_git_project_sbom(
         pitloom.extract.remote.errors.RemoteSourceError: the repository could
             not be fetched, or ``git.no-project``.
         pitloom.messages.CodedTypeError: *url* is no string
-            (``option-invalid``).
-        ValueError: *url* is empty or white space only (``option-invalid``),
-            a Hugging Face model URL
+            (``option-invalid``, from :func:`generate_git_sbom`).
+        ValueError: *url* is empty or white space only (``option-invalid``,
+            from :func:`generate_git_sbom`), a Hugging Face model URL
             (``target-wrong-format``), or a malformed one
             (``hf-url-invalid``):
             :func:`~pitloom.extract.remote.huggingface.refuse_hub_model_target`.
     """
     configure_logging()
-    require_text_argument(url, "url")
     refuse_hub_model_target(url)
     return generate_git_sbom(
         url,
