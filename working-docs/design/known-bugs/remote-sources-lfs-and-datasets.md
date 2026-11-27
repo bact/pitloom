@@ -142,17 +142,6 @@ entries stay in the last section for history.
   C and is lost if a library swallows `BaseException` (dropping folder links is
   the main loop guard). A licence file pointing into `.git` now fails to read.
   `fetch_git_project(file:///C:/...)` is untested on Windows.
-- [ ] **A Git URL with no repository path is cloned, not refused (S).**
-  `loom model https://github.com/` prints `read as repository
-  https://github.com` (`[target-ambiguous/git-page]`), runs `git clone`, and
-  only `git`'s refusal stops it (`[git-repository-unusable]`, exit 1, no
-  SBOM). `parse_git_page` (`extract/remote/git_url.py`) returns the URL as a
-  repository when the path has no segment; the redirect probe and the clone
-  both reach the network. Fix: refuse an empty path with `git.url-invalid`
-  before any request. Open question: a server may serve a repository at the
-  host root (`git http-backend`), so the refusal may need to apply only to
-  known forges.
-  *Found 2026-11-27, post-publish verification of 0.25.0.*
 
 ## Fixed
 
@@ -169,6 +158,20 @@ release ships.
 
 ### Fixed, Found in review rounds, not yet prioritised
 
+- [x] **A Git URL with no repository path is cloned, not refused (S).**
+  `loom model https://github.com/` prints `read as repository
+  https://github.com` (`[target-ambiguous/git-page]`), runs `git clone`, and
+  only `git`'s refusal stops it (`[git-repository-unusable]`, exit 1, no
+  SBOM). `parse_git_page` (`extract/remote/git_url.py`) returns the URL as a
+  repository when the path has no segment; the redirect probe and the clone
+  both reach the network. Fix: refuse an empty path with `git.url-invalid`
+  before any request. Open question: a server may serve a repository at the
+  host root (`git http-backend`), so the refusal may need to apply only to
+  known forges.
+  *Found 2026-11-27, post-publish verification of 0.25.0.* Fixed in #571: a URL
+  whose path has no segment is refused in `_read_url` (`extract/remote/git.py`)
+  before the redirect probe, any host alike; one segment is the server's to
+  judge.
 - [x] **The blob-filter docs said "10 MB" (S).** Fixed 2026-11-09 in
   `docs/git-urls.md`, which now says 10 MiB and that only blobs the checkout
   does not need are left out (a large file of the checkout is fetched).

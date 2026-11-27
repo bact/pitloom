@@ -26,7 +26,7 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
 | [`git-ref-not-found`](#git-ref-not-found) | ERROR | The Git URL names a branch, tag or commit (in its path, as a page URL's tree or blob part, or as a version query) that the repository does not have as a branch or tag; a commit is fetched only by its full hash. | 0.25.0 |
 | [`git-repository-unusable`](#git-repository-unusable) | ERROR | git failed for a reason other than the network: the repository does not exist or is private (an HTTP 404, or a sign-in the server asked for), the server refused the request, or the answer was not a repository. The line ends with git's own messages, the server's included. | 0.25.0 |
 | [`git-repository-unusable/empty`](#git-repository-unusableempty) | ERROR | The repository the Git URL names has no commits, so it holds no file to read. | 0.25.0 |
-| [`git-url-invalid`](#git-url-invalid) | ERROR | A Git URL is not one Pitloom fetches: its scheme is not http or https (ssh://, git://, file:// or an scp-style user@host:path), it names no host (https:///o/r, https://:443/o/r), its port is not a number, or a part of its path, once decoded, is ., .., empty, or holds a backslash, a NUL or .git, which would read outside the checkout or git's own files. | 0.25.0 |
+| [`git-url-invalid`](#git-url-invalid) | ERROR | A Git URL is not one Pitloom fetches: its scheme is not http or https (ssh://, git://, file:// or an scp-style user@host:path), it names no host (https:///o/r, https://:443/o/r), it names a host but no repository (https://github.com/), its port is not a number, or a part of its path, once decoded, is ., .., empty, or holds a backslash, a NUL or .git, which would read outside the checkout or git's own files. | 0.25.0 |
 
 ### `git-filter-unusable`
 
@@ -163,9 +163,10 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
   nothing for it (exit 1).
 - **Means**: A Git URL is not one Pitloom fetches: its scheme is not http or
   https (ssh://, git://, file:// or an scp-style user@host:path), it names no
-  host (https:///o/r, https://:443/o/r), its port is not a number, or a part of
-  its path, once decoded, is ., .., empty, or holds a backslash, a NUL or .git,
-  which would read outside the checkout or git's own files.
+  host (https:///o/r, https://:443/o/r), it names a host but no repository
+  (https://github.com/), its port is not a number, or a part of its path, once
+  decoded, is ., .., empty, or holds a backslash, a NUL or .git, which would
+  read outside the checkout or git's own files.
 - **SBOM effect**: not-written: no SBOM is written for the input.
 - **Pitloom did**: Started no git process, fetched nothing and wrote no SBOM
   (git.url-invalid).
@@ -178,9 +179,12 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
   ```text
   ERROR: URL=<url>: only http and https URLs are fetched (not ssh, git, file or scp-style addresses); nothing fetched [git-url-invalid]
   ERROR: URL=<url>: the URL names no host; nothing fetched [git-url-invalid]
+  ERROR: URL=<url>: the URL names a host but no repository; nothing fetched [git-url-invalid]
   ERROR: URL=<url>: the port is not a number; nothing fetched [git-url-invalid]
   ERROR: URL=<url>: a path part decodes to ., .., an empty part, a backslash, a NUL or .git; nothing fetched [git-url-invalid]
   ```
+
+- **Since**: 0.25.0; line 3: 0.25.1
 
 ## Summaries
 

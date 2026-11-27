@@ -89,7 +89,7 @@ _ENTRIES = [
     (
         GIT_URL_INVALID,
         ("git-url-invalid", "invalid", "not-written", "user"),
-        _shapes(*[("ERROR", "url")] * 4),
+        _shapes(*[("ERROR", "url")] * 5),
     ),
     (
         GIT_REF_NOT_FOUND,

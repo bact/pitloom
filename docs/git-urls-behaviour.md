@@ -75,6 +75,12 @@ every message the Git route prints.
     or port is refused as an invalid URL (`git.url-invalid`; for the port,
     `URL=<url>: the port is not a number; nothing fetched [git-url-invalid]`). Other control
     characters (a tab, an escape) are sent as typed.
+  - A URL with a host and no path (`https://github.com/`, or a path such
+    as `/./` or `/..` that collapses to the root) names no repository and
+    is refused before any request:
+    `URL=<url>: the URL names a host but no repository; nothing fetched
+    [git-url-invalid]`. One path segment (`https://git.example.org/repo`)
+    is handed to the server, which says whether it is a repository.
 - The clone is shallow, asks the server to leave out blobs over 10 MiB that the
   checkout does not need (a server without partial clone sends them) and never
   follows a redirect on its own: Pitloom follows the Git server's redirect itself, one hop at a time
