@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-11-26
+Last-Modified: 2026-11-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -161,7 +161,15 @@ counts are in [message-catalogue-migration-plan.md](message-catalogue-migration-
 - [ ] **0.25.0 cut sweep** (not released): the skills' floor `pitloom >=
   0.24.1` names no release (0.24.0 is the last tag; skills document 0.25.0
   flags and codes): raise to 0.25.0 in every `SKILL.md`, example and install
-  line at the cut, keeping "0.24.0 or later" on the PyPI-URL lines.
+  line at the cut, keeping "0.24.0 or later" on the PyPI-URL lines; also
+  "LicenseID 0.8.4" in three `SKILL.md` files (SKL-1 of the pre-release
+  review).
+- [ ] **Pre-release review 0.25.0**: 5 blockers and 39 fixes for 0.25.0 in
+  five PRs (argument checks, catalogue, Hub "repository not found", docs and
+  skills, the bump); the
+  next-release items (CLI paths as typed, `-v` sources, hook inert keys,
+  Action glob count, spdx3-validate blank nodes, ...) are listed there. See
+  [pre-release-review-0.25.0.md](../implementation/pre-release-review-0.25.0.md#next-release).
 - [ ] **LLMSC 2027 paper camera-ready** (user, 2026-11-23): the submitted
   paper reports Pitloom 0.24.0; keep its structure, update only the data.
   Once 0.25.0 is out and LicenseID is 0.9.x, re-run its observations (Hub
@@ -247,6 +255,10 @@ counts are in [message-catalogue-migration-plan.md](message-catalogue-migration-
   yet"? Which surfaces (CLI flags and output, library API,
   `[tool.pitloom]` schema, Action inputs, Skills), all at once or
   staggered? Any breaking cleanup to land before 1.0 while it is free?
+- [ ] **Pre-release review harness** (golden snapshots, invariants, a seeded
+  hostile-input generator): skipped for 0.25.0 by the user's ruling. See
+  [testing-and-review-policy.md](../implementation/testing-and-review-policy.md#pre-release-review),
+  step 3.
 - GitHub milestone `1.0.0` exists (no issues attached, no due date).
 
 **Cut from 1.0** (stay on this roadmap, none block it): OSV.dev lookup,
