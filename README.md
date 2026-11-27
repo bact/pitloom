@@ -10,6 +10,9 @@
 
 **Pitloom** automates the generation of [SPDX 3]-compliant
 software bills of materials (SBOMs) for Python applications and AI models.
+Use it as a [CLI](docs/cli.md), a [Hatchling build hook](docs/hatchling-build-hook.md),
+a [Python API](docs/python-api.md), a [GitHub Action](docs/github-action.md),
+[Agent Skills](docs/agent-skills.md) or a [Claude Code plugin](docs/claude-code-plugin.md).
 
 It extracts metadata directly from Python projects, whether declared in
 the standard `[project]` table (Flit, Hatchling, PDM, uv_build and others),
