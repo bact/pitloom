@@ -114,7 +114,8 @@ Not built in 0.23.0:
 
 Planned for 0.24.0 (ruling of 2026-11-04), not built when it was cut; the
 target became 0.25.0 (user, 2026-11-16), cut 2026-11-27 with what was
-merged (now in roadmap-completed.md). Each item is its own PR; the order and counts are in
+merged (now in roadmap-completed.md). Each item is its own PR; the order
+and counts are in
 [message-catalogue-migration-plan.md](message-catalogue-migration-plan.md).
 
 - [ ] **Pre-release review 0.25.0**: its fixes for 0.25.0 are merged

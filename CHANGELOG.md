@@ -101,8 +101,9 @@ and this project adheres to
 - A `creation-datetime` in `[tool.pitloom]` that is not a date is refused even
   when `--creation-datetime` overrides it ([#497])
 - Requires `licenseid>=0.9.4,<0.10`: a bare `GPL-2.0` tag stays as written, not
-  `GPL-2.0-only`; a full GPL text without a variant is still `-only`; rebuild the
-  database with `licenseid update --source packaged` ([#502], [#536], [#551], [#563])
+  `GPL-2.0-only`; a full GPL text without a variant is still `-only`; rebuild
+  the database with `licenseid update --source packaged` ([#502], [#536], [#551],
+  [#563])
 - Git URL messages say `URL=` and a code after `Git source: `; a Git or PyPI
   refusal is no longer printed twice, and every `git.*` error has a
   `pitloom_code` ([#503])
@@ -1374,7 +1375,6 @@ Released from `maint-0.21`, on 0.21.1; no other change of 0.22.0 is in it.
 
 ---
 
-[Unreleased]: https://github.com/bact/pitloom/compare/v0.25.0...HEAD
 [0.25.0]: https://github.com/bact/pitloom/compare/v0.24.0...v0.25.0
 [0.24.0]: https://github.com/bact/pitloom/compare/v0.23.4...v0.24.0
 [0.23.4]: https://github.com/bact/pitloom/compare/v0.23.3...v0.23.4

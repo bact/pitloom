@@ -6,8 +6,8 @@
 """Every ``licenseid>=`` spelling in the docs, skills, the source (a
 docstring or comment) and the newest changelog section states the floor
 that ``pyproject.toml`` declares, once: every spelling there agrees. So does
-every version named in prose (``LicenseID 0.9.4``) or as a tool version
-(``licenseid==0.9.4``, in an example's provenance).
+every version named in prose (``LicenseID 0.x.y``) or as a tool version
+(``licenseid==0.x.y``, in an example's provenance).
 
 Older released changelog sections, ``CHANGELOG-archive.md`` and
 ``working-docs/`` are history and keep the floor of their time.

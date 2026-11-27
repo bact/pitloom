@@ -373,7 +373,7 @@ Released 2026-11-11, cut for its breaking changes (ruling 2026-11-11). The skill
   (`license-relationship-invalid`). See
   [license-free-text-wrapper.md](license-free-text-wrapper.md).
 
-## Shipped in 0.25.0 (PRs #476-#563)
+## Shipped in 0.25.0
 
 Cut 2026-11-27. The skills require `pitloom>=0.25.0` (they quote message
 codes 0.25.0 introduced); Pitloom requires `licenseid>=0.9.4,<0.10`.
@@ -394,6 +394,11 @@ codes 0.25.0 introduced); Pitloom requires `licenseid>=0.9.4,<0.10`.
 - [x] **Namespace mixing in one SBOM**: a registry namespace beside
   `spdx.org/spdxdocs/demo-<uuid>` ids is by design; documented, not unified.
   See [id-namespace-mixing.md](id-namespace-mixing.md).
+- [x] **Readers and fixes**: model readers (#483, #509, #517: Pitloom's own
+  GGUF header reader), config errors (#497), LicenseID 0.9 (#502) and one
+  licence file of several texts giving no licence (#554), the Hub timeout
+  (#507) and "not found" (#561), the usage-scan hang (#539), the GGUF
+  provenance source (#540). `CHANGELOG.md` lists the rest.
 - [x] **Pre-release review** and its fixes (#558 to #562); the bump (#563)
   raised the skills' floor and LicenseID's after a licence-answer sweep
   ([floor-0-9-4-sweep.md](licenseid/floor-0-9-4-sweep.md)). See
