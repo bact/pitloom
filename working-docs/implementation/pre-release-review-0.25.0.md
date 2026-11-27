@@ -387,7 +387,12 @@ found: 'h/nope' is no local path, and the Hugging Face Hub knows no model
 <page>; if it is private, set HF_TOKEN ...`) and a URL (`URL=<page>: the
 Hugging Face Hub knows no such model; ...`); the page is the Hub asked
 (`HF_ENDPOINT`). Every other failure keeps its `WARNING:`. A dataset a card
-lists is not the target: `dataset_info()` not found still warns.
+lists is not the target: `dataset_info()` not found still warns. An id
+`huggingface_hub` refuses before any request (`HFValidationError`:
+`a/b--c`, `h/no pe`) is refused the same way: no model can have it. A
+mirror (`HF_ENDPOINT`) that answers a bare 404 without the Hub's
+`X-Error-Code: RepoNotFound` is no "not found" answer: it still warns
+(an http mirror is refused before any request).
 
 Also: `loom model <url>` now gives the library the URL as typed, as
 `loom generate` does (it gave the id, so a URL's refusal would have named
@@ -396,7 +401,12 @@ URL-rewrite `INFO:` is said by `read_huggingface` alone, before the offline
 check. A page URL `<id>/<page>/<part>` with a page kind (`tree`, `blob`,
 `resolve`, `commit`, `commits`, `discussions`, `edit`, `raw`, `blame`) and
 a part that is none names the one-part id (ruling 7); `org/tree/tree/main`
-stays the model `org/tree`. An id-shaped target that is a dangling symbolic
+stays the model `org/tree`. A URL whose name part is a page kind with
+nothing after it (`gpt2/settings`, a page the Hub has; also `settings` as a
+page kind, measured) is read as the two parts first and, when the Hub knows
+no such model, as the one-part id, with one `INFO:`
+(`target-ambiguous/hf-url`); a typed id is never read again (the first
+review round found the bare page refused). An id-shaped target that is a dangling symbolic
 link is a local path (`os.path.lexists`), so "is no local path" stays true.
 
 The other items: `fetch_git_project()` checks its URL argument
@@ -419,7 +429,13 @@ under its 30,000-byte cap: the next `targets` entry needs a topic split; a
 one-part URL with no page (`https://huggingface.co/gpt2`) is still
 `hf-url-invalid`; the model id kept is the one typed, not the Hub's current
 one (`info.id`: `gpt2`, not `openai-community/gpt2`); a page URL's revision
-(`tree/v1.0`) is not read, the revision `model_info()` states is.
+(`tree/v1.0`) is not read, the revision `model_info()` states is;
+`https://huggingface.co/gpt2/discussions` is read as the model
+`gpt2/discussions`, whose `model_info()` answer is no model's
+(`hub-response-invalid`, an SBOM, exit 0, as before); a URL without its
+scheme (`huggingface.co/gpt2`) is read as an id and refused naming
+`https://huggingface.co/huggingface.co/gpt2`, with no hint to add
+`https://`.
 
 ## Handoff prompt for spdx3-validate (TRY-1)
 

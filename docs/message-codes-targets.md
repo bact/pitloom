@@ -25,7 +25,7 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
 | [`hf-url-invalid`](#hf-url-invalid) | ERROR | A Hugging Face target is neither a Hub model URL (https://huggingface.co/<owner>/<name>) nor a model id (<owner>/<name>). | 0.25.0 |
 | [`input-not-found`](#input-not-found) | ERROR, WARNING | A path named for Pitloom to read does not exist: a model file, wheel, sdist, project directory, configuration, ID registry or SBOM file, or a PATH given to 'loom id generate' to index, on disk (or something else is there: the line says it is not a file, or not a directory), the file or directory a Git URL names in the repository at its branch (a symbolic link there is not followed, so it counts as absent: its line says it is a link), or a pattern or directory that holds nothing of what was asked for (or a wheel pattern nested too deeply to expand: its line says so). | 0.23.4 |
 | [`input-not-found/fragment`](#input-not-foundfragment) | WARNING | An SBOM fragment the project configures ([tool.pitloom.fragment]) does not exist. | 0.25.0 |
-| [`input-not-found/hub`](#input-not-foundhub) | ERROR | A Hugging Face model id (owner/name, no local path) or Hub model URL names no model the Hub lets this run read: model_info() answered not found. Without a token the Hub answers so for a private model too; a gated model is found. | 0.25.0 |
+| [`input-not-found/hub`](#input-not-foundhub) | ERROR | A Hugging Face model id (owner/name, no local path) or Hub model URL names no model the Hub lets this run read: model_info() said not found, or no model can have the id. Without a token the Hub answers so for a private model too; a gated model is found. | 0.25.0 |
 | [`model-ambiguous`](#model-ambiguous) | ERROR, INFO | A directory named for an AI model SBOM holds several AI model files, and no file was named: one SBOM describes one model. | 0.23.4 |
 | [`model-ambiguous/over-cap`](#model-ambiguousover-cap) | ERROR | A directory named for an AI model SBOM holds more files whose names could be AI models than its cap, and no file was named: which of them are models is not known, and one SBOM describes one model. | 0.23.4 |
 | [`project-not-found`](#project-not-found) | ERROR | A directory read as a Python project holds no project config (pyproject.toml, setup.cfg or setup.py). | 0.23.4 |
@@ -184,9 +184,9 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
 - **Level**: ERROR. As an ERROR, the command stops for that input and writes
   nothing for it (exit 1).
 - **Means**: A Hugging Face model id (owner/name, no local path) or Hub model
-  URL names no model the Hub lets this run read: model_info() answered not
-  found. Without a token the Hub answers so for a private model too; a gated
-  model is found.
+  URL names no model the Hub lets this run read: model_info() said not found, or
+  no model can have the id. Without a token the Hub answers so for a private
+  model too; a gated model is found.
 - **SBOM effect**: not-written: no SBOM is written for the input.
 - **Pitloom did**: Fetched no file and wrote no SBOM: the command exits 1 (the
   Action step fails); generate and generate_model_sbom raise RemoteSourceError
