@@ -166,7 +166,6 @@ and this project adheres to
 - An empty input path is `input-not-found`; an empty `-o`, `--project-dir`,
   `--id-registry`, `--config`, SBOM file name, library `project_dir` or `IdRegistry`
   path `option-invalid`: `""` never reads the cwd ([#545], [#550], [#557], [#560])
-- A blank loom dataset or model `name` is `option-invalid` ([#560])
 - loom SDK calls, `IdRegistry` methods and library path, `bool` and cap arguments
   refuse a wrong type (`CodedTypeError`, `option-invalid`; a `bool` refuses
   `"false"`); an unknown `dataset_type` is refused, not `text`; a symlinked script
@@ -191,6 +190,7 @@ and this project adheres to
   `-o` ([#557])
 - A dataset `loom.add_dataset()` adds in a `use_model()` run (`generated=False`) is
   `testedOn` the model, not `trainedOn` ([#560])
+- A blank loom dataset or model `name` is `option-invalid` ([#560])
 
 ### Fixed
 
