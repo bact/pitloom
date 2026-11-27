@@ -39,6 +39,7 @@ from __future__ import annotations
 
 import logging
 import os
+import posixpath
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, replace
@@ -298,8 +299,9 @@ def _read_url(url: str, shown: str) -> GitPage:
             pitloom_code=URL_HOST_SPELLING.code,
         )
     page = parse_git_page(url)
-    # A host alone (https://github.com/) names no repository to clone.
-    if not urlsplit(page.plain_url).path.strip("/"):
+    # A host alone (https://github.com/, or /./ and /.. that a client
+    # collapses to the root) names no repository to clone.
+    if not posixpath.normpath(urlsplit(page.plain_url).path or "/").strip("/"):
         raise remote_error(
             "git.url-invalid", GIT_URL_INVALID, GIT_URL_NO_REPOSITORY_LINE, url=shown
         )

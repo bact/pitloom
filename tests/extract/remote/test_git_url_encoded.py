@@ -304,8 +304,11 @@ def test_a_url_with_no_host_is_refused_unfetched(
         ("https://git.example.org//", "https://git.example.org//"),
         ("https://github.com/?tab=x#top", "https://github.com/?tab=x#top"),
         ("https://u:S3CRET@github.com/", "https://***:***@github.com/"),
+        ("https://github.com/./", "https://github.com/./"),
+        ("https://github.com/..", "https://github.com/.."),
+        ("https://github.com/o/..", "https://github.com/o/.."),
     ],
-    ids=["slash", "bare", "slashes", "query", "credential"],
+    ids=["slash", "bare", "slashes", "query", "credential", "dot", "dot-dot", "up"],
 )
 @pytest.mark.usefixtures("no_git")
 def test_a_url_with_a_host_alone_is_refused_unfetched(
@@ -321,11 +324,13 @@ def test_a_url_with_a_host_alone_is_refused_unfetched(
     assert "S3CRET" not in str(error)
 
 
+@pytest.mark.parametrize("path", ["/repo", "/./repo"], ids=["plain", "dot"])
 @pytest.mark.usefixtures("no_git")
-def test_a_url_with_one_path_segment_passes() -> None:
+def test_a_url_with_one_path_segment_passes(path: str) -> None:
     """One segment is a path: whether it is a repository is the server's
     to say (a self-hosted repository may sit at ``/repo``)."""
-    assert _refusal("https://git.example.org/repo", True).code == "git.offline"
+    url = "https://git.example.org" + path
+    assert _refusal(url, True).code == "git.offline"
 
 
 @pytest.mark.parametrize(

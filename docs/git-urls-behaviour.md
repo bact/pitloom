@@ -75,8 +75,9 @@ every message the Git route prints.
     or port is refused as an invalid URL (`git.url-invalid`; for the port,
     `URL=<url>: the port is not a number; nothing fetched [git-url-invalid]`). Other control
     characters (a tab, an escape) are sent as typed.
-  - A URL with a host and no path (`https://github.com/`) names no
-    repository and is refused before any request:
+  - A URL with a host and no path (`https://github.com/`, or a path such
+    as `/./` or `/..` that collapses to the root) names no repository and
+    is refused before any request:
     `URL=<url>: the URL names a host but no repository; nothing fetched
     [git-url-invalid]`. One path segment (`https://git.example.org/repo`)
     is handed to the server, which says whether it is a repository.
