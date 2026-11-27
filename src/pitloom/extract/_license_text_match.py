@@ -251,31 +251,54 @@ def _decisive(results: Sequence[Detection], threshold: float) -> str | None:
     return top
 
 
-def _readings(detector: LicenseDetector, text: str) -> list[list[Detection]]:
-    """*detector*'s ranked matches for *text* as written and, when it has
-    copyright notice lines (:data:`COPYRIGHT_NOTICE_LINE_RE`, templates
-    too), without them: LicenseID uses a notice to place the licence in
-    mixed content, yet misses some licences behind one (PyYAML's two notice
-    lines give ``Xnet``, not ``MIT``)."""
+def _reading_inputs(text: str) -> list[str]:
+    """*text* as written and, when it has copyright notice lines
+    (:data:`COPYRIGHT_NOTICE_LINE_RE`, templates too), without them:
+    LicenseID uses a notice to place the licence in mixed content, yet
+    misses some licences behind one (PyYAML's two notice lines give
+    ``Xnet``, not ``MIT``)."""
+    without_notice = COPYRIGHT_NOTICE_LINE_RE.sub("", text)
+    return [text] if without_notice == text else [text, without_notice]
+
+
+def _readings(
+    detector: LicenseDetector, inputs: Sequence[str]
+) -> list[list[Detection]]:
+    """*detector*'s ranked matches for each of *inputs*
+    (:func:`_reading_inputs`), in order."""
     with relay_licenseid_warnings():
-        readings = [detector.detect(text)]
-        without_notice = COPYRIGHT_NOTICE_LINE_RE.sub("", text)
-        if without_notice != text:
-            readings.append(detector.detect(without_notice))
-    return readings
+        return [detector.detect(text) for text in inputs]
 
 
-def _holds_several_texts(readings: Sequence[Sequence[Detection]]) -> bool:
-    """Whether a reading's ``texts`` (the List texts LicenseID finds whole in
-    the input, the same list on each result of a call) names two or more
-    licences. Such a file has no one licence: its top match is only one of
-    them (numpy's ``LICENSE.txt`` holds BSD-3-Clause, BSD-3-Clause-Open-MPI
-    and the GPL-3.0 text of a bundled library, and answers ``GPL-3.0-only``),
-    and the texts alone cannot say whether they combine with ``AND`` or
-    ``OR`` (Highway's are a choice)."""
-    for results in readings:
-        held = results[0].get("texts") if results else None
-        if isinstance(held, list) and len(held) > 1:
+def _held_texts(
+    detector: LicenseDetector, text: str, results: Sequence[Detection]
+) -> list[str] | None:
+    """The List texts LicenseID finds whole in *text*, in file order: the
+    ``texts`` its matches *results* carry (the same list on each), or, with
+    no match, :meth:`licenseid.LicenseDetector.texts`, as LicenseID answers
+    no match for a text of several licences; ``None`` when it finds none."""
+    if results:
+        held: object = results[0].get("texts")
+    else:
+        with relay_licenseid_warnings():
+            held = detector.texts(text)
+    return held if isinstance(held, list) else None
+
+
+def _holds_several_texts(
+    detector: LicenseDetector,
+    inputs: Sequence[str],
+    readings: Sequence[Sequence[Detection]],
+) -> bool:
+    """Whether a reading of *inputs* holds two or more List texts
+    (:func:`_held_texts`). Such a file has no one licence: its top match is
+    only one of them (numpy's ``LICENSE.txt`` holds BSD-3-Clause,
+    BSD-3-Clause-Open-MPI and the GPL-3.0 text of a bundled library), and
+    the texts alone cannot say whether they combine with ``AND`` or ``OR``
+    (Highway's are a choice)."""
+    for text, results in zip(inputs, readings, strict=True):
+        held = _held_texts(detector, text, results)
+        if held is not None and len(held) > 1:
             return True
     return False
 
@@ -349,7 +372,7 @@ def read_license_text(
     body (decided before the database is looked up, so nothing is said about
     it), the database cannot be used, or no match exceeds the threshold.
     *text* is read as written and without its copyright notice lines
-    (:func:`_readings`); the better-scoring reading counts
+    (:func:`_reading_inputs`); the better-scoring reading counts
     (:func:`_best_readings`). A licence *stated* (the manifest's declared
     licence) makes a missing database an ``INFO:`` line
     (:func:`_database_unusable`). A *text* that holds the texts of several
@@ -369,8 +392,9 @@ def read_license_text(
     if detector is None:
         return _NO_READING
     try:
-        readings = _readings(detector, text)
-        if _holds_several_texts(readings):
+        inputs = _reading_inputs(text)
+        readings = _readings(detector, inputs)
+        if _holds_several_texts(detector, inputs, readings):
             return _SEVERAL_TEXTS
         return LicenseTextReading(_answer(readings, threshold, stated))
     # The database failed after the detector was built (deleted, truncated,

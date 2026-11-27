@@ -1,5 +1,5 @@
 ---
-Last-Modified: 2026-11-26
+Last-Modified: 2026-11-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -39,10 +39,11 @@ A newer LicenseID may score them differently: a changed `unstated` from
 
 Two files hold the texts of several licences, and no licence is detected
 from either, stated or not (`test_a_file_of_several_licence_texts_gives_no_licence`;
-LicenseID 0.9.3 lists their texts in `Detection.texts`), nor from a licence
-file after one (`test_a_file_of_several_licence_texts_ends_the_search`):
+LicenseID lists their texts in `Detection.texts`, or, from 0.9.4, with no match
+in `LicenseDetector.texts()`), nor from a licence file after one
+(`test_a_file_of_several_licence_texts_ends_the_search`):
 
 | File | Copied from | Texts it holds |
 | --- | --- | --- |
-| `numpy-2.5.5-LICENSE` | `numpy-2.5.5.dist-info/licenses/LICENSE.txt` | BSD-3-Clause, BSD-3-Clause-Open-MPI, GPL-3.0 (LicenseID alone: `GPL-3.0-only`) |
+| `numpy-2.5.5-LICENSE` | `numpy-2.5.5.dist-info/licenses/LICENSE.txt` | BSD-3-Clause, BSD-3-Clause-Open-MPI, GPL-3.0 (LicenseID alone: none; 0.9.3 `GPL-3.0-only`) |
 | `types-setuptools-84.2.0.20261122-LICENSE` | `types_setuptools-84.2.0.20261122.dist-info/licenses/LICENSE` | Apache-2.0, MIT (LicenseID alone: `Apache-2.0`) |

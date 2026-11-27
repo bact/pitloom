@@ -107,7 +107,7 @@ Code shape:
 - **A context manager whose `__exit__` can be interrupted resets shared state in `__enter__`.**
 - **A version floor asserted in many places drifts unchecked**: keep it at the verified minimum; on change grep every spelling (requirement/example move; history stays).
 - **An undocumented third-party breaking change can be survived without an upper pin**: detect its runtime shape plus a `TYPE_CHECKING` branch.
-- **Linters**: read messages and exit code, not the score, with CI's exact command; compare an error count to HEAD with the same interpreter (`pyrefly --python-interpreter`); a `# type: ignore` that a library's type change flips becomes an `Any` view plus `cast`, checked on the lowest supported version. Build the licence database first (`licenseid update --source packaged`, `licenseid` >= 0.9.3; rebuild after an upgrade), else tests fail on `main`; in another degraded sandbox compare failing test-id sets against a baseline.
+- **Linters**: read messages and exit code, not the score, with CI's exact command; compare an error count to HEAD with the same interpreter (`pyrefly --python-interpreter`); a `# type: ignore` that a library's type change flips becomes an `Any` view plus `cast`, checked on the lowest supported version. Build the licence database first (`licenseid update --source packaged`, `licenseid` >= 0.9.4; rebuild after an upgrade), else tests fail on `main`; in another degraded sandbox compare failing test-id sets against a baseline.
 
 Tests, platform and CI:
 

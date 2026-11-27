@@ -17,11 +17,12 @@ See also: :mod:`pitloom.extract._license` and
 from __future__ import annotations
 
 import ast
+import inspect
 from importlib.metadata import version
 from pathlib import Path
 
 import pytest
-from licenseid import Detection, LicenseIdWarning, resolve
+from licenseid import Detection, LicenseDetector, LicenseIdWarning, resolve
 
 _KEYS = {
     "schema",
@@ -75,6 +76,12 @@ def test_a_detection_has_the_keys_pitloom_reads() -> None:
     assert {"expression", "score", "similarity", "coverage", "texts"} <= set(
         Detection.__annotations__
     )
+
+
+def test_a_detector_lists_an_inputs_texts() -> None:
+    """``texts()`` (0.9.4): a text of several licences has no match."""
+    params = inspect.signature(LicenseDetector.texts).parameters
+    assert list(params)[:2] == ["self", "text"]
 
 
 def test_an_operand_has_the_keys_pitloom_reads() -> None:

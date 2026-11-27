@@ -26,7 +26,11 @@ from pitloom.extract._license import (
     apply_in_package_license_files,
     license_from_candidates,
 )
-from pitloom.extract._license_text_match import _family, detect_license_from_text
+from pitloom.extract._license_text_match import (
+    _family,
+    detect_license_from_text,
+    read_license_text,
+)
 from pitloom.extract.project.sdist import read_sdist
 from pitloom.extract.remote._hub_files import HubFiles
 from pitloom.extract.remote.huggingface_fetch import _detect_license_from_hf_files
@@ -154,29 +158,37 @@ def test_embed_wheel_concludes_the_stated_licence(tmp_path: Path) -> None:
 def test_a_file_of_several_licence_texts_gives_no_licence(
     name: str, stated: str
 ) -> None:
-    """Its top match is one of its texts (numpy's alone gives
-    ``GPL-3.0-only``), stated or not: no detection."""
+    """Its top match is one of its texts (Apache-2.0 for typeshed's), or
+    LicenseID gives no match (numpy's, from 0.9.4), stated or not: no
+    detection, said as several texts."""
     text = (_CORPUS / name).read_bytes().decode("utf-8")
-    assert detect_license_from_text(text) is None
-    assert detect_license_from_text(text, stated=stated) is None
+    assert read_license_text(text) == (None, True)
+    assert read_license_text(text, stated=stated) == (None, True)
 
 
-_SEVERAL_FILE = "types-setuptools-84.2.0.20261122-LICENSE"
+#: Apache-2.0 then MIT, each matched; numpy's three texts, none matched.
+_SEVERAL_FILES = (
+    "types-setuptools-84.2.0.20261122-LICENSE",
+    "numpy-2.5.5-LICENSE",
+)
+_SEVERAL_IDS = ("matched", "unmatched")
 _MIT_FILE = "RapidFuzz-3.14.5-LICENSE"
 
 
+@pytest.mark.parametrize("several", _SEVERAL_FILES, ids=_SEVERAL_IDS)
 @pytest.mark.parametrize(
-    ("files", "expected"),
+    ("first", "expected"),
     [
         # a later file names only one licence of the several: not read
-        ((_SEVERAL_FILE, _MIT_FILE), None),
-        ((_MIT_FILE, _SEVERAL_FILE), "MIT"),  # the first decides
+        (True, None),
+        (False, "MIT"),  # the first decides
     ],
     ids=["several-first", "several-second"],
 )
 def test_a_file_of_several_licence_texts_ends_the_search(
-    files: tuple[str, str], expected: str | None
+    several: str, first: bool, expected: str | None
 ) -> None:
+    files = (several, _MIT_FILE) if first else (_MIT_FILE, several)
     candidates = [
         ((_CORPUS / name).read_bytes().decode("utf-8"), f"Source: {name}")
         for name in files
@@ -187,37 +199,45 @@ def test_a_file_of_several_licence_texts_ends_the_search(
 
 def test_a_stated_id_before_a_file_of_several_texts_still_wins() -> None:
     """``CITATION.cff`` and ``codemeta.json`` come before the licence files."""
-    text = (_CORPUS / _SEVERAL_FILE).read_bytes().decode("utf-8")
+    text = (_CORPUS / _SEVERAL_FILES[0]).read_bytes().decode("utf-8")
     found = license_from_candidates(
         [("Apache-2.0", "Source: codemeta.json"), (text, "Source: LICENSE")]
     )
     assert found == ("Apache-2.0", "Source: codemeta.json")
 
 
-#: ``LICENSE`` of Apache-2.0 and MIT texts, then a ``COPYING`` of MIT alone.
-_SEVERAL_THEN_MIT = {"LICENSE": _SEVERAL_FILE, "COPYING": _MIT_FILE}
+def _several_then_mit(several: str) -> dict[str, str]:
+    """``LICENSE`` of several texts, then a ``COPYING`` of MIT alone."""
+    return {"LICENSE": several, "COPYING": _MIT_FILE}
 
 
-def test_a_project_concludes_no_licence_from_a_file_after_several_texts() -> None:
-    """Stated ``Apache-2.0``: ``COPYING`` alone would conclude ``MIT``."""
-    metadata = ProjectMetadata(name="p", version="1")
-    metadata.license_name = "Apache-2.0"
-    members = {k: (_CORPUS / v).read_bytes() for k, v in _SEVERAL_THEN_MIT.items()}
-    apply_in_package_license_files(metadata, members)
-    assert metadata.license_concluded is None
-    assert "license_concluded" not in metadata.provenance
-
-
-def test_a_hub_repository_gives_no_licence_from_a_file_after_several_texts(
-    tmp_path: Path,
+@pytest.mark.parametrize("several", _SEVERAL_FILES, ids=_SEVERAL_IDS)
+@pytest.mark.parametrize("stated", ["Apache-2.0", None])
+def test_a_project_concludes_no_licence_from_a_file_after_several_texts(
+    several: str, stated: str | None
 ) -> None:
-    for name, fixture in _SEVERAL_THEN_MIT.items():
+    """``COPYING`` alone would give ``MIT``: concluded beside a stated
+    licence, else declared."""
+    metadata = ProjectMetadata(name="p", version="1")
+    metadata.license_name = stated
+    members = {
+        k: (_CORPUS / v).read_bytes() for k, v in _several_then_mit(several).items()
+    }
+    apply_in_package_license_files(metadata, members)
+    assert (metadata.license_name, metadata.license_concluded) == (stated, None)
+    assert not {"license", "license_concluded"} & set(metadata.provenance)
+
+
+@pytest.mark.parametrize("several", _SEVERAL_FILES, ids=_SEVERAL_IDS)
+def test_a_hub_repository_gives_no_licence_from_a_file_after_several_texts(
+    tmp_path: Path, several: str
+) -> None:
+    files = _several_then_mit(several)
+    for name, fixture in files.items():
         (tmp_path / name).write_bytes((_CORPUS / fixture).read_bytes())
     hub = create_autospec(HubFiles, instance=True)
     hub.asks_hub = True
     hub.read.side_effect = lambda _model, name, **_kw: tmp_path / name
-    found = _detect_license_from_hf_files(
-        hub, "o/m", license_files=list(_SEVERAL_THEN_MIT)
-    )
+    found = _detect_license_from_hf_files(hub, "o/m", license_files=list(files))
     assert found == (None, None)
     assert hub.read.call_count == 1

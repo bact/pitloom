@@ -13,10 +13,10 @@ test_license_detection_corpus.py (real licence files).
 """
 
 from typing import cast
-from unittest.mock import patch
+from unittest.mock import call, create_autospec, patch
 
 import pytest
-from licenseid import Detection
+from licenseid import Detection, LicenseDetector
 
 from pitloom.extract._license_text_match import (
     _best_reading_decides,
@@ -24,7 +24,7 @@ from pitloom.extract._license_text_match import (
     _holds_several_texts,
     _stated_among,
     _stated_ids,
-    detect_license_from_text,
+    read_license_text,
 )
 
 
@@ -203,26 +203,78 @@ _TWO = ["Apache-2.0", "MIT"]
 def test_several_texts_are_two_or_more_in_any_reading(
     texts: list[object], expected: bool
 ) -> None:
+    """A match carries the texts: LicenseID is not asked again."""
+    detector = create_autospec(LicenseDetector, instance=True)
     readings = [[{"expression": "MIT", "score": 1.0, "texts": t}] for t in texts]
-    assert _holds_several_texts(cast("list[list[Detection]]", readings)) is expected
+    inputs = [f"input {n}" for n in range(len(readings))]
+    found = _holds_several_texts(
+        detector, inputs, cast("list[list[Detection]]", readings)
+    )
+    assert found is expected
+    detector.texts.assert_not_called()
 
 
-def test_no_match_holds_no_texts() -> None:
-    assert _holds_several_texts([[]]) is False
+@pytest.mark.parametrize(
+    ("texts", "expected"),
+    [
+        (None, False),
+        ([], False),
+        (["MIT"], False),
+        (_TWO, True),
+        ("MIT Apache-2.0", False),  # not a list
+    ],
+    ids=["none", "empty", "one", "two", "str"],
+)
+def test_with_no_match_licenseid_is_asked_for_the_texts(
+    texts: object, expected: bool
+) -> None:
+    """LicenseID 0.9.4 matches nothing for a text of several licences."""
+    detector = create_autospec(LicenseDetector, instance=True)
+    detector.texts.return_value = texts
+    assert _holds_several_texts(detector, ["the input"], [[]]) is expected
+    detector.texts.assert_called_once_with("the input")
 
 
-# pylint: disable-next=too-few-public-methods
+@pytest.mark.parametrize(
+    ("first", "calls"),
+    [(["MIT"], ["second"]), (_TWO, [])],
+    ids=["one-then-asked", "two-stops"],
+)
+def test_each_unmatched_reading_is_asked_its_own_input(
+    first: list[str], calls: list[str]
+) -> None:
+    """The first reading's texts come with its match; the second, unmatched,
+    is asked with its own input, unless the first already holds several."""
+    detector = create_autospec(LicenseDetector, instance=True)
+    detector.texts.return_value = _TWO
+    readings = [[{"expression": "MIT", "score": 1.0, "texts": first}], []]
+    found = _holds_several_texts(
+        detector, ["first", "second"], cast("list[list[Detection]]", readings)
+    )
+    assert found is True
+    assert detector.texts.call_args_list == [call(text) for text in calls]
+
+
 class _TextsDetector:
-    """Answers MIT at the cap, with the texts given, for any input."""
+    """Answers MIT at the cap, with the texts given, for any input; or,
+    not *matched*, nothing, the texts given by :meth:`texts` alone."""
 
-    def __init__(self, texts: list[str] | None) -> None:
+    def __init__(self, texts: list[str] | None, *, matched: bool) -> None:
         self._texts = texts
+        self._matched = matched
 
     def detect(self, text: str = "") -> list[dict[str, object]]:
         del text
+        if not self._matched:
+            return []
         return [{"expression": "MIT", "score": 1.0, "texts": self._texts}]
 
+    def texts(self, text: str = "") -> list[str] | None:
+        del text
+        return self._texts
 
+
+@pytest.mark.parametrize("matched", [True, False], ids=["matched", "unmatched"])
 @pytest.mark.parametrize(
     ("texts", "stated", "expected"),
     [
@@ -233,10 +285,12 @@ class _TextsDetector:
     ],
 )
 def test_a_text_of_several_licences_is_no_detection(
-    texts: list[str], stated: str | None, expected: str | None
+    texts: list[str], stated: str | None, expected: str | None, matched: bool
 ) -> None:
+    detector = _TextsDetector(texts, matched=matched)
     with patch(
-        "pitloom.extract._license_text_match._get_detector",
-        return_value=_TextsDetector(texts),
+        "pitloom.extract._license_text_match._get_detector", return_value=detector
     ):
-        assert detect_license_from_text("x " * 100, stated=stated) == expected
+        reading = read_license_text("x " * 100, stated=stated)
+    several = len(texts) > 1
+    assert reading == ((expected if matched else None), several)
