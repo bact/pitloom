@@ -38,7 +38,9 @@ User manual: <https://bact.github.io/pitloom/>
 [dist-info]: https://packaging.python.org/en/latest/specifications/recording-installed-packages/#the-dist-info-directory
 [PEP 770]: https://peps.python.org/pep-0770/
 
-![The Pippin Pitloom](./docs/mascot.png)
+![The Pippin Pitloom][mascot]
+
+[mascot]: https://bact.github.io/pitloom/mascot.png
 
 ## Contents
 
@@ -62,7 +64,7 @@ loom project .                       # SBOM for the Python project in the curren
 Without the [LicenseID] database, a declared licence is still read,
 but a `LICENSE` file is not matched.
 
-Extras enable more metadata extraction (see [CONTRIBUTING.md](CONTRIBUTING.md)
+Extras enable more metadata extraction (see [CONTRIBUTING.md]
 for the dev install):
 
 ```bash
@@ -72,6 +74,7 @@ pip install "pitloom[validate]"        # SPDX 3 schema/SHACL validation
 ```
 
 [LicenseID]: https://github.com/bact/licenseid
+[CONTRIBUTING.md]: https://github.com/bact/pitloom/blob/main/CONTRIBUTING.md
 
 ## Usage
 
@@ -80,12 +83,14 @@ Pick the one that fits how you work:
 
 | Surface | Reach for this when... |
 | :--- | :--- |
-| [Command line](docs/cli.md) (`loom` / `pitloom`) | You want a one-off SBOM from a terminal, a Makefile target or a shell script. |
-| [Hatchling build hook](docs/hatchling-build-hook.md) | You build wheels with Hatchling and want an SBOM embedded automatically. |
-| [Python API](docs/python-api.md) | You call Pitloom from Python code, or want to capture provenance while training or evaluating a model (tracking decorator). |
-| [GitHub Action](docs/github-action.md) | Your project is not Hatchling-based, or you want CI to produce an SBOM artefact. |
-| [Agent Skills](docs/agent-skills.md) | You want an AI coding agent to generate, enrich or validate an SBOM on request. |
-| [Claude Code plugin](docs/claude-code-plugin.md) | You use Claude Code and want the Skills installed with one command. |
+| [Command line] (`loom` / `pitloom`) | You want a one-off SBOM from a terminal, a Makefile target or a shell script. |
+| [Hatchling build hook] | You build wheels with Hatchling and want an SBOM embedded automatically. |
+| [Python API] | You call Pitloom from Python code, or want to capture provenance while training or evaluating a model (tracking decorator). |
+| [GitHub Action] | Your project is not Hatchling-based, or you want CI to produce an SBOM artefact. |
+| [Agent Skills] | You want an AI coding agent to generate, enrich or validate an SBOM on request. |
+| [Claude Code plugin] | You use Claude Code and want the Skills installed with one command. |
+
+[Command line]: https://bact.github.io/pitloom/cli/
 
 ### Command line
 
@@ -127,11 +132,16 @@ fragment:
 loom enrich path/to/model.safetensors -o model.enrich.spdx3.json
 ```
 
-See [Command line](docs/cli.md) for per-command detail,
-[SBOM from a Git URL](docs/git-urls.md) for repository URLs,
-[SBOM from a PyPI URL](docs/pypi-urls.md) for PyPI project pages,
-[Wheel SBOMs](docs/wheel-sbom.md) for `embed-wheel`, `verify-wheel` and
-`validate-wheel`, and [SBOM fragments](docs/fragments.md) for merging.
+See [Command line] for per-command detail,
+[SBOM from a Git URL] for repository URLs,
+[SBOM from a PyPI URL] for PyPI project pages,
+[Wheel SBOMs] for `embed-wheel`, `verify-wheel` and
+`validate-wheel`, and [SBOM fragments] for merging.
+
+[SBOM from a Git URL]: https://bact.github.io/pitloom/git-urls/
+[SBOM from a PyPI URL]: https://bact.github.io/pitloom/pypi-urls/
+[Wheel SBOMs]: https://bact.github.io/pitloom/wheel-sbom/
+[SBOM fragments]: https://bact.github.io/pitloom/fragments/
 
 ### Hatchling build hook
 
@@ -148,8 +158,9 @@ enabled = true    # set to false to skip SBOM generation
 ```
 
 Basename, fragments, creators and provenance are set under `[tool.pitloom]`;
-see the [hook page](docs/hatchling-build-hook.md) and
-[Configuration](docs/configuration.md).
+see the [hook page][Hatchling build hook] and [Configuration].
+
+[Configuration]: https://bact.github.io/pitloom/configuration/
 
 ### Python API
 
@@ -198,9 +209,10 @@ def evaluate_model():
     # ... evaluation logic ...
 ```
 
-See [Python API](docs/python-api.md) for lineage between several datasets in
-one run, and [Loom ID registry](docs/id-registry.md) for stable ids across
-fragments.
+See [Python API] for lineage between several datasets in one run, and
+[Loom ID registry] for stable ids across fragments.
+
+[Loom ID registry]: https://bact.github.io/pitloom/id-registry/
 
 ### GitHub Action
 
@@ -214,12 +226,12 @@ SBOM generation in CI, for any Python build backend:
 ```
 
 Add `embed-wheel: "dist/*.whl"` to embed the SBOM into built wheels. See
-[GitHub Action](docs/github-action.md) for inputs, outputs and recipes.
+[GitHub Action] for inputs, outputs and recipes.
 
 ### Agent Skills and Claude Code plugin
 
 `skills/sbom-generate/`, `skills/sbom-enrich/` and `skills/sbom-validate/`
-are [Agent Skills](https://agentskills.io) for Claude Code, the Claude Agent
+are [Agent Skills][agentskills.io] for Claude Code, the Claude Agent
 SDK and other compatible clients. Ask in plain language ("generate an SBOM
 for this project") or invoke one: `/sbom-generate [target]`,
 `/sbom-enrich [sbom-file]`, `/sbom-validate [sbom-file]`. Generate first;
@@ -232,9 +244,10 @@ For Claude Code, install all three as a plugin from this repository:
 /plugin install pitloom@pitloom
 ```
 
-The Skills are then namespaced, e.g. `/pitloom:sbom-generate`. See [Agent
-Skills](docs/agent-skills.md) (install into other clients) and [Claude Code
-plugin](docs/claude-code-plugin.md).
+The Skills are then namespaced, e.g. `/pitloom:sbom-generate`. See
+[Agent Skills] (install into other clients) and [Claude Code plugin].
+
+[agentskills.io]: https://agentskills.io
 
 ## Example
 
@@ -245,37 +258,44 @@ loom project sentimentdemo
 
 The generated SBOM includes project metadata, dependencies (extras included)
 with version constraints, SPDX relationships, creator/creation info and
-per-field metadata provenance. See a more complete example in
-[examples/](./examples/).
+per-field metadata provenance. See a more complete example in [examples/].
+
+[examples/]: https://github.com/bact/pitloom/tree/main/examples
 
 ## Learn more
 
-- [Configuration](docs/configuration.md): every `[tool.pitloom]` setting and
+- [Configuration]: every `[tool.pitloom]` setting and
   how each surface reads it.
-- [Creation metadata](docs/creation-metadata.md): who, what, when and how each
+- [Creation metadata]: who, what, when and how each
   element records its creation (`--creator-name`, `--creation-tool`, ...).
-- [Metadata provenance](docs/metadata-provenance.md): SPDX 3 `Annotation`
+- [Metadata provenance]: SPDX 3 `Annotation`
   elements recording the source of each field, so "why does the SBOM say the
   concluded licence is MIT?" has a traceable answer.
-- [Loom ID registry](docs/id-registry.md): an optional registry that keeps
+- [Loom ID registry]: an optional registry that keeps
   `spdxId`s stable across fragments and runs.
-- [G7 SBOM for AI](docs/g7-sbom-for-ai.md): how much of the G7 SBOM for AI,
+- [G7 SBOM for AI]: how much of the G7 SBOM for AI,
   CISA 2026, FSCT 2024 and BSI TR-03183-2 minimum elements Pitloom's SBOMs
   carry, as `ntia-conformance-checker` reads them.
-- [Resources](docs/resources.md): SBOM, AIBOM and SPDX reading list.
-- [SPDX 3.0 Specification](https://spdx.dev/wp-content/uploads/sites/31/2024/12/SPDX-3.0.1-1.pdf),
-  [PEP 770](https://peps.python.org/pep-0770/) and Bennet et al.,
-  [“Implementing AI Bill of Materials with SPDX 3.0”](https://www.linuxfoundation.org/research/ai-bom),
+- [Resources]: SBOM, AIBOM and SPDX reading list.
+- [SPDX 3.0 Specification], [PEP 770] and Bennet et al.,
+  [“Implementing AI Bill of Materials with SPDX 3.0”][ai-bom],
   The Linux Foundation, 2024.
+
+[Creation metadata]: https://bact.github.io/pitloom/creation-metadata/
+[Metadata provenance]: https://bact.github.io/pitloom/metadata-provenance/
+[G7 SBOM for AI]: https://bact.github.io/pitloom/g7-sbom-for-ai/
+[Resources]: https://bact.github.io/pitloom/resources/
+[SPDX 3.0 Specification]: https://spdx.dev/wp-content/uploads/sites/31/2024/12/SPDX-3.0.1-1.pdf
+[ai-bom]: https://www.linuxfoundation.org/research/ai-bom
 
 ## Pitloom's own SBOM and signatures
 
-Pitloom's [Hatchling build hook](#hatchling-build-hook) writes Pitloom's SBOM
+Pitloom's [Hatchling build hook] writes Pitloom's SBOM
 into its wheel, at `.dist-info/sboms/<name>-<version>.spdx3.json` ([PEP 770]).
 The release build installs the `content-type` extra, so every non-empty
 file's content type is detected by magika.
 
-Each [GitHub release](https://github.com/bact/pitloom/releases) attaches:
+Each [GitHub release] attaches:
 
 - the wheel and the sdist;
 - the same SBOM as a standalone file, byte-identical to the one in the wheel;
@@ -283,6 +303,8 @@ Each [GitHub release](https://github.com/bact/pitloom/releases) attaches:
 
 The same three files also have a GitHub artifact attestation (build
 provenance), kept by GitHub, not attached to the release.
+
+[GitHub release]: https://github.com/bact/pitloom/releases
 
 To check a download (`<file>` is the wheel, the sdist or the SBOM; the
 Sigstore bundle path defaults to `<file>.sigstore.json`, `--bundle` overrides
@@ -304,8 +326,10 @@ gh attestation verify <file> -R bact/pitloom \
 - Source code: Apache License 2.0.
 - Documentation: Creative Commons Zero 1.0 Universal (CC0-1.0).
 - Test fixture AI models: individually licensed (Apache-2.0, CC0-1.0, or
-  MIT); see [tests/fixtures/README.md](tests/fixtures/README.md). Source
-  repository only -- not included in distribution packages.
+  MIT); see [tests/fixtures/README.md]. Source repository only -- not
+  included in distribution packages.
+
+[tests/fixtures/README.md]: https://github.com/bact/pitloom/blob/main/tests/fixtures/README.md
 
 ## Citation
 
@@ -329,7 +353,7 @@ BibTeX:
 
 ## Name
 
-A [pit loom](https://en.wikipedia.org/wiki/Loom#Treadle_loom)
+A [pit loom]
 is a traditional handloom built into a ground-level pit
 to house its internal mechanisms and the weaver's legs.
 This "grounded" design provides stability and precision
@@ -338,3 +362,5 @@ during the weaving process.
 We use the loom as a metaphor for the tool's function:
 it weaves disparate threads of metadata into a cohesive SBOM,
 creating a transparent, structured "fabric" for the software build.
+
+[pit loom]: https://en.wikipedia.org/wiki/Loom#Treadle_loom
