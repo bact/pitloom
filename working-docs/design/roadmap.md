@@ -183,6 +183,26 @@ and counts are in
 - [ ] **`--report` (JSON Lines), then SARIF 2.1.0**, once most families have
   codes. See [sarif-output.md](sarif-output.md).
 
+### Follow-ups from the 0.25.0 wheel SBOM (user, 2026-11-27)
+
+Seen in Pitloom's own published wheel SBOM. The first two are priority.
+
+- [ ] **Priority: a dependency's licence is declared, not concluded**: a
+  licence read from a dependency's metadata or licence file is the
+  originator's claim (`hasDeclaredLicense`); Pitloom concludes nothing about
+  it. The provenance taxonomy code stage. See
+  [asserter-licence.md](provenance-taxonomy/asserter-licence.md).
+- [ ] **Priority: author typing (#170)**: an exact known list of
+  organisation names and addresses gives `Organization`; an author not
+  typed by it is `Agent`, not `Person` (decided 2026-11-27). See
+  [author-entity-recognition.md](author-entity-recognition.md#decided-2026-11-27-known-list-agent-when-unsure).
+- [ ] **Marker-conditional dependencies**: `tomli` (`python_version <
+  "3.11"`) and `auditwheel` (Linux only) are recorded as plain `dependsOn`
+  runtime dependencies; the environment marker is lost.
+- [ ] **Uninstalled optional dependencies**: an extra not installed in the
+  build environment gets version `unknown`, yet its licence and authors come
+  from the latest PyPI release, a mismatch of release and facts.
+
 ### 1.0
 
 - [ ] **G7 SBOM for AI field coverage** (the headline,

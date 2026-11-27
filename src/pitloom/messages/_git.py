@@ -38,6 +38,13 @@ GIT_URL_SCHEME_LINE: Final = Line(
 GIT_URL_HOST_LINE: Final = Line(
     level="ERROR", template="URL=%(url)s: the URL names no host; nothing fetched"
 )
+#: A URL that names a host but no path (``https://github.com/``): no
+#: repository to clone.
+GIT_URL_NO_REPOSITORY_LINE: Final = Line(
+    level="ERROR",
+    template="URL=%(url)s: the URL names a host but no repository; nothing fetched",
+    since="0.25.1",
+)
 #: A URL whose port is no number.
 GIT_URL_PORT_LINE: Final = Line(
     level="ERROR", template="URL=%(url)s: the port is not a number; nothing fetched"
@@ -56,12 +63,14 @@ GIT_URL_INVALID: Final = Message(
     lines=(
         GIT_URL_SCHEME_LINE,
         GIT_URL_HOST_LINE,
+        GIT_URL_NO_REPOSITORY_LINE,
         GIT_URL_PORT_LINE,
         GIT_URL_PATH_LINE,
     ),
     summary="A Git URL is not one Pitloom fetches: its scheme is not http or "
     "https (ssh://, git://, file:// or an scp-style user@host:path), it names "
-    "no host (https:///o/r, https://:443/o/r), its port is not a number, or a "
+    "no host (https:///o/r, https://:443/o/r), it names a host but no "
+    "repository (https://github.com/), its port is not a number, or a "
     "part of its path, once decoded, is ., .., empty, "
     "or holds a backslash, a NUL or .git, which would read outside the "
     "checkout or git's own files.",
