@@ -46,7 +46,7 @@ from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 from pitloom.extract._license_detect import LICENSE_FILE_MAX_BYTES
 from tests._symlink import CAN_SYMLINK, case_sensitive
 
-from .conftest import _FakeMetadata, _make_ci
+from .conftest import _FakeDistribution, _FakeMetadata, _FakePackagePath, _make_ci
 
 _SYMLINK = pytest.mark.skipif(not CAN_SYMLINK, reason="cannot create a symlink")
 
@@ -172,40 +172,6 @@ def test_enrich_from_installed_dedupes_shared_supplier_agent(
 # ---------------------------------------------------------------------------
 # _find_license_copyright -- License-File under .dist-info, every notice
 # ---------------------------------------------------------------------------
-
-
-class _FakePackagePath:
-    """Minimal stand-in for ``importlib.metadata.PackagePath``: *path* in
-    the installed tree, its content written under *root*."""
-
-    def __init__(self, root: Path, path: str, content: str | None):
-        self._path = path
-        self._file = root / path
-        self._file.parent.mkdir(parents=True, exist_ok=True)
-        if content is None:  # a directory: present, but no file to read
-            self._file.mkdir()
-        else:
-            self._file.write_bytes(content.encode("utf-8"))
-
-    @property
-    def name(self) -> str:
-        return self._path.rsplit("/", maxsplit=1)[-1]
-
-    def __str__(self) -> str:
-        return self._path
-
-    def locate(self) -> Path:
-        return self._file
-
-
-# pylint: disable-next=too-few-public-methods
-class _FakeDistribution:
-    def __init__(self, root: Path, files: list[_FakePackagePath]):
-        self._root = root
-        self.files = files
-
-    def locate_file(self, path: str) -> Path:
-        return self._root / path
 
 
 _LIC = "mypkg-1.0.dist-info/licenses/"

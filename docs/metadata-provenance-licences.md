@@ -228,6 +228,21 @@ that states a licence wins, and the `NoAssertionLicense` individual is
 recorded, with the first source's provenance, only if none does. `NONE`
 ends the lookup.
 
+When the installed metadata names no SPDX licence (absent,
+`NOASSERTION`/`UNKNOWN`, or text such as the classifier name `Apache
+Software License`, which names no version), the dependency's installed
+licence files are read as a project's own are: those its `License-File`
+headers list, each under `.dist-info/licenses/` or else at the `.dist-info`
+root, or, with no header, the licence files at the `.dist-info` root by
+name. The first file LicenseID identifies gives the licence (provenance
+`File: <RECORD entry>`, `Method: licenseid_detection`); a file holding the
+texts of several licences ends the search with none, and the licence its
+`License ::` classifiers name wins a near-tie (`LGPLv3+` makes a verbatim
+LGPL 3 text `LGPL-3.0-or-later`). When no file is identified, the metadata
+value is recorded as before. With no LicenseID database the files give no
+licence, said once (`license-db-missing`): `INFO:` when a classifier names
+an SPDX licence, else `WARNING:`, as for a project.
+
 The project's own `License ::` classifiers are read the same way: after
 `project.license` in `pyproject.toml` (`Field: project.classifiers`, also in the
 Hatchling build hook), `license` in `setup.cfg` (`Field: metadata.classifiers`),

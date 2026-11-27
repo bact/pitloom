@@ -22,6 +22,7 @@ from packaging.specifiers import InvalidSpecifier
 from packaging.utils import canonicalize_name
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
+from pitloom.assemble.spdx3._deps_license_files import license_from_dist_files
 from pitloom.assemble.spdx3._deps_pin_checks import (
     is_exact_pin_conflict,
     satisfies_constraint,
@@ -463,9 +464,12 @@ def _enrich_from_installed(
         dep_package.software_copyrightText = copyright_text
         filled.add("copyright")
 
-    license_id, provenance = core_metadata_license_with_source(
-        pkg_meta, package_provenance_source(installed_source, dep_name)
-    )
+    source = package_provenance_source(installed_source, dep_name)
+    license_id, provenance = core_metadata_license_with_source(pkg_meta, source)
+    # Metadata that names no SPDX licence gives way to the licence files.
+    from_files = license_from_dist_files(dep_name, pkg_meta, license_id, source)
+    if from_files is not None:
+        license_id, provenance = from_files
     if _apply_license(
         license_id,
         provenance,

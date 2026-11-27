@@ -161,6 +161,40 @@ _SAMPLE_SPDX3_JSON = json.dumps(
 )
 
 
+class _FakePackagePath:
+    """Minimal stand-in for ``importlib.metadata.PackagePath``: *path* in
+    the installed tree, its content written under *root*."""
+
+    def __init__(self, root: Path, path: str, content: str | None):
+        self._path = path
+        self._file = root / path
+        self._file.parent.mkdir(parents=True, exist_ok=True)
+        if content is None:  # a directory: present, but no file to read
+            self._file.mkdir()
+        else:
+            self._file.write_bytes(content.encode("utf-8"))
+
+    @property
+    def name(self) -> str:
+        return self._path.rsplit("/", maxsplit=1)[-1]
+
+    def __str__(self) -> str:
+        return self._path
+
+    def locate(self) -> Path:
+        return self._file
+
+
+# pylint: disable-next=too-few-public-methods
+class _FakeDistribution:
+    def __init__(self, root: Path, files: list[_FakePackagePath]):
+        self._root = root
+        self.files = files
+
+    def locate_file(self, path: str) -> Path:
+        return self._root / path
+
+
 def _spdx3_json_with_subject(
     name: str | None,
     version: str | None,

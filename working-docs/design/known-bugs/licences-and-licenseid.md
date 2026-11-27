@@ -133,6 +133,28 @@ entries come first; fixed entries stay in the last section for history.
   rule keeps it as text, as for `\n`; `main` read it as an expression.
   Consistent, but a value from a CR-only file would lose its reading.
   *Found 2026-11-04, review of #440.*
+- [ ] **A dependency's Apache 2.0 file with no licence stated stays
+  unread (S, upstream).** The licence-file fallback for a dependency whose
+  metadata names no SPDX licence (`_deps_license_files.py`) gives none for
+  rfc8785 0.1.4, rfc3161-client and sigstore-rekor-types: their verbatim
+  Apache 2.0 texts score `Apache-2.0` 1.0 and `Pixar` 0.995, a near-tie the
+  reader refuses with nothing stated, and the `Apache Software License`
+  classifier names no version to break it. 8 of the 11 installed packages
+  whose metadata named no SPDX licence (a 101-package environment) were
+  identified. The near-variant ranking is LicenseID's
+  ([licenseid-handoff.md](../licenseid-handoff.md)); a family hint from a
+  versionless classifier (`Apache-*`) is the other way, not built.
+  *Found 2026-11-27, post-publish verification of 0.25.0.*
+- [ ] **A dependency's copyright notices match `License-File` by base name
+  (S-M).** `_find_license_copyright` (`assemble/spdx3/deps_originator.py`)
+  compares each `License-File` value with a `.dist-info` file's base name:
+  a nested value (numpy lists nine, `numpy/_core/.../LICENSE.txt`) matches
+  nothing, and `LICENSE` matches every `.dist-info` file of that name, at
+  any depth. With no `License-File` header (rfc8785's root `LICENSE`) no file
+  is read. `dist_license_files` (`_deps_license_files.py`) resolves the exact
+  paths for the licence; reusing it here changes the copyright text of
+  such packages, so it needs a before/after sweep.
+  *Found 2026-11-27, review of the dependency licence-file fallback.*
 
 ## Fixed
 
