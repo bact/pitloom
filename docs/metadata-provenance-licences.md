@@ -35,7 +35,8 @@ not just casing (a declared `"mit"` and a detected `"MIT"` are recognised as the
 same licence), but also equivalent compound expressions written differently
 (`"MIT AND MIT"` and plain `"MIT"`; `"MIT OR Apache-2.0"` and `"Apache-2.0 OR
 MIT"` all normalise to the same value) -- so none of these are misreported as a
-conflict.
+conflict. Nor is a declared licence body (`project.license.text` holding the
+full text) that LicenseID reads as the detected licence.
 
 - If the project states no licence, the directory's value is recorded as
   `hasDeclaredLicense`: a `CITATION.cff`, `codemeta.json` or `LICENSE` file
@@ -244,8 +245,11 @@ licence its `License ::` classifiers name wins a near-tie (`LGPLv3+` makes
 a verbatim LGPL 3 text `LGPL-3.0-or-later`). What it gives is recorded as
 for a project too: beside stated text, which stays the declared licence,
 as the concluded licence, with a conflict annotation when the two are not
-the same licence (`Apache Software License` is no SPDX List name, so it
-differs from `Apache-2.0`); in place of an absent value or
+the same licence. A stated text LicenseID reads as the concluded licence
+(a `License` header holding the licence body, the classifiers' licence
+winning a near-tie) is the same licence; a short name it reads as nothing
+is not (`Apache Software License` is no SPDX List name, so it differs from
+`Apache-2.0`); in place of an absent value or
 `NOASSERTION`/`UNKNOWN`, as the licence, declared or concluded by its
 source, as the metadata value would be. When no file is identified, the metadata value is
 recorded as before. With no LicenseID database the files give no licence,

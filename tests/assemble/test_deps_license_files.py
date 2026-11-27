@@ -40,6 +40,7 @@ from pitloom.assemble.spdx3.provenance import (
 from pitloom.core.models import _clear_doc_counters, compute_doc_uuid, generate_spdx_id
 from pitloom.export.spdx3_json import Spdx3JsonExporter
 from pitloom.extract import _license_text_match
+from pitloom.extract._license import stated_text_agrees
 from pitloom.logging_config import CODE_ATTR
 
 from .conftest import _FakeDistribution, _FakeMetadata, _FakePackagePath, _make_ci
@@ -294,6 +295,26 @@ def test_a_missing_distribution_gives_none(monkeypatch: pytest.MonkeyPatch) -> N
     assert license_from_dist_files("dep", _FakeMetadata({}), None, "s") is None
 
 
+@pytest.mark.usefixtures("licenseid_db_path")
+@pytest.mark.parametrize(
+    ("text", "detected", "hint", "agrees"),
+    [
+        (_MIT, "MIT", None, True),
+        (_MIT, "LGPL-3.0-only", None, False),
+        # A verbatim LGPL 3 body: the classifier's licence breaks the tie.
+        (_LGPL3, "LGPL-3.0-or-later", "LGPL-3.0-or-later", True),
+        (_LGPL3, "LGPL-3.0-or-later", None, False),
+        # A name too short to be a licence body is read as nothing.
+        ("Apache Software License", "Apache-2.0", None, False),
+    ],
+    ids=["same", "other", "hint-decides", "no-hint", "short-name"],
+)
+def test_stated_text_agrees(
+    text: str, detected: str, hint: str | None, agrees: bool
+) -> None:
+    assert stated_text_agrees(text, detected, hint=hint) is agrees
+
+
 def _licence_of(element: dict[str, Any]) -> str:
     return str(
         element.get("simplelicensing_licenseExpression")
@@ -306,13 +327,14 @@ def _licence_of(element: dict[str, Any]) -> str:
     "source", [INSTALLED_DEPENDENCY_SOURCE, DEPLOYED_PACKAGE_SOURCE]
 )
 @pytest.mark.parametrize(
-    ("fields", "classifiers", "expected", "conflicts"),
+    ("fields", "classifiers", "text", "expected", "conflicts"),
     [
         # Stated text is the declared licence, the file's the concluded one
         # (G2), as for a project's own; they differ, so a conflict is noted.
         (
             {},
             [_APACHE_CLASSIFIER],
+            _MIT,
             {
                 "hasDeclaredLicense": "Apache Software License",
                 "hasConcludedLicense": "MIT",
@@ -321,16 +343,63 @@ def _licence_of(element: dict[str, Any]) -> str:
         ),
         # Nothing stated: the file's licence, declared or concluded by its
         # source (single mode).
-        ({}, [], {"single": "MIT"}, 0),
+        ({}, [], _MIT, {"single": "MIT"}, 0),
         # python-dateutil: a dual licence the file would narrow, not read.
         (
             {"License": "Dual License"},
             [_BSD_CLASSIFIER, _APACHE_CLASSIFIER],
+            _MIT,
             {"single": "Dual License"},
             0,
         ),
+        # A header holding the licence body LicenseID reads as the file's
+        # licence agrees: no conflict, both relationships kept.
+        (
+            {"License": _MIT},
+            [],
+            _MIT,
+            {"hasDeclaredLicense": "<text>", "hasConcludedLicense": "MIT"},
+            0,
+        ),
+        # The same with a verbatim LGPL 3 body: only the classifier
+        # (LGPLv3+) decides it reads as the file's LGPL-3.0-or-later.
+        (
+            {"License": _LGPL3},
+            [_LGPL3_PLUS],
+            _LGPL3,
+            {
+                "hasDeclaredLicense": "<text>",
+                "hasConcludedLicense": "LGPL-3.0-or-later",
+            },
+            0,
+        ),
+        # A short name LicenseID reads as nothing still conflicts, though
+        # it names the file's licence by usage.
+        (
+            {"License": "Expat license"},
+            [],
+            _MIT,
+            {"hasDeclaredLicense": "Expat license", "hasConcludedLicense": "MIT"},
+            1,
+        ),
+        # A body of another licence than the file's: a real conflict.
+        (
+            {"License": _MIT},
+            [],
+            _LGPL3,
+            {"hasDeclaredLicense": "<text>", "hasConcludedLicense": "LGPL-3.0-only"},
+            1,
+        ),
     ],
-    ids=["stated-text", "unstated", "dual"],
+    ids=[
+        "stated-text",
+        "unstated",
+        "dual",
+        "body-agrees",
+        "body-agrees-by-classifier",
+        "short-name",
+        "body-differs",
+    ],
 )
 # pylint: disable-next=too-many-arguments,too-many-positional-arguments,too-many-locals
 def test_dependency_licence_from_its_file(
@@ -339,6 +408,7 @@ def test_dependency_licence_from_its_file(
     source: str,
     fields: dict[str, str],
     classifiers: list[str],
+    text: str,
     expected: dict[str, str],
     conflicts: int,
 ) -> None:
@@ -353,7 +423,7 @@ def test_dependency_licence_from_its_file(
             {"Version": "1.0", **fields}, classifiers=classifiers
         ),
     )
-    _patch_dist(monkeypatch, _dist(tmp_path, {f"{_DI}/LICENSE": _MIT}))
+    _patch_dist(monkeypatch, _dist(tmp_path, {f"{_DI}/LICENSE": text}))
     doc_uuid = compute_doc_uuid("demo", "1.0", [])
     _clear_doc_counters(doc_uuid)
     exporter = Spdx3JsonExporter()
@@ -379,7 +449,8 @@ def test_dependency_licence_from_its_file(
 
     def licence(ref: str) -> str:
         value = _licence_of(by_id[ref])
-        return _licence_of(by_id[custom[value]]) if value in custom else value
+        value = _licence_of(by_id[custom[value]]) if value in custom else value
+        return "<text>" if len(value) > 100 else value  # a licence body
 
     found = {
         e["relationshipType"]: licence(e["to"][0])
@@ -394,7 +465,7 @@ def test_dependency_licence_from_its_file(
         )
         expected = {single: expected["single"]}
     assert found == expected
-    assert (f"File: {_DI}/LICENSE" in json.dumps(graph)) == ("MIT" in found.values())
+    assert (f"File: {_DI}/LICENSE" in json.dumps(graph)) == (len(classifiers) < 2)
     assert json.dumps(graph).count('\\"kind\\":\\"conflict\\"') == conflicts
 
 

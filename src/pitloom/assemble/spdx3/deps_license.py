@@ -32,7 +32,11 @@ from pitloom.core.models import build_relationship, generate_spdx_id
 from pitloom.core.project import ProjectMetadata
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
-from pitloom.extract._license import classify_license, same_licence
+from pitloom.extract._license import (
+    classify_license,
+    same_licence,
+    stated_text_agrees,
+)
 
 
 # Shared document context plus the element; see build_license_elements.
@@ -156,6 +160,7 @@ def build_license_elements(
     *,
     concluded_license_id: str | None = None,
     concluded_license_provenance: str | None = None,
+    detection_hint: str | None = None,
     provenance_config: ProvenanceConfig | None = None,
     encoder: ProvenanceEncoder | None = None,
 ) -> tuple[spdx3.Relationship | None, spdx3.Relationship | None]:
@@ -185,7 +190,12 @@ def build_license_elements(
     conflicts with a real licence. A licence's SPDX List name against its id
     (``MIT License`` and ``MIT``, a deprecated id's too:
     :func:`pitloom.extract._license_names.same_licence`) is the same
-    licence, not a conflict.
+    licence, not a conflict; so is stated text LicenseID reads as the
+    detected licence (a ``License`` header holding the licence body:
+    :func:`~pitloom.extract._license.stated_text_agrees`, *detection_hint*
+    the licence the classifiers name, winning a near-tie). A short name
+    such as ``Apache Software License`` is read as nothing, so it still
+    conflicts.
 
     Dispatches on truthiness, not just ``is None`` -- unlike ``requires_python``,
     a license id is never meaningfully ``""``, so that must not route into
@@ -275,6 +285,7 @@ def build_license_elements(
         and concluded is not None
         and not (declared.is_noassertion or concluded.is_noassertion)
         and not same_licence(declared.value, concluded.value)
+        and not stated_text_agrees(license_id, concluded.value, hint=detection_hint)
     ):
         candidates: list[ConflictCandidate] = [
             {
@@ -389,6 +400,7 @@ def _apply_license(
     weak: WeakLicense | None = None,
     concluded_license_id: str | None = None,
     concluded_license_provenance: str | None = None,
+    detection_hint: str | None = None,
     provenance_config: ProvenanceConfig | None = None,
     encoder: ProvenanceEncoder | None = None,
 ) -> bool:
@@ -420,6 +432,7 @@ def _apply_license(
         exporter=exporter,
         concluded_license_id=concluded_license_id,
         concluded_license_provenance=concluded_license_provenance,
+        detection_hint=detection_hint,
         provenance_config=provenance_config,
         encoder=encoder,
     )

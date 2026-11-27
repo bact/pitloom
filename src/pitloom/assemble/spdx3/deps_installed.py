@@ -22,7 +22,10 @@ from packaging.specifiers import InvalidSpecifier
 from packaging.utils import canonicalize_name
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
-from pitloom.assemble.spdx3._deps_license_files import with_dist_license_files
+from pitloom.assemble.spdx3._deps_license_files import (
+    classifier_expression,
+    with_dist_license_files,
+)
 from pitloom.assemble.spdx3._deps_pin_checks import (
     is_exact_pin_conflict,
     satisfies_constraint,
@@ -480,6 +483,9 @@ def _enrich_from_installed(
         weak=weak,
         concluded_license_id=concluded[0],
         concluded_license_provenance=concluded[1],
+        detection_hint=(
+            None if concluded[0] is None else classifier_expression(pkg_meta)
+        ),
         provenance_config=provenance_config,
         encoder=encoder,
     ):

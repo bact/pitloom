@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-02
-Last-Modified: 2026-11-27
+Last-Modified: 2026-11-28
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -157,15 +157,17 @@ entries come first; fixed entries stay in the last section for history.
   paths for the licence; reusing it here changes the copyright text of
   such packages, so it needs a before/after sweep.
   *Found 2026-11-27, review of the dependency licence-file fallback.*
-- [ ] **A G2 conflict on every dependency whose stated text names its
-  file's licence (S, to decide).** With #569 a dependency's stated licence
-  text stays declared and its licence file's detection is concluded, as for
-  a project; `same_licence` matches only an SPDX List name, so a classifier
-  name (`Apache Software License` vs `Apache-2.0`, `BSD License` vs
-  `BSD-3-Clause`) or a `License` header holding the whole text (fickling,
-  pyshacl) is a conflict annotation. Pitloom's own environment: 15 of 15
-  such packages (2 in its project SBOM). Options: a text LicenseID resolves to the detected id is
-  no conflict; or note it as agreement, not conflict. Not suppressed.
+- [ ] **A G2 conflict on a dependency whose short licence name names its
+  file's licence by usage (S, upstream).** With #569 a dependency's stated
+  licence text stays declared and its licence file's detection is
+  concluded, as for a project. A short name LicenseID reads as nothing
+  (`Apache Software License` vs `Apache-2.0`, `BSD License`/`BSD` vs
+  `BSD-3-Clause`, `Expat license` vs `MIT`, `PSFL` vs `PSF-2.0`) still gets
+  a conflict annotation: 10 of 14 such packages in Pitloom's own
+  environment. Waits on LicenseID reading names by usage (its
+  `trovenames` reads `BSD License` and `Apache Software License` as no
+  licence and defers reading by usage): a "consistent with id X" answer,
+  not a resolution to one id.
   *Found 2026-11-27, before/after sweep of the #569 G2 change.*
 
 ## Fixed
@@ -240,6 +242,16 @@ release ships.
   concluded (`THIRD_PARTY_SOURCES`).
 
 ### Fixed, Found in review rounds, not yet prioritised
+
+- [x] **A G2 conflict on a dependency whose `License` header holds the
+  licence body its file is detected as (S).** With #569 such a header
+  (fickling, pyshacl, html5rdf, isodate) stayed declared beside its file's
+  detection, with a conflict annotation. Fixed in #569:
+  `stated_text_agrees` reads the whole stated text with LicenseID (the
+  classifier's licence breaking a near-tie, so fickling's LGPLv3+ decides
+  `LGPL-3.0-or-later`) and a text read as the detected id is agreement,
+  both relationships kept; 4 of 14 annotations gone. The short names stay
+  open above. *Found 2026-11-27, before/after sweep of the #569 G2 change.*
 
 - [x] **Catalogue 18, the licence families, was later (S), fixed (#498).**
   Decided 2026-10-30: it follows the adoption; it ships in 0.25.0.

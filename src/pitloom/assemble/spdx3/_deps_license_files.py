@@ -136,7 +136,7 @@ def license_from_dist_files(
     ]
     if not candidates:
         return None
-    return license_from_candidates(candidates, stated=_classifier_expression(pkg_meta))
+    return license_from_candidates(candidates, stated=classifier_expression(pkg_meta))
 
 
 def with_dist_license_files(
@@ -163,7 +163,7 @@ def with_dist_license_files(
     return found[0], found[1], (None, None)
 
 
-def _classifier_expression(pkg_meta: CoreMetadata) -> str | None:
+def classifier_expression(pkg_meta: CoreMetadata) -> str | None:
     """The SPDX expression the ``License ::`` classifiers of *pkg_meta*
     name, or ``None`` when they name none (``Apache Software License`` has
     no version)."""
@@ -174,6 +174,7 @@ def _classifier_expression(pkg_meta: CoreMetadata) -> str | None:
 
 
 __all__ = [
+    "classifier_expression",
     "dist_license_files",
     "license_from_dist_files",
     "read_dist_info_text",

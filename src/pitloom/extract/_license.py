@@ -83,6 +83,7 @@ __all__ = [
     "resolve_license_concluded",
     "same_licence",
     "stated_license",
+    "stated_text_agrees",
     "tag_deprecated_license_ids",
     "tag_license_normalization",
     "warn_unless_expression",
@@ -119,6 +120,21 @@ def license_from_candidates(
                 provenance_segment(source, "Method", "licenseid_detection")
             )
     return None
+
+
+def stated_text_agrees(text: str, detected: str, *, hint: str | None = None) -> bool:
+    """Whether LicenseID reads the whole stated licence *text* (a ``License``
+    header holding a licence body) as the licence *detected* from a file
+    (:func:`~pitloom.extract._license_names.same_licence`), *hint* (the
+    licence the ``License ::`` classifiers name) winning a near-tie as for
+    the file (:func:`read_license_text`). A name too short to be a licence
+    body (``Apache Software License``) is read as nothing: ``False``; so is
+    an id or expression, a claim of its own, never read as a body."""
+    classified = classify_license(text, warn=False)
+    if classified is None or classified.kind != "text":
+        return False
+    reading = read_license_text(text, stated=hint)
+    return reading.expression is not None and same_licence(reading.expression, detected)
 
 
 def detect_independent_license(
