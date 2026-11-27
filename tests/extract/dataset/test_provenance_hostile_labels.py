@@ -16,7 +16,6 @@ tests/extract/dataset/test_card.py, tests/extract/dataset/test_croissant.py.
 
 from __future__ import annotations
 
-from collections.abc import Callable
 from pathlib import Path
 
 import pytest
@@ -39,8 +38,6 @@ HOSTILE = {
     "newline": ("a\n| Field: b", "a\n/ Field: b"),
     "bidi": (f"a{RLO}b", "a\\u202eb"),
 }
-
-Reader = Callable[[Path, str], dict[str, str]]
 
 
 def _croissant(_tmp: Path, label: str) -> dict[str, str]:

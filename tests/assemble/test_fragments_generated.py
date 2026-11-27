@@ -41,8 +41,6 @@ from tests._license_graph import fragment_graph, write_fragment
 
 _NS = "https://spdx.org/spdxdocs/base"
 _MODEL = f"{_NS}#M"
-_GEN = "Source: m.crfsuite | Field: labels CQDB | Method: generated_from_labels"
-_DERIVED = "Source: m.crfsuite | Field: args.model | Method: derived_from_format"
 _READ = "Source: m.crfsuite | Field: doc_string"
 
 

@@ -24,7 +24,6 @@ from typing import Any
 import pytest
 
 _SBOM_NAME = "pkg-1.0.spdx3.json"
-_SBOM_ARC = f"pkg-1.0.dist-info/sboms/{_SBOM_NAME}"
 _EMPTY_SHA256 = hashlib.sha256(b"").hexdigest()
 _MAGIKA = {"method": "magika_content_detection", "tool": "magika==1.0.3"}
 #: Valid JSON that re-serialising or newline translation would change.

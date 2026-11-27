@@ -583,10 +583,12 @@ runs:
               echo "::notice::${line#INFO: }"
               ;;
             *)
-              # An untagged line: the CLI output convention forbids one
-              # and loom emits none. Annotate it at the last level rather
-              # than drop it from the PR-facing summary (the raw echo
-              # above shows it either way).
+              # An untagged line: the CLI output convention forbids one.
+              # argparse's usage block on a bad argument is untagged, but
+              # it comes before its ERROR: line, so no level is set yet
+              # and it is skipped. Annotate any other at the last level
+              # rather than drop it from the PR-facing summary (the raw
+              # echo above shows it either way).
               if [ -n "${last_annotation_level}" ] && [ -n "${line}" ]; then
                 echo "::${last_annotation_level}::${line}"
               fi

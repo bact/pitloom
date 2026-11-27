@@ -71,7 +71,7 @@ def test_hook_bundled_binary_produces_phantom_dependency() -> None:
     """A wheel containing an auditwheel-style bundled .so (under a
     <package>.libs/ directory) must produce a phantom-dependency
     software_Package in the SBOM graph, via find_phantom_dependencies()
-    wired into _build_document_model()."""
+    wired into pitloom.plugins._hatch_document.build_document_model()."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         write_pyproject_with_pitloom_config(
