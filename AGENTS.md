@@ -88,6 +88,7 @@ Data and semantics:
 - **Narrowing a derived field's rule needs an inventory of its writers**: run each through the new rule; derive from the value's shape as well as its key.
 - **A doc claim "after X, every Y has Z" names the code path deriving Z** and the Y it reaches.
 - **Measure the real tools before designing a reader**: probe each backend, put the matrix in the working doc.
+- **A dependency's new answer shape can switch a rule off with every test green**: on an upgrade, sweep real multi-input cases before/after; fakes answer every call the code makes.
 - **A model reader records what the file stores, not what a binding defaults**, and a new format maps every field its siblings do: [model-format-mapping-parity.md](working-docs/implementation/model-format-mapping-parity.md).
 - **A failing manual repro is first suspect for a wrong replication**: use the real call shape.
 - **`Path.relative_to` does not collapse `..`**: `normpath` lexically first, `realpath` only as fallback.
@@ -202,7 +203,7 @@ SPDX-License-Identifier: Apache-2.0  # or CC0-1.0 for docs
 - **Drift-guard test for two independent implementations of one operation**: assert both agree on one shared fixture rather than merging them.
 - **Adversarial edge cases pay most on tri-state (None/empty/absent) and cascade/tie-break logic**: one test per boundary per new field or merge path.
 - **OS coverage in CI is partial on a PR**: Linux runs all tests, Windows and macOS only `-m platform` (`tests/_platform.py`). A new or changed test touching paths, files, processes, encodings, line ends, permissions or packaging: run `pytest <file> -m platform --collect-only -q`; nothing collected: add `pytestmark = pytest.mark.platform` (or extend `OS_USE`); unsure: mark it. Label such a PR `test-all-os`.
-- **Green CI is merge-ready only once the full tests ran on every OS**: the PR has `test-all-os` and the `Unit tests` and `Build wheels` runs for the head SHA started after the label (re-run if not); else report "green on the platform subset only", name the label, ask the user. Neither `Unit tests` alone nor the push-to-`main` run counts. Detail: [rationale](working-docs/implementation/agents-md-rationale.md#tests-platform-and-ci).
+- **Green CI is merge-ready only once the full tests ran on every OS**: the PR has `test-all-os` and the `Unit tests` and `Build wheels` runs for the head SHA started after the label (re-run if not), and each leg's test count is the full suite's; else report "green on the platform subset only", name the label, ask the user. Neither `Unit tests` alone nor the push-to-`main` run counts. Detail: [rationale](working-docs/implementation/agents-md-rationale.md#tests-platform-and-ci).
 - **Test tiers, two gates per PR** ([policy](working-docs/implementation/testing-and-review-policy.md)):
   - Tier 1, between gates and review/fix rounds: touched tests (`-k`, `--lf`), linters, an SBOM/stderr/`--json` diff vs main; never the full suite or coverage.
   - Gate A, once reviews converge: full suite (`-n 4` max), every CI linter (pyrefly too), each new regression test failing on the base tree, branch coverage of changed files; timing tests use small inputs.

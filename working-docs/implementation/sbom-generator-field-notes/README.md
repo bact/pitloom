@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-02
-Last-Modified: 2026-11-24
+Last-Modified: 2026-11-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -159,6 +159,11 @@ the day it was added (2026-10-02 to 2026-11-23).
   a merge that renames, a set-up proof stricter than its claim (#468).
 - [process-lessons.md](process-lessons.md): how the review rounds and
   test tiers were run; the merge bar; proving a test compaction.
+- [release-0-25-0-lessons.md](release-0-25-0-lessons.md): a whole-range
+  pre-release review; a detector's new answer shape that switched a rule off
+  with every test green; one licence file, two answers; CI green without its
+  full legs; a changelog compaction that changed meaning; the README as the
+  PyPI page (#558 to #566).
 
 ## Five rules that cover most items
 
