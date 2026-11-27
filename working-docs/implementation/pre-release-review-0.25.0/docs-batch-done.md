@@ -138,3 +138,8 @@ Next release:
   path in `tests/core/url_masking/test_url_masking_nested_values.py:9`
   changed with it.
 - TRY-9a's catalogue line (`registry-wrong-format`) has no action.
+- A `str` given as `pitloom_config=` to `generate()` or
+  `generate_wheel_sbom()` raises an uncoded `TypeError` (`replace() should be
+  called on dataclass instances`); `IdRegistry.new(1)` and `IdRegistry(1)`
+  (a namespace that is no string) raise uncoded `TypeError`s. Found by the
+  review of this batch; LIB-9's family.
