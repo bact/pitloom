@@ -163,13 +163,11 @@ and this project adheres to
   no broad handler reports one as a bad file, a warning or a skip ([#550])
 - An scp-style address whose password holds `@` (`a:b@c@host:o/r`) is found as a
   credential: refused or warned of in an SBOM ([#544])
-- An empty input path is `input-not-found`; an empty `-o`, `--project-dir`,
-  `--id-registry`, `--config`, SBOM file name, library `project_dir` or `IdRegistry`
-  path `option-invalid`: `""` never reads the cwd ([#545], [#550], [#557], [#560])
-- loom SDK calls, `IdRegistry` methods and library path, `bool` and cap arguments
-  refuse a wrong type (`CodedTypeError`, `option-invalid`; a `bool` refuses
-  `"false"`); an unknown `dataset_type` is refused, not `text`; a symlinked script
-  keeps its own name ([#545], [#557], [#560])
+- An empty input path is `input-not-found`, an empty path option (CLI or library)
+  `option-invalid`: `""` never reads the cwd ([#545], [#550], [#557], [#560])
+- loom SDK calls and library path, `bool` and cap arguments refuse a wrong type
+  (`CodedTypeError`, `option-invalid`); an unknown `dataset_type` is refused, not
+  `text`; a symlinked script keeps its own name ([#545], [#557])
 - `loom id generate --namespace` holding a credential is `credentials-unsafe/registry`,
   exit 1, as in the library ([#545])
 - The message reference dates a line newer than its code ([#546]); `line_kind()`
@@ -191,6 +189,8 @@ and this project adheres to
 - A dataset `loom.add_dataset()` adds in a `use_model()` run (`generated=False`) is
   `testedOn` the model, not `trainedOn` ([#560])
 - A blank loom dataset or model `name` is `option-invalid` ([#560])
+- `IdRegistry()`, `load()`, `save()`, `generate()`, `import_sbom()` and `register()`
+  refuse a wrong type or an empty path or name (`option-invalid`) ([#560])
 
 ### Fixed
 

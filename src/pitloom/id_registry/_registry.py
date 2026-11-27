@@ -553,10 +553,10 @@ class IdRegistry:
     @checked_bools
     def generate(
         self,
-        paths: list[Path],
-        project_root: Path,
+        paths: Sequence[str | os.PathLike[str]],
+        project_root: str | os.PathLike[str],
         *,
-        exclude: Path | None = None,
+        exclude: str | os.PathLike[str] | None = None,
         explicit: bool = True,
     ) -> None:
         """(Re-)index files under *paths* into this registry, except the
@@ -588,9 +588,11 @@ class IdRegistry:
             pitloom.messages.CodedTypeError: *paths* is not a list or tuple,
                 or it, *project_root* or *exclude* holds something that is
                 not a path (``option-invalid``), before anything is read.
-            pitloom.messages.CodedValueError: one of them is spelt ``""``,
-                which :class:`pathlib.Path` would read as the current
-                directory (``option-invalid``, ``non-empty``).
+            pitloom.messages.CodedFileNotFoundError: a path in *paths* is
+                spelt ``""`` (``input-not-found``, as ``loom id generate ''``).
+            pitloom.messages.CodedValueError: *project_root* or *exclude* is
+                spelt ``""``, which :class:`pathlib.Path` would read as the
+                current directory (``option-invalid``, ``non-empty``).
         """
         if not isinstance(paths, (list, tuple)):
             raise invalid_type(Parameter("paths"), "list-of-strings", paths)
@@ -602,7 +604,9 @@ class IdRegistry:
             explicit=explicit,
         )
 
-    def import_sbom(self, sbom_path: Path) -> frozenset[tuple[str, str]]:
+    def import_sbom(
+        self, sbom_path: str | os.PathLike[str]
+    ) -> frozenset[tuple[str, str]]:
         """Harvest ids from an existing SPDX 3 JSON-LD SBOM into this registry.
 
         Returns the keys not imported because the SBOM holds several
@@ -627,6 +631,7 @@ class IdRegistry:
         """
         require_path_argument(sbom_path, "sbom_path")
         refuse_empty_input(sbom_path, "SBOM file")
+        sbom_path = _path_argument(sbom_path, "sbom_path")
         sorted_objects = read_sbom_objects(sbom_path)
         self._reserve_held()
         if not self.elements:
