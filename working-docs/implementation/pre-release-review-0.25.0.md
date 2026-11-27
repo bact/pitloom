@@ -209,6 +209,47 @@ Order: the review PR; A and B in parallel; E after B; C after A, B and E;
 D last. Then Gate A and Gate B on the release commit and the release
 checklist (policy step 7).
 
+## Fix status: catalogue batch (PR B, branch `review-catalogue-fixes`)
+
+All seven items fixed; each has a regression test that fails on the
+review's base tree. Files outside the written fence, both needed by the
+fix: `scripts/message_reference/sections.py` (HOOK-4: the generated
+"exit 1" comes from its `ERROR_RULE_OVERRIDES`, not from the entry) and
+`cli/commands/utils.py` (CLI-3: passes the validated paths to the relay;
+three lines).
+
+- **LIB-6**: `generate_git_sbom(sbom_kind=)` and `generate_pypi_sbom(kind=)`
+  refuse through `require_choice_argument` (`one-of-sbom-kind`,
+  `one-of-pypi-kind`): `CodedTypeError` for a non-string,
+  `CodedValueError` for an unknown string. The URL of both, and of
+  `generate_git_project_sbom()`, goes through `require_text_argument`:
+  `None` is `CodedTypeError`, `""` and blank `CodedValueError`, all
+  `option-invalid` (an Opus second opinion preferred this to letting the
+  `url` field write an empty value: the precedent of every other empty
+  argument, and the field is free text). A PyPI URL is parsed before any
+  option warns against it. PR C: `docs/python-api-remote.md:113-114` (an
+  empty URL is `option-invalid`, not `pypi-url-invalid`) and
+  `docs/api.md:25-28` (a Git URL of the wrong type is now checked by the
+  generators; `fetch_git_project()` still is not).
+- **MSG-1**: as ruled; the mechanism is in
+  [message-consistency-rescan.md](../design/message-consistency-rescan.md)
+  section 6.1. `option-no-effect`'s bare names stay (section 8 there).
+  PR C: `docs/ai-model-scan-limits.md:167` says only the keyword form.
+- **MSG-6**: `set BuildOptions.allow=True`.
+- **LIB-7**: the line's `option` value is picked per surface
+  (`ALLOW_SIGNED_NAMES`, as `ALLOW_BUILD_NAMES`): `allow_signed_wheel=True`
+  in the library. Not a `Twins` with the flag in the template: the
+  20-character `--allow-signed-wheel` would then read as catalogue text in
+  the CLI's own option declarations (`test_drift_sources`).
+- **MSG-2**: summary and `did` say `TypeError (CodedTypeError)` for a
+  wrong type, `ValueError (CodedValueError)` for a refused value.
+- **HOOK-4**: the reference says the build fails (hook only). The page
+  quote (`docs/hatchling-build-hook.md:131-134`) is PR C's.
+- **CLI-3**: each validated path, and each `names` entry, is written into
+  the validator's text escaped (`escape_controls`, one longest-first
+  pass) before the text is split: `bad\nERROR: forged.json` stays on its
+  line, as the coded `FILE=` line shows it.
+
 ## Rulings (user, 2026-11-27)
 
 Not decisions: LIB-1, LIB-2, CLI-1 and the TRY-1 caveat block the release

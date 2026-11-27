@@ -71,7 +71,7 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
   WARNING: DIR=<dir>: build-and-read failed and file discovery not backend-aware for build-backend <backend>; Hatchling heuristic used, file list may be inaccurate [file-discovery-needs-build]
   WARNING: DIR=<dir>: build-and-read failed and file discovery not backend-aware for build-backend <backend> and no [project] table; file discovery unsupported [file-discovery-needs-build]
   WARNING: DIR=<dir>: [tool.uv.build-backend] overrides the heuristic cannot see; pass --allow-build for an exact file list from a real build [file-discovery-needs-build]
-  WARNING: DIR=<dir>: [tool.uv.build-backend] overrides the heuristic cannot see; pass BuildOptions(allow=True) for an exact file list from a real build [file-discovery-needs-build]
+  WARNING: DIR=<dir>: [tool.uv.build-backend] overrides the heuristic cannot see; set BuildOptions.allow=True for an exact file list from a real build [file-discovery-needs-build]
   WARNING: DIR=<dir>: setup.py passes <kwargs> imperatively; file list read from static config may be incomplete [file-discovery-needs-build]
   WARNING: DIR=<dir>: no static version for [tool.flit.external-data] without running the module; external-data files left out [file-discovery-needs-build]
   ```

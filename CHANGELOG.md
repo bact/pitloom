@@ -127,7 +127,7 @@ and this project adheres to
   ([#515])
 - `validate-wheel` and `fragment validate` print each finding once as
   `spdx3-validate: <line>`, then one coded `sbom-invalid` line, no empty
-  `ERROR:` line ([#515])
+  `ERROR:` line; a line break in a file name is shown escaped ([#515], [#NNN])
 - A byte order mark in an SBOM is a coded `WARNING:` for `loom id import` too
   ([#515])
 - A GGUF header over a bound is read in part: one `[over-cap]` `WARNING:`,
@@ -179,7 +179,9 @@ and this project adheres to
 - A licence file holding several licence texts (numpy's `LICENSE.txt`) gives no
   detected licence, stated or not, and no later licence file is read ([#554])
 - A message's advice names the flag, library parameter (`BuildOptions.timeout`)
-  or `[tool.pitloom]` key of the surface that ran ([#556])
+  or `[tool.pitloom]` key of the surface that ran; `embed_wheel_sbom()` names
+  `ConfigOverrides` fields, a signed wheel `allow_signed_wheel=True` ([#556],
+  [#NNN])
 - `IdRegistry.save()` with no path is `registry-file-missing`, not a plain
   `ValueError` ([#557])
 - A missing `loom generate` or `generate()` target is `target not found`, `loom
@@ -234,6 +236,8 @@ and this project adheres to
   is checked when built ([#545])
 - A build, download or git time limit of one second reads `1 second`, not
   `1 seconds` ([#546])
+- `generate_git_sbom()` and `generate_pypi_sbom()` refuse an unknown kind or an
+  empty or non-string URL as `option-invalid`, not an internal error ([#NNN])
 
 ### Security
 
@@ -297,6 +301,7 @@ and this project adheres to
 [#555]: https://github.com/bact/pitloom/pull/555
 [#556]: https://github.com/bact/pitloom/pull/556
 [#557]: https://github.com/bact/pitloom/pull/557
+[#NNN]: https://github.com/bact/pitloom/pull/NNN
 
 ## [0.24.0] - 2026-11-11
 

@@ -21,6 +21,7 @@ tests/messages/test_wheels_core.py (the helpers).
 from __future__ import annotations
 
 import codecs
+import contextvars
 import logging
 from collections.abc import Callable
 from importlib.metadata import PackageNotFoundError
@@ -32,17 +33,22 @@ import pytest
 
 from pitloom.assemble import find_embedded_sbom
 from pitloom.core._models_wheel_build_and_read import _extract_wheel_to_included_files
+from pitloom.core.internal_error import InternalError
 from pitloom.embed import embed_wheel_sbom
 from pitloom.logging_config import CODE_ATTR
 from pitloom.messages import (
     BUILD_FRAME,
     GIT_FRAME,
     MESSAGES,
+    SURFACE_CLI,
+    SURFACE_HOOK,
+    SURFACE_LIBRARY,
     CodedValueError,
+    advice_surface,
     code_of,
 )
 from pitloom.messages import trusted_message as trusted
-from pitloom.messages.wheels import WheelRefused
+from pitloom.messages.wheels import WheelRefused, refuse_signed
 from tests._wheel_fixtures import (
     DIST_INFO,
     WHEEL_FILE,
@@ -134,6 +140,41 @@ def test_embed_wheel_sbom_raises_a_coded_wheel_refusal_and_leaves_the_wheel(
     assert trusted(f"ERROR: {text} [{code}]") is MESSAGES[code]
     assert wheel.read_bytes() == before
     assert not [c for _, _, c in _records(caplog) if c == code]  # raised, not logged
+
+
+def test_a_signed_wheel_names_the_library_keyword_not_the_flag(tmp_path: Path) -> None:
+    """The library refusal names ``allow_signed_wheel=True``, a keyword
+    ``embed_wheel_sbom()`` takes, never the command line's flag."""
+    with pytest.raises(WheelRefused) as raised:
+        embed_wheel_sbom(_signed(tmp_path))
+    text = str(raised.value)
+    assert "allow_signed_wheel=True removes it (re-sign the wheel after)" in text
+    assert "--" not in text
+
+
+@pytest.mark.parametrize(
+    ("surface", "option"),
+    [
+        (SURFACE_CLI, "--allow-signed-wheel"),
+        (SURFACE_LIBRARY, "allow_signed_wheel=True"),
+        (SURFACE_HOOK, None),
+    ],
+    ids=["cli", "library", "hook"],
+)
+def test_the_signed_refusal_names_the_surface_s_option(
+    surface: str, option: str | None
+) -> None:
+    """The hook never embeds: under the suite's strict surfaces the line is
+    refused there, else it gets the library's wording."""
+    with advice_surface(surface):
+        if option is None:
+            with pytest.raises(InternalError, match="cannot reach"):
+                refuse_signed(WHEEL_FILE, "d/RECORD.jws")
+            refused = contextvars.Context().run(refuse_signed, WHEEL_FILE, "d/R.jws")
+            option = "allow_signed_wheel=True"
+        else:
+            refused = refuse_signed(WHEEL_FILE, "d/RECORD.jws")
+    assert f"rewrites; {option} removes it" in str(refused)
 
 
 def test_the_library_returns_a_removed_signature_and_a_date_floor_not_a_record(

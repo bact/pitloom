@@ -33,7 +33,6 @@ from pitloom.core.credential_policy import CredentialPolicy
 from pitloom.core.current_dir import absolute_path
 from pitloom.core.given_path import GivenPath, given_spelling
 from pitloom.core.inert_options import GIT_MODEL, forward_options
-from pitloom.core.internal_error import InternalError
 from pitloom.core.no_effect import warn_no_effect
 from pitloom.core.project import ProjectMetadata
 from pitloom.core.provenance import ProvenanceConfig
@@ -44,6 +43,7 @@ from pitloom.extract.remote.huggingface import refuse_hub_model_target
 from pitloom.id_registry import IdRegistry
 from pitloom.logging_config import configure_logging
 from pitloom.messages import GIT_FRAME, emit
+from pitloom.messages.config import require_choice_argument, require_text_argument
 from pitloom.messages.targets import (
     CONFIG_UNSAFE,
     CONFIG_UNSAFE_REMOTE_LINE,
@@ -51,7 +51,8 @@ from pitloom.messages.targets import (
 
 log = logging.getLogger(__name__)
 
-_SBOM_KINDS = (AUTO, PROJECT, MODEL)
+#: What a Git URL's SBOM can describe (``sbom_kind``).
+GIT_SBOM_KINDS = frozenset({AUTO, PROJECT, MODEL})
 
 
 def _git_model_sbom(
@@ -126,8 +127,8 @@ def generate_git_sbom(
     credentials *pitloom_config* accepts.
 
     Raises:
-        pitloom.core.internal_error.InternalError: *sbom_kind* is none of
-            the three (a :class:`ValueError`).
+        pitloom.messages.CodedTypeError: *url* or *sbom_kind* is no string
+            (``option-invalid``).
         TypeError: *max_download_bytes* is not an integer
             (``option-invalid``).
         ValueError: *max_download_bytes* is an integer below 1, or the
@@ -135,16 +136,16 @@ def generate_git_sbom(
         pitloom.extract.remote.errors.RemoteSourceError: the repository could
             not be fetched, the named file is not in it
             (``git.path-not-found``), or ``git.no-project``.
-        pitloom.messages.CodedValueError: no model file to read
+        pitloom.messages.CodedValueError: *url* is empty or white space
+            only, or *sbom_kind* is none of the three (``option-invalid``); no
+            model file to read
             (``model-wrong-format``, ``project-or-model-not-found``), several
             (``model-ambiguous``), or a Git LFS pointer (``lfs-pointer``).
     """
     configure_logging()
     refuse_empty_output(output_path)
-    if sbom_kind not in _SBOM_KINDS:
-        raise InternalError(
-            f"sbom_kind must be one of {_SBOM_KINDS}, got {sbom_kind!r}"
-        )
+    require_text_argument(url, "url")
+    require_choice_argument(sbom_kind, "sbom_kind", GIT_SBOM_KINDS, "one-of-sbom-kind")
     policy = resolve_fetch_policy(
         pitloom_config,
         offline=offline,
@@ -286,12 +287,16 @@ def generate_git_project_sbom(
     Raises:
         pitloom.extract.remote.errors.RemoteSourceError: the repository could
             not be fetched, or ``git.no-project``.
-        ValueError: *url* is a Hugging Face model URL
+        pitloom.messages.CodedTypeError: *url* is no string
+            (``option-invalid``).
+        ValueError: *url* is empty or white space only (``option-invalid``),
+            a Hugging Face model URL
             (``target-wrong-format``), or a malformed one
             (``hf-url-invalid``):
             :func:`~pitloom.extract.remote.huggingface.refuse_hub_model_target`.
     """
     configure_logging()
+    require_text_argument(url, "url")
     refuse_hub_model_target(url)
     return generate_git_sbom(
         url,

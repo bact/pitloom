@@ -28,6 +28,8 @@ from pitloom.core.no_effect import INERT_LOG_PREFIX, warn_no_effect
 from pitloom.logging_config import CODE_ATTR
 from pitloom.messages import (
     BUILD_FRAME,
+    CodedTypeError,
+    CodedValueError,
     Message,
     code_of,
     trusted_message,
@@ -252,3 +254,15 @@ def test_warn_no_effect_refuses_info_for_a_build_flag() -> None:
         warn_no_effect(
             "a", ("--no-isolation",), "for a model", build=True, level=logging.INFO
         )
+
+
+def test_option_invalid_says_a_wrong_type_is_a_type_error() -> None:
+    """The entry says what the library raises, as it raises it: a wrong
+    type a ``TypeError``, a refused value a ``ValueError`` (#557)."""
+    entry = OPTION_INVALID
+    assert "wrong type (a TypeError)" in entry.summary
+    assert "TypeError (CodedTypeError)" in entry.did
+    assert "ValueError (CodedValueError)" in entry.did
+    assert issubclass(CodedTypeError, TypeError)
+    assert not issubclass(CodedTypeError, ValueError)
+    assert issubclass(CodedValueError, ValueError)

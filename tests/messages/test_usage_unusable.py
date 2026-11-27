@@ -11,6 +11,7 @@ See also: tests/assemble/test_scan_model_usage.py (when it is said).
 
 from __future__ import annotations
 
+import contextlib
 import logging
 
 import pytest
@@ -22,6 +23,7 @@ from pitloom.messages import (
     SURFACE_HOOK,
     SURFACE_LIBRARY,
     advice_surface,
+    overrides_route,
 )
 from pitloom.messages.models import (
     USAGE_HINTS,
@@ -62,6 +64,23 @@ _END = " to also record which Python files reference them."
             SURFACE_LIBRARY,
             "set scan_model_usage=True (or set it in pitloom_config)",
         ),
+        (
+            USAGE_TARGET_PROJECT,
+            SURFACE_LIBRARY + "/overrides",
+            "set ConfigOverrides.scan_model_usage=True (or set "
+            "scan-model-usage = true)",
+        ),
+        (
+            USAGE_TARGET_WHEEL,
+            SURFACE_LIBRARY + "/overrides",
+            "set ConfigOverrides.scan_model_usage=True (or set it in pitloom_config)",
+        ),
+        (
+            USAGE_TARGET_WHEEL,
+            SURFACE_CLI + "/overrides",
+            "pass --scan-model-usage (or set scan-model-usage = true in a "
+            "--config file)",
+        ),
     ],
     ids=[
         "project-cli",
@@ -69,6 +88,9 @@ _END = " to also record which Python files reference them."
         "project-hook",
         "wheel-cli",
         "wheel-library",
+        "project-embed",
+        "wheel-embed",
+        "wheel-cli-embed",
     ],
 )
 def test_the_hint_names_the_surface_s_way_to_turn_the_scan_on(
@@ -78,20 +100,28 @@ def test_the_hint_names_the_surface_s_way_to_turn_the_scan_on(
     caplog: pytest.LogCaptureFixture,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """``/overrides``: on the route whose settings are ``ConfigOverrides``
+    fields (``embed_wheel_sbom()``); the command line keeps its flag."""
     monkeypatch.setattr(
         "pitloom.extract.scanner.discover_ai_models", lambda _: [object(), object()]
     )
-    with caplog.at_level(logging.INFO, logger="pitloom"), advice_surface(surface):
+    surface, _, route = surface.partition("/")
+    on_route = overrides_route() if route else contextlib.nullcontext()
+    with (
+        caplog.at_level(logging.INFO, logger="pitloom"),
+        advice_surface(surface),
+        on_route,
+    ):
         scan_ai_models(
             [], [], scan_usage=False, usage_hint=lambda: True, usage_target=target
         )
+        assert USAGE_HINTS[target].current() in SUMMARIES
     (record,) = caplog.records
     assert record.levelno == logging.INFO
     assert record.getMessage() == f"{_FOUND}{how}{_END}"
     assert getattr(record, "pitloom_code", None) is None
-    assert USAGE_HINTS[target].current() in SUMMARIES
 
 
 def test_no_two_hints_say_the_same() -> None:
     members = [s for twins in USAGE_HINTS.values() for s in twins.members]
-    assert len({s.template for s in members}) == len(members) == 5
+    assert len({s.template for s in members}) == len(members) == 7

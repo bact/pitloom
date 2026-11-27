@@ -22,8 +22,11 @@ See also: :mod:`pitloom.messages._wheels_say` (the helpers),
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+from types import MappingProxyType
 from typing import Final
 
+from pitloom.messages._surface import SURFACE_CLI, SURFACE_LIBRARY
 from pitloom.messages._types import ASK_FIRST, Line, Message
 
 _SINCE: Final = "0.25.0"
@@ -121,8 +124,11 @@ WHEEL_UNUSABLE: Final = Message(
     since=_SINCE,
 )
 
-#: The option that lets an embed remove a ``RECORD`` signature.
-ALLOW_SIGNED_OPTION: Final = "--allow-signed-wheel"
+#: How each surface lets an embed remove a ``RECORD`` signature (the hook
+#: never embeds into a wheel).
+ALLOW_SIGNED_NAMES: Final[Mapping[str, str]] = MappingProxyType(
+    {SURFACE_CLI: "--allow-signed-wheel", SURFACE_LIBRARY: "allow_signed_wheel=True"}
+)
 SIGNED_LINE: Final = _refusal(
     _MEMBER,
     "signs the RECORD the embed rewrites; %(option)s removes it (re-sign "
@@ -138,8 +144,10 @@ WHEEL_UNUSABLE_SIGNED: Final = Message(
     lines=(SIGNED_LINE, SIGNATURE_REMOVED_LINE),
     summary="A wheel to embed an SBOM in carries a signature of its RECORD "
     "(RECORD.jws or RECORD.p7s, PEP 427). The embed rewrites RECORD, so the "
-    "signature would no longer verify. As an INFO line, --allow-signed-wheel "
-    "was given and the embed removed the signature.",
+    "signature would no longer verify. The ERROR line names "
+    "--allow-signed-wheel on the command line, allow_signed_wheel=True in "
+    "the library. As an INFO line, it was given and the embed removed the "
+    "signature.",
     did="As an ERROR, refused the wheel: no wheel is changed, the command "
     "exits 1 and the library raises WheelRefused, a ValueError carrying the "
     "code. As an INFO line, embedded the SBOM, rewrote RECORD and removed "

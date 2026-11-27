@@ -16,9 +16,11 @@ from __future__ import annotations
 
 import ast
 import contextvars
+import dataclasses
 import importlib
 import logging
 import pkgutil
+import re
 import sys
 import threading
 from collections.abc import Mapping
@@ -27,6 +29,7 @@ from typing import Any
 import pytest
 
 import pitloom.messages
+from pitloom.core.config_cascade import ConfigOverrides
 from pitloom.core.internal_error import InternalError
 from pitloom.messages import (
     MESSAGES,
@@ -42,6 +45,7 @@ from pitloom.messages import (
     advice_surface,
     current_surface,
     emit,
+    overrides_route,
     say_summary,
     strict_surfaces,
 )
@@ -52,6 +56,7 @@ from tests._message_drift import SRC_ROOT
 _A = Line(level="ERROR", template="FILE=%(file)s: a; pass --a")
 _B = Line(level="ERROR", template="FILE=%(file)s: a; pass a=True")
 _C = Line(level="ERROR", template="FILE=%(file)s: a; set a in [tool.pitloom]")
+_D = Line(level="ERROR", template="FILE=%(file)s: a; set ConfigOverrides.a=True")
 
 
 def test_the_library_is_the_default_and_each_block_restores_the_last() -> None:
@@ -85,6 +90,45 @@ def test_twins_say_the_wording_of_the_surface_that_runs(
     with advice_surface(surface):
         assert twins.current() is line
     assert twins.members == (_A, _B, _C)
+
+
+@pytest.mark.parametrize(
+    ("surface", "line"),
+    [(SURFACE_CLI, _A), (SURFACE_LIBRARY, _D), (SURFACE_HOOK, _C)],
+    ids=["cli", "library", "hook"],
+)
+def test_the_overrides_route_changes_the_library_s_wording_only(
+    surface: str, line: Line
+) -> None:
+    twins = Twins(cli=_A, library=_B, hook=_C, overrides=_D)
+    without = Twins(cli=_A, library=_B, hook=_C)
+    assert twins.members == (_A, _B, _C, _D)
+    with advice_surface(surface):
+        assert twins.current() is (_B if surface == SURFACE_LIBRARY else line)
+        with overrides_route():
+            assert twins.current() is line
+            assert without.current() is without.for_surface(surface)
+        assert twins.current() is (_B if surface == SURFACE_LIBRARY else line)
+
+
+def test_the_overrides_route_ends_with_its_block_or_function() -> None:
+    twins = Twins.no_hook(cli=_A, library=_B, overrides=_D)
+
+    @overrides_route()
+    def said() -> Line:
+        return twins.current()
+
+    with pytest.raises(KeyError), overrides_route():
+        assert twins.current() is _D
+        raise KeyError
+    assert twins.current() is _B
+    assert said() is _D and twins.current() is _B
+
+
+def test_an_overrides_wording_of_another_shape_is_refused() -> None:
+    other = Line(level="ERROR", template="DIR=%(dir)s: a; set ConfigOverrides.a=True")
+    with pytest.raises(ValueError, match="different levels or fields"):
+        Twins.no_hook(cli=_A, library=_B, overrides=other)
 
 
 def test_twins_list_a_shared_wording_once_in_surface_order() -> None:
@@ -230,7 +274,7 @@ def test_every_twin_is_an_entry_s_line_and_says_another_wording() -> None:
 def test_no_twin_member_is_rendered_outside_the_resolution() -> None:
     """A call site that renders a twin's member itself would pick a
     surface: every one goes through ``line_for`` (or ``.current()``)."""
-    attributes = {"cli", "library", "hook"}
+    attributes = {"cli", "library", "hook", "overrides"}
     found = []
     for path in sorted(SRC_ROOT.rglob("*.py")):
         tree = ast.parse(path.read_bytes())
@@ -243,3 +287,31 @@ def test_no_twin_member_is_rendered_outside_the_resolution() -> None:
             ):
                 found.append(f"{path.relative_to(SRC_ROOT)}:{node.lineno}")
     assert not found, found
+
+
+#: Twins the overrides route (``embed_wheel_sbom()``) never says, by name:
+#: it reads neither a Git URL nor a PyPI URL.
+_OFF_THE_OVERRIDES_ROUTE = frozenset(
+    {"_model_stub.READER_UNSAFE_PYPI_LINES", "_model_stub.READER_UNSAFE_REMOTE_LINES"}
+)
+
+
+def test_a_library_action_naming_an_overrides_setting_has_an_overrides_twin() -> None:
+    """A library wording that says to set a ``ConfigOverrides`` field by
+    its keyword name (``set trust_model_files=True``) has a wording for the
+    route that takes it as a field, unless that route never says it."""
+    fields = "|".join(field.name for field in dataclasses.fields(ConfigOverrides))
+    keyword = re.compile(rf"\bset ({fields})=")
+    flagged = {
+        name
+        for name, pair in _twins()
+        if keyword.search(getattr(pair.library, "template", ""))
+    }
+    assert flagged >= _OFF_THE_OVERRIDES_ROUTE
+    for name, pair in _twins():
+        if name in flagged - _OFF_THE_OVERRIDES_ROUTE:
+            assert pair.overrides is not None, name
+            assert not keyword.search(pair.overrides.template), name
+            assert "set ConfigOverrides." in pair.overrides.template, name
+        if name in _OFF_THE_OVERRIDES_ROUTE:
+            assert pair.overrides is None, name

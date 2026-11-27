@@ -177,14 +177,22 @@ wording through one mechanism; no call site chooses.
   the build lines and `option_names` read them.
 - Library wording rule: a condition names the attribute or parameter as
   given (`BuildOptions.timeout ... without BuildOptions.allow`); an action
-  names a form to copy that fits any carrier (`pass BuildOptions(allow=True)`,
-  `set trust_model_files=True`, `set scan_model_usage=True`), never `pass
-  name=` for a name `embed_wheel_sbom()` takes in `ConfigOverrides`. A bare
-  option name (`pretty`, `enrich`) names the keyword and the
-  `ConfigOverrides` field alike, as both spell it; `BuildOptions` fields
-  keep their class, `timeout` alone being ambiguous. Qualifying the embed
-  route's names (`ConfigOverrides.pretty`) is left open: it needs the
-  carrier passed to `option_name()`.
+  names a form to copy (`set BuildOptions.allow=True`, which fits
+  `build_options=` and `ConfigOverrides.build_options` alike;
+  `set trust_model_files=True`). `embed_wheel_sbom()` takes its settings
+  as `ConfigOverrides` fields, not keywords (ruled 2026-11-27, MSG-1 of
+  the 0.25.0 pre-release review): `_generate_embed_sbom_json()` runs on
+  `overrides_route()` (a second `ContextVar`), where a `Twins` with an
+  `overrides` member says it on the library surface
+  (`set ConfigOverrides.trust_model_files=True`,
+  `set ConfigOverrides.scan_model_usage=True`); the command line and the
+  hook are not affected. A drift test holds that every library wording
+  saying `set <ConfigOverrides field>=` has one, except the Git and PyPI
+  URL lines the embed route never says. A bare option name in a condition
+  (`pretty`, `enrich`) names the keyword and the field alike, as both
+  spell it; `BuildOptions` fields keep their class, `timeout` alone being
+  ambiguous. Qualifying a condition's name on the embed route
+  (`ConfigOverrides.pretty` in `option-no-effect`) stays open (section 8).
 - The credentials triple keeps its branch (its lines take other fields per
   surface: `option=`, `setting=`, none); it reads `current_surface()`.
 - A `ContextVar` does not reach a `threading.Thread` (unless
@@ -208,9 +216,10 @@ and a Hatchling build.
 | `option-no-effect` INFO (config key) | `tool.pitloom.describe-relationship` (`embed-wheel`) | same (`embed_wheel_sbom()`) | same (was the flag) |
 | `option-no-effect` `Build:` | `--build-timeout`, `--no-build-isolation` `... without --allow-build` | `BuildOptions.timeout`, `BuildOptions.no_isolation` `... without BuildOptions.allow` | - (no build option) |
 | reasons naming an option (`without --project-dir`, `with --project-dir`, `--sbom`) | the flag | `project_target` (`enrich_model()`), `project_dir`, `sbom_path` | - |
-| `reader-unsafe` | `pass --trust-model-files` | `set trust_model_files=True` (a keyword, or `ConfigOverrides` for `embed_wheel_sbom()`) | - (the hook reads the project directory, not a wheel) |
+| `reader-unsafe` | `pass --trust-model-files` | `set trust_model_files=True`; `set ConfigOverrides.trust_model_files=True` for `embed_wheel_sbom()` | - (the hook reads the project directory, not a wheel) |
 | `reader-unsafe/remote` (Git, PyPI lines) | `pass --trust-model-files` | `set trust_model_files=True` | - |
-| `file-discovery-needs-build` (uv overrides) | `pass --allow-build` | `pass BuildOptions(allow=True)` (`build_options=`, or `ConfigOverrides.build_options` for `embed_wheel_sbom()`) | - (the hook assumes Hatchling) |
+| `file-discovery-needs-build` (uv overrides) | `pass --allow-build` | `set BuildOptions.allow=True` (`build_options=`, or `ConfigOverrides.build_options` for `embed_wheel_sbom()`) | - (the hook assumes Hatchling) |
+| `wheel-unusable/signed` | `--allow-signed-wheel removes it` | `allow_signed_wheel=True removes it` (the `option` value by surface) | - (the hook never embeds) |
 | `wheel-sbom-ambiguous` | `pass --sbom-filename` | `pass sbom_filename` (`find_embedded_sbom()`) | - |
 | `target-wrong-format` (Hub model) | `use 'loom model'` | `use generate_model_sbom()` | - |
 | `pypi-url-unusable` (model line) | `'loom wheel' reads its wheel, 'loom project' its sdist` | `generate_pypi_sbom() reads its wheel, generate_pypi_sbom(kind='sdist') its sdist` | - |
@@ -221,8 +230,8 @@ and a Hatchling build.
 | `option-conflict` (namespace) | `--namespace` | - (`IdRegistry.require_namespace()` moved to the CLI: no library caller gives a second namespace) | - |
 | `build-code-unsafe` (4 lines) | `--allow-build runs ... (--build-timeout)` | `BuildOptions.allow runs ... (BuildOptions.timeout)` | - |
 | `build-timeout` (2 lines) | `(--build-timeout)` | `(BuildOptions.timeout)` | - |
-| usage hint, project (summary) | `pass --scan-model-usage (or set scan-model-usage = true)` | `set scan_model_usage=True (or set ...)` | `set scan-model-usage = true in [tool.pitloom]` |
-| usage hint, wheel (summary) | `... (or set scan-model-usage = true in a --config file)` | `set scan_model_usage=True (or set it in pitloom_config)` | - |
+| usage hint, project (summary) | `pass --scan-model-usage (or set scan-model-usage = true)` | `set scan_model_usage=True (or set ...)`; `set ConfigOverrides.scan_model_usage=True (or set ...)` for `embed_wheel_sbom()` | `set scan-model-usage = true in [tool.pitloom]` |
+| usage hint, wheel (summary) | `... (or set scan-model-usage = true in a --config file)` | `set scan_model_usage=True (or set it in pitloom_config)`; the `ConfigOverrides.` form for `embed_wheel_sbom()` | - |
 | `pypi-url-unusable` (Git line, library only) | - | `generate_pypi_sbom() reads it` (was `generate_pypi_sbom(), 'loom wheel' or 'loom project' reads it`) | - |
 | `file-ambiguous` (generate line), existing twin | `loom generate reads the wheel` | `generate() reads the wheel` | - |
 | `credentials-unsafe/refused`, `/written`, existing triple | flag | `CredentialPolicy` | `pyproject.toml` list |
@@ -266,6 +275,22 @@ Fenced off from this rescan (licence-detection modules and tests):
   (the product is LicenseID).
 - `license-ambiguous`: "license" in prose; `license-relationship-invalid`'s
   ERROR line opens `Fragment merge left ...` (capital; exempt in the test).
+
+From the 0.25.0 pre-release review's catalogue fixes:
+
+- `option-no-effect` on the embed route names a bare `pretty`, not
+  `ConfigOverrides.pretty`: `option_name()` would need to know which of
+  `given` are `ConfigOverrides` fields (`embed_wheel_sbom()` also takes the
+  keywords `project_dir`, `pitloom_config`, `id_registry`,
+  `creation_metadata`), and `core.option_names` cannot import
+  `core.config_cascade` without a cycle check. Not a wrong instruction (the
+  line advises no keyword), so left for a later change.
+- `core/_config_types._require_valid_content_type_method` repeats the
+  shape of `messages.config.require_choice_argument` (outside that
+  change's files).
+- A path `spdx3-validate` spells another way than given (resolved, a
+  `file:` URI) is not escaped before the relay splits its text: its line
+  break still splits the line (the frame stays).
 
 Seen in this rescan, outside its scope:
 

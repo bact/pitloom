@@ -73,7 +73,7 @@ from pitloom.id_registry import (
     registry_copy,
     resolve_registry,
 )
-from pitloom.messages import emit
+from pitloom.messages import emit, overrides_route
 from pitloom.messages.text import JSON_MALFORMED_BOM
 
 log = logging.getLogger(__name__)
@@ -273,6 +273,7 @@ def _settle_project_build_options(
 
 
 # pylint: disable=too-many-arguments
+@overrides_route()
 def _generate_embed_sbom_json(
     wheel_metadata: ProjectMetadata,
     *,
@@ -297,6 +298,10 @@ def _generate_embed_sbom_json(
     docstring -- passed through unchanged to
     :func:`_build_sbom_from_project_and_wheel`, the only branch below that
     reaches file discovery at all.
+
+    Runs on :func:`~pitloom.messages.overrides_route`: in the library, a
+    line's action names a ``ConfigOverrides`` field, as
+    :func:`~pitloom.embed.embed_wheel_sbom` takes its settings.
     """
     given = {
         **{

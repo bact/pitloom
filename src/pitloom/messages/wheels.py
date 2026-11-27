@@ -47,7 +47,7 @@ from pitloom.messages._archive_members_say import (
 )
 from pitloom.messages._fields_wheels import SHOWN_NAMES, exception_label
 from pitloom.messages._wheels import (
-    ALLOW_SIGNED_OPTION,
+    ALLOW_SIGNED_NAMES,
     DIST_INFO_AMBIGUOUS,
     DIST_INFO_CONFLICT,
     DIST_INFO_MISSING,
@@ -96,7 +96,7 @@ from pitloom.messages._wheels_say import (
 )
 
 __all__ = [
-    "ALLOW_SIGNED_OPTION",
+    "ALLOW_SIGNED_NAMES",
     "ARCHIVE_MEMBER_CONFLICT",
     "ARCHIVE_MEMBER_INVALID",
     "ARCHIVE_MEMBER_UNSAFE",

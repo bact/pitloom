@@ -6,7 +6,8 @@
 """Each surface names what its user can change, end to end: the command
 line (``main()``), the library and the Hatchling build hook, for an option
 that has no effect, a build option without ``allow``, a setting the hook
-never acts on and the usage hint.
+never acts on and the usage hint; and the embed route, whose settings are
+``ConfigOverrides`` fields.
 
 See also: tests/messages/test_surface.py (the mechanism),
 tests/messages/test_build_surfaces.py (the build lines on both surfaces) and
@@ -22,10 +23,12 @@ from typing import Any
 import pytest
 
 from pitloom import __main__
-from pitloom.assemble import generate_project_sbom
+from pitloom.assemble import generate_project_sbom, generate_wheel_sbom
 from pitloom.core.build_options import BuildOptions
+from pitloom.embed import embed_wheel_sbom
 from pitloom.logging_config import configure_logging
-from tests._wheel_models import safetensors_bytes
+from tests._wheel_models import safetensors_bytes, write_model_wheel
+from tests.extract.ai_model.gguf_builders import gguf_file
 from tests.extract.conftest import make_hook, write_pyproject_with_pitloom_config
 
 # Projects on disk, paths in the lines and the real hook: every OS runs it.
@@ -177,4 +180,62 @@ def test_the_usage_hint_names_each_surface_s_way_to_scan(
     assert hints == [
         f"INFO: Found 1 AI model file(s); {how} to also record which Python "
         "files reference them."
+    ]
+
+
+@pytest.mark.parametrize(
+    ("route", "trust", "scan"),
+    [
+        ("cli-embed", "pass --trust-model-files", "pass --scan-model-usage"),
+        ("library", "set trust_model_files=True", "set scan_model_usage=True"),
+        (
+            "library-embed",
+            "set ConfigOverrides.trust_model_files=True",
+            "set ConfigOverrides.scan_model_usage=True",
+        ),
+    ],
+    ids=["cli-embed", "library", "library-embed"],
+)
+def test_a_wheel_scan_names_the_routes_way_to_set_each_setting(
+    route: str,
+    trust: str,
+    scan: str,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """``embed_wheel_sbom()`` takes no ``trust_model_files=`` or
+    ``scan_model_usage=`` keyword: its lines name the ``ConfigOverrides``
+    fields; ``generate_wheel_sbom()`` names its keywords, ``loom
+    embed-wheel`` its flags."""
+    wheel = write_model_wheel(tmp_path / "dist", {"demo/m.gguf": gguf_file(0, 0)})
+    monkeypatch.chdir(tmp_path)
+    if route == "cli-embed":
+        lines = _cli(monkeypatch, capsys, "embed-wheel", str(wheel))
+    else:
+        configure_logging()
+        if route == "library":
+            generate_wheel_sbom(wheel)
+        else:
+            embed_wheel_sbom(wheel)
+        lines = capsys.readouterr().err.splitlines()
+    [gated] = _coded(lines, "reader-unsafe")
+    assert gated.endswith(f": gguf; {trust} for a wheel you trust [reader-unsafe]")
+    hints = [line for line in lines if "AI model file(s); " in line]
+    assert len(hints) == 1 and f"; {scan} (or set " in hints[0]
+
+
+def test_a_project_backed_embed_names_the_overrides_field(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    project = _project(tmp_path / "p")
+    (project / "testpkg" / "m.safetensors").write_bytes(safetensors_bytes())
+    wheel = write_model_wheel(tmp_path / "dist", {"testpkg/__init__.py": b""})
+    configure_logging()
+    embed_wheel_sbom(wheel, project_dir=project)
+    hints = [ln for ln in capsys.readouterr().err.splitlines() if "file(s); " in ln]
+    assert hints == [
+        "INFO: Found 1 AI model file(s); set ConfigOverrides.scan_model_usage=True "
+        "(or set scan-model-usage = true) to also record which Python files "
+        "reference them."
     ]
