@@ -39,10 +39,13 @@ and this project adheres to
   `Person`, not two ([#568])
 - A Git URL that names a host but no repository (`https://github.com/`) is
   refused before any probe or `git` process ([#571])
+- A dependency's copyright notices come from the exact `License-File` paths,
+  nested ones included, each file once ([#572])
 
 [#566]: https://github.com/bact/pitloom/pull/566
 [#568]: https://github.com/bact/pitloom/pull/568
 [#571]: https://github.com/bact/pitloom/pull/571
+[#572]: https://github.com/bact/pitloom/pull/572
 
 ## [0.25.0] - 2026-11-27
 

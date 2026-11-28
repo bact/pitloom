@@ -274,8 +274,8 @@ release ships.
   compared each `License-File` value with a file's base name: a nested value
   (numpy lists nine, `numpy/_core/.../LICENSE.txt`) matched nothing, and
   `LICENSE` matched every `.dist-info` file of that name, at any depth.
-  *Found 2026-11-27, review of the dependency licence-file fallback.* Fixed:
-  the exact paths the licence reader uses (`dist_license_files`:
+  *Found 2026-11-27, review of the dependency licence-file fallback.* Fixed
+  in #572: the exact paths the licence reader uses (`dist_license_files`:
   `licenses/<value>`, else the `.dist-info` root, each file once). In
   Pitloom's environment 2 of 174 packages gain notices (h5py's
   `licenses/*.txt`, pip's vendored `src/pip/_vendor/*/LICENSE`); none loses
