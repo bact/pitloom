@@ -58,7 +58,7 @@ SPDX-License-Identifier: CC0-1.0
 14. Released message lines (`message-catalogue/released-lines.tsv`)
     - Every catalogued line the last release prints (code, level, template;
       tab-separated, sorted, LF), after a `# released-lines <release>` line;
-      now v0.25.0's
+      now v0.25.1's
     - A line absent from it must say a later `since`
       (`tests/messages/test_messages_line_since.py`); refreshed at each
       release bump by `scripts/generate_message_reference.py --snapshot`

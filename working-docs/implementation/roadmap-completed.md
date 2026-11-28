@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-30
-Last-Modified: 2026-11-27
+Last-Modified: 2026-11-28
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -405,3 +405,19 @@ codes 0.25.0 introduced); Pitloom requires `licenseid>=0.9.4,<0.10`.
   raised the skills' floor and updates the docs and examples that quote
   LicenseID's. See
   [pre-release-review-0.25.0.md](pre-release-review-0.25.0.md).
+
+## Shipped in 0.25.1 (PRs #566 to #574)
+
+A hardening release after 0.25.0.
+
+- [x] **Dependency licences** (#569): a dependency's licence from its
+  metadata, PyPI or licence files is declared, not concluded; licence files
+  are read when the metadata names no SPDX licence. Copyright notices come
+  from the exact `License-File` paths (#572). See
+  [dependency-licences-declared-and-concluded.md](sbom-generator-field-notes/dependency-licences-declared-and-concluded.md).
+- [x] **Identity and inputs**: one `Person` for an SBOM creator and a
+  dependency author of the same name and email (#568); a Git URL naming a host
+  but no repository is refused (#571); a Hub URL of an id no repository can
+  have is refused, and a URL's revision is warned of, not yet read (#574).
+- [x] **CI**: the `test-all-os` label is read when the run starts (#566). The
+  bump raised the skills' floor to `pitloom>=0.25.1`.

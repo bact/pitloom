@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-17
-Last-Modified: 2026-11-27
+Last-Modified: 2026-11-28
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -262,6 +262,7 @@ files (2026-10-30) are made with the pin `2355afc`: every scenario equals its
 `0.21.0` one, only the header's `checker` and `pitloom` differ. The four
 `0.22.1` (2026-11-03), `0.23.0` (2026-11-05), `0.23.1` and `0.23.2`
 (2026-11-07), `0.23.3` (2026-11-09), `0.23.4` (2026-11-08), `0.24.0`
-(2026-11-11) and `0.25.0` (2026-11-27) files, same pin, equal the `0.22.0`
-ones except the header's `pitloom`. The `pitloom` header is the installed
-version, so make a report with the release's version installed.
+(2026-11-11), `0.25.0` (2026-11-27) and `0.25.1` (2026-11-28) files, same
+pin, equal the `0.22.0` ones except the header's `pitloom`. The `pitloom`
+header is the installed version, so make a report with the release's version
+installed.
