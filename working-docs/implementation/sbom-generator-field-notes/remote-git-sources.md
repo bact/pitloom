@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-21
-Last-Modified: 2026-10-29
+Last-Modified: 2026-11-28
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -155,6 +155,16 @@ no `Location`). One wrapper now logs every refusal before the checkout is
 handed over; an error in the consumer's own `with` block is deliberately not
 logged as a fetch problem. The same refusal is a `WARNING:` and the CLI's
 `ERROR:`: deliberate, so a caller that only logs still shows it.
+
+**A host alone names no repository (#571, 2026-11-28).** `loom model
+https://github.com/` printed "read as repository https://github.com", probed
+it for a redirect and ran `git clone`; only git's own refusal stopped it, so
+a request reached the host for nothing. The URL is now refused before any
+request. A review found `https://github.com/./` and `/..` still passing: the
+check read the literal path, while curl removes dot segments and asks for the
+host root. Do: test a URL's path after collapsing dot segments, the way the
+client that will fetch it does; leave one path segment to the server (a
+self-hosted repository may sit at `/repo`).
 
 ## 6. Test traps this feature found
 

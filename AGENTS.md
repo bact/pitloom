@@ -76,6 +76,7 @@ Data and semantics:
 - **`json.loads(bytes)` strips a UTF-8 BOM; `json.loads(str)` after `.decode()` raises on it**: pass raw bytes where a binary parse matches.
 - **Picking one candidate from an unordered collection needs a stable tie-break**; choose a merge survivor from counts over all inputs.
 - **A dedup/conflict-exclusion fix must cover every path that can produce the same identity**; a conflict branch must skip itself, not the whole cascade.
+- **A second source adds a relationship, never retypes the first.**
 - **A guard before a side-effecting step drops that effect**: do the effect first.
 - **"No digest" is not "not a file"**: an empty directory, an over-ceiling or unreadable file also hash to `None`; a dangling link is a path. Ask existence with `kind`/`lexists`; test two "is it a path" helpers where they can disagree.
 - **Every route that builds one entity shares its identity rule**: one function, plus a test comparing the routes' counts; a fold says (`INFO:`) what it kept.
@@ -84,7 +85,7 @@ Data and semantics:
 - **A field added to a dataclass must be set by every constructor call site**, from one shared helper.
 - **An opt-out flag that skips filling an accumulator breaks emptiness/exit checks keyed on it**: re-derive from a populated proxy.
 - **Removing a read to save cost can remove an error-surfacing side effect**: use a cheap probe.
-- **A ruling that reverses a reading needs a before/after sweep**: run a probe corpus through HEAD and the tree; list inputs that yielded records before and none now.
+- **A ruling that reverses a reading needs a before/after sweep**: run a probe corpus through HEAD and the tree; list inputs that lost every record.
 - **Narrowing a derived field's rule needs an inventory of its writers**: run each through the new rule; derive from the value's shape as well as its key.
 - **A doc claim "after X, every Y has Z" names the code path deriving Z** and the Y it reaches.
 - **Measure the real tools before designing a reader**: probe each backend, put the matrix in the working doc.
@@ -94,7 +95,7 @@ Data and semantics:
 - **A failing manual repro is first suspect for a wrong replication**: use the real call shape.
 - **`Path.relative_to` does not collapse `..`**: `normpath` lexically first, `realpath` only as fallback.
 - **An alias rule must test that the shorter key names no real file**, else two real files with equal bytes alias.
-- **Write the key the lookup used, not the element's name**; a typed path takes its on-disk spelling, a derived one is used as given, both through one helper.
+- **Write the key the lookup used, not the element's name**; a typed path takes its on-disk spelling, a derived one is used as given, both through one helper; a `License-File` path is exact, never a basename.
 
 Code shape:
 
