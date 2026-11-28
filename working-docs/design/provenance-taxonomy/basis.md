@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-14
-Last-Modified: 2026-11-23
+Last-Modified: 2026-11-28
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -357,6 +357,14 @@ SN-2).
 
 The skills write `Reason: <free text>` today, which parses into this closed
 key. A free-text reason moves to `Note`.
+
+### Ruled 2026-11-28: the reason list is the taxonomy's own
+
+The first sentence of this section and the paragraph on a gated
+repository are replaced by a ruling of 2026-11-28: the taxonomy owns a
+closed list of reasons, and a catalogue code maps to it. The ruling,
+what was agreed with it and what is still open: [reason.md](reason.md).
+This section is not yet rewritten to it.
 
 ## Outcome of a source
 

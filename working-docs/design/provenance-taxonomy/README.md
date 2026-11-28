@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-14
-Last-Modified: 2026-11-27
+Last-Modified: 2026-11-28
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -121,7 +121,10 @@ mapping targets; none is written into an SBOM.
    abbreviation has one spelling (`ai-agent`, `sbom-author`). They are
    spelled as identifiers are, the American way (`synthesized`,
    `artifact-content`). A `Reason` code is a message catalogue code and
-   has the same casing, so the SBOM, stderr and the skills use one string.
+   has the same casing, so the SBOM, stderr and the skills use one string
+   (changed 2026-11-28: the reason list is the taxonomy's own and a
+   catalogue code maps to it, [reason.md](reason.md); this sentence is
+   not yet rewritten).
    Keys are one capitalised word; a key of a JSON record is kebab-case
    too (`value-type`). A term of another vocabulary keeps its own spelling
    (`hasDeclaredLicense`, `trainedOn`). In Python the member name is the
