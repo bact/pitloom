@@ -281,18 +281,14 @@ def test_locked_dependencies_same_content_different_provenance_changes_doc_uuid(
         "1.0.0",
         ["requests>=2.0"],
         locked_dependencies=same_content,
-        locked_dependencies_seed=(
-            "Source: poetry.lock | Method: resolved_lockfile"
-        ),
+        locked_dependencies_seed=("Source: poetry.lock | Method: resolved_lockfile"),
     )
     from_pylock = compute_doc_uuid(
         "pkg",
         "1.0.0",
         ["requests>=2.0"],
         locked_dependencies=same_content,
-        locked_dependencies_seed=(
-            "Source: pylock.toml | Method: resolved_lockfile"
-        ),
+        locked_dependencies_seed=("Source: pylock.toml | Method: resolved_lockfile"),
     )
     unattributed = compute_doc_uuid(
         "pkg", "1.0.0", ["requests>=2.0"], locked_dependencies=same_content
@@ -346,9 +342,7 @@ def test_valid_empty_lock_does_not_collide_with_no_lock_or_a_different_empty_loc
         "1.0.0",
         ["requests>=2.0"],
         locked_dependencies=[],
-        locked_dependencies_seed=(
-            "Source: pylock.toml | Method: resolved_lockfile"
-        ),
+        locked_dependencies_seed=("Source: pylock.toml | Method: resolved_lockfile"),
     )
     empty_from_uv = compute_doc_uuid(
         "pkg",
