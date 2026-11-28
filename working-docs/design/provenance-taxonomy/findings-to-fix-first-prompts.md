@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-27
-Last-Modified: 2026-11-27
+Last-Modified: 2026-11-28
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -142,8 +142,11 @@ Context
   and NOT built. Do not start it: no new provenance keys, labels,
   licence relationships or schema versions here. These fixes only clear
   the ground.
-- Line numbers are from main at dd31412b (2026-11-23). Main has moved:
-  find each place again by symbol before editing.
+- PR 2 below was written again on 2026-11-28 for main 88ad620e (release
+  0.25.1): its line numbers were read there. PR 3 to PR 5 are still as
+  written on 2026-11-23 for dd31412b; the table "Third look on main" of
+  the source page says what moved, so read it first and find each place
+  again by symbol.
 - Evidence level per item:
   [main]  read on main dd31412b
   [base]  read at 257b7260 only (135 commits older): confirm first
@@ -153,7 +156,8 @@ Context
 Rules
 - Fresh worktree from current main; one PR per group below; the user
   decides every merge. Ruled 2026-11-23: PR 1 goes now; PR 2 to PR 5
-  start after the 0.25.0 cut and go into the release after it.
+  start after the 0.25.0 cut. Releases 0.25.0 and 0.25.1 are out: each
+  PR starts on the user's word.
 - Every fix: a regression test that fails on the base tree. Gates A and
   B of AGENTS.md. Messages go through pitloom.messages (catalogue,
   generated reference and any SKILL.md that quotes them, in one change).
@@ -185,50 +189,127 @@ PIT-20 [main, CI log]. tests/extract/remote/test_hub_loopback.py: 4
   gc.collect() after the call with the socket left open), then show the
   fix holds under that.
 
-PR 2. Groundwork: zero change of output
-Proof for the whole PR: SBOM, stderr and --json diff against main empty
-on the manual CLI checks and the parity/determinism harness.
+PR 2. Groundwork: zero change of output (written again 2026-11-28)
+Three parts, in this order, each its own PR unless the user says one:
+2a (PIT-3) is small and frees every label; 2b (PIT-1) is wide and
+mechanical; 2c (PIT-2) needs design per site.
+Proof for each part: SBOM, stderr and --json diff against main empty
+on the manual CLI checks and the parity/determinism harness, and the
+pinned document ids of tests/core/test_models.py unchanged.
+Why now: the taxonomy code stage renames provenance keys and values.
+Ruled 2026-11-28 (resweep-rulings.md, C10): a released term is never
+renamed, so the first release of the new vocabulary must be right, and
+nothing may hang on today's wording when it lands.
 
-PIT-1 [main]. About 75 f-strings and suffix constants write
-  ` | Field: ...` or ` | Method: ...` without provenance_segment, most
-  in src/pitloom/extract/ai_model/.
-  The lint does not forbid this.
-  tests/test_provenance_builders_lint.py has R1 (strict, every key but
-  Field:/Method:), R2 (heuristic: a Field:/Method: string interpolates
-  no name matching entry|prefix|member|label|path|raw|url|archive|name)
-  and R3 (" | ".join). So these sites pass by design.
-  Traced: three interpolations (safetensors `found[0]`, crfsuite
-  `location`), all from fixed lists; no forged segment found. The rest
-  are not traced.
-  Do: trace every interpolated value to its origin; route all sites
-  through the builders; then make the lint strict for Field:/Method:
-  too. Check first that the builder gives byte-identical text for each
-  site (escaping of `|`); where it does not, stop and report.
+2a. PIT-3 [main 88ad620e]. The document id hangs on a provenance string.
+  core/models.py:192-199, compute_doc_uuid: the seed takes
+  "\x00" + locked_dependencies_provenance. Two callers pass it:
+  assemble/spdx3/document.py:187 and assemble/_model_generator.py:195
+  (project_document_id, used by `loom fragment list`).
+  Strings that reach the seed: extract/lock/cascade.py:274-285
+  (`Source: <lock> | Method: <method>`, with ` | Note: supersedes
+  <lock>` when a lower source loses) and the hand-written
+  extract/project/pyproject.py:355-359 (`Source: poetry.lock | Method:
+  resolved_lockfile`). `_DEFAULT_LOCKED_PROVENANCE`
+  (assemble/spdx3/deps_installed.py:75) does NOT reach it. Not checked:
+  a library caller who sets the provenance by hand, and what
+  core/project.py merge_project_metadata carries over.
+  Done already (pull request 533): tests/core/test_models.py pins 11
+  ids by typed strings and two through the real readers (pylock.toml,
+  poetry.lock). uv.lock, pdm.lock, Pipfile.lock, requirements.txt and
+  the "supersedes" note are pinned by typed strings only.
+  Do: (1) one function gives the seed text of a lock source from typed
+  facts (which lock, which method, which lock it supersedes), returns
+  today's exact text for every case, and is commented as an id input
+  that is frozen; both callers use it and no longer read the provenance
+  string. (2) Route tests through the real reader for the four locks
+  that have none. (3) The test that proves the point: reword a label in
+  the provenance (monkeypatch the cascade's text), assert the same ids.
+  The existing test
+  test_compute_doc_uuid_lock_gate_and_wording_are_id_inputs
+  asserts the reverse on the pure function: keep its meaning
+  for the function's argument, and say in its name that the argument
+  is the seed text, not the provenance.
+  Ask first (ruling): a caller-built ProjectMetadata with a provenance
+  string of its own -- does its text stay an id input (today), or does
+  the seed fall back to the typed facts only?
 
-PIT-2 [main for one site, base for four]. Provenance strings used as
-  data. Confirmed: src/pitloom/extract/project/_setuptools_options.py
-  :456 `py_wins = metadata.provenance.get("license") == py_licence[1]`.
-  Named at the base, not found again by a search on main:
-  _optional_dependencies.py, _setuptools_dynamic.py, lock/cascade.py,
-  scanner.py. Find them (comparisons, startswith, split, `in` on a
-  provenance value).
-  Do: carry a typed value beside the string (which source won), compare
-  that. Test per site: reword the provenance text in the test, behaviour
-  unchanged.
+2b. PIT-1 [main 88ad620e, counted by a scan of the syntax tree].
+  Provenance segments built by hand: 62 strings with an interpolated
+  value and 4 suffix constants (core/model_originators.py:31,34;
+  core/model_parameters.py:42,44); 55 of the 62 are in
+  src/pitloom/extract/ai_model/. Beside them 61 whole literals
+  (`"Source: x | Field: y"`) with no interpolation. The count did not
+  move between 6cb6183f and dfa11c14.
+  The lint allows it: tests/test_provenance_builders_lint.py is strict
+  (R1) for every key but Field: and Method:, and for those two refuses
+  only an interpolated name matching entry|prefix|member|label|path|
+  raw|url|archive|name (R2).
+  Traced: of 27 values that are not the `Source:` base, 24 come from a
+  fixed list or constant, one from a builder, one is a number. Not
+  traced: `source` in extract/_core_metadata.py:260 (callers
+  _core_metadata.py:289, assemble/spdx3/deps_pypi.py:88), and the
+  `source` parameter of extract/ai_model/archive_member.py:61 and
+  _pt2_graph.py:116.
+  What the builder does (core/provenance.py:223-235, read):
+  provenance_segment(base, key, value) appends " | <key>: <value>"
+  with the value through sanitize_provenance_text, which writes "|" as
+  "/" and escapes control characters and lone surrogates. For a fixed
+  ASCII value the text is the same byte for byte.
+  Do: (1) finish the trace of the three values above. (2) Route every
+  interpolated site and the four suffix constants through
+  provenance_segment (a site with two segments chains it). (3) Decide
+  with the user whether the 61 whole literals go through the builders
+  too (they cannot forge a segment; the gain is one spelling per key
+  for the rename). (4) Make the lint strict for Field: and Method: and
+  drop R2. Before each site: assert old text == new text for its
+  values; where a value could hold "|" or a control character the text
+  changes -- stop and report, that is an output change and not this PR.
+  Use a cheap agent for the rewrite and the per-site equality check;
+  run the linters yourself.
 
-PIT-3 [main]. compute_doc_uuid in src/pitloom/core/models.py adds
-  "\x00" + locked_dependencies_provenance to the document UUID seed
-  (called with it from assemble/spdx3/document.py). The strings that
-  reach it: those of the lock cascade (extract/lock/cascade.py) and the
-  hand-written poetry.lock string in extract/project/pyproject.py.
-  `_DEFAULT_LOCKED_PROVENANCE` (assemble/spdx3/deps_installed.py) does
-  NOT reach the seed; it labels installed dependencies only.
-  A reworded label would change every SPDX id of such a document.
-  Test half DONE 2026-11-24 (pull request 533): today's ids
-  are pinned per variant in tests/core/test_models.py, the pylock and
-  poetry routes too. Left to do: a seed function of its own that
-  returns today's exact text for each case, frozen and commented as an
-  id input; then a test that rewords a label and asserts the same ids.
+2c. PIT-2 [main 88ad620e]. Provenance strings used as data. Two kinds;
+  only the first is this PR.
+  Kind A, a string built in this process and parsed or compared again
+  in this process (fix: carry a typed value beside the string):
+  - extract/project/_setuptools_options.py:456 (the whole string
+    compared with ==, decides which side is named first), :225 and
+    :307 (parsed for "location" and "source")
+  - extract/project/_optional_dependencies.py:60-62
+  - extract/project/_setuptools_dynamic.py:288-289
+  - extract/lock/cascade.py:240-262 (ranks the lock that was held by
+    its parsed source name; shares 2a's typed facts)
+  - extract/scanner.py:231 (prefix test to rewrite a copied path, for
+    the model and each dataset) and :275 (the same in a warning text)
+  - core/evidence.py:223 (reads the Evidence level back to rank)
+  - assemble/spdx3/_provenance_encoders.py:49-67 and :87 (the detail
+    level `minimal` decides from the parsed string), :70-79 with
+    deps_license.py:216 (declared or concluded: `not _source_name`)
+  - assemble/spdx3/_license_elements.py:318-326 (_is_noted: compares
+    two strings and parses one for normalized-from)
+  - assemble/spdx3/deps_installed.py:295 (dedup key on the source
+    string of a conflict candidate)
+  Kind B, provenance read back from a document someone else may have
+  written. These must parse; a typed value cannot reach them. NOT this
+  PR (the code stage owns them: renames-and-migration.md, hazards 5 to
+  7), but list them in the PR text so the count is whole:
+  assemble/spdx3/_fragments_generated.py:61,73;
+  _fragments_model_names.py:89-90; _fragments_evidence.py:62,71 (a
+  substring test on the spelling `not_measured`);
+  export/_spdx3_credentials/_find.py:140 (the schema compared with ==:
+  a new schema version stops its reading of notes, silently) and :177;
+  scripts/extract_wheel_sbom.py:51,112-125.
+  Do, for kind A: plan first, per site, what typed value replaces the
+  read-back (an enum or a small frozen dataclass kept beside the
+  string; where it lives; who sets it), and show the plan to the user
+  before code: this is the one part of PR 2 with no answer known in
+  advance, so use the strongest model for it. Then per site a test
+  that rewords the provenance text (monkeypatch the builder's output)
+  and asserts the behaviour unchanged. A site whose typed value would
+  be a new field on a public dataclass: ask first.
+  Search again before you start (the list grew at each look):
+  parse_provenance_value( call sites (14 at 88ad620e), and ==,
+  startswith, `in` on a `.provenance` value.
 
 PR 3. Licence and embed
 PIT-9 [main]. assemble/spdx3/_provenance_encoders.py:81-89

@@ -162,8 +162,9 @@ several texts gives no licence and ends the search (554, 563). Both
 are in [asserter-licence.md](asserter-licence.md).
 
 The rulings of 2026-11-28 on the draft itself:
-[resweep-rulings.md](resweep-rulings.md). The prompt for the fixes
-was written for dd31412b and is not yet rewritten to this look.
+[resweep-rulings.md](resweep-rulings.md). Of the prompt for the fixes,
+the groundwork part (PIT-1 to PIT-3) was written again for this look
+on 2026-11-28; the other parts are still as written for dd31412b.
 
 ### Groundwork the code stage needs, with no change of output
 
