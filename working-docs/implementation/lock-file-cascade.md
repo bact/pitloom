@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-04
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-28
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -227,10 +227,15 @@ to the same exact pins would produce the *same* document UUID despite
 the generated document's `provenance["locked_dependencies"]` field (and
 any override note) differing, a real content difference the UUID is
 meant to guard against. Fixed by adding a
-`locked_dependencies_provenance: str | None` parameter, folded into the
+`locked_dependencies_seed: str | None` parameter, folded into the
 seed alongside `locked_dependencies` itself whenever both are non-empty/
 given. Omitted (every pre-existing call site) leaves the seed
-unaffected -- purely additive.
+unaffected -- purely additive. The argument is the seed text of the
+lock's typed origin (`pitloom.core.lock_origin.lock_seed_text`), not the
+provenance string: a reader records a `LockOrigin` with
+`ProjectMetadata.record_lock_origin`, and rewording the provenance
+changes no id. A `ProjectMetadata` built by a caller, with a provenance
+string and no origin, still seeds from that string.
 
 ## Adding a new format to the cascade
 

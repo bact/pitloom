@@ -312,109 +312,110 @@ def test_get_wheel_files_normalizes_windows_style_distribution_path(
 _LOCKED = ["requests==2.31.0", "idna==3.7"]
 
 
-def _lock_provenance(source: str, method: str = "resolved_lockfile") -> str:
+def _seed_text(source: str, method: str = "resolved_lockfile") -> str:
     return f"Source: {source} | Method: {method}"
 
 
-# Today's ids, pinned on purpose: the provenance string of the locked
-# dependencies is a seed input of compute_doc_uuid, so rewording a label
-# changes every SPDX id of a document with a lock. A failure here means
-# exactly that; change the literals only as a deliberate id break.
-# Each provenance shape is one a reader builds (extract/lock/cascade.py
-# `_LOCK_SOURCES` with `provenance_source`/`provenance_segment`,
-# extract/project/pyproject.py poetry.lock, deps_installed.py default).
+# Today's ids, pinned on purpose: the seed text of the locked dependencies
+# is a seed input of compute_doc_uuid, so a change of it changes every SPDX
+# id of a document with a lock. A failure here means exactly that; change
+# the literals only as a deliberate id break. Each shape is one
+# pitloom.core.lock_origin.lock_seed_text gives for a reader's origin
+# (tests/core/test_lock_origin.py pins the text and each reader's route),
+# plus the "lock file" default a caller may pass by hand.
 _PINNED_DOC_UUIDS = [
     pytest.param(None, None, "941f9857-d3b0-59e6-ac6f-4682c38fee73", id="no-lock"),
     pytest.param(
-        _LOCKED, None, "7bbd3b4a-5cda-5459-ad80-485c4f7d7a39", id="no-provenance"
+        _LOCKED, None, "7bbd3b4a-5cda-5459-ad80-485c4f7d7a39", id="no-seed-text"
     ),
     pytest.param(
         _LOCKED,
-        _lock_provenance("lock file"),
+        _seed_text("lock file"),
         "1fc24d64-bd8d-552c-8282-3c65de6fc874",
         id="default",
     ),
     pytest.param(
         _LOCKED,
-        _lock_provenance("pylock.toml"),
+        _seed_text("pylock.toml"),
         "f5442da8-76ae-5e87-9f89-0f60a76a5b2d",
         id="pylock",
     ),
     pytest.param(
         _LOCKED,
-        _lock_provenance("uv.lock"),
+        _seed_text("uv.lock"),
         "edfc06bd-d6ee-5286-b28c-130f46833012",
         id="uv",
     ),
     pytest.param(
         _LOCKED,
-        _lock_provenance("poetry.lock"),
+        _seed_text("poetry.lock"),
         "bf2edfb5-0095-53d7-a448-e61f1fd6d7b1",
         id="poetry",
     ),
     pytest.param(
         _LOCKED,
-        _lock_provenance("pdm.lock"),
+        _seed_text("pdm.lock"),
         "b775aa51-9326-5572-ad4a-063cc6a15716",
         id="pdm",
     ),
     pytest.param(
         _LOCKED,
-        _lock_provenance("Pipfile.lock"),
+        _seed_text("Pipfile.lock"),
         "0f0aba83-6143-526e-b085-bb8d2596b801",
         id="pipfile",
     ),
     pytest.param(
         _LOCKED,
-        _lock_provenance("requirements.txt", "pinned_requirements"),
+        _seed_text("requirements.txt", "pinned_requirements"),
         "65ab7efb-ef90-57de-be10-e672ceabc0ee",
         id="requirements",
     ),
     pytest.param(
         _LOCKED,
-        _lock_provenance("uv.lock") + " | Note: supersedes poetry.lock",
+        _seed_text("uv.lock") + " | Note: supersedes poetry.lock",
         "4d187b2e-b3e0-5d47-bd31-e9ddd36aa2a4",
         id="supersedes",
     ),
     pytest.param(
         [],
-        _lock_provenance("pylock.toml"),
+        _seed_text("pylock.toml"),
         "21ccb408-ad3e-5440-870f-1ae164dd6dd6",
         id="empty-lock",
     ),
 ]
 
 
-@pytest.mark.parametrize(("locked", "provenance", "expected"), _PINNED_DOC_UUIDS)
-def test_compute_doc_uuid_pinned_per_lock_provenance(
-    locked: list[str] | None, provenance: str | None, expected: str
+@pytest.mark.parametrize(("locked", "seed", "expected"), _PINNED_DOC_UUIDS)
+def test_compute_doc_uuid_pinned_per_lock_seed_text(
+    locked: list[str] | None, seed: str | None, expected: str
 ) -> None:
-    """Each locked-dependencies provenance shape keeps today's document id."""
+    """Each locked-dependencies seed text keeps today's document id."""
     assert (
         compute_doc_uuid(
             "demo",
             "1.0",
             ["requests>=2.0"],
             locked_dependencies=locked,
-            locked_dependencies_provenance=provenance,
+            locked_dependencies_seed=seed,
         )
         == expected
     )
 
 
-def test_compute_doc_uuid_lock_gate_and_wording_are_id_inputs() -> None:
-    """An empty lock with a provenance differs from no lock, and two wordings
-    of one lock differ: the label text is an id input today."""
+def test_compute_doc_uuid_lock_gate_and_seed_text_are_id_inputs() -> None:
+    """An empty lock with a seed text differs from no lock, and two seed
+    texts of one lock differ: the argument is an id input. It is the seed
+    text, not the provenance string (tests/core/test_lock_origin.py)."""
     args = ("demo", "1.0", ["requests>=2.0"])
     no_lock = compute_doc_uuid(*args)
     empty_lock = compute_doc_uuid(
-        *args, locked_dependencies=[], locked_dependencies_provenance="Source: x"
+        *args, locked_dependencies=[], locked_dependencies_seed="Source: x"
     )
     reworded = [
         compute_doc_uuid(
             *args,
             locked_dependencies=_LOCKED,
-            locked_dependencies_provenance=label,
+            locked_dependencies_seed=label,
         )
         for label in ("Source: pylock.toml", "Source: pylock.toml file")
     ]
@@ -426,7 +427,7 @@ def test_compute_doc_uuid_lock_gate_and_wording_are_id_inputs() -> None:
 def test_project_document_id_pinned_through_real_lock_reader(
     tmp_path: Path,
 ) -> None:
-    """The pylock.toml reader's real provenance string yields today's id."""
+    """The pylock.toml reader's real origin yields today's id."""
     root = write_locked_deps_project(tmp_path / "proj")
     # write_bytes: the id covers file digests, so no CRLF on Windows.
     for name, text in (
@@ -477,7 +478,7 @@ content-hash = "0"
 def test_project_document_id_pinned_through_poetry_lock_route(
     tmp_path: Path,
 ) -> None:
-    """The hand-written poetry.lock provenance (extract/project/pyproject.py)
+    """The poetry.lock origin of extract/project/pyproject.py
     yields today's id; reading it needs the real poetry.lock reader."""
     root = tmp_path / "proj"
     root.mkdir()

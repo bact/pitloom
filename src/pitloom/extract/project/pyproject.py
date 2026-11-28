@@ -27,6 +27,7 @@ from typing import Any
 from pitloom.core._project_toml import load_project_toml
 from pitloom.core.config import PitloomConfig, parse_pitloom_config
 from pitloom.core.internal_error import InternalError
+from pitloom.core.lock_origin import LockOrigin
 from pitloom.core.project import ProjectMetadata, merge_project_metadata
 from pitloom.core.requirements import normalize_dependency_specifier
 from pitloom.extract._extract_utils import field_declared
@@ -354,8 +355,8 @@ def _try_read_poetry(
             metadata = ProjectMetadata(name="")
     if locked_dependencies is not None:
         metadata.locked_dependencies = locked_dependencies
-        metadata.provenance["locked_dependencies"] = (
-            f"Source: {POETRY_LOCK_SOURCE_NAME} | Method: resolved_lockfile"
+        metadata.record_lock_origin(
+            LockOrigin(POETRY_LOCK_SOURCE_NAME, "resolved_lockfile")
         )
         hashes = extract_poetry_lock_hashes(project_dir, locked_dependencies)
         metadata.locked_dependency_hashes = hashes or {}
