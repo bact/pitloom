@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-06
-Last-Modified: 2026-11-27
+Last-Modified: 2026-11-28
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -35,6 +35,87 @@ embed-wheel" section) -- the manual method documented per-release below
 still applies to a published PyPI wheel specifically (download + run
 against the real artefact), but the same location/schema logic no longer
 needs to be reasoned about by hand.
+
+## Verification of v0.25.1 (2026-11-28)
+
+Same method as v0.25.0 below, the same day as the release, against
+`https://pypi.org/pypi/pitloom/0.25.1/json` (wheel uploaded 2026-11-28
+05:57:43 UTC, sdist 05:57:45 UTC, neither yanked). The GitHub Release (not
+a draft) was published at 05:55:45 UTC; the tag `v0.25.1` is lightweight
+and points at `b7538a81`, which adds only a `CHANGELOG.md` `Last-Modified`
+date to `d7194211` (the merge of #576).
+
+| File | Bytes | SHA-256 |
+| - | -: | - |
+| `pitloom-0.25.1-py3-none-any.whl` | 1,703,928 | `cdaa324a3b504bf4029a58364cfc5684d6b51b30bec91bb1f7b00acac784bdf3` |
+| `pitloom-0.25.1.tar.gz` | 11,940,408 | `a731d71e3ce6a8b606352a11c4ab8aab01622e647d2c8e6d0ed94931d91bc5c5` |
+| `pitloom-0.25.1.spdx3.json` (Release asset) | 1,553,235 | `af3966e5aa3c8d5c11c7c2ba898d7a079ea29ae284b755d1362c5257fd74ea8c` |
+
+### Method
+
+- As for v0.25.0: digests from the JSON API, the JSON simple index and the
+  Release assets; `RECORD` and `software_File` hashes recomputed with
+  `python -I`; payload and sdist against `git archive v0.25.1`; fresh venvs
+  on Python 3.13.12 (`pitloom[ai,content-type,validate]==0.25.1`, sigstore
+  4.6.0) and 3.10.19 (`pitloom==0.25.1`); `verify-wheel
+  --fail-on-mismatch`, `validate-wheel`, `spdx3-validate` 0.0.7, `loom
+  fragment validate`, `check_sbom_license.py --license Apache-2.0`, `sigstore
+  verify github`, `gh attestation verify`, PyPI's integrity API.
+- Smoke tests in `env -i` with a scratch `HOME` per case: a tiny Hatchling
+  project (MIT `LICENSE`, no `license` field, a dependency on `packaging`)
+  with no database, a fresh `licenseid update --source packaged` one, and
+  one LicenseID 0.9.4 built (then updated). This release's changes with a
+  logging fake `git` on `PATH` and every proxy pointed at `127.0.0.1:9`
+  (control runs showed both traps catch a call).
+
+### Findings
+
+- Digests agree in all three sources; wheel and sdist equal the Release
+  assets, the standalone SBOM the wheel's member. Six assets.
+- `requires_dist` has `licenseid<0.11,>=0.10.0`; `METADATA` equals
+  `PKG-INFO`. Wheel: 536 members, `RECORD` 536 rows, 0 bad, none missing or
+  extra; payload equals `src/pitloom` of the tag. sdist: 2,039 files, all
+  from the tag plus `PKG-INFO`; no `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`
+  or `.env`.
+- Embedded SBOM: SPDX 3.0.1, 2,337 elements, 551 `software_File` (21
+  directories without a hash), 0 mismatches; `licenseid` at 0.10.0. All 25
+  dependency packages have `hasDeclaredLicense` (#569; every one was
+  concluded in 0.25.0); only the root package keeps `hasConcludedLicense`.
+  All validators pass.
+- Signatures: `sigstore verify github` and `gh attestation verify` exit 0
+  for the three files and 1 with a wrong bundle or a `v0.25.0` identity or
+  ref. PEP 740: publisher `bact/pitloom`, `pypi-publish.yml`.
+- Every run on `b7538a81` and `d7194211` succeeded, `Publish to PyPI`
+  (strict network tests included) among them.
+- Installs: `uv pip check` clean, LicenseID 0.10.0 on both Pythons. The
+  tiny project's SBOM is byte-identical across runs and Pythons; no
+  database: one `[license-db-missing]` `WARNING:` (no licence stated);
+  fresh database: `hasDeclaredLicense MIT`; 0.9.4's database:
+  `WARNING: licenseid database cannot be used: database: build v7 outdated:
+  current v10; run 'licenseid update'; ... [license-db-unusable]`, SBOM
+  written, exit 0, database untouched; after `licenseid update --source
+  packaged` the SBOM equals the fresh-database one. `packaging` 26.4 has
+  `hasDeclaredLicense` `Apache-2.0 OR BSD-2-Clause` and no concluded
+  licence (#569).
+- #571: `loom model https://github.com/` gives `[git-url-invalid]`, exit 1,
+  no `git` call. #574: `https://huggingface.co/a/b--c` gives
+  `[hf-url-invalid]` with no request; bare `a/b--c` is a local path
+  (`[input-not-found]`); `.../prajjwal1/bert-tiny/tree/<older commit>
+  --offline` gives one `[hub-revision-unpinned/url]` `WARNING:` before
+  `[offline-unusable]`.
+
+### Not run or noted
+
+- No workflow run of the Action; no Merkle root; no sdist rebuild; the
+  licence-file fallback half of #569 not tried on the published package.
+- LicenseID's own advice in the relayed line is `run 'licenseid update'`
+  (its default sources); Pitloom's docs say `--source packaged` (no
+  network). Both rebuild the database; only the packaged form was run.
+- Earlier behaviour seen again, not part of this release: a shared licence
+  element's provenance names only its first package (`MIT`, 13 packages,
+  `Package: auditwheel`); `rfc8785` and `safetensors` keep the classifier
+  `LicenseRef-loom-text-8abaac38411f199b`; a Hub model with every request
+  refused still gets a 7-element SBOM, exit 0 (documented warnings).
 
 ## Verification of v0.25.0 (2026-11-27)
 

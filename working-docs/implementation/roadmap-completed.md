@@ -406,7 +406,7 @@ codes 0.25.0 introduced); Pitloom requires `licenseid>=0.9.4,<0.10`.
   LicenseID's. See
   [pre-release-review-0.25.0.md](pre-release-review-0.25.0.md).
 
-## Shipped in 0.25.1 (PRs #566 to #574)
+## Shipped in 0.25.1 (2026-11-28, PRs #566 to #576)
 
 A hardening release after 0.25.0.
 

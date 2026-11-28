@@ -20,6 +20,8 @@ and this project adheres to
 - Full release notes: <https://github.com/bact/pitloom/releases>
 - Commit history: <https://github.com/bact/pitloom/compare/v0.25.1...HEAD>
 
+## [Unreleased]
+
 ## [0.25.1] - 2026-11-28
 
 ### Changed
@@ -1336,6 +1338,7 @@ Released from `maint-0.21`, on 0.21.1; no other change of 0.22.0 is in it.
 
 ---
 
+[Unreleased]: https://github.com/bact/pitloom/compare/v0.25.1...HEAD
 [0.25.1]: https://github.com/bact/pitloom/compare/v0.25.0...v0.25.1
 [0.25.0]: https://github.com/bact/pitloom/compare/v0.24.0...v0.25.0
 [0.24.0]: https://github.com/bact/pitloom/compare/v0.23.4...v0.24.0
