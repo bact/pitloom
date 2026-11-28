@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-11-27
+Last-Modified: 2026-11-28
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -51,8 +51,9 @@ front-end (`pip`, `build`, `hatch`) installs `pitloom` as a build-time
 dependency automatically, the same way it installs Hatchling itself.
 
 To match `LICENSE` files, the build machine also needs the LicenseID
-database: run `licenseid update --source packaged` once (needs `licenseid`
-installed, as it is with `pip install pitloom`; no network). Without it the
+database: run `licenseid update --source packaged` once, and again after
+upgrading LicenseID (needs `licenseid` installed, as it is with `pip install
+pitloom`; no network). Without it the
 hook logs a `WARNING:` ("licenseid database not found: ... licence text
 detection skipped ... [license-db-missing]"), or an `INFO:` when a licence is
 declared, and still reads the declared licence.
