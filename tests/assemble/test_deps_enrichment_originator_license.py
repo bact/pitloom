@@ -212,8 +212,35 @@ _OVER_CAP = "Copyright (c) 2026 Big\n" + "x" * LICENSE_FILE_MAX_BYTES
         ([(f"{_LIC}LICENSE", "No notice at all.\n")], ["LICENSE"], None),
         ([(f"{_LIC}LICENSE", _OVER_CAP)], ["LICENSE"], None),
         ([(f"{_LIC}LICENSE", None)], ["LICENSE"], None),
+        # A License-File value is a path below licenses/, not a basename.
+        (
+            [(f"{_LIC}LICENSES/MIT.txt", "Copyright (c) 2026 Nested\n")],
+            ["LICENSES/MIT.txt"],
+            "Copyright (c) 2026 Nested",
+        ),
+        # One value names one file: licenses/ first, the root only without it.
+        (
+            [
+                ("mypkg-1.0.dist-info/LICENSE", "Copyright (c) 2015 Old Root\n"),
+                (f"{_LIC}LICENSE", "Copyright (c) 2026 Listed\n"),
+            ],
+            ["LICENSE"],
+            "Copyright (c) 2026 Listed",
+        ),
+        # No License-File: the root licence files are not searched.
+        ([("mypkg-1.0.dist-info/LICENSE", "Copyright (c) 2026 Root\n")], [], None),
     ],
-    ids=["vendored", "dist-info-root", "several", "none", "over-cap", "unreadable"],
+    ids=[
+        "vendored",
+        "dist-info-root",
+        "several",
+        "none",
+        "over-cap",
+        "unreadable",
+        "nested-path",
+        "licenses-first",
+        "no-header",
+    ],
 )
 # pylint: disable-next=too-many-arguments
 def test_find_license_copyright(
@@ -248,7 +275,8 @@ _SECRET = "Copyright (c) 2026 Secret\n"
 @pytest.mark.parametrize(
     ("entry", "expected", "warned"),
     [
-        ("mypkg-1.0.dist-info/../../secret/LICENSE", None, True),
+        # Not the path a License-File names, so never looked up or read.
+        ("mypkg-1.0.dist-info/../../secret/LICENSE", None, False),
         ("{secret}", None, False),
         pytest.param("mypkg-1.0.dist-info/LICENSE", None, True, marks=_SYMLINK),
         ("mypkg-1.0.dist-info/licenses/LICENSE", "Copyright (c) 2026 Real", False),
@@ -266,8 +294,9 @@ def test_find_license_copyright_record_entry_confined(
     warned: bool,
 ) -> None:
     """A ``RECORD`` entry is read only inside the ``.dist-info`` it names,
-    as the installed file system resolves it: ``..``, an absolute path or a
-    symlink out is never read; a case-insensitive spelling still is."""
+    as the installed file system resolves it: ``..`` or an absolute path is
+    not the path a ``License-File`` names and a symlink out is refused, so
+    none is read; a case-insensitive spelling still is."""
     if entry.startswith("MYPKG") and case_sensitive(tmp_path):
         pytest.skip("needs a case-insensitive file system")
     site, secret = tmp_path / "site", tmp_path / "secret" / "LICENSE"
