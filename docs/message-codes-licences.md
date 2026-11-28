@@ -23,7 +23,7 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
 | [`license-ambiguous`](#license-ambiguous) | WARNING | A package's licence comes from its License :: trove classifiers (no license or License-Expression field states one), and they name several licences. Classifiers cannot say whether every licence applies (AND) or the licences offer a choice (OR). | 0.25.0 |
 | [`license-conflict`](#license-conflict) | WARNING | A pyproject.toml declares project.license as an SPDX license expression (PEP 639) and also License :: trove classifiers that state a licence, which PEP 639 forbids and pyproject-metadata refuses. A project moving to PEP 639 often declares both. | 0.25.0 |
 | [`license-db-missing`](#license-db-missing) | WARNING, INFO | LicenseID's licence database is not built at the path it looks in (~/.local/share/licenseid/licenses.db). Matching a licence text to an SPDX id needs it; reading a declared expression does not. INFO when the package states a licence (only the licence-file second opinion is lost), WARNING when it states none or states a licence text, which only the database can read. | 0.25.0 |
-| [`license-db-unusable`](#license-db-unusable) | WARNING | LicenseID's licence database cannot be used: it is empty, invalid or unreadable, or LicenseID finds no home directory to look in (HOME, or USERPROFILE on Windows, set to nothing, or no home for the account). The detail is LicenseID's; its 'pass --db' is an option of the licenseid command, not of loom. | 0.25.0 |
+| [`license-db-unusable`](#license-db-unusable) | WARNING | LicenseID's licence database cannot be used: it is empty, invalid or unreadable, an older LicenseID built it (build vN outdated), a newer one built it and this one cannot read it (build vN newer), or LicenseID finds no home directory to look in (HOME, or USERPROFILE on Windows, set to nothing, or no home for the account). The detail is LicenseID's; its 'pass --db' is an option of the licenseid command, not of loom. | 0.25.0 |
 | [`license-expression-invalid`](#license-expression-invalid) | WARNING | A licence value that looks like an SPDX license expression (an operator or a parenthesis, and a word LicenseID reads as a licence id), or any value in a field that holds an expression only (PEP 639 project.license, Core Metadata License-Expression, a file's SPDX-License-Identifier tag, GGUF general.license, a PyPI record's license_expression), names no licence LicenseID knows: an operand not on the SPDX License List (Acme-Terms, MIT OR Foo, Apache-2.0 WITH Bar, a WITH with no exception after it, read as a name), or, in a field that holds an expression only, a value on more than one line or longer than 200 characters (a licence text). The reason in brackets says which. | 0.25.0 |
 | [`license-expression-invalid/resolved`](#license-expression-invalidresolved) | INFO | A declared licence value is not an SPDX license expression as written, and LicenseID reads one in it beyond a change of form: a re-spelt id (Apache2), a listed licence name (MIT License), a licence URL, a separator (MIT/Apache-2.0), a stated "or later", a deprecated id reached by a re-spelling (GPLv3). The steps in brackets are LicenseID's. A change of form only (case, spacing, a + written as -or-later) is said at DEBUG, with no code. | 0.25.0 |
 | [`license-expression-malformed`](#license-expression-malformed) | WARNING | A licence value that looks like an SPDX license expression (an operator or a parenthesis, and a word LicenseID reads as a licence id), or any value in a field that holds an expression only (PEP 639 project.license, Core Metadata License-Expression, a file's SPDX-License-Identifier tag, GGUF general.license, a PyPI record's license_expression), has a syntax LicenseID cannot parse: an operator with no operand on one side (MIT OR), a parenthesis without its match. The reason in brackets is LicenseID's. | 0.25.0 |
@@ -100,10 +100,11 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
 
 - **Level**: WARNING.
 - **Means**: LicenseID's licence database cannot be used: it is empty, invalid
-  or unreadable, or LicenseID finds no home directory to look in (HOME, or
-  USERPROFILE on Windows, set to nothing, or no home for the account). The
-  detail is LicenseID's; its 'pass --db' is an option of the licenseid command,
-  not of loom.
+  or unreadable, an older LicenseID built it (build vN outdated), a newer one
+  built it and this one cannot read it (build vN newer), or LicenseID finds no
+  home directory to look in (HOME, or USERPROFILE on Windows, set to nothing, or
+  no home for the account). The detail is LicenseID's; its 'pass --db' is an
+  option of the licenseid command, not of loom.
 - **SBOM effect**: thinner: the SBOM says less than reading the input would.
 - **Pitloom did**: Skipped licence text detection: a licence file or text is
   recorded as text, not matched to an SPDX id. Said once per process; every
@@ -111,10 +112,11 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
 - **Tell the user**: that licence texts were not matched to SPDX ids, with
   LicenseID's reason as the line gives it. With no home directory, they set HOME
   (USERPROFILE on Windows) to the account's home directory; loom has no --db
-  option. An empty or invalid database they rebuild with 'licenseid update
-  --source packaged --force'; an unreadable one is a file permission they fix.
-  Do not run commands or change the environment for them; ask first, and with
-  nobody to ask, report it only.
+  option. An outdated database (after upgrading licenseid) they rebuild with
+  'licenseid update --source packaged'; an empty, invalid or newer one with
+  'licenseid update --source packaged --force', or they upgrade licenseid; an
+  unreadable one is a file permission they fix. Do not run commands or change
+  the environment for them; ask first, and with nobody to ask, report it only.
 - **Lines**:
 
   ```text

@@ -70,8 +70,8 @@ LEVEL: [FRAME: ][SUBJECT=value: ]CONDITION[; ACTION] [code]
   frame, `ERROR: loom <command>: ...`), and an exception's text carries no
   frame.
 
-A line after `licenseid: ` (`WARNING: licenseid: database: build v5
-outdated: current v6; run 'licenseid update'`) is a warning of LicenseID,
+A line after `licenseid: ` (`WARNING: licenseid: database: build v11
+newer: current v10`) is a warning of LicenseID,
 the licence library Pitloom reads licences with, relayed once per run in
 LicenseID's own words and grammar. It carries no code and never will:
 Pitloom does not own its wording. Report it with the licence it concerns.

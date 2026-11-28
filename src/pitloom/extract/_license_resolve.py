@@ -98,7 +98,7 @@ class DeclaredResolution:
     """What LicenseID read in a declared value: the *expression* to record,
     its *category*, the *steps* it took (``separator``, ``version_spelling``,
     ...), the qualifier steps (*expansions*) apart, whether it *decided*
-    something beyond form, the *tool* that read it (``licenseid==0.9.4``),
+    something beyond form, the *tool* that read it (``licenseid==0.10.0``),
     and each *deprecated* id whose successors are ambiguous, as
     ``ID (ID-only or ID-or-later)``."""
 

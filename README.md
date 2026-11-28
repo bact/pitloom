@@ -57,12 +57,17 @@ User manual: <https://bact.github.io/pitloom/>
 
 ```bash
 pip install pitloom
-licenseid update --source packaged   # once: enables LICENSE-file matching
+licenseid update --source packaged   # builds the licence database for LICENSE files
 loom project .                       # SBOM for the Python project in the current dir
 ```
 
 Without the [LicenseID] database, a declared licence is still read,
 but a `LICENSE` file is not matched.
+Pitloom requires LicenseID 0.10.0 or later, which refuses a database an
+older LicenseID built. After upgrading LicenseID (or Pitloom, which may
+upgrade it), run `licenseid update --source packaged` again; until then
+Pitloom warns [`license-db-unusable`][license-db-unusable] and matches no
+`LICENSE` file.
 
 Extras enable more metadata extraction (see [CONTRIBUTING.md]
 for the dev install):
@@ -74,6 +79,7 @@ pip install "pitloom[validate]"        # SPDX 3 schema/SHACL validation
 ```
 
 [LicenseID]: https://github.com/bact/licenseid
+[license-db-unusable]: https://bact.github.io/pitloom/message-codes-licences/#license-db-unusable
 [CONTRIBUTING.md]: https://github.com/bact/pitloom/blob/main/CONTRIBUTING.md
 
 ## Usage

@@ -8,10 +8,10 @@
   },
   "ast_serialize-0.11.1-LICENSE": {
     "license": "MIT",
-    "note": "MIT after a preamble; with no licence stated, MIT 0.930 and JSON 0.927 tie",
+    "note": "MIT after a preamble; with no licence stated, MIT 0.946 is clear of JSON 0.935",
     "source": "ast_serialize==0.11.1: ast_serialize-0.11.1.dist-info/licenses/LICENSE",
     "stated": "MIT",
-    "unstated": null
+    "unstated": "MIT"
   },
   "astroid-4.3.2-LICENSE": {
     "license": "LGPL-2.1-or-later",
@@ -71,9 +71,9 @@
   },
   "wcwidth-0.8.3-LICENSE": {
     "license": "MIT",
-    "note": "tie without the notice: JSON 0.935, MIT 0.929",
+    "note": "MIT; the Markus Kuhn notice below it scores too low to count as a second text",
     "source": "wcwidth==0.8.3: wcwidth-0.8.3.dist-info/licenses/LICENSE",
     "stated": "MIT",
-    "unstated": null
+    "unstated": "MIT"
   }
 }
