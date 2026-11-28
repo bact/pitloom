@@ -49,10 +49,10 @@ MAX_CARD_DATASETS = 1000
 CARD_DATASETS_CAP = Cap(MAX_CARD_DATASETS, "dataset", "model-card-datasets")
 
 #: A Hub repository id: an optional owner and a name, each 1-96 of
-#: ``[A-Za-z0-9_.-]`` starting with a letter or digit and ending with a
-#: letter, digit or ``_``, as ``huggingface_hub`` validates them (a legacy
+#: ``[A-Za-z0-9_.-]`` starting and ending with a letter, digit or ``_``, as
+#: ``huggingface_hub`` validates them (a legacy
 #: dataset or model such as ``c4`` or ``gpt2`` has no owner).
-_PART = r"[A-Za-z0-9](?:[A-Za-z0-9_.-]{0,94}[A-Za-z0-9_])?"
+_PART = r"[A-Za-z0-9_](?:[A-Za-z0-9_.-]{0,94}[A-Za-z0-9_])?"
 _HUB_REPO_ID_RE = re.compile(rf"(?:{_PART}/)?{_PART}")
 
 

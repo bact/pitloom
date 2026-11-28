@@ -208,7 +208,10 @@ _MARKERS: dict[str, tuple[str, ...]] = {
         "build variant 'editable' skipped",
     ),
     "hub-response-invalid": ("the Hub's answer could not be read",),
-    "hub-revision-unpinned": ("the Hub stated no revision",),
+    "hub-revision-unpinned": (
+        "the Hub stated no revision",
+        "the URL names the revision",
+    ),
     "hyperparameter-conflict": ("replaced by the parameter count",),
     "index-path-no-effect": ("skipped directory name",),
     "input-not-found": (

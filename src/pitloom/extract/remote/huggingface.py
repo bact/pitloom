@@ -66,6 +66,7 @@ import logging
 import os
 import re
 from typing import Final
+from urllib.parse import unquote
 
 from pitloom.core.ai_metadata import (
     AiModelFormat,
@@ -222,8 +223,9 @@ def parse_hf_model_id(source: str) -> str | None:
 def url_revision(source: str) -> str | None:
     """The revision a Hub model URL names after a page kind
     (``<id>/tree/<rev>``, ``<id>/blob/<rev>/<file>``, ``<id>/commit/<sha>``,
-    a one-part id's ``gpt2/tree/<rev>`` too), as written; ``None`` when it
-    names none, or ``main``, the Hub's default branch."""
+    a one-part id's ``gpt2/tree/<rev>`` too), as written; a Hub ref
+    ``refs/<kind>/<name>`` (``refs/pr/1``) is three segments. ``None`` when it
+    names none, or ``main`` (percent-decoded), the Hub's default branch."""
     url_match = _HF_URL_RE.match(source.strip())
     if url_match is None:
         return None
@@ -233,7 +235,9 @@ def url_revision(source: str) -> str | None:
         segments = [url_match.group(1).split("/")[1], *segments]
     if len(segments) < 2 or segments[0] not in _REVISION_PAGES:
         return None
-    return None if segments[1] == _DEFAULT_BRANCH else segments[1]
+    width = 3 if segments[1] == "refs" and len(segments) >= 4 else 1
+    revision = "/".join(segments[1 : 1 + width])
+    return None if unquote(revision) == _DEFAULT_BRANCH else revision
 
 
 def log_hf_url_revision(source: str) -> None:
