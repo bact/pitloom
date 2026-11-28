@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-23
-Last-Modified: 2026-11-23
+Last-Modified: 2026-11-28
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -72,6 +72,42 @@ HEAD and the tree and lists every relationship that moves.
 3. Pitloom may then pick one of them, or combine them into one licence
    expression, and record that as the concluded licence, with its
    rationale. That claim is `sbom-tool`'s.
+
+## Notes 2026-11-28: declared, concluded and the SBOM creator (#570)
+
+Notes from #569 and the user's question "the owner creates the SBOM, so
+can we say concluded too?". Not ruled; input for #570 and the project
+licence-file follow-up in [roadmap.md](../roadmap.md).
+
+1. **Declared is the originator's statement.** A project's
+   `project.license`, its own licence files, a dependency's Core Metadata,
+   PyPI record and installed licence files: `originator`,
+   `hasDeclaredLicense` (#569 for dependencies; the project's licence-file
+   detection is still concluded, the follow-up).
+2. **Concluded needs an asserter who concludes:** `sbom-tool` (Pitloom
+   picks or combines, with a rationale; no rule yet, so none) or
+   `sbom-author` (the person or organisation operating Pitloom states it).
+   A LicenseID match is a reading of the originator's file, not a
+   conclusion.
+3. **One person can be originator and SBOM author.** An owner building
+   their own project's SBOM may also conclude its licence, and both
+   relationships are valid SPDX 3, to one element when equal. Pitloom
+   cannot infer it: `loom project <git URL>` builds a stranger's project,
+   and running Pitloom states nothing. `project.license` stays the
+   originator's even when the owner wrote it (pointer rule 4 of
+   [asserter.md](asserter.md): a value in X belongs to X's owner).
+4. **The statement is explicit: #570.** A creator-supplied value (a
+   `[tool.pitloom]` key or a data file beside the creation info) is
+   `sbom-author`, so `hasConcludedLicense`, with the declared licence kept
+   beside it. The library's `license_concluded=` is the same today. It
+   serves the project ("I conclude MIT") and a dependency (rfc8785's
+   Apache 2.0 text near-ties `Pixar`, so no declared id is read; the creator
+   concludes `Apache-2.0`).
+5. **Consequence for the project follow-up.** Once the licence-file
+   detection is declared, a project SBOM has no `hasConcludedLicense`
+   unless the creator states one (#570). FSCT COMP-007, mapped to concluded
+   only, then reports the main package missing too (FG-17 in
+   [sbom-format-gaps.md](../sbom-format-gaps.md)).
 
 ## Licence work: the points and their rulings
 
