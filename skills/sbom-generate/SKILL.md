@@ -68,7 +68,7 @@ ID, `http(s)` Git URL or PyPI project URL (default: the current directory). For 
 
 ## Requirements
 
-- Python >= 3.10 and **pitloom >= 0.25.1** (with LicenseID 0.9.4; the
+- Python >= 3.10 and **pitloom >= 0.25.1** (with LicenseID 0.10.0; the
   licence readings, codes and preflight below are 0.25.1's):
   `pip install "pitloom>=0.25.1"`, or run ephemeral via `uvx`/`pipx`. Extras
   take the floor after the extra: `"pitloom[ai]>=0.25.1"`.
@@ -81,7 +81,7 @@ ID, `http(s)` Git URL or PyPI project URL (default: the current directory). For 
 - **Prepare the licence database before the first `loom` run** of a session
   that reads licences (project, wheel, sdist, model, URL): run
   `licenseid update --source packaged` (ephemeral: `uvx --from
-  "licenseid>=0.9.4,<0.10" licenseid update --source packaged`; one command
+  "licenseid>=0.10.0,<0.11" licenseid update --source packaged`; one command
   per line in PowerShell). No network, skips when current, safe to repeat. Do
   not generate first and fix after: without the database no `LICENSE` text is
   matched to an id (a declared value such as `Apache2` is read without it).

@@ -89,7 +89,7 @@ def _damage(db: Path, how: str) -> None:
             handle.write(b"\0" * 4096)
     else:  # one table gone: id lookups still work, text matching does not
         with contextlib.closing(sqlite3.connect(db)) as conn:
-            conn.execute("DROP TABLE license_index")
+            conn.execute("DROP TABLE text_postings")
             conn.commit()
 
 

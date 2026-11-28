@@ -72,7 +72,9 @@ LICENSE_DB_UNUSABLE: Final = Message(
     condition="unusable",
     lines=(DB_UNUSABLE_LINE,),
     summary="LicenseID's licence database cannot be used: it is empty, "
-    "invalid or unreadable, or LicenseID finds no home directory to look in "
+    "invalid or unreadable, an older LicenseID built it (build vN outdated), "
+    "a newer one built it and this one cannot read it (build vN newer), or "
+    "LicenseID finds no home directory to look in "
     "(HOME, or USERPROFILE on Windows, set to nothing, or no home for the "
     "account). The detail is LicenseID's; its 'pass --db' is an option of "
     "the licenseid command, not of loom.",
@@ -83,8 +85,10 @@ LICENSE_DB_UNUSABLE: Final = Message(
     advice="Tell the user that licence texts were not matched to SPDX ids, "
     "with LicenseID's reason as the line gives it. With no home directory, "
     "they set HOME (USERPROFILE on Windows) to the account's home "
-    "directory; loom has no --db option. An empty or invalid database they "
-    "rebuild with 'licenseid update --source packaged --force'; an "
+    "directory; loom has no --db option. An outdated database (after "
+    "upgrading licenseid) they rebuild with 'licenseid update --source "
+    "packaged'; an empty, invalid or newer one with 'licenseid update "
+    "--source packaged --force', or they upgrade licenseid; an "
     "unreadable one is a file permission they fix. Do not run commands or "
     f"change the environment for them; {ASK_FIRST}",
     since=_SINCE,

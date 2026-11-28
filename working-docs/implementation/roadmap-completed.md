@@ -421,3 +421,6 @@ A hardening release after 0.25.0.
   have is refused, and a URL's revision is warned of, not yet read (#574).
 - [x] **CI**: the `test-all-os` label is read when the run starts (#566). The
   bump raised the skills' floor to `pitloom>=0.25.1`.
+- [x] **LicenseID 0.10.0** (`licenseid>=0.10.0,<0.11`, after the bump): database
+  build 10, so an older database is refused until `licenseid update`; two
+  licence files with a preamble or a second notice now give `MIT`.
