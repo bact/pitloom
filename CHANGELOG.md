@@ -30,9 +30,13 @@ and this project adheres to
   licence files name; a differing stated text stays beside it ([#569])
 - The skills require `pitloom>=0.25.1`, whose dependency licences and Hub
   messages they describe ([#575])
+- LicenseID 0.10.0 is required (`licenseid>=0.10.0,<0.11`): run `licenseid
+  update --source packaged` once after upgrading; two more licence files give
+  MIT ([#576])
 
 [#569]: https://github.com/bact/pitloom/pull/569
 [#575]: https://github.com/bact/pitloom/pull/575
+[#576]: https://github.com/bact/pitloom/pull/576
 
 ### Fixed
 
