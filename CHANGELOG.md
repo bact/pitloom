@@ -28,8 +28,11 @@ and this project adheres to
   `hasDeclaredLicense`, not concluded; FSCT COMP-007 reports it missing ([#569])
 - A dependency whose metadata names no SPDX licence gets the one its installed
   licence files name; a differing stated text stays beside it ([#569])
+- The skills require `pitloom>=0.25.1`, whose dependency licences and Hub
+  messages they describe ([#575])
 
 [#569]: https://github.com/bact/pitloom/pull/569
+[#575]: https://github.com/bact/pitloom/pull/575
 
 ### Fixed
 
