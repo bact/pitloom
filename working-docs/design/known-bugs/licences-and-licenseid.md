@@ -147,15 +147,13 @@ entries come first; fixed entries stay in the last section for history.
   the SBOM creator states is a third
   ([#570](https://github.com/bact/pitloom/issues/570), in the roadmap).
   *Found 2026-11-27, post-publish verification of 0.25.0.*
-- [ ] **A dependency's copyright notices match `License-File` by base name
-  (S-M).** `_find_license_copyright` (`assemble/spdx3/deps_originator.py`)
-  compares each `License-File` value with a `.dist-info` file's base name:
-  a nested value (numpy lists nine, `numpy/_core/.../LICENSE.txt`) matches
-  nothing, and `LICENSE` matches every `.dist-info` file of that name, at
-  any depth. With no `License-File` header (rfc8785's root `LICENSE`) no file
-  is read. `dist_license_files` (`_deps_license_files.py`) resolves the exact
-  paths for the licence; reusing it here changes the copyright text of
-  such packages, so it needs a before/after sweep.
+- [ ] **A dependency with no `License-File` header gets no copyright text
+  (S, idea).** `_find_license_copyright` reads only the files its
+  `License-File` values name, so rfc8785's root `LICENSE` is never read for
+  notices. The licence reader falls back to the root licence files by name
+  (`dist_license_files` with no values); the copyright reader could do the
+  same, which gives more packages a copyright text and needs its own
+  before/after. Not built for now (user, 2026-11-28).
   *Found 2026-11-27, review of the dependency licence-file fallback.*
 - [ ] **A G2 conflict where a generic licence name narrows to its file's
   licence (S, upstream).** With #569 a dependency's stated licence text
@@ -271,6 +269,17 @@ release ships.
 
 ### Fixed, Found in review rounds, not yet prioritised
 
+- [x] **A dependency's copyright notices match `License-File` by base name
+  (S-M).** `_find_license_copyright` (`assemble/spdx3/deps_originator.py`)
+  compared each `License-File` value with a file's base name: a nested value
+  (numpy lists nine, `numpy/_core/.../LICENSE.txt`) matched nothing, and
+  `LICENSE` matched every `.dist-info` file of that name, at any depth.
+  *Found 2026-11-27, review of the dependency licence-file fallback.* Fixed
+  in #572: the exact paths the licence reader uses (`dist_license_files`:
+  `licenses/<value>`, else the `.dist-info` root, each file once). In
+  Pitloom's environment 2 of 174 packages gain notices (h5py's
+  `licenses/*.txt`, pip's vendored `src/pip/_vendor/*/LICENSE`); none loses
+  one. With no header nothing is read, as before (open entry above).
 - [x] **A G2 conflict on a dependency whose `License` header holds the
   licence body its file is detected as (S).** With #569 such a header
   (fickling, pyshacl, html5rdf, isodate) stayed declared beside its file's

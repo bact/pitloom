@@ -180,7 +180,10 @@ and counts are in
   package (a data file or `pyproject.toml`, beside the creation info there
   today), such as a dependency's licence where its files do not decide it
   (rfc8785's Apache 2.0 text near-ties `Pixar`, #569) or its supplier.
-  Related: a fragment value beating a read one (#349, above).
+  Related: a fragment value beating a read one (#349, above). A
+  creator-stated licence is `sbom-author`, so `hasConcludedLicense`, the
+  only way a project or dependency gets one: see
+  [asserter-licence.md](provenance-taxonomy/asserter-licence.md#notes-2026-11-28-declared-concluded-and-the-sbom-creator-570).
 - [ ] **Action builds the LicenseID database** (to decide): the Action
   installs only Pitloom, so a fresh runner matches no `LICENSE` text (a
   declared licence is still read). `pitloom-install.sh` could run
@@ -209,7 +212,9 @@ Seen in Pitloom's own published wheel SBOM. The first two are priority.
   originator's declaration, so the main package's G2 pair (declared manifest
   plus concluded detection) becomes declared plus declared (equal: one
   declared; different: both declared and a conflict). It changes every project SBOM's main package, so it
-  needs its own before/after. The empty-source rule is a ledger entry
+  needs its own before/after, and leaves the project no concluded licence
+  unless its creator states one (#570, item above). The empty-source rule
+  is a ledger entry
   ([licences-and-licenseid.md](known-bugs/licences-and-licenseid.md)).
 - [ ] **Priority: author typing (#170)**: an exact known list of
   organisation names and addresses gives `Organization`; an author not

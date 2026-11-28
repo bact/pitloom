@@ -23,7 +23,10 @@ from urllib.parse import urlparse
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
-from pitloom.assemble.spdx3._deps_license_files import read_dist_info_text
+from pitloom.assemble.spdx3._deps_license_files import (
+    dist_license_files,
+    read_dist_info_text,
+)
 from pitloom.assemble.spdx3.provenance import ProvenanceEncoder, emit_provenance
 from pitloom.core.internal_error import reraise_internal
 from pitloom.core.models import generate_spdx_id
@@ -67,8 +70,12 @@ def _resolve_author_or_maintainer(
 
 def _find_license_copyright(dist_name: str, pkg_meta: CoreMetadata) -> str | None:
     """The copyright notices in the dependency's installed ``License-File``
-    files (:func:`~pitloom.extract.copyright_notices.join_copyright_notices`,
-    in ``License-File`` order), or ``None`` when none holds one."""
+    files, found by exact path as the licence reader finds them
+    (:func:`~pitloom.assemble.spdx3._deps_license_files.dist_license_files`),
+    joined in ``License-File`` order
+    (:func:`~pitloom.extract.copyright_notices.join_copyright_notices`);
+    ``None`` when none holds one, or the package lists no ``License-File``
+    (its root licence files are not searched)."""
     license_files = pkg_meta.get_all("License-File") or []
     if not license_files:
         return None
@@ -77,13 +84,10 @@ def _find_license_copyright(dist_name: str, pkg_meta: CoreMetadata) -> str | Non
     except PackageNotFoundError:
         return None
 
-    package_files = dist.files or []
     texts = (
-        (license_file, text)
-        for license_file in license_files
-        for candidate in package_files
-        if candidate.name == license_file
-        and (text := read_dist_info_text(candidate, dist)) is not None
+        (str(path), text)
+        for path in dist_license_files(dist, license_files)
+        if (text := read_dist_info_text(path, dist)) is not None
     )
     found = join_copyright_notices(texts)
     return None if found is None else found[0]
