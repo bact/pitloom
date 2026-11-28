@@ -32,6 +32,7 @@ from pitloom.assemble.spdx3._deps_license_files import (
     license_from_dist_files,
     with_dist_license_files,
 )
+from pitloom.assemble.spdx3._license_elements import get_or_create_license_element
 from pitloom.assemble.spdx3.deps import _enrich_from_installed
 from pitloom.assemble.spdx3.provenance import (
     DEPLOYED_PACKAGE_SOURCE,
@@ -257,8 +258,8 @@ def test_license_from_dist_files(
 def test_stated_text_keeps_its_place(
     monkeypatch: pytest.MonkeyPatch, stated: str | None, g2: bool
 ) -> None:
-    """Stated text stays the declared licence, the files' the concluded
-    one (G2); a placeholder or nothing gives way to the files' licence."""
+    """Stated text stays, the files' licence a second declared one; a
+    placeholder or nothing gives way to the files' licence."""
     monkeypatch.setattr(
         files_mod, "license_from_dist_files", lambda *_: ("MIT", "from-file")
     )
@@ -328,15 +329,23 @@ def _enriched_graph(
     meta: _FakeMetadata,
     files: dict[str, str],
     source: str,
+    *,
+    existing: str | None = None,
 ) -> list[dict[str, Any]]:
     """The graph of one dependency ``dep`` enriched from *meta* and the
-    licence *files* of its fake installed copy, by the route *source*."""
+    licence *files* of its fake installed copy, by the route *source*;
+    with *existing*, a licence element of that value is made first (as
+    the project's own licence would be)."""
     monkeypatch.setattr(deps_installed, "get_pkg_metadata", lambda name: meta)
     _patch_dist(monkeypatch, _dist(tmp_path, files))
     doc_uuid = compute_doc_uuid("demo", "1.0", [])
     _clear_doc_counters(doc_uuid)
     exporter = Spdx3JsonExporter()
     ci = _make_ci()
+    if existing is not None:
+        get_or_create_license_element(
+            existing, "Source: pyproject.toml", ci, "demo", doc_uuid, exporter
+        )
     dep = spdx3.software_Package(
         spdxId=generate_spdx_id("Package", doc_name="demo", doc_uuid=doc_uuid),
         name="dep",
@@ -480,7 +489,7 @@ def test_a_matched_body_keeps_the_stated_text_in_provenance(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """The one declared id a matched ``License`` body gives keeps the body
-    as ``Normalized-From``: nothing read is lost."""
+    as ``Normalized-From``, on a new element: nothing read is lost."""
     meta = _FakeMetadata({"Version": "1.0", "License": _MIT})
     graph = _enriched_graph(
         tmp_path,
@@ -494,6 +503,30 @@ def test_a_matched_body_keeps_the_stated_text_in_provenance(
     ]
     assert "Normalized-From: " + _MIT.split("\n", 1)[0] in element["comment"]
     assert f"File: {_DI}/LICENSE" in element["comment"]
+
+
+@pytest.mark.usefixtures("licenseid_db_path")
+def test_a_matched_body_keeps_its_text_on_an_existing_element(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """When the ``MIT`` element already exists (the project's own licence),
+    the dependency's relationship to it carries the body as
+    ``Normalized-From`` and the file it was matched in: the note is this
+    source's, not the element's."""
+    meta = _FakeMetadata({"Version": "1.0", "License": _MIT})
+    graph = _enriched_graph(
+        tmp_path,
+        monkeypatch,
+        meta,
+        {f"{_DI}/LICENSE": _MIT},
+        INSTALLED_DEPENDENCY_SOURCE,
+        existing="MIT",
+    )
+    assert _licence_links(graph) == [(_DECLARED, "MIT")]
+    [rel] = [e for e in graph if e.get("relationshipType") == _DECLARED]
+    noted = json.dumps([e for e in graph if e.get("subject") == rel["spdxId"]])
+    assert "normalized-from" in noted.lower()
+    assert f"{_DI}/LICENSE" in noted
 
 
 @pytest.mark.usefixtures("licenseid_db_path")

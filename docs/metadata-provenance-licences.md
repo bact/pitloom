@@ -74,7 +74,9 @@ conflict.
   what the `sbom-enrich` Skill's agent-authored fragments use for a value
   the agent derived itself rather than one the SBOM author stated.
   `externalReported` remains reserved for a future candidate source (a
-  linked GitHub/Hugging Face Hub API) -- not built yet.
+  linked GitHub/Hugging Face Hub API) -- not built yet. A dependency's licence conflict (its stated licence text against the
+  licence its installed licence files name; see below) has two `declared`
+  candidates: both are the dependency's own statements.
 
 - A `NOASSERTION` (or `UNKNOWN`) candidate is not a disagreement: it only
   says "not known". Both relationships are still recorded and no `conflict`

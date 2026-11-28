@@ -187,6 +187,14 @@ entries come first; fixed entries stay in the last section for history.
   each reader. Kept as is in #569 by the user's
   ruling (2026-11-28): a separate follow-up.
   *Found 2026-11-28, #569 dependency licences declared.*
+- [ ] **An `SPDX-License-Identifier` line in a licence file is read as
+  text (S).** A licence file holding only `SPDX-License-Identifier: MIT OR
+  Apache-2.0` (a dependency's installed licence file, or a project's) is
+  read as the whole line, recorded as a `LicenseRef-loom-text-...` custom
+  text with a `license-expression-invalid` warning. Such a line should be
+  read as its expression, as a source file's own tag is
+  (`build_file_declared_license`). The same before #569.
+  *Found 2026-11-28, review of #569.*
 
 ## Fixed
 

@@ -180,8 +180,8 @@ licence from PyPI or its installed copy is declared), COMP-007 name, COMP-008 ve
 `out-of-scope`: META-002 signature, META-008 tool version, META-009 SBOM
 version, PP-001 to PP-006. Usual misses (all in `cisa2026-expected.tsv`):
 COMP-001 for every dataset and for a model whose source names no producer,
-COMP-002 for a single-model SBOM, COMP-006 for dependencies (their licence is
-concluded) and for a model whose source states no licence, COMP-008 for a model
+COMP-002 for a single-model SBOM, COMP-006 for a model whose source states no
+licence, COMP-008 for a model
 file that states no version, and COMP-003/-004 for a Hugging Face model or any
 dataset outside `loom.run` (no hash).
 
