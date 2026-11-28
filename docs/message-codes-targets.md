@@ -22,7 +22,7 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
 | --- | --- | --- | --- |
 | [`config-unsafe`](#config-unsafe) | INFO | The [tool.pitloom] settings of a project fetched from a Git URL, or of an sdist downloaded from a PyPI URL, if it has any, are not applied: they could point Pitloom at files, a registry or the network as the project chooses, and the project is untrusted. | 0.23.4 |
 | [`config-unsafe/build-code`](#config-unsafebuild-code) | WARNING | The build configuration of a project fetched from a Git URL names Python code of the repository that listing the wheel's files would run: a Hatchling metadata hook, a setuptools cmdclass or attr version, a PDM build hook (pdm_build.py or custom-hook) or run-setuptools; or a setup.cfg [global] section, which sets setuptools' own options (where it reads files from, which command code it loads). The repository is untrusted, so that code is not run and those options are not set. The line names the file that holds the settings and the settings ignored. | 0.23.4 |
-| [`hf-url-invalid`](#hf-url-invalid) | ERROR | A Hugging Face target is neither a Hub model URL (https://huggingface.co/<owner>/<name>) nor a model id (<owner>/<name>). | 0.25.0 |
+| [`hf-url-invalid`](#hf-url-invalid) | ERROR | A Hugging Face target is neither a Hub model URL (https://huggingface.co/<owner>/<name>) nor a model id (<owner>/<name>), or a Hub URL of an id no repository can have (/a/b--c). | 0.25.0 |
 | [`input-not-found`](#input-not-found) | ERROR, WARNING | A path named for Pitloom to read does not exist: a model file, wheel, sdist, project directory, configuration, ID registry or SBOM file, or a PATH given to 'loom id generate' to index, on disk (or something else is there: the line says it is not a file, or not a directory), the file or directory a Git URL names in the repository at its branch (a symbolic link there is not followed, so it counts as absent: its line says it is a link), or a pattern or directory that holds nothing of what was asked for (or a wheel pattern nested too deeply to expand: its line says so). | 0.23.4 |
 | [`input-not-found/fragment`](#input-not-foundfragment) | WARNING | An SBOM fragment the project configures ([tool.pitloom.fragment]) does not exist. | 0.25.0 |
 | [`input-not-found/hub`](#input-not-foundhub) | ERROR | A Hugging Face model id (owner/name, no local path) or Hub model URL names no model the Hub lets this run read: model_info() said not found, or no model can have the id. Without a token the Hub answers so for a private model too; a gated model is found. | 0.25.0 |
@@ -93,7 +93,8 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
 - **Level**: ERROR. As an ERROR, the command stops for that input and writes
   nothing for it (exit 1).
 - **Means**: A Hugging Face target is neither a Hub model URL
-  (https://huggingface.co/<owner>/<name>) nor a model id (<owner>/<name>).
+  (https://huggingface.co/<owner>/<name>) nor a model id (<owner>/<name>), or a
+  Hub URL of an id no repository can have (/a/b--c).
 - **SBOM effect**: not-written: no SBOM is written for the input.
 - **Pitloom did**: Read nothing and sent no request: 'loom model', 'loom
   project' and 'loom generate' exit 1; generate, generate_model_sbom,

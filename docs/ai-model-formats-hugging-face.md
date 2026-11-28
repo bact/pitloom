@@ -38,8 +38,8 @@ name exists (a dangling symbolic link is a local path).
 
 An ID follows the Hub's own rule (as `huggingface_hub` checks it): each part
 is 1 to 96 of `A-Z`, `a-z`, `0-9`, `_`, `.`, `-`, starts and ends with a
-letter, digit or `_`, holds no `--` or `..`, and does not
-end in `.git`. A URL naming another ID is refused before any request
+letter, digit or `_`, holds no `--` or `..`, and does not end in `.git`. A
+URL naming another ID is refused before any request
 ([`hf-url-invalid`](message-codes-targets.md#hf-url-invalid)); a bare name
 breaking the rule (`a/b--c`) is read as a local path.
 

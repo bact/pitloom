@@ -159,8 +159,9 @@ _NEXT_SEGMENT_RE: Final = re.compile(r"/([^/?#]+)")
 #: commit): ``<id>/tree/<rev>``, ``<id>/blob/<rev>/<file>``,
 #: ``<id>/commit/<sha>``.
 _REVISION_PAGES: Final = _PAGE_SEGMENTS - {"discussions", "settings"}
-#: The Hub's default branch: a URL naming it asks for what is read anyway.
-_DEFAULT_BRANCH: Final = "main"
+#: The spellings of the Hub's default branch: a URL naming one asks for what
+#: is read anyway.
+_DEFAULT_BRANCH_NAMES: Final = frozenset({"main", "refs/heads/main"})
 
 
 def log_hf_url_rewrite(source: str, model_id: str) -> None:
@@ -225,7 +226,8 @@ def url_revision(source: str) -> str | None:
     (``<id>/tree/<rev>``, ``<id>/blob/<rev>/<file>``, ``<id>/commit/<sha>``,
     a one-part id's ``gpt2/tree/<rev>`` too), as written; a Hub ref
     ``refs/<kind>/<name>`` (``refs/pr/1``) is three segments. ``None`` when it
-    names none, or ``main`` (percent-decoded), the Hub's default branch."""
+    names none, or ``main`` or ``refs/heads/main`` (percent-decoded), the
+    Hub's default branch."""
     url_match = _HF_URL_RE.match(source.strip())
     if url_match is None:
         return None
@@ -237,7 +239,7 @@ def url_revision(source: str) -> str | None:
         return None
     width = 3 if segments[1] == "refs" and len(segments) >= 4 else 1
     revision = "/".join(segments[1 : 1 + width])
-    return None if unquote(revision) == _DEFAULT_BRANCH else revision
+    return None if unquote(revision) in _DEFAULT_BRANCH_NAMES else revision
 
 
 def log_hf_url_revision(source: str) -> None:
