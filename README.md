@@ -108,7 +108,7 @@ Works with remote resources too:
 
 ```bash
 loom project https://gitlab.com/group/project
-loom wheel https://pypi.org/project/pitloom/0.25.0/            # The wheel PyPI holds for this Python
+loom wheel https://pypi.org/project/pitloom/0.25.1/            # The wheel PyPI holds for this Python
 loom model https://github.com/org/repo/blob/main/m.keras
 loom model https://huggingface.co/Qwen/Qwen3.8-27B            # Or just Qwen/Qwen3.8-27B
 ```
@@ -150,7 +150,7 @@ wheel built ([PEP 770], compact canonical JSON). Needs Hatchling **1.29.0+**:
 
 ```toml
 [build-system]
-requires = ["hatchling>=1.29.0", "pitloom>=0.25.0"]
+requires = ["hatchling>=1.29.0", "pitloom>=0.25.1"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.hooks.pitloom]
@@ -222,7 +222,7 @@ SBOM generation in CI, for any Python build backend:
 - uses: actions/setup-python@v7
   with:
     python-version: "3.x"
-- uses: bact/pitloom@v0.25.0
+- uses: bact/pitloom@v0.25.1
 ```
 
 Add `embed-wheel: "dist/*.whl"` to embed the SBOM into built wheels. See
@@ -335,7 +335,7 @@ gh attestation verify <file> -R bact/pitloom \
 
 If you use this software, please cite it as follows:
 
-> Suriyawongkul, A. (2026). Pitloom - SBOM generator for AI models and Python projects (Version 0.25.0) [Computer software]. <https://doi.org/10.5281/zenodo.19246283>
+> Suriyawongkul, A. (2026). Pitloom - SBOM generator for AI models and Python projects (Version 0.25.1) [Computer software]. <https://doi.org/10.5281/zenodo.19246283>
 
 BibTeX:
 
@@ -346,7 +346,7 @@ BibTeX:
     month = nov,
     title = {{Pitloom - SBOM generator for AI models and Python projects}},
     url = {https://github.com/bact/pitloom},
-    version = {0.25.0},
+    version = {0.25.1},
     year = {2026}
 }
 ```

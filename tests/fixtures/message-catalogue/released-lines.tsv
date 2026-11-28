@@ -1,4 +1,4 @@
-# released-lines 0.25.0
+# released-lines 0.25.1
 archive-member-conflict	WARNING	ARCHIVE=%(archive)s ENTRY=%(member)s: also a directory of other entries; not copied
 archive-member-conflict	WARNING	ARCHIVE=%(archive)s ENTRY=%(member)s: also a directory of other entries; not listed
 archive-member-conflict	WARNING	ARCHIVE=%(archive)s ENTRY=%(member)s: overwritten by later entry %(later_member)s; not copied
@@ -196,6 +196,7 @@ git-repository-unusable	ERROR	git %(command)s: %(error)s; nothing fetched
 git-repository-unusable/empty	ERROR	URL=%(url)s: an empty repository (no commits); nothing read
 git-url-invalid	ERROR	URL=%(url)s: a path part decodes to ., .., an empty part, a backslash, a NUL or .git; nothing fetched
 git-url-invalid	ERROR	URL=%(url)s: only http and https URLs are fetched (not ssh, git, file or scp-style addresses); nothing fetched
+git-url-invalid	ERROR	URL=%(url)s: the URL names a host but no repository; nothing fetched
 git-url-invalid	ERROR	URL=%(url)s: the URL names no host; nothing fetched
 git-url-invalid	ERROR	URL=%(url)s: the port is not a number; nothing fetched
 hf-url-invalid	ERROR	URL=%(url)s: not a valid Hugging Face URL or model ID
@@ -204,6 +205,7 @@ hook-no-effect	INFO	disabled; skipping SBOM generation
 hook-no-effect	INFO	target %(target)s is not 'wheel'; skipping SBOM generation
 hub-response-invalid	WARNING	URL=%(url)s: the Hub's answer could not be read (%(failure)s); %(outcome)s
 hub-revision-unpinned	WARNING	URL=%(url)s: the Hub stated no revision; files are read at the default branch as it is now
+hub-revision-unpinned/url	WARNING	URL=%(url)s: the URL names the revision %(ref)s; files are read at the default branch
 hyperparameter-conflict	WARNING	FORMAT=%(format)s FILE=%(file)s: hyperparameter parameters replaced by the parameter count
 index-path-no-effect	WARNING	ID registry: PATH %(path)s is under a skipped directory name (%(name)s); not indexed
 input-not-found	ERROR	%(input)s not found: %(path)s

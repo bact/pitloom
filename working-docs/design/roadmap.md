@@ -40,7 +40,8 @@ User-facing documentation is in `docs/` ([index](../../docs/index.md)).
 
 Order (2026-11-04): 0.21.0 -> 0.21.1 -> 0.22.0 -> 0.22.1 -> 0.23.0 -> 0.24.0 ->
 1.0; 0.25.0 was added for the catalogue work. Every release up to 0.24.0
-(2026-11-11) has shipped, and 0.25.0 is cut (2026-11-27); what each built,
+(2026-11-11) has shipped, 0.25.0 too (2026-11-27), and 0.25.1 is cut
+(2026-11-28: #566 to #574, a hardening release); what each built,
 and what it requires, is in
 [roadmap-completed.md](../implementation/roadmap-completed.md), the procedure
 in [release-checklist.md](../implementation/release-checklist.md). What is
