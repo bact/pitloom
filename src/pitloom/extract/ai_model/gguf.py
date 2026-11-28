@@ -154,7 +154,7 @@ def _first_stated(
         else:
             text = None if value is None else value_text(value)
         if text:
-            provenance[field] = f"{source} | Field: {key}"
+            provenance[field] = provenance_segment(source, "Field", key)
             return text
     return None
 
@@ -173,13 +173,15 @@ def _extract_gguf_core_fields(
 
     version = stated_text(fields.get(_GGUF_VERSION_KEY), scalar=True)
     if version:
-        provenance["version"] = f"{source} | Field: {_GGUF_VERSION_KEY}"
+        provenance["version"] = provenance_segment(source, "Field", _GGUF_VERSION_KEY)
 
     quantization: str | None = None
     if _GGUF_FILE_TYPE_KEY in fields:
         quantization = _resolve_quantization(fields[_GGUF_FILE_TYPE_KEY])
         if quantization:
-            provenance["quantization"] = f"{source} | Field: {_GGUF_FILE_TYPE_KEY}"
+            provenance["quantization"] = provenance_segment(
+                source, "Field", _GGUF_FILE_TYPE_KEY
+            )
 
     return name, description, architecture, version, quantization
 
@@ -193,7 +195,9 @@ def _originators(
     used = [k for k in _GGUF_ORIGINATOR_KEYS if stated_text(fields.get(k))]
     names = originator_names(*(fields.get(k) for k in used))
     if names:
-        provenance[ORIGINATORS_PROVENANCE_KEY] = f"{source} | Field: {', '.join(used)}"
+        provenance[ORIGINATORS_PROVENANCE_KEY] = provenance_segment(
+            source, "Field", ", ".join(used)
+        )
     return names
 
 
@@ -355,7 +359,9 @@ def read_gguf(model_path: Path) -> AiModelMetadata:
         provenance["datasets"] = loaded.datasets_provenance
     # The header version is always read (2 or 3).
     format_version = stated_text(fields.get(FORMAT_VERSION_KEY), scalar=True)
-    provenance["format_version"] = f"{source} | Field: {FORMAT_VERSION_KEY}"
+    provenance["format_version"] = provenance_segment(
+        source, "Field", FORMAT_VERSION_KEY
+    )
 
     (
         name,

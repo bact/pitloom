@@ -21,6 +21,7 @@ from pitloom.core.model_parameters import (
     ParameterCountRejected,
     tensor_element_sum,
 )
+from pitloom.core.provenance import provenance_segment
 from pitloom.messages import emit
 from pitloom.messages.files import warn_over_cap
 from pitloom.messages.model_fields import (
@@ -81,7 +82,9 @@ def derived_parameter_count(
         warn_parameter_count(_log, exc, where)
         return None
     if count is not None:
-        provenance[PARAMETER_COUNT_PROVENANCE_KEY] = (
-            f"{source} | Field: {field}{TENSOR_ELEMENT_SUM_METHOD}"
+        provenance[PARAMETER_COUNT_PROVENANCE_KEY] = provenance_segment(
+            provenance_segment(source, "Field", field),
+            "Method",
+            TENSOR_ELEMENT_SUM_METHOD,
         )
     return count

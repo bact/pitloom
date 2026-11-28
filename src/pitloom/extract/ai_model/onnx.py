@@ -27,7 +27,7 @@ from pitloom.core.model_originators import (
     ORIGINATORS_PROVENANCE_KEY,
     originator_names_cut,
 )
-from pitloom.core.provenance import provenance_source
+from pitloom.core.provenance import provenance_segment, provenance_source
 from pitloom.core.quote_source import quote_source
 from pitloom.extract._extract_utils import record_dict_field_provenance
 from pitloom.extract.ai_model._stated_text import stated_text
@@ -226,7 +226,7 @@ def _resolve_onnx_name(
         or _names_the_producer(name, producer_name)
     ):
         return None
-    provenance["name"] = f"{source} | Field: graph.name"
+    provenance["name"] = provenance_segment(source, "Field", "graph.name")
     return name
 
 
@@ -277,7 +277,7 @@ def _resolve_onnx_license(
     license_expr = properties.get(_MODEL_LICENSE_KEY, "").strip()
     if not license_expr:
         return None
-    provenance["license"] = f"{source} | Field: {_MODEL_LICENSE_KEY}"
+    provenance["license"] = provenance_segment(source, "Field", _MODEL_LICENSE_KEY)
     return license_expr
 
 
@@ -296,9 +296,11 @@ def _resolve_onnx_originators(
     if cut:
         warn_over_cap(log, ORIGINATOR_PARTS_CAP, where, ORIGINATOR_PARTS_SKIPPED)
     if names:
+        field = provenance_segment(source, "Field", _MODEL_AUTHOR_KEY)
         provenance[ORIGINATORS_PROVENANCE_KEY] = (
-            f"{source} | Field: {_MODEL_AUTHOR_KEY}"
-            + (COMMA_LIST_METHOD if "," in text else "")
+            provenance_segment(field, "Method", COMMA_LIST_METHOD)
+            if "," in text
+            else field
         )
     return names
 
@@ -381,28 +383,35 @@ def read_onnx(model_path: Path) -> AiModelMetadata:
     format_version: str | None = None
     if model.ir_version:
         format_version = str(model.ir_version)
-        provenance["format_version"] = f"{source} | Field: ir_version"
+        provenance["format_version"] = provenance_segment(source, "Field", "ir_version")
 
     # The exporter or converter that wrote the file (``pytorch``,
     # ``tf2onnx``, ``skl2onnx``): neither the model's producer nor, for a
     # converter, its framework.
     writing_tool = stated_text(model.producer_name)
     if writing_tool:
-        provenance["writing_tool"] = f"{source} | Field: producer_name"
+        provenance["writing_tool"] = provenance_segment(
+            source, "Field", "producer_name"
+        )
     writing_tool_version = stated_text(model.producer_version)
     if writing_tool_version:
-        provenance["writing_tool_version"] = f"{source} | Field: producer_version"
+        provenance["writing_tool_version"] = provenance_segment(
+            source, "Field", "producer_version"
+        )
 
     name = _resolve_onnx_name(model.graph.name, model.producer_name, source, provenance)
     description = stated_text(model.doc_string)
     if description:
-        provenance["description"] = f"{source} | Field: doc_string"
+        provenance["description"] = provenance_segment(source, "Field", "doc_string")
 
     version: str | None = None
     if model.model_version:
         version, is_semver = _decode_model_version(model.model_version)
-        provenance["version"] = f"{source} | Field: model_version" + (
-            " | Method: semver_bit_packed" if is_semver else ""
+        field = provenance_segment(source, "Field", "model_version")
+        provenance["version"] = (
+            provenance_segment(field, "Method", "semver_bit_packed")
+            if is_semver
+            else field
         )
 
     properties, natives = _extract_onnx_properties(model, source, provenance)
@@ -413,11 +422,11 @@ def read_onnx(model_path: Path) -> AiModelMetadata:
         model.graph.input, type_names, _initializer_names(model)
     )
     if inputs:
-        provenance["inputs"] = f"{source} | Field: graph.input"
+        provenance["inputs"] = provenance_segment(source, "Field", "graph.input")
 
     outputs = _onnx_tensor_specs(model.graph.output, type_names)
     if outputs:
-        provenance["outputs"] = f"{source} | Field: graph.output"
+        provenance["outputs"] = provenance_segment(source, "Field", "graph.output")
 
     parameter_count = derived_parameter_count(
         _initializer_shapes(model, onnx),

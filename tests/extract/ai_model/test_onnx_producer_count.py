@@ -21,7 +21,6 @@ from typing import Any
 import pytest
 
 from pitloom.core.model_originators import (
-    COMMA_LIST_METHOD,
     MAX_ORIGINATOR_PARTS,
     ORIGINATORS_PROVENANCE_KEY,
 )
@@ -236,10 +235,10 @@ _SOURCE = "Source: m.onnx | Field: " + _AUTHOR
         (
             ((_KEY, "Alice, Bob,,Alice"),),
             ["Alice", "Bob"],
-            _SOURCE + COMMA_LIST_METHOD,
+            _SOURCE + " | Method: comma_list",
         ),
         # Known caveat: a name with a comma is split ("Doe, Jane", "Foo, Inc.")
-        (((_KEY, "Doe, Jane"),), ["Doe", "Jane"], _SOURCE + COMMA_LIST_METHOD),
+        (((_KEY, "Doe, Jane"),), ["Doe", "Jane"], _SOURCE + " | Method: comma_list"),
         # Repeated key: the last value wins, as for every metadata_props key
         (
             ((_KEY, "Alice"), (_KEY, "Bob")),
@@ -277,7 +276,9 @@ def test_model_author_unusual_characters(tmp_path: Path) -> None:
     name = "Zo\N{LATIN SMALL LETTER E WITH DIAERESIS} \N{RIGHT-TO-LEFT OVERRIDE}x\x07"
     meta = read_onnx(_write(tmp_path, _graph(), ((_KEY, f"{name}, Bob"),)))
     assert meta.originators == [name, "Bob"]
-    assert meta.provenance[ORIGINATORS_PROVENANCE_KEY] == _SOURCE + COMMA_LIST_METHOD
+    assert (
+        meta.provenance[ORIGINATORS_PROVENANCE_KEY] == _SOURCE + " | Method: comma_list"
+    )
     assert meta.provenance[ORIGINATORS_PROVENANCE_KEY].isascii()
 
 

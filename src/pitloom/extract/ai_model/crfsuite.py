@@ -31,7 +31,7 @@ from pitloom.core.model_parameters import (
     ONE_WEIGHT_PER_FEATURE_METHOD,
     PARAMETER_COUNT_PROVENANCE_KEY,
 )
-from pitloom.core.provenance import provenance_source
+from pitloom.core.provenance import provenance_segment, provenance_source
 from pitloom.core.quote_source import quote_source
 from pitloom.extract.ai_model.formats import FormatError, Limits
 from pitloom.extract.ai_model.formats.crfsuite import (
@@ -143,35 +143,46 @@ def read_crfsuite(model_path: Path) -> AiModelMetadata:
     ):
         record_scalar_property(properties, natives, key, value)
     provenance = {
-        "framework": f"{source} | Field: magic",
-        "format_version": f"{source} | Field: version",
+        "framework": provenance_segment(source, "Field", "magic"),
+        "format_version": provenance_segment(source, "Field", "version"),
         "type_of_model": (
-            f"{source} | Field: header.type | Method: crfsuite_model_type"
+            provenance_segment(
+                provenance_segment(source, "Field", "header.type"),
+                "Method",
+                "crfsuite_model_type",
+            )
         ),
     }
     for key, location in _PROPERTY_FIELDS.items():
         if key in properties:
-            provenance[f"properties.{key}"] = f"{source} | Field: {location}"
+            provenance[f"properties.{key}"] = provenance_segment(
+                source, "Field", location
+            )
 
     # Each feature the FEAT chunk lists carries one weight (crf1d_model.c
     # crf1dmw_put_feature); a trained model keeps only the non-zero ones.
     parameter_count = model.num_features or None
     if parameter_count:
-        provenance[PARAMETER_COUNT_PROVENANCE_KEY] = (
-            f"{source} | Field: FEAT.num{ONE_WEIGHT_PER_FEATURE_METHOD}"
+        provenance[PARAMETER_COUNT_PROVENANCE_KEY] = provenance_segment(
+            provenance_segment(source, "Field", "FEAT.num"),
+            "Method",
+            ONE_WEIGHT_PER_FEATURE_METHOD,
         )
 
     outputs: list[dict[str, Any]] = []
     if labels:
-        provenance["description"] = (
-            f"{source} | Field: labels CQDB | Method: generated_from_labels"
+        provenance["description"] = provenance_segment(
+            provenance_segment(source, "Field", "labels CQDB"),
+            "Method",
+            "generated_from_labels",
         )
     if count:
         # One label per input item: the length is the input's, not the
         # label count (that is properties.num_labels).
-        provenance["outputs"] = (
-            f"{source} | Field: header.type (one label per item)"
-            " | Method: derived_from_format"
+        provenance["outputs"] = provenance_segment(
+            provenance_segment(source, "Field", "header.type (one label per item)"),
+            "Method",
+            "derived_from_format",
         )
         outputs = [{"name": "label_sequence", "shape": ["sequence_length"]}]
 

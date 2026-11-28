@@ -90,7 +90,10 @@ def test_the_generated_methods_are_the_ones_the_readers_write() -> None:
     written = {
         m
         for path in root.rglob("*.py")
-        for m in re.findall(r"Method: (\w+)", path.read_text(encoding="utf-8"))
+        # Both spellings: a literal segment, and provenance_segment(x, "Method", "m").
+        for m in re.findall(
+            r'Method(?:: |",\s*")(\w+)', path.read_text(encoding="utf-8")
+        )
     }
     says_generated = {m for m in written if "generated" in m or "derived" in m}
     assert says_generated == GENERATED_METHODS

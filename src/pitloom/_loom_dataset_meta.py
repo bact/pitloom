@@ -40,7 +40,7 @@ from pitloom.assemble.spdx3.dataset import (
 from pitloom.core.ai_metadata import MODEL_NAME_CAP, cap_model_name
 from pitloom.core.dataset_metadata import FOLLOWER_FIELDS, DatasetMetadata
 from pitloom.core.internal_error import reraise_internal
-from pitloom.core.provenance import ProvenanceConfig
+from pitloom.core.provenance import ProvenanceConfig, provenance_segment
 from pitloom.core.url_masking import URL_AS_PATH_RE
 from pitloom.enrich.readme import DATASET_CARD
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
@@ -135,7 +135,9 @@ def read_sources(
     sources = DatasetSources()
     licence = _declared_licence(declared_license)
     if licence is not None:
-        provenance = {"license": f"{caller_info} | Field: declared_license"}
+        provenance = {
+            "license": provenance_segment(caller_info, "Field", "declared_license")
+        }
         sources.declared.append(
             DatasetMetadata(name, license=licence, provenance=provenance)
         )

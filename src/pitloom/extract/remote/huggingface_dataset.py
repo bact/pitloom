@@ -44,6 +44,7 @@ from pitloom.core.dataset_metadata import (
 from pitloom.core.dataset_names import dataset_key, is_hub_repo_id
 from pitloom.core.internal_error import reraise_internal
 from pitloom.core.model_originators import REPOSITORY_OWNER_METHOD, originator_names
+from pitloom.core.provenance import provenance_segment
 from pitloom.core.purl import commit_hash
 from pitloom.enrich.readme import MODEL_CARD_MAX_BYTES, CardKind, read_card
 from pitloom.extract.dataset.card import card_tags
@@ -182,8 +183,10 @@ def _apply_info(meta: DatasetMetadata, info: dict[str, Any]) -> None:
     owners = originator_names(info.get("author"))
     if owners:
         meta.creator = owners[0]
-        meta.provenance["creator"] = (
-            field_provenance(_SOURCE, "dataset_info author") + REPOSITORY_OWNER_METHOD
+        meta.provenance["creator"] = provenance_segment(
+            field_provenance(_SOURCE, "dataset_info author"),
+            "Method",
+            REPOSITORY_OWNER_METHOD,
         )
 
 

@@ -27,11 +27,11 @@ ORIGINATORS_PROVENANCE_KEY = "originators"
 #: :class:`~pitloom.core.ai_metadata.AiModelMetadata` field name.
 SUPPLIER_PROVENANCE_KEY = "supplier"
 
-#: The provenance suffix of names split on commas.
-COMMA_LIST_METHOD = " | Method: comma_list"
+#: The provenance ``Method`` of names split on commas.
+COMMA_LIST_METHOD = "comma_list"
 
-#: The provenance suffix of a name that is a hub repository's owner.
-REPOSITORY_OWNER_METHOD = " | Method: repository_owner"
+#: The provenance ``Method`` of a name that is a hub repository's owner.
+REPOSITORY_OWNER_METHOD = "repository_owner"
 
 
 #: Most non-empty parts (comma-separated pieces; a whitespace-only one counts)

@@ -20,6 +20,7 @@ from importlib.metadata import PackageMetadata
 from typing import TYPE_CHECKING
 
 from pitloom.core.lfs_pointer import is_pointer_text
+from pitloom.core.provenance import provenance_segment
 from pitloom.extract._license import classify_license, warn_unless_expression
 from pitloom.extract._license_resolve import resolve_value, say_resolved
 from pitloom.extract.authors import (
@@ -257,7 +258,7 @@ def license_or_classifier(
 
 def classifier_provenance(source: str) -> str:
     """*source* with the note that the licence came from a classifier."""
-    return f"{source} | Field: Classifier"
+    return provenance_segment(source, "Field", "Classifier")
 
 
 def core_metadata_license_with_source(

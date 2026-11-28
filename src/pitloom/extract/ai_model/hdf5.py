@@ -66,7 +66,7 @@ from pitloom.core.ai_metadata import (
     value_text,
 )
 from pitloom.core.internal_error import reraise_internal
-from pitloom.core.provenance import provenance_source
+from pitloom.core.provenance import provenance_segment, provenance_source
 from pitloom.core.quote_source import quote_source
 from pitloom.core.scalar_text import scalar_type
 from pitloom.extract.ai_model._hdf5_warnings import (
@@ -181,14 +181,16 @@ def _keras_format_version(
     for any later (or unparsable) version, recording the provenance of
     ``keras_version`` (the Keras library version, e.g. ``2.15.0``, not the
     model's) as the framework version too."""
-    provenance["framework_version"] = f"{source} | Field: keras_version attribute"
+    provenance["framework_version"] = provenance_segment(
+        source, "Field", "keras_version attribute"
+    )
     try:
         keras_major = int(keras_version.split(".")[0])
     except (ValueError, IndexError) as exc:
         reraise_internal(exc)
         keras_major = 2
-    provenance["format_version"] = (
-        f"{source} | Field: keras_version attribute (major version)"
+    provenance["format_version"] = provenance_segment(
+        source, "Field", "keras_version attribute (major version)"
     )
     return "v1" if keras_major == 1 else "v2"
 
@@ -272,7 +274,9 @@ def read_hdf5(model_path: Path) -> AiModelMetadata:
 
         if backend.text:
             properties["backend"] = backend.text
-            provenance["properties.backend"] = f"{source} | Field: backend attribute"
+            provenance["properties.backend"] = provenance_segment(
+                source, "Field", "backend attribute"
+            )
 
         if model_config_raw:
             type_of_model, name, problem = parse_model_config(
@@ -287,8 +291,8 @@ def read_hdf5(model_path: Path) -> AiModelMetadata:
             kept_raw = not type_of_model and not name
             if kept_raw:
                 properties[RAW_CONFIG_KEY] = model_config_raw[:RAW_CONFIG_CHARS]
-                provenance[f"properties.{RAW_CONFIG_KEY}"] = (
-                    f"{source} | Field: model_config attribute (unparsed)"
+                provenance[f"properties.{RAW_CONFIG_KEY}"] = provenance_segment(
+                    source, "Field", "model_config attribute (unparsed)"
                 )
             log_model_config_problem(
                 problem, model_config_raw, kept_raw, fmt, str(model_path)

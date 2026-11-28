@@ -28,6 +28,7 @@ from typing import IO, Any, NamedTuple
 
 from pitloom.core.ai_metadata import record_scalar_property
 from pitloom.core.internal_error import reraise_internal
+from pitloom.core.provenance import provenance_segment
 from pitloom.extract.ai_model.limits import (
     ModelLimitExceeded,
     ModelOverCap,
@@ -78,9 +79,11 @@ def record_archive_contents(
     properties["archive_contents"] = text
     natives: dict[str, Any] = {"archive_contents": shown}
     record_scalar_property(properties, natives, "archive_member_count", len(names))
-    field = f"{source} | Field: ZIP archive structure"
+    field = provenance_segment(source, "Field", "ZIP archive structure")
     provenance["properties.archive_contents"] = field
-    provenance["properties.archive_member_count"] = f"{field} | Method: member_count"
+    provenance["properties.archive_member_count"] = provenance_segment(
+        field, "Method", "member_count"
+    )
     return natives
 
 

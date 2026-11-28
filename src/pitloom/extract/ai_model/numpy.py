@@ -29,7 +29,7 @@ from pitloom.core.ai_metadata import (
     source_metadata,
 )
 from pitloom.core.internal_error import reraise_internal
-from pitloom.core.provenance import provenance_source
+from pitloom.core.provenance import provenance_segment, provenance_source
 from pitloom.core.quote_source import quote_source
 from pitloom.extract.ai_model.archive_member import open_model_binary
 from pitloom.extract.ai_model.limits import ModelLimitExceeded, ModelOverCap
@@ -116,9 +116,13 @@ def _read_npy_metadata(
     encoding = _NPY_HEADER_ENCODING.get(major, "utf-8")
     properties = {"header_encoding": encoding}
     provenance = {
-        "format_version": f"{source} | Field: .npy format header version (bytes 6-7)",
+        "format_version": provenance_segment(
+            source, "Field", ".npy format header version (bytes 6-7)"
+        ),
         "properties.header_encoding": (
-            f"{source} | Field: .npy header encoding (from format version)"
+            provenance_segment(
+                source, "Field", ".npy header encoding (from format version)"
+            )
         ),
     }
     # mmap_mode='r' reads shape/dtype from header without loading full tensor
@@ -127,7 +131,9 @@ def _read_npy_metadata(
     properties["array_shape"] = "x".join(map(str, arr.shape)) or "scalar"
     properties["array_dtype"] = str(arr.dtype)
     for key in ("array_shape", "array_dtype"):
-        provenance[f"properties.{key}"] = f"{source} | Field: .npy header"
+        provenance[f"properties.{key}"] = provenance_segment(
+            source, "Field", ".npy header"
+        )
     # np.memmap has no close() of its own -- drop the only reference now
     # that shape/dtype are copied out, so the mapped file handle is
     # released deterministically here rather than implicitly whenever the
@@ -197,7 +203,11 @@ def _read_npz_metadata(
                 _shim_read_array_header(header, version)  # a bad header raises
     # The arrays are not model inputs: only their number is recorded.
     properties = {"array_count": str(len(members))}
-    provenance = {"properties.array_count": f"{source} | Field: .npz archive members"}
+    provenance = {
+        "properties.array_count": provenance_segment(
+            source, "Field", ".npz archive members"
+        )
+    }
 
     return properties, provenance
 
@@ -296,7 +306,7 @@ def read_numpy(model_path: Path) -> AiModelMetadata:
             f"Failed to read NumPy file {quote_source(model_path)}: {exc}"
         ) from exc
 
-    provenance["type_of_model"] = f"{source} | Field: format type"
+    provenance["type_of_model"] = provenance_segment(source, "Field", "format type")
     return AiModelMetadata(
         format_info=AiModelFormatInfo(
             file_name=model_path.name,

@@ -324,12 +324,16 @@ def read_pytorch(model_path: Path) -> AiModelMetadata:
     if not is_zip:
         # Old-style raw pickle -- use fickling for safe, non-executing inspection.
         properties["format_detail"] = "raw pickle"
-        provenance["properties.format_detail"] = f"{source} | Field: raw pickle format"
+        provenance["properties.format_detail"] = provenance_segment(
+            source, "Field", "raw pickle format"
+        )
         try:
             with model_path.open("rb") as fh:
                 type_of_model = _fickling_get_top_class(fh)
             if type_of_model:
-                provenance["type_of_model"] = f"{source} | Field: raw pickle (fickling)"
+                provenance["type_of_model"] = provenance_segment(
+                    source, "Field", "raw pickle (fickling)"
+                )
         except OSError as exc:
             # The file itself couldn't be opened (not just a single field
             # failing to extract) -- same "Raises: ValueError" contract

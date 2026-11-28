@@ -314,8 +314,10 @@ def _get_library_name(hf_data: dict[str, Any]) -> str | None:
 
 
 #: The provenance of the repository owner, as originator and as supplier.
-_OWNER_PROVENANCE = (
-    "Source: Hugging Face Hub | Field: model_info author" + REPOSITORY_OWNER_METHOD
+_OWNER_PROVENANCE = provenance_segment(
+    "Source: Hugging Face Hub | Field: model_info author",
+    "Method",
+    REPOSITORY_OWNER_METHOD,
 )
 
 
@@ -358,8 +360,10 @@ def hub_producer_and_count(
         warn_parameter_count(_log, exc, where, "huggingface")
         return HubProducer(originators, supplier, None)
     if count is not None:
-        provenance[PARAMETER_COUNT_PROVENANCE_KEY] = (
-            _hub_field_provenance(f"model_info {field}") + TENSOR_ELEMENT_SUM_METHOD
+        provenance[PARAMETER_COUNT_PROVENANCE_KEY] = provenance_segment(
+            _hub_field_provenance(f"model_info {field}"),
+            "Method",
+            TENSOR_ELEMENT_SUM_METHOD,
         )
     return HubProducer(originators, supplier, count)
 
