@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-17
-Last-Modified: 2026-11-27
+Last-Modified: 2026-11-28
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -420,3 +420,37 @@ shape described, not just the module where each was first found.
   `load`/`new`/`save`, `FileNotFoundError` for `generate([""])`;
   `read_wheel("")` is `NotAWheelError`; `sbom_kind=` only on
   `generate_git_sbom`). Run every function x argument the sentence covers.
+
+## Dependency licences, copyright paths and a URL check (#569, #571, #572)
+
+- **A second source adds a relationship, never retypes the first.** In #569's
+  G2 change a dependency's stated licence text was `hasConcludedLicense` when
+  its licence file could not be read and `hasDeclaredLicense` when it could:
+  one metadata value, two types, decided by an unrelated file. A test pinned
+  the declared case and the docs said both. Type a value by its own source;
+  test it with and without the second source.
+- **A get-or-create helper that decides "noted" by provenance equality drops a
+  caller's pre-added note on reuse.** #569's option A tagged a matched
+  licence body with `Normalized-From` before calling
+  `get_or_create_license_element`, which set `noted = provenance !=
+  license_provenance`: equal, so a reused `MIT` element got no note and the
+  stated text was lost. The test built a new element only. Let the helper add
+  or recognise the note; test with the element already present.
+- **Filling a missing value from a second source must check the first does
+  not name several.** python-dateutil states `Dual License` with BSD and
+  Apache classifiers; its `LICENSE` read as `Apache-2.0` alone, narrowing a
+  dual licence to one (#569 review). Skip the second source when the first
+  names more than one.
+- **Resolve a declared path exactly, never by basename.** The copyright reader
+  matched `License-File` values to file basenames: `licenses/hdf5.txt` and
+  pip's vendored `src/pip/_vendor/*/LICENSE` matched nothing, and `LICENSE`
+  matched every `.dist-info` file of that name. Exact PEP 639 paths gave 2 of
+  174 installed packages more notices and none fewer (#572).
+- **A URL path check collapses dot segments as the client will.** A
+  host-only refusal tested the literal path; `https://github.com/./` and
+  `/..` passed and curl, removing dot segments, asked for the host root (#571
+  review). `posixpath.normpath(path or "/")` before the test.
+- **A docs quote of a catalogue line needs its drift-guard marker.** #571's
+  docs quoted the new `git-url-invalid` line; `tests/messages/test_drift_quotes.py`
+  failed until `_MARKERS` named it. Run `tests/messages` whole after a docs
+  edit that quotes a message.

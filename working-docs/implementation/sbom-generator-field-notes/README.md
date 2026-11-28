@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-02
-Last-Modified: 2026-11-27
+Last-Modified: 2026-11-28
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -166,6 +166,16 @@ the day it was added (2026-10-02 to 2026-11-23).
   PyPI page; the Hub's missing, private and gated answers; one-part model
   ids; dataset roles by run; advice per surface; blank nodes joined by a
   validator's merge (#556 to #566).
+
+- [dependency-licences-declared-and-concluded.md](dependency-licences-declared-and-concluded.md):
+  licence files when the metadata names none; a dual licence a file must not
+  narrow; generic classifiers and "narrowing"; declared versus concluded by
+  who stated it, measured; standards that count different relationships;
+  `License-File` as a path; oddities in a release's own SBOM (#568 to #572).
+- [agent-work-lessons-nov28.md](agent-work-lessons-nov28.md): an isolated
+  worktree and a fix session pushing to the PR branch; relayed rulings that
+  cross; checking every reported push; green tests and killed mutants with a
+  bug left; merge-ready checked per head.
 
 ## Five rules that cover most items
 
