@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-19
-Last-Modified: 2026-11-23
+Last-Modified: 2026-11-28
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -285,10 +285,12 @@ values. An external vocabulary has one or more of these uses.
   strategies for a conflict.
 - **Use:** pattern for licence claims only, and mapping. `odrl:Offer`
   against `odrl:Assertion` mirrors the originator's declared licence
-  against every other claim ([asserter-licence.md](asserter-licence.md)); its conflict
+  against every other claim
+  ([asserter-licence.md](asserter-licence.md)); its conflict
   strategies are a pattern for the rule names of picking a concluded
   licence, for which no rule is set (ruled 2026-11-23;
-  [conflict.md](conflict.md)).
+  [conflict.md](conflict.md),
+  [asserter-licence-points.md](asserter-licence-points.md)).
 - **Not used further, because:** it models what a licence permits, not
   who claimed which licence applies. Pitloom does not write licences as
   policies. `odrl:Assertion` is in its common vocabulary, which is not

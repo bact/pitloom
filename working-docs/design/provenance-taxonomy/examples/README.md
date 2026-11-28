@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-16
-Last-Modified: 2026-11-23
+Last-Modified: 2026-11-28
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -51,7 +51,16 @@ page says what a licence file holds, the file itself was read
 
 - **Input** is what the source holds, as written.
 - **Today** says whether Pitloom reads that field today (`yes`, `no`), from
-  the code at `main` 257b7260.
+  the code at `main` 257b7260. Checked again at `main` dfa11c14 on
+  2026-11-28, and still as the column says: OD-6
+  (`extract/ai_model/gguf.py:60`), PT-6
+  (`extract/remote/huggingface_field.py:350-363`), SI-1
+  (`core/ai_metadata.py:30,527`), AI-2 (`skills/sbom-enrich/SKILL.md:83-86`),
+  SN-2 (`core/evidence.py:64-69`, still no writer), ST-2
+  (`assemble/spdx3/_document_files.py:187-192`) and PD-5
+  (`assemble/spdx3/provenance_acquisition.py:60-69`). SM-2 is restated
+  ([sbom-tool.md](sbom-tool.md#sbom-tool-measured)). The other rows were
+  not read again.
 - The forms are in a code block under each table, one line per example id.
   They illustrate the vocabulary; the string layout is a code-stage decision.
   `Basis` is written on every form (ruled 2026-11-23); the heading
@@ -81,7 +90,8 @@ why. The gate and the form are ruled since
 ## What the examples show
 
 Points for the review, each with the example that raised it. Points 1
-to 5, 10 and 12 to 14 have an answer (the last on 2026-11-23). Points 6
+to 4, 10 and 12 to 14 have an answer (the last on 2026-11-23); point 5
+was answered and is open again. Points 6
 to 9 and 11 ask for no ruling: 6 and 11 are rows for the field table when
 the code reads those fields, 7 is in the definition of `originator`
 already, 8 and 9 are for the code stage.
@@ -118,7 +128,9 @@ already, 8 and 9 are for the code stage.
    refused with HTTP 401; the closed set offers
    `download-network-failed`. (SN-2) Answered 2026-11-23: it keeps
    that code, as the message catalogue has it
-   ([../basis.md](../basis.md#reason-codes)).
+   ([../basis.md](../basis.md#reason-codes)); open again since
+   2026-11-28: the reason list is the taxonomy's own
+   ([../reason.md](../reason.md)).
 6. **One Hub field, two asserters.** `pipeline_tag` and `library_name` are
    the originator's when the card states them, and the Hub's inference when
    it does not: in some four of ten cached repositories. Pitloom reads the

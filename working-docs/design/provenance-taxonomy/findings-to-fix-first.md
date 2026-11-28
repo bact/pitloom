@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-23
-Last-Modified: 2026-11-27
+Last-Modified: 2026-11-28
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -9,16 +9,21 @@ SPDX-License-Identifier: CC0-1.0
 # Findings to fix first: LicenseID and Pitloom
 
 See also: [README.md](README.md) (the claim model),
-[asserter-licence.md](asserter-licence.md) (the gate for a text match and
-its measurement), [source.md](source.md) (a source that can change),
+[asserter-licence.md](asserter-licence.md) (the gate for a text match) and
+[asserter-licence-measurement.md](asserter-licence-measurement.md) (its
+measurement), [source.md](source.md) (a source that can change),
 [renames-and-migration.md](renames-and-migration.md) (hazards for the
 code stage, the sweep against `main`),
 [findings-to-fix-first-prompts.md](findings-to-fix-first-prompts.md)
 (the two hand-over prompts).
 
 **Status:** list, written 2026-11-23. The taxonomies are agreed (stage
-(c)); the code stage waits for the 0.25.0 cut and for the fixes here
-(the user, 2026-11-23). These are things the taxonomy work came across
+(c)); the code stage waits for the fixes here (the user, 2026-11-23).
+Releases 0.25.0 and 0.25.1 are out (2026-11-27 and 2026-11-28), so
+the fixes may start, each on the user's word; none has. The list was
+read again on `main` on 2026-11-28
+([third look](#third-look-on-main-2026-11-28-dfa11c14-release-0251)).
+These are things the taxonomy work came across
 that a fix in LicenseID or in Pitloom would help, whatever the taxonomy
 says. A change that only the new vocabulary asks for is not here: it is
 in the hazards list.
@@ -41,7 +46,8 @@ Every row was run on 2026-11-23 with LicenseID 0.9.0 and 0.9.1 (SPDX
 License List 3.29.0, as packaged), by `detect --top 2 -v` on a licence
 file of a wheel from PyPI; the two versions give the same output. A
 count "of 197" is from the measurement of 2026-11-19 on 0.9.0
-([asserter-licence.md](asserter-licence.md)) and was not run again.
+([asserter-licence-measurement.md](asserter-licence-measurement.md))
+and was not run again.
 The last column is the same command on the same files with 0.9.2,
 run on 2026-11-24 beside 0.9.1 (which gave the old output again);
 "open" means the output is the same as before.
@@ -68,6 +74,26 @@ Pitloom's second reading and most of its gate
 fixed in 0.9.2 for these files; the count over the 197 files was
 not made again, and Pitloom's code is as it was (its range
 `>=0.9.0,<0.10` takes 0.9.2, and its licence tests pass with it).
+
+**After 0.9.2** (run 2026-11-26 to 2026-11-28 on the licence files of
+one Python 3.10 environment, 223 files, each release beside the one
+before it; the 197-file count was not made again):
+
+| Release | What it changed for these findings |
+| --- | --- |
+| 0.9.3 | LID-5: a new field `texts` lists the List ids whose whole text the input holds. LID-7, LID-8, LID-9: `docs/output.md` says what `score` (a ranking key), `similarity` and `coverage` measure, and gives a rule for a caller (declare the answer when `texts` is exactly the answer; `texts` empty with `coverage` under 0.8 is a notice) |
+| 0.9.4 | `texts` is in the order of the file, and a record of no answer carries it. A text answer stands only when its text is the first whole text of the file; otherwise no answer, `reason` `several texts` (NumPy 2.2.6 and mypy 2.4.1 give no answer now). A text whose holder or project name is not the List's is found (SymPy's BSD text) |
+| 0.10.0 | whole texts are looked for first: an MIT text with a few more lines answers `MIT` (wcwidth 0.9.5 gave `JSON` before). Database build 10; an older build is refused |
+
+So LID-1 to LID-9 are answered in LicenseID. Still open there, handed
+over on 2026-11-28: a file that holds a whole text and gets no answer
+because it holds more (ruff 0.17.6, tqdm 4.70.1, NumPy 2.2.6), the
+Mozilla Public License header notice (certifi), and exception texts
+(a prompt for these was written on 2026-11-28; it is not on a page).
+
+Pitloom requires `licenseid>=0.10.0,<0.11` since 0.25.1, but its
+second reading and its gate are still there and now differ from
+LicenseID's own rule for a caller: [asserter-licence.md](asserter-licence.md).
 
 The prompt to hand over:
 [findings-to-fix-first-prompts.md](findings-to-fix-first-prompts.md#prompt-for-licenseid-written-2026-11-23).
@@ -100,6 +126,44 @@ model; every line it quoted that is named here was then read.
 | PIT-10 | Out of date for GGUF: since #517 a header over a bound is read in part, the fields read are kept, and one `over-cap` warning says where it stopped (`gguf.py`, `_warn_partial`); tensor shapes are then absent. For NumPy, PyTorch, Safetensors and an archive member, `ModelOverCap` gives a stub (the file and its format) and one warning, not an error (`scanner.py:333-342`). Open: whether the stub's file carries its size and digest, and what a parameter count says then | read, not run |
 | PIT-11 | All three stand: `wheel.py:134`, `:136` and `:151` against `sdist.py:101`, `:105` and `:110`; `huggingface_fetch.py:289-292` and `:378` against `_license.py:93`; `onnx.py:444` against `fasttext.py` and `numpy.py:296` | agent; the lines read |
 | PIT-14 | The sentence on the page is corrected (2026-11-24). The same claim stands in the message catalogue: the summary of `license-conflict` (`messages/_license_expression.py:191`) and the pages generated from it in `docs/` and in two skills. That needs a change of source and the reference generated again | read |
+
+### Third look on `main` (2026-11-28, dfa11c14, release 0.25.1)
+
+Every finding was read again by a search agent (238 commits and two
+releases after the second look); nothing was run. The lines named
+here for PIT-2 (`is_license_concluded`), PIT-3, PIT-4, PIT-8, PIT-11
+(the Hub string) and PIT-12 were then read by the session that
+writes this; the others are the agents' reading. **No release fixed
+any finding.** Where a row says "stands", the rows below hold as
+written; the file and line of the prompt may have moved.
+
+| # | State on `main` dfa11c14 |
+| --- | --- |
+| PIT-1 | Stands, no site moved. Counted: 62 strings with an interpolated value and 4 suffix constants (55 of the 62 in `extract/ai_model/`), beside 61 whole literals. Of the 27 values that are not the `Source:` base, 24 come from a fixed list or constant, one from a builder, one is a number, one was not traced: no text of a file or of the network enters a `Field:` or `Method:` segment |
+| PIT-2 | Stands, wider again. Moved: `_setuptools_dynamic.py:288`, `scanner.py:231` (now also each dataset's provenance), `deps_license.py:216`. Changed in 0.25.1: `is_license_concluded` is `return not _source_name(entry)` (`_provenance_encoders.py:79`; `THIRD_PARTY_SOURCES` is gone), and `_license_elements.py:318-326` compares the string and parses it. More sites: `_setuptools_options.py:225` and `:307`, `_fragments_generated.py:61`, `_fragments_model_names.py:89`, `_fragments_evidence.py:62` (a test on the spelling `not_measured`), the key `(value, role, source)` at `deps_installed.py:295`, the credential scan `export/_spdx3_credentials/_find.py:140` (the schema compared with `==`: a new schema version stops its reading of notes, silently) and `scripts/extract_wheel_sbom.py` |
+| PIT-3 | Stands, unchanged: `core/models.py:198-199`. Two routes reach the seed: `assemble/spdx3/document.py:187` and `assemble/_model_generator.py:195`. The tests pin the id through the real reader for `pylock.toml` and `poetry.lock` only; the other locks by a string typed in the test |
+| PIT-4 | Stands. The commit is resolved (`extract/remote/git.py:264`) and nothing outside that module reads it |
+| PIT-5 | Stands as in the second look. New: a model not found is refused, and a revision named in the URL gets a `WARNING:` (`hub-revision-unpinned/url`); the files are still read at the default branch |
+| PIT-6, PIT-7, PIT-12, PIT-13, PIT-21 | Stand. PIT-7 is now at `extract/remote/huggingface_field.py:381-388`. PIT-21: the Hub library is first imported at `extract/remote/huggingface.py:379`, and it reads the variable at import |
+| PIT-8 | Other shape. A check of the name exists (`_embed_overlay.py:119`): when the directory's project is not the wheel's, a `WARNING:` (`metadata-conflict`) and its authors are not taken. It runs only when the project states authors. No check of the version; the directory's licence is still read (`_embed_build_sbom.py:413`) |
+| PIT-9 | Narrower. Since 0.25.1 only a value with no source is concluded, and every reader passes a source. Reached from a library caller's own metadata only (an empty provenance string, or one with no `Source:`) |
+| PIT-10 | As in the second look. A stub carries no size; its file element, with the digest, is separate (`assemble/spdx3/ai.py:243` reads the digests of the files); no size is written for it. Not run |
+| PIT-11 | All three stand (`wheel.py:134-151`; `huggingface_fetch.py:308-313` and `:402`; `onnx.py:448`) |
+| PIT-14 | The page is right; the catalogue is not: `messages/_license_expression.py:191` and the three pages generated from it |
+| PIT-16 | Stands: `Tool: magika==<package version>`, no code reads a model version |
+| PIT-17 | Answered: `model-index` is kept as it is (`hf.model_index` in the package's metadata), and nothing reads it as results |
+| PIT-18 | Stands: a manifest licence against the licence of a licence file writes a conflict Annotation and no warning (`deps_license.py:287-317`) |
+| PIT-19 | `_setuptools_options.py:102-109`: the `setup.py` value wins when it is given (its value is not empty), or when `setup.cfg` lacks the key |
+
+New since the second look, and not a finding of its own: a
+dependency's licence is declared (pull request 569), also when read
+from the licence files of its installed copy; a licence file with
+several texts gives no licence and ends the search (554, 563). Both
+are in [asserter-licence.md](asserter-licence.md).
+
+The rulings of 2026-11-28 on the draft itself:
+[resweep-rulings.md](resweep-rulings.md). The prompt for the fixes
+was written for dd31412b and is not yet rewritten to this look.
 
 ### Groundwork the code stage needs, with no change of output
 

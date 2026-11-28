@@ -10,7 +10,9 @@ SPDX-License-Identifier: CC0-1.0
 
 See also: [README.md](README.md) (the claim model),
 [asserter.md](asserter.md), [method.md](method.md),
-[conflict.md](conflict.md). Takes over the three "how" words of the `role`
+[conflict.md](conflict.md), [reason.md](reason.md) (the reason list),
+[resweep-rulings.md](resweep-rulings.md) (C1, C2, C7 and C9, ruled
+2026-11-28). Takes over the three "how" words of the `role`
 vocabulary
 ([role-vocabulary.md](../../implementation/provenance/role-vocabulary.md))
 and widens the levels of [evidence-levels.md](../evidence-levels.md) to
@@ -191,10 +193,15 @@ The proxy test, with examples:
    source that states its own procedure, and a row in the field
    table of [asserter.md](asserter.md), as for `other-party`.
 5. **`Basis` is always written** (ruled 2026-11-23; README rule 7),
-   in the string and in the JSON record. The one entry with none is
-   the stand-in `placeholder-root`, which is no claim
-   ([method.md](method.md)). Where nothing says otherwise, the value
-   is:
+   in the string and in the JSON record. An entry with none is a
+   stand-in: a value Pitloom makes where the format requires one and no
+   source gave it. A stand-in is no claim. The stand-ins are one small
+   closed list, each marked as such; `placeholder-root`
+   ([method.md](method.md)) is one, and the other members (the package
+   name `unknown`, a creation time of 1970) are open (ruled 2026-11-28,
+   [resweep-rulings.md](resweep-rulings.md), C7; not built). A default
+   source label (`Unknown source`) is no stand-in: it stays a fault to
+   fix at the reader. Where nothing says otherwise, the value is:
    - `originator`, `sbom-author`: `declared`.
    - `ai-agent`: `inferred`.
    - `sbom-tool`: by the method class ([method.md](method.md)):
@@ -260,10 +267,11 @@ read 2026-11-23):
 - The version of the reference data of a match. A licence match writes
   `licenseid==` and the package version, a content type match `magika==`
   and its version; neither writes the data the match was made against.
-  LicenseID 0.9.0 names the list an answer rests on, with its version
-  (`ListInfo`); this base pins LicenseID below 0.9, and `main` at
-  01d1a726 (#513; this checkout's copy of the remote branch) pins 0.9
-  and has no code that reads it. Whether a Magika package version fixes
+  LicenseID names the list an answer rests on, with its version
+  (`ListInfo`, since 0.9.0). `main` at dfa11c14 pins
+  `licenseid>=0.10.0,<0.11` (`pyproject.toml:68`) and still has no
+  code that reads the list version (read: no use of `ListInfo` or of a
+  list version under `src/`). Whether a Magika package version fixes
   its model was not checked.
 
   Ruled 2026-11-23: no new key. The reference data of a match is a
@@ -303,6 +311,12 @@ stands and the difference is a
 [conflict](conflict.md) with rule `basis-order`: a ZIP that states a
 small size and expands large is the attack case.
 
+The precedence governs recorded claims (ruled 2026-11-28,
+[resweep-rulings.md](resweep-rulings.md), C9). A check of integrity,
+which refuses an input whose bytes do not have the digest declared for
+them (a PyPI download), acts before any claim exists and is outside it:
+no claim is written, and so no conflict.
+
 A count stays a content fact (ruled 2026-11-23), with two conditions:
 
 - **The technique states its counting rule.** A parameter count is
@@ -329,10 +343,25 @@ For any other field, the basis sets no precedence; the
 
 ## Reason codes
 
-A `Reason` is a message catalogue code, kebab-case, so the SBOM, stderr and
-the skills carry one string. Closed set, checked by `evidence_segment`.
+A `Reason` says why a source gave nothing: why a content fact is
+`not-measured`, and why a source was `failed` or `refused` ("Outcome of
+a source", below). The taxonomy owns the list of reasons, a small
+closed list cut by what a reader of the SBOM has to tell apart; a
+message catalogue code maps to a reason, by one table held to it by a
+test, and is no longer the same string by rule. A catalogue variant
+(`family/variant`) never enters the SBOM. Where a catalogue family
+already names the cause, the reason may keep its spelling (ruled
+2026-11-28, [reason.md](reason.md);
+[resweep-rulings.md](resweep-rulings.md), C2). Not built.
 
-| Code | Why the fact is `not-measured` |
+The cut of the list is open: a cut by six classes (fault, limit, policy,
+denied, reference, not able) is put forward in [reason.md](reason.md)
+and not agreed. Until it is, the codes below are the ones written
+today: a closed set in `pitloom.core.evidence.REASON_CODES`
+(`core/evidence.py:81-90`, read at dfa11c14), checked by
+`evidence_segment`.
+
+| Code written today | Why the fact is `not-measured` |
 | --- | --- |
 | `over-cap` | a read or download cap |
 | `download-timeout` | the wait was too long |
@@ -341,53 +370,50 @@ the skills carry one string. Closed set, checked by `evidence_segment`.
 | `file-unreadable` | a permission or I/O error |
 | `dir-unlistable` | a directory could not be listed |
 
-The two `download-` codes were `timeout` and `network-failed` until the
-message catalogue named them (`main` 01d1a726,
-`pitloom.core.evidence.REASON_CODES`); neither has a writer yet.
-
-A gated repository has no code of its own (ruled 2026-11-23). The
-catalogue's `download-network-failed` covers a 401 and a 403, with the
-advice to sign in, and a `Reason` follows the catalogue. Not taken: a
-code `access-denied`, which would let a reader of the SBOM tell a gate
-from a fault. It would need a new catalogue message, and the Hub API
-answers 404 for a private repository, so a split by status would miss
-those. To look at again when the first writer of a network reason is
-built ([examples/sbom-tool.md](examples/sbom-tool.md#sbom-tool-not-measured),
+Neither `download-` code has a writer yet (read at dfa11c14: the
+constants `DOWNLOAD_TIMEOUT` and `DOWNLOAD_FAILED` of
+`pitloom.core.evidence` (`core/evidence.py:68-69`) have no writer;
+names of the same spelling in `pitloom.messages.network` are used
+widely). Whether a gated or private repository gets
+`denied` is open ([reason.md](reason.md)); the Hub API answers 404 for
+a private one, so a split by status would miss those
+([examples/sbom-tool.md](examples/sbom-tool.md#sbom-tool-not-measured),
 SN-2).
 
 The skills write `Reason: <free text>` today, which parses into this closed
 key. A free-text reason moves to `Note`.
 
-### Ruled 2026-11-28: the reason list is the taxonomy's own
-
-The first sentence of this section and the paragraph on a gated
-repository are replaced by a ruling of 2026-11-28: the taxonomy owns a
-closed list of reasons, and a catalogue code maps to it. The ruling,
-what was agreed with it and what is still open: [reason.md](reason.md).
-This section is not yet rewritten to it.
-
 ## Outcome of a source
 
-What happened when Pitloom went to a source for a content fact. Three
-are recorded; `unavailable` stays silent (absent data is not an error).
+What happened when Pitloom went to a source, for a field of any kind.
+Three are recorded; `unavailable` stays silent (absent data is not an
+error).
+
+The outcome is recorded per source, on the element: a source Pitloom
+tried and could not read (`failed`) or would not read (`refused`) gets
+one record that names the source, the outcome and a `Reason` ("Reason
+codes", above), whatever fields it would have fed. The fields stay
+silent: no field gets a mark of its own for the source that failed
+([value-strength.md](value-strength.md), S1). `not-measured` stays for
+a content fact: it is the case where the source is the artefact itself,
+so the field it would have given is known (ruled 2026-11-28,
+[resweep-rulings.md](resweep-rulings.md), C1). Not built: today only
+the content-fact case is written, as below.
 
 | Outcome | Recorded as | Was |
 | --- | --- | --- |
 | `used` | the claim; its `Asserter` and `Basis` say whose value it is and how it was got | `used`, `declared_only` |
 | `unavailable` | nothing | same |
-| `refused` | `not-measured` with `over-cap` | same |
-| `failed` | `not-measured` with `download-timeout`, `download-network-failed`, `file-unreadable` or `dir-unlistable` | same |
+| `refused` | one record for the source, with its reason; for a content fact, `not-measured` with `over-cap` (written today) | `not-measured` only |
+| `failed` | one record for the source, with its reason; for a content fact, `not-measured` with `download-timeout`, `download-network-failed`, `file-unreadable` or `dir-unlistable` | `not-measured` only |
 
-No `declared-only` (dropped 2026-11-23). The word was made before the
-asserter facet: it marked a source of which only another party's
-value reached Pitloom. `Asserter` and `Basis` are written on every
-claim and say this; and the word misled where that party computed
-the value, which is `detected`
-([examples/other-party.md](examples/other-party.md#other-party-detected),
-PT-2). Such a source is `used`. A new name (`stated-only`,
-`not-own-measure`) was looked at and not taken. Pitloom's own measure
-that was skipped leaves no entry beside the claim: the other party's
-value replaces `not-measured` ("Precedence for content facts").
+No `declared-only` (dropped 2026-11-23): such a source is `used`, as
+`Asserter` and `Basis` say whose value reached Pitloom; the word misled
+where that party computed the value (`detected`,
+[examples/other-party.md](examples/other-party.md#other-party-detected),
+PT-2). Not taken: `stated-only`, `not-own-measure`. A skipped measure
+of Pitloom's own leaves no entry: the other party's value replaces
+`not-measured` ("Precedence for content facts").
 
 ## Unknown and withheld
 
@@ -407,52 +433,8 @@ to be used for anything else.
 
 ## Mappings (loose)
 
-SSN/SOSA (W3C Recommendation, 2017) describes the observed half: an
-`sosa:Observation` is an act of carrying out a `sosa:Procedure` to "estimate
-or calculate a value of a property" of a `sosa:FeatureOfInterest`, made by a
-`sosa:Sensor` (a device, an agent or software). It has no class for a
-value that is stated and not observed; its one mention is an example under
-`sosa:ObservableProperty`, where the value of a classic car "is not
-(directly) observable but asserted". Terms and quotes checked against the
-Recommendation, 2026-11-16. A 2023 Edition is a Working Draft: it moves
-`Stimulus` and `isProxyFor` to the `sosa:` namespace, drops the
-`ssn-system:` namespace with `Accuracy` and `MeasurementRange`, and drops
-the classic car example.
-
-| Value | SSN/SOSA | SPDX 3 | CISA 2026 | CycloneDX | ECO |
-| --- | --- | --- | --- | --- | --- |
-| `declared` | "asserted"; no class | - | - | `technique: attestation`, `manifest-analysis` | `ECO:0000204` author statement |
-| `measured` | `sosa:Observation` | `completeness: complete` on the relationship that carries the fact | - | `hash-comparison`, `binary-analysis`, `confidence: 1` | `ECO:0007669` computational evidence used in automatic assertion |
-| `detected` | `sosa:Observation`, by any `sosa:Sensor`; for a best match, `ssn-system:Accuracy` below the full | - | - | `technique` with `confidence` below 1 | `ECO:0000041` similarity evidence (the best-match case) |
-| `inferred` | no class; `ssn:isProxyFor` is related only (see below) | - | - | `technique: other` | `ECO:0000363` computational inference used in automatic assertion |
-| `lower-bound` | a value beyond `ssn-system:MeasurementRange` | `completeness: incomplete` | - | - | - |
-| `not-measured` | no observation made | `completeness: noAssertion`; `NoAssertionElement` | unknown | - | - |
-
-The proxy test of this page is this model's own. `ssn:isProxyFor` relates
-a stimulus to the property it stands for, and in SSN every stimulus does:
-its example is a thermometer ("the expansion of quicksilver is a stimulus
-that serves as a proxy for some temperature property"). So SSN's proxy
-does not mark `inferred`; the word is shared, the line is not (corrected
-2026-11-16, after a fact-check).
-
-SOSA aligns itself to PROV-O in a non-normative module (Observation to
-`prov:Activity`, Sensor to `prov:Agent` and `prov:Entity`, Procedure to
-`prov:Plan`, Result to `prov:Entity`), which is the bridge from this model
-to PROV for a single value. PROV-O itself has no word for a basis: it
-tells `declared` (the asserter's own act is not known) from `measured`,
-`detected` and `inferred` (it is known). The lines between those three
-are this model's own: SOSA has one class for every observation, and SSN's
-proxy marks none of them (above). SIO has loose matches for three
-values: `statement` for `declared`, `measurement value` for a `measured`
-quantity, `conclusion` ("reached
-after considering the evidence, arguments or premises") for `inferred`.
-Its `hypothesis` ("a proposed explanation for a phenomenon") is not
-`inferred`: an inferred value explains nothing. The pattern:
-[alignment.md](alignment.md).
-
-SPDX has no property for the basis of a value; it stays in the
-Annotation, and the gap is FG-13 (with FG-10 for a declared hash) in
-[sbom-format-gaps.md](../sbom-format-gaps.md).
+The mappings of the basis values to other vocabularies are on a
+page of their own: [basis-mappings.md](basis-mappings.md).
 
 ## Open points
 
@@ -465,3 +447,17 @@ Annotation, and the gap is FG-13 (with FG-10 for a declared hash) in
    `Method: matched` and its `Tool` ([asserter-licence.md](asserter-licence.md), "The
    form of a text match"). `Basis: detected` there would say the
    originator detected it.
+3. Under C1 (ruled 2026-11-28): where the record of a source's
+   outcome sits on the element (an Annotation of its own, or a key in
+   an existing one); and whether it is one record per source, or one
+   per source and per element that source fed.
+4. Under C2 (ruled 2026-11-28, [reason.md](reason.md)): the cut of
+   the reason list; whether its class is recorded with the reason;
+   whether `denied` is kept for HTTP 401 and 403.
+5. Under C7 (ruled 2026-11-28): the members of the list of stand-ins
+   beside `placeholder-root` (rule 5).
+6. Under C9 (ruled 2026-11-28): whether a GGUF file that states a
+   scalar `<key>.length` beside an array `<key>` holds one fact or two
+   names that clash. Read at dfa11c14: the name `<key>.length` is the
+   one Pitloom gives the derived array length, and the stated scalar
+   is kept (`extract/ai_model/_gguf_fields.py:130-143`).

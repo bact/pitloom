@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-14
-Last-Modified: 2026-11-23
+Last-Modified: 2026-11-28
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -9,7 +9,9 @@ SPDX-License-Identifier: CC0-1.0
 # Value strength: statement, placeholder or explicit none
 
 See also: [README.md](README.md) (the claim model),
-[conflict.md](conflict.md) (the rule `strength`). Generalises section 2 of
+[conflict.md](conflict.md) (the rule `strength`),
+[resweep-rulings.md](resweep-rulings.md) (C1 and C7, ruled 2026-11-28).
+Generalises section 2 of
 [license-rules.md](../license-rules.md) to every field (its question 14).
 
 **Status:** draft.
@@ -29,6 +31,15 @@ what it decides shows in which claim stands and in the conflict record.
 | `placeholder` | The source has text that says "no information" and is not a value. | weak: gives way to any later `real` or `none`; kept only when nothing better follows | as the format's "no assertion" term, with the raw text in `Written` when a step other than `form` changed it ([change.md](change.md)) |
 | `none` | The source states that there is none. | final: ends the cascade | as the format's "none" term |
 | `real` | Anything else. | final: ends the cascade | the value |
+
+A `placeholder` is text a source wrote. A stand-in that Pitloom makes
+itself, where the format requires a value and no source gave one (the
+package name `unknown`, a creation time of 1970), is a different thing:
+it is no claim and has no strength. Such stand-ins are one small closed
+list, each marked as a stand-in, as the draft's `placeholder-root` is (ruled
+2026-11-28, [resweep-rulings.md](resweep-rulings.md), C7;
+[basis.md](basis.md), rule 5; [method.md](method.md)). The members of
+the list are open. Not built.
 
 ## Rules
 
@@ -77,21 +88,25 @@ assertion that there is none. A Pitloom SBOM is silent at three levels:
 
 | Level | Silent today | A reader cannot tell | A format's word for it |
 | --- | --- | --- | --- |
-| a source, for one field | the outcome `unavailable` ([basis.md](basis.md)): Pitloom read the source and it had no value (`absent`) | "read, nothing there" from "never read" | none in SPDX 3 |
-| a field of an element | no claim, when every source was `absent` | "no source states it" from "there is none" | SPDX 3: a `NoAssertion` or `None` individual. CISA 2026: "unknown" |
+| a source, for one field | the outcome `unavailable` ([basis.md](basis.md)): Pitloom read the source and it had no value (`absent`) | "read, nothing there" from "never tried". A source tried and not read (`failed`, `refused`) is recorded by the ruling of 2026-11-28 (S1); not built | none in SPDX 3 |
+| a field of an element | no claim, when every source was `absent` (or was not read: its outcome is then on the element) | "no source states it" from "there is none" | SPDX 3: a `NoAssertion` or `None` individual. CISA 2026: "unknown" |
 | a set of relationships (dependencies, files, datasets) | no `completeness` on any relationship (the one function that could give it returns none) | "this is all of them" from "these were found" | SPDX 3 `completeness`: `complete`, `incomplete`, `noAssertion`. CycloneDX 1.7 `compositions[].aggregate`: `complete`, `incomplete` and six narrower ones, `unknown`, `not_specified` |
 
-Three rules, all ruled 2026-11-23:
+Three rules, ruled 2026-11-23; S1 restated 2026-11-28:
 
 - **S1. Silence is no claim.** A field with no claim says neither
   "none" nor "not known". "None" is said by a `none` value only; "not
   known" by a `placeholder` a source wrote, or by `not-measured` for a
-  content fact. So a silent field means: every source read was
-  `absent`, or held a placeholder that a later source beat; it never
-  hides a source's "none". This is the draft as it stood, said as a
-  rule. With it, silence does not meet the CISA 2026 practice of
-  saying "unknown" (Mappings, below); an "unknown" of Pitloom's own
-  for a silent field is not proposed.
+  content fact. So a silent field means: every source Pitloom read
+  lacked it (`absent`, or a placeholder that a later source beat); it
+  never hides a source's "none". A source Pitloom tried and failed or
+  refused to read is not hidden either: its outcome is recorded on the
+  element, once per source, for a field of any kind
+  (ruled 2026-11-28, [resweep-rulings.md](resweep-rulings.md), C1;
+  [basis.md](basis.md#outcome-of-a-source)). The field itself stays
+  silent. Not built. With this, silence still does not meet the CISA
+  2026 practice of saying "unknown" (Mappings, below); an "unknown" of
+  Pitloom's own for a silent field is not proposed.
 - **S2. A source that had nothing stays unrecorded** (ruled
   2026-11-23). No entry per field for a source Pitloom read and found
   empty. Reasons: absent source data is not an error (the project's
@@ -99,8 +114,9 @@ Three rules, all ruled 2026-11-23:
   most of the SBOM. Not taken: a list, per element, of the sources
   read, so that a silence reads as "not stated in these". So the first
   level of the table keeps no word: a reader cannot tell "read,
-  nothing there" from "never read" (a known loss; no format has a
-  word for it). S2 is about `absent` only. A source's "none" is a
+  nothing there" from "never tried" (a known loss; no format has a
+  word for it). A source tried and not read is no longer in that loss
+  (S1). S2 is about `absent` only. A source's "none" is a
   claim and is recorded (rule 3); a `placeholder` is recorded when
   nothing better follows, and one that a later source beat ends as
   silent as an `absent` value (rule 2). Confirmed with that

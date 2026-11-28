@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-16
-Last-Modified: 2026-11-23
+Last-Modified: 2026-11-28
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -72,7 +72,8 @@ Notes:
 ## Two originator statements that differ
 
 Both are `originator`, `declared`. By the ruling of 2026-11-16 both are
-declared licences and the record says they conflict (the licence points parked then are ruled since: [../asserter-licence.md](../asserter-licence.md)).
+declared licences and the record says they conflict (the licence points parked then are ruled since:
+[../asserter-licence-points.md](../asserter-licence-points.md)).
 
 | # | Element | Input one | Input two |
 | --- | --- | --- | --- |
@@ -108,7 +109,7 @@ the gate OL-3 as written names no id):
 
 ```text
 A  Source: LICENSE | Kind: package-file | Asserter: originator | Method: matched | Technique: license-text | Tool: licenseid==0.8.4 | Basis: declared
-B  Source: LICENSE | Kind: package-file | Asserter: originator | Written: <the text, by its hash> | Change: <a fifth step kind, not named yet> | Tool: licenseid==0.8.4 | Basis: declared
+B  Source: LICENSE | Kind: package-file | Asserter: originator | Written: <the text, by its hash> | Change: <a further step kind, not named yet> | Tool: licenseid==0.8.4 | Basis: declared
 ```
 
 Form A is the `matched` exception; form B is a change step, for which

@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-14
-Last-Modified: 2026-11-23
+Last-Modified: 2026-11-28
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -10,11 +10,16 @@ SPDX-License-Identifier: CC0-1.0
 
 See also: [README.md](README.md) (the claim model),
 [asserter.md](asserter.md),
-[renames-and-migration.md](renames-and-migration.md) (old label to new kind).
+[renames-and-migration.md](renames-and-migration.md) (old label to new kind),
+[resweep-rulings.md](resweep-rulings.md) (rulings C7 and C8 of
+2026-11-28, written into rule 5 and rule C here).
 Replaces the source taxonomy of [license-rules.md](../license-rules.md)
-section 1 and the label sets `TRANSPARENT_SOURCES` and `THIRD_PARTY_SOURCES`.
+section 1 and the label set `TRANSPARENT_SOURCES` (`THIRD_PARTY_SOURCES`,
+the second set, is gone on `main` since bdf35a29, pull request 569).
 
-**Status:** draft.
+**Status:** draft; re-based on `main` dfa11c14 (release 0.25.1) on
+2026-11-28. Nothing here is built: where the page says what the code does,
+it says so with its evidence.
 
 ## Definition
 
@@ -34,8 +39,11 @@ A source has four parts:
 | container | `Container` | the archive, repository or directory that holds the source, when the label alone does not find it | `pkg-1.0-py3-none-any.whl`, `pkg.egg-info` |
 
 Today the label does the kind's work: the code lower-cases it and looks it
-up in two sets. A file name cannot be looked up, so every dynamic label has
-no kind. The kind is now carried with the value from the reader that
+up in one set, `TRANSPARENT_SOURCES` (`_provenance_encoders.py:22-32`,
+read at dfa11c14); the second set, `THIRD_PARTY_SOURCES`, was removed by
+bdf35a29, and `is_license_concluded` now asks only whether a source is
+named (`:70-79`, read). A file name cannot be looked up, so every dynamic
+label has no kind. The kind is now carried with the value from the reader that
 produced it.
 
 ## Kinds
@@ -55,7 +63,7 @@ produced it.
 | `repository` | The hosting repository: a file of it that is not part of the described artefact, or its refs (a branch or tag that names a commit; widened 2026-11-23, rule C). | Hub repository config files, `AUTHORS` |
 | `linked-document` | A document outside the element and its hosting repository, reached by a link a source gives (added 2026-11-23). The label is the URL, or the file's name with `Container:` naming the other repository. | (none today in Pitloom; the enrichment skill's agent reads a card's `license_link` page) |
 | `registry` | The API or index of a package or model registry. | `PyPI JSON API`, `PyPI`, `Hugging Face Hub` (API fields) |
-| `environment` | The Python environment Pitloom runs in or inspects, also when the element described is a package installed there. | `installed metadata`, `deployed package metadata`, `pipdeptree` |
+| `environment` | The Python environment Pitloom runs in or inspects, also when the element described is a package installed there. | `installed metadata`, `deployed package metadata`, `pipdeptree`; on `main` since 075195ea also a licence file of an installed `.dist-info`, written `Source: installed metadata \| Package: <name> \| File: <RECORD entry>` (`_deps_license_files.py:136-141`, read at dfa11c14); its kind is open (below, "Open points") |
 | `config` | Pitloom's own configuration: `[tool.pitloom]`, a CLI flag, an Action input. | (none today; the file is named) |
 | `caller` | Code that calls Pitloom's library or SDK. | a caller script path |
 | `session` | The SBOM author's answer in an interactive session. | `SBOM author` |
@@ -86,8 +94,13 @@ No kind for "Pitloom made it up": such a claim has no source. It has
    merge rule, or one claim whose `Location` lists the keys of one file.
 5. **No default label.** A value with no recorded source gets none; the
    fallbacks `AI model metadata`, `model file / Hugging Face Hub`,
-   `Dataset metadata`, `LICENSE`, `lock file`, `Unknown source` are bugs to
-   fix at the reader.
+   `Dataset metadata`, `LICENSE`, `lock file`, `Unknown source` stay
+   faults to fix at the reader (ruled again 2026-11-28, C7 of
+   [resweep-rulings.md](resweep-rulings.md)). A stand-in that Pitloom
+   writes because a format requires a value (a package named `unknown`,
+   a creation time of 1970) is another thing: it is no claim, and sits in
+   one small closed list ([method.md](method.md), "Stand-ins"). A default
+   label is a missing source; a stand-in is a missing value.
 6. **`Location` is a locator, not prose.** A method written inside it
    (`raw pickle (fickling)`, `keras_version attribute (major version)`) moves
    to `Technique` or `Tool`.
@@ -142,7 +155,7 @@ revision tests were run (18 pass). No route was run against the network.
 
 | Route | Read at | Written in the SBOM |
 | --- | --- | --- |
-| Hub model | `model_info` with no revision, so the head of the default branch; then the card, three config files and each licence file at that answer's `sha`. The list of licence files was not at that state at the draft's base (`list_repo_files` with no revision, so the head); on `main` (dd31412b, read 2026-11-23) it is the `siblings` of the same `model_info` answer, so it is. Not at that state: every file when `model_info` fails or states no `sha` (no revision, one `WARNING:` each) | the commit as the element's version and in its PURL, when it is a 40-digit hash, with a claim `Field: model_info sha`. Not written: the name asked for (the default branch). The API fields (tags, parameter total) are the answer of that moment |
+| Hub model | `model_info` with no revision, so the head of the default branch; then the card, three config files and each licence file at that answer's `sha`. The list of licence files was not at that state at the draft's base (`list_repo_files` with no revision, so the head); on `main` (dd31412b, read 2026-11-23) it is the `siblings` of the same `model_info` answer, so it is. Not at that state: every file when `model_info` fails or states no `sha` (no revision, one `WARNING:` each). On `main` dfa11c14 a model the Hub does not know (`RepositoryNotFoundError`, not its gated subclass) is refused instead, with no file fetched and no SBOM (982f3e84; `input-not-found/hub`); other failures keep the warnings (commit message read, code not re-read). A URL that names a revision (`/tree/<rev>`, `/blob/<rev>/...`, `/commit/<sha>`) is still read at the default branch, now with one `WARNING:` `hub-revision-unpinned/url` (5f48eb5f; `log_hf_url_revision` in `extract/remote/huggingface.py`, read in the diff) | the commit as the element's version and in its PURL, when it is a 40-digit hash, with a claim `Field: model_info sha`. Not written: the name asked for (the default branch). The API fields (tags, parameter total) are the answer of that moment |
 | Hub dataset | `dataset_info` with no revision; then the card at that answer's `sha`; no other file | the commit as the version, with a claim `Field: dataset_info sha` |
 | PyPI URL | the release the URL names, else the latest; one file | the acquisition record: version (`Method: latest-release` when none was named), file name, digest measured and digest declared, status |
 | PyPI lookup for a dependency | the pinned version; with no version, the latest | the claim names the service and the package (`Source`, `Package`), no release. With no version, the licence and originator of the latest release are written on the dependency; a digest only when the version is known |
@@ -178,7 +191,12 @@ Four rules, all ruled 2026-11-23.
   a user who asked for another thing. Done for a PyPI release today, by
   `Method`; here the pick of a release is the conflict rule `latest`
   ([conflict.md](conflict.md)). Not done for the default branch of a
-  Hub repository or for a Git branch (code stage, list below). Open
+  Hub repository or for a Git branch (code stage, list below). Ruled
+  2026-11-28 (C8 of [resweep-rulings.md](resweep-rulings.md)): when a
+  revision was asked for and another was read, both are recorded
+  (table under "Rule C", below); `Rule: default-branch` is written also
+  when no commit is known. Today a Hub URL's revision is read at the
+  default branch with a `WARNING:` and no record in the SBOM. Open
   under C: the form for a branch, and where on the element it sits
   (rule B); taken up below ("Rule C: the form for a branch or a tag"). PAV has this
   pair: `pav:hasCurrentVersion` relates a resource with no version to
@@ -186,12 +204,18 @@ Four rules, all ruled 2026-11-23.
   `pav:hasVersion`); in PROV-O the snapshot is a `prov:specializationOf`
   the resource.
 - **D. A source is moving only where no id could be had; it has no pin,
-  no key says so, and no time is written on a claim** (ruled
-  2026-11-23). An id comes first (rule A): with a commit or a release
+  no key says so (one exception, below), and no time is written on a
+  claim** (ruled
+  2026-11-23; "no time on a claim" stands, ruled again 2026-11-28, C8
+  of [resweep-rulings.md](resweep-rulings.md)). An id comes first (rule A): with a commit or a release
   named, a time adds nothing about the state. What is left is a read
   with no id: an environment, and a read where the service gives no id
   or the call that gives it fails. A reader tells it by the kind
-  (`environment`) and by no state on the element. No time, because the
+  (`environment`) and by no state on the element. The exception is
+  ruling C8 ([resweep-rulings.md](resweep-rulings.md), ruled
+  2026-11-28): where the default branch was read, `Rule:
+  default-branch` is written also when no commit is known, so that
+  case is said by a key. No time, because the
   output is deterministic (the same input gives the same bytes), and a
   clock value differs on each run also when the source did not move.
   When the clock gives the document's `created`, that is the moment of
@@ -265,6 +289,12 @@ the four cases only: a version named (the id itself) or nothing
 | nothing | `Rule: default-branch` | **C1** (ruled 2026-11-23). Pitloom picked no name; the repository's default was read. The name of that branch is not written: Pitloom does not learn it today. Rule 8 in the closed list of [conflict.md](conflict.md), beside `latest`: of several branches, the one the repository names as its default, when none was asked for |
 | a branch | `Location: refs/heads/` and the name | **C2** (ruled 2026-11-23). The ref is where in the repository the commit was read, which is what `Location` holds. Git's full spelling tells a branch from a tag, and the route knows which |
 | a tag | `Location: refs/tags/` and the name | as a branch |
+| a revision, and another was read | the revision asked for and the one read, both | ruled 2026-11-28 (C8 of [resweep-rulings.md](resweep-rulings.md)): the case of a Hub URL that names a revision while the default branch is read. A reader then sees that the SBOM does not describe what was asked for |
+
+`Rule: default-branch` is written also when no commit is known (ruled
+2026-11-28, C8): the claim then says that a default was read, though
+not which state of it. The row labels C1 and C2 above are those of
+2026-11-23, not the rulings of 2026-11-28.
 
 Where: on the claim of the field that holds the commit (rule B; which
 SPDX place that is, is a code-stage choice, below). Not taken for
@@ -368,6 +398,20 @@ up.
   [README.md](README.md), "Use cases").
 - The cascade order per surface: an order table lists kinds and locations,
   one table tested against every reader (license-rules question 6).
+
+## Open points (2026-11-28)
+
+1. The kind of a licence file read from an installed `.dist-info`
+   (075195ea): `environment` (it was read from the environment, as
+   `installed metadata` is), or `package-file` with `Container:` the
+   `.dist-info` (it is a file of the package the claim is about). Its
+   label too: `installed metadata` with the file in `File`, as today, or
+   the file's own name.
+2. Ruling C8: the keys of the row "a revision, and another was read"
+   (two `Location` values, or a `Rule` with the revision asked for), and
+   where on the element it sits (rule B).
+3. Ruling C7: which stand-ins are in the closed list
+   ([method.md](method.md), "Stand-ins").
 
 ## Mappings (loose)
 

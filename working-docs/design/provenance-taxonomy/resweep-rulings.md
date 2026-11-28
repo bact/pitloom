@@ -15,8 +15,9 @@ See also: [README.md](README.md) (the claim model),
 [renames-and-migration.md](renames-and-migration.md),
 [findings-to-fix-first.md](findings-to-fix-first.md).
 
-**Status:** rulings, written 2026-11-28. None is built, and the pages
-they change are not yet rewritten: each row names the page to rewrite.
+**Status:** rulings, written 2026-11-28. None is built. The pages
+they change were rewritten to them the same day: each row names the
+page that holds the ruling now.
 
 ## Where they come from
 
@@ -37,15 +38,15 @@ C3 one by one and took the recommendations for C4 to C10.
 
 ## The rulings
 
-| # | Question | Ruled | Page to rewrite |
+| # | Question | Ruled | Written in |
 | --- | --- | --- | --- |
 | C1 | A source that Pitloom failed or refused to read loses fields of any kind (a card that does not parse, a reader not run); the draft records an outcome "for a content fact" only, so silence cannot tell "no source states it" from "the source was not read" | **The outcome of a source is recorded per source, on the element, for any field.** One record: the source, `failed` or `refused`, a reason. The fields stay silent. `not-measured` stays as it is for a content fact: the case where the source is the artefact itself and the field is known | [basis.md](basis.md#outcome-of-a-source); S1 of [value-strength.md](value-strength.md) |
 | C2 | Whether a `Reason` is a catalogue code | **The taxonomy owns a small closed list; a catalogue code maps to it.** [reason.md](reason.md) | [basis.md](basis.md#reason-codes); rule 3 of [README.md](README.md) |
 | C3 | Some selections are made by an order that says nothing of the values (the first reference, the first file found, "then by name"); `no-rule` is said to have no site today, and some sites record no loser | **A new rule `tie-break`:** the tool's fixed order chose, with no judgement of the values. `no-rule` stays, with its real sites. "A conflict is always recorded" binds both: a site that drops the loser is work for the code stage, not an exception | [conflict.md](conflict.md) (the rule list, its sites) |
 | C4 | A split by a rule that can be wrong (an author read "by a guess") is `parsed`, defined as "nothing added" | **It stays `parsed`:** it is still the originator's statement. The doubt is shown by naming the technique and by a `Change` step, not by moving the value to `synthesized` | [method.md](method.md); [change.md](change.md) |
-| C5 | A value written with escapes (`\uXXXX`, U+FFFD) differs from its source and has no `Change` kind; `cut` logs at `INFO:` | **A fifth kind, `escaped`:** the written form cannot hold the text as read. **`cut` logs at `WARNING:`** | [change.md](change.md) |
+| C5 | A value written with escapes (`\uXXXX`, U+FFFD) differs from its source and has no `Change` kind; `cut` logs at `INFO:` | **A fifth kind, `escaped`:** the written form cannot hold the text as read. **`cut` logs at `WARNING:`** (as the code does already; the `INFO:` was the draft's) | [change.md](change.md) |
 | C6 | A licence matcher that could not run (no database) against one that ran and found nothing | **Not the same.** No custom-text claim when the matcher did not run: a source outcome (C1) with a reason of the class "not able" | [asserter-licence.md](asserter-licence.md) |
-| C7 | Pitloom's own stand-ins where a format requires a value (the name `unknown`, a creation time of 1970) | **A stand-in is no claim.** One small closed list, marked as such, as `placeholder-root` is today. A default source label (`Unknown source`) stays a fault to fix at the reader | [method.md](method.md); rule 5 of [basis.md](basis.md); [value-strength.md](value-strength.md) |
+| C7 | Pitloom's own stand-ins where a format requires a value (the name `unknown`, a creation time of 1970) | **A stand-in is no claim.** One small closed list, marked as such, as the draft's `placeholder-root` is. A default source label (`Unknown source`) stays a fault to fix at the reader | [method.md](method.md); rule 5 of [basis.md](basis.md); [value-strength.md](value-strength.md) |
 | C8 | A source that moves leaves no mark; a revision was asked for and the default branch read | **Rule C gains the row:** the revision asked for and the one read are both recorded. `Rule: default-branch` is written also when no commit is known. No time on a claim (the ruling on determinism stands) | [source.md](source.md) (rules C and D) |
 | C9 | A clash that ends the run (a digest that differs from the one declared) against "a measured value stands over a declared one" | **The precedence governs recorded claims.** A check of integrity refuses before a claim exists, and is outside it | [basis.md](basis.md) (the precedence) |
 | C10 | No rule says what may happen to a term once it is exchanged | **A released term is never renamed or reused.** A term that can no longer occur is marked retired and stays. From the first release that writes the new vocabulary | [README.md](README.md) (the rules); [renames-and-migration.md](renames-and-migration.md) |
@@ -71,8 +72,12 @@ C3 one by one and took the recommendations for C4 to C10.
 
 The questions rest on what the catalogue says each message does (its
 "Pitloom did" text). That text is a claim. Read in the code at
-dfa11c14 for these rulings: the texts quoted for C1 to C3, C5 (`cut`
-and the four kinds) and C8 (`hub-revision-unpinned/url`). Not read in
-the code: the author split of C4, each stand-in of C7, the GGUF case
-of C9, and whether each site of C3 writes a conflict record. To read
-before a page states them as facts.
+dfa11c14 for these rulings, by the session that put them: the texts
+quoted for C1 to C3, C5 (`cut` and the four kinds) and C8
+(`hub-revision-unpinned/url`). Read the same day by the agents that
+wrote the pages, each cited where it is used: the author split of C4
+and the stand-ins of C7 ([method.md](method.md)), the sites of C3
+([conflict.md](conflict.md)) and the GGUF case of C9
+([basis.md](basis.md), read as a clash of names). Not traced: that a
+wheel named `unknown` reaches the SBOM under that name, and whether
+fragments named in the configuration are merged in the order given.

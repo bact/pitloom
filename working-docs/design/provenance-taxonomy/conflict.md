@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-14
-Last-Modified: 2026-11-23
+Last-Modified: 2026-11-28
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -10,7 +10,8 @@ SPDX-License-Identifier: CC0-1.0
 
 See also: [README.md](README.md) (the claim model),
 [asserter.md](asserter.md), [value-strength.md](value-strength.md),
-[basis.md](basis.md), [alignment.md](alignment.md). Revises
+[basis.md](basis.md), [alignment.md](alignment.md),
+[resweep-rulings.md](resweep-rulings.md) (C3, ruled 2026-11-28). Revises
 [multi-source-conflict.md](../../implementation/provenance/multi-source-conflict.md)
 and answers
 [generic-multi-candidate-fields.md](../generic-multi-candidate-fields.md)
@@ -32,9 +33,18 @@ and [license-rules.md](../license-rules.md) question 5.
 - A **conflict** is a candidate set in which two `real` or `none` values
   ([value-strength.md](value-strength.md)) differ after normalisation.
 
-Today 37 places in the code choose between candidates. Five record the
-loser in an Annotation, a few warn, most record nothing. The Annotation
-lists candidates and does not say which stood or why.
+At the draft's base (257b7260) 37 places in the code chose between
+candidates. Five recorded the loser in an Annotation, a few warned,
+most recorded nothing. The Annotation lists candidates and does not say
+which stood or why. The count is of the base and was not redone. Added
+on `main` since (read at dfa11c14): the two-declared mode of a
+dependency's licence, its licence file beside its stated licence text,
+both declared, with a conflict Annotation when they differ
+(`assemble/spdx3/deps_license.py:164-202`); a placeholder or blank
+stated licence giving way to the licence files
+(`assemble/spdx3/_deps_license_files.py:146-183`); and the stop when a
+licence file holding the texts of several licences comes first
+(`extract/_license.py:115-117`, no licence from the files).
 
 ## Before a selection: eligibility
 
@@ -133,8 +143,8 @@ For a licence the grade is `compatible` unless the test for
 | an explicit "no licence" (`NONE`) against a licence | `incompatible` | the first excludes any licence |
 | `LGPL-2.1-or-later` against the classifier "LGPLv2+" (OC-1 in the examples) | `compatible` | the classifier's vocabulary cannot say 2.1: coarse, not contrary |
 | the retired id `GPL-3.0` against `GPL-3.0-or-later` | no conflict (ruled 2026-11-19) | the SPDX licence list reads the retired id as "v3.0 only" and names `GPL-3.0-only` its successor; LicenseID treats that reading as an assumption (`assumed_only`, [change.md](change.md)) and, from 0.9.0, keeps the id as written with `variant_stated` false. The rule of the next row holds here too: the bare id agrees with the stated variant, and the declared slot holds one id, `GPL-3.0-or-later` |
-| `GPL-3.0-or-later` in the manifest; `LICENSE` holds the bare GPL text | no conflict (ruled 2026-11-19) | the text states neither, and a variant that is not stated conflicts with neither variant. The file agrees with the manifest: one declared id, `GPL-3.0-or-later`, with the file listed as a source of it ("What is recorded", item 5). With no statement of the variant, Pitloom records LicenseID's answer, `GPL-3.0-only`, marked as a guess ([asserter-licence.md](asserter-licence.md)) |
-| a licence named in the manifest; a licence file whose text does not pass the gate | no conflict (ruled 2026-11-20) | the file names no id, so nothing stands against the manifest. It is recorded as a licence file with no id ([asserter-licence.md](asserter-licence.md), "The gate for a text match") |
+| `GPL-3.0-or-later` in the manifest; `LICENSE` holds the bare GPL text | no conflict (ruled 2026-11-19) | the text states neither, and a variant that is not stated conflicts with neither variant. The file agrees with the manifest: one declared id, `GPL-3.0-or-later`, with the file listed as a source of it ("What is recorded", item 5). With no statement of the variant, Pitloom records LicenseID's answer, `GPL-3.0-only`, marked as a guess ([asserter-licence-points.md](asserter-licence-points.md)). Not built: today (read at dfa11c14) the manifest's id is declared and the file's reading concluded, both relationships to one licence element (`assemble/spdx3/deps_license.py:174-179`), and no mark of a guess is written (below) |
+| a licence named in the manifest; a licence file whose text does not pass the gate | no conflict (ruled 2026-11-20) | the file names no id, so nothing stands against the manifest. It is to be recorded as a licence file with no id ([asserter-licence.md](asserter-licence.md), "The gate for a text match"). Not built: today such a file is not recorded at all ("Nothing changes when no candidate gives a licence", `extract/_license.py:159-176`, read at dfa11c14) |
 
 The GPL text leaves the choice to a notice. Version 3, section 14: where
 "the Program specifies" a numbered version "or any later version", the
@@ -145,8 +155,11 @@ notice.
 
 A conflict can be the tool's making. A matcher that names `GPL-3.0-only`
 for a bare licence text sets it against a manifest's `-or-later`
-(LicenseID 0.9.0 names it, and marks it as not stated; Pitloom keeps
-the mark and makes no conflict of it, ruled 2026-11-19); a wrong
+(LicenseID names it, and marks it as not stated; ruled 2026-11-19:
+Pitloom keeps the mark and makes no conflict of it. Not built: today
+the `-only` id is written unmarked, and the mark reaches only a relayed
+`INFO:` line, `variant not stated`, read at dfa11c14 in
+`extract/_licenseid_relay.py:68-74`); a wrong
 match sets a licence against a manifest that agrees with the file (OL-5
 in the examples). The candidate's `method` and `tool` are in the record
 for that reason, and LicenseID's `exact` and `score` are quoted beside
@@ -167,7 +180,7 @@ them (`setup.py` and `setup.cfg`, `PKG-INFO` and an archived
 `pyproject.toml`, static and installed metadata); two that the
 originator writes apart both stand (`CITATION.cff` and
 `codemeta.json`, a model file and its card; ruled 2026-11-23,
-[asserter-licence.md](asserter-licence.md)).
+[asserter-licence-points.md](asserter-licence-points.md)).
 
 | # | Rule | Definition | Sites today (examples) |
 | --- | --- | --- | --- |
@@ -175,15 +188,53 @@ originator writes apart both stand (`CITATION.cff` and
 | 2 | `synthesized-yields` | a `synthesized` value gives way to any other claim | a fragment's description over one generated from labels; a fragment's model name over a file-name stem |
 | 3 | `basis-order` | for a content fact, Pitloom's `measured` value stands over another party's ([basis.md](basis.md), precedence); the rule was `evidence-level` until 2026-11-22; the name is ruled (2026-11-23) | `record_fact`; a measured size against a stated one |
 | 4 | `explicit-pin` | a version the project pinned stands over a resolved or installed one | exact pin over lock over environment |
-| 5 | `source-order` | the field's documented order of sources and locations | `License-Expression` over `License` over classifier (ruled 2026-11-23: the fields of one Core Metadata file are one statement; [asserter-licence.md](asserter-licence.md)); `setup.py` over `setup.cfg`; static over installed; `PKG-INFO` over archived `pyproject.toml`; the lock file cascade; `CITATION.cff` over `codemeta.json`; base document over fragment |
+| 5 | `source-order` | the field's documented order of sources and locations | `License-Expression` over `License` over classifier (ruled 2026-11-23: the fields of one Core Metadata file are one statement; [asserter-licence-points.md](asserter-licence-points.md)); `setup.py` over `setup.cfg`; static over installed; `PKG-INFO` over archived `pyproject.toml`; the lock file cascade; `CITATION.cff` over `codemeta.json`; base document over fragment |
 | 6 | `latest` | of several releases, the newest, when none was asked for | `latest-release` |
 | 7 | `running-environment` | of several files, the one compatible with the running interpreter and platform | `running-environment` |
 | 8 | `default-branch` | of several branches, the one the repository names as its default, when none was asked for (ruled 2026-11-23; [source.md](source.md), rule C) | (none: the Git and Hub routes read the default branch and record nothing) |
-| 9 | `no-rule` | nothing tells them apart; the slot is left empty and every candidate is `passed-over` | (none today; a guard against a silent first-wins) |
+| 9 | `tie-break` | nothing else tells them apart, and the tool's fixed order chose (the first met, then a sort by name), with no judgement of the values; the others are `passed-over` (ruled 2026-11-28) | see "Sites of rules 9 and 10", below |
+| 10 | `no-rule` | nothing tells them apart; the slot is left empty and every candidate is `passed-over` | see "Sites of rules 9 and 10", below |
 
 `source-order` needs its order written down: one table per field and
 surface, tested against every reader (license-rules question 6). The rule
 name says an order was used; the table says which.
+
+`tie-break` and `no-rule` meet the same case: candidates that no
+earlier rule tells apart. The first fills the slot by an order that
+says nothing about which value is right; the second leaves it empty.
+Which of the two a site uses is open ("Open points"). `tie-break` is
+not `source-order`: a source order is the field's documented order of
+sources, a tie-break an order of the tool's own (the first reference
+met, a sort by file name) (ruled 2026-11-28,
+[resweep-rulings.md](resweep-rulings.md), C3).
+
+### Sites of rules 9 and 10
+
+Read in the code at dfa11c14 (the catalogue's "did" text was not taken
+as evidence). None of them writes a conflict record today: each is
+work for the code stage under "What is recorded", item 1.
+
+| Site | What is selected | Rule, as read | Loser recorded today |
+| --- | --- | --- | --- |
+| `dataset-conflict`: `core/dataset_merge.py:89-112` | two references of a model to one dataset that set one field to different values: the value of the reference merged first (the order of first appearance) stays | `tie-break` | no: one `WARNING:`, the other value dropped |
+| `fragment-conflict`: `assemble/spdx3/_fragments_props.py:103-138`, `:186-213` | a property, or a dictionary key, set twice: the value merged first stays (the project's own element, then the fragments in merge order; `loom merge` merges its files sorted by name, `assemble/spdx3/fragments.py:348-356`) | `source-order` for the base over a fragment (rule 5); `tie-break` between two fragments of `loom merge`; configured fragments in the configured order: not decided | no: one `WARNING:` naming kept and dropped |
+| `installed-metadata-ambiguous`: `extract/project/installed.py:145-150`, `:236-248` | several in-tree `.dist-info`/`.egg-info` of the project: `.dist-info` before `.egg-info`, then by marker path | `source-order` (the kind), then `tie-break` (the path) | no: one `WARNING:` listing the candidates |
+| `file-discovery-conflict`: `core/_models_wheel_setuptools.py:254-282` | two source files of one wheel path: the first found stays | `tie-break` (the discovery order). A member of a file set, not a field's value | no: one `WARNING:` |
+| `model-field-conflict`, ONNX: `extract/ai_model/onnx.py:173-180`, `:185-197` | a `metadata_props` key repeated: the last value stays, as protobuf keeps it | not decided: the format's own reading (`source-order` on one source) or `tie-break` | no: one `WARNING:` naming the keys |
+| `lock-entry-conflict`: `extract/lock/_pins.py:147-166`, `assemble/spdx3/_document_locked_deps.py:108-121` | one package at several versions in a lock, or in the locked dependencies of a document: no pin is written (a `requirements.txt` is dropped whole) | `no-rule` | no: the versions are on the `WARNING:` line only |
+| `dist-info-ambiguous`, `WARNING:` route: `core/wheel_dist_info.py:384-412`, `extract/wheel.py:254-273` | several top-level `.dist-info` that the file name does not pick: none is read; the package is named `unknown` | `no-rule` (the name is a candidate stand-in; the members are open under C7) | no |
+
+Not a site of this list: `registry-key-ambiguous`
+(`id_registry/_session.py:69-79`, `id_registry/_generate.py:87-100`,
+`id_registry/_ambiguous.py:280-309`), where several things share one ID
+registry key and none is used for it. That is an identifier, not a
+claim for a field (this page's reading, not ruled; see "Open points").
+The GGUF line of `model-field-conflict`
+(`extract/ai_model/_gguf_fields.py:130-143`) is read here as a clash
+of names, so no selection: the file states a scalar under the name
+Pitloom gives a derived array length (`<key>.length`), and the stated
+scalar is kept. Open under ruling C9
+([basis.md](basis.md#precedence-for-content-facts), open points).
 
 Rules 6, 7 and 8 choose among releases, files and branches before any
 metadata is read; they are in the list because the standing claim records
@@ -194,7 +245,12 @@ them the same way.
 1. **A conflict is always recorded.** Two `real` or `none` values that
    differ after normalisation: every candidate, with status, and the rule
    of each slot. This closes license-rules question 5 (a model file's
-   `Apache-2.0` against its card's `mit` is silent today).
+   `Apache-2.0` against its card's `mit` is silent today). It binds
+   `tie-break` and `no-rule` too (ruled 2026-11-28,
+   [resweep-rulings.md](resweep-rulings.md), C3): the candidates that
+   gave way, or that left the slot empty, are listed as `passed-over`.
+   A site that drops the loser today is work for the code stage, not an
+   exception: every site in "Sites of rules 9 and 10" does.
 2. **A placeholder that gave way is never a conflict.** The standing claim
    carries `Rule: strength`, so the reader sees that a weaker statement
    existed; the placeholder itself is not listed.
@@ -208,7 +264,9 @@ them the same way.
    stated (a bare GPL text, the retired id `GPL-3.0`) agrees with a
    claim that states it (ruled 2026-11-19).
 6. **A conflict also warns** (`WARNING:`), with a catalogue code. Today the
-   licence conflict of the main package writes an Annotation and no warning.
+   licence conflict of the main package writes an Annotation and no warning
+   (read at dfa11c14: `assemble/spdx3/deps_license.py:287-317` builds the
+   Annotation and says nothing).
 7. **Differing declared licences are all written, and the record says they
    conflict** (ruled 2026-11-16). Pitloom may pick one, or combine them
    into one licence expression, as the concluded licence: an `sbom-tool`
@@ -217,8 +275,8 @@ them the same way.
    2026-11-23), and the closed list above has no name for one:
    the conflict is recorded and the concluded slot stays empty
    unless the SBOM author fills it
-   ([asserter-licence.md](asserter-licence.md), "Licence work: the
-   points and their rulings").
+   ([asserter-licence-points.md](asserter-licence-points.md),
+   "The points").
 
 ## Record shape
 
@@ -227,7 +285,8 @@ facets, not a raw provenance string. `rule` is per slot; the example has
 two `originator` claims that differ, both in the declared slot, and no
 concluded licence. The second candidate writes its match as `method`,
 `technique` and `tool` (ruled 2026-11-21; [asserter-licence.md](asserter-licence.md),
-"The form of a text match").
+"The form of a text match"). The tool's version is an illustration;
+`main` at dfa11c14 pins `licenseid>=0.10.0,<0.11` (`pyproject.toml:68`).
 
 ```json
 {
@@ -245,7 +304,7 @@ concluded licence. The second candidate writes its match as `method`,
      "slot": "hasDeclaredLicense", "asserter": "originator",
      "basis": "declared",
      "method": "matched", "technique": "license-text",
-     "tool": "licenseid==0.8.4",
+     "tool": "licenseid==0.10.0",
      "source": {"label": "LICENSE", "kind": "package-file"},
      "ref": "<spdxId of the Apache-2.0 licence element>"}
   ],
@@ -331,10 +390,25 @@ between rules about what may be done with an asset, not between claims
 about which licence applies. `perm` and `prohibit` are a pattern for the
 rule names of picking a concluded licence, should a rule come (none
 for now, ruled 2026-11-23;
-[asserter-licence.md](asserter-licence.md)), and no more.
+[asserter-licence-points.md](asserter-licence-points.md)), and no more.
 
 A permission against a prohibition, on one asset and for the same action
 or one that includes the other, would be a sufficient test for
 `incompatible` in some pairs, were each licence written as a policy. It
 is not one for `-only` against `-or-later`: a later version is not an
 action.
+
+## Open points
+
+1. Under C3 (ruled 2026-11-28,
+   [resweep-rulings.md](resweep-rulings.md)): which sites keep
+   `tie-break` and which become `no-rule`. A site that moves to
+   `no-rule` loses a value that is written today, so the move needs a
+   sweep of output before and after. Not decided here.
+2. Whether the order a format's own library applies (ONNX keeps the
+   last of a repeated key) is `source-order` or `tie-break`, and
+   whether configured fragments, merged in the order the configuration
+   lists them, are `source-order`.
+3. Whether a clash of identifiers (`registry-key-ambiguous`) is in the
+   scope of the conflict rules. This page leaves it out, as an
+   identifier and not a claim for a field.

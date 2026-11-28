@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-23
-Last-Modified: 2026-11-23
+Last-Modified: 2026-11-28
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -187,7 +187,7 @@ another date; quoted words are the source's.
   words or a rule of the tool. `variant_stated` says whether the input
   chose between `-only` and `-or-later`.
 - **Use:** quoted. Pitloom records them unchanged in `Resolution-<n>`
-  and `Expansion-<n>` and maps each to one of four step kinds for
+  and `Expansion-<n>` and maps each to one of five step kinds for
   `Change` ([change.md](change.md)).
 - **Not renamed, because:** the names are LicenseID's interface. They
   stay snake_case inside the quoted keys.
