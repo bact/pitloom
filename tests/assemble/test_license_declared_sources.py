@@ -29,7 +29,6 @@ from pitloom.assemble import (
     generate_project_sbom,
     generate_wheel_sbom,
 )
-from pitloom.assemble.spdx3._provenance_encoders import THIRD_PARTY_SOURCES
 from pitloom.assemble.spdx3.document import build_model
 from pitloom.core.creation import CreationMetadata
 from pitloom.extract._license_text_match import LicenseTextReading
@@ -230,9 +229,12 @@ def test_a_deployed_packages_own_installed_metadata_is_declared() -> None:
     ("source", "expected"),
     [
         (None, "hasDeclaredLicense"),  # the model file's own metadata
-        # a third-party record, by the rule's own list
-        *((f"Source: {s}", "hasConcludedLicense") for s in sorted(THIRD_PARTY_SOURCES)),
+        # PyPI and an installed copy are the originator's records too
+        ("Source: PyPI JSON API | Package: m", "hasDeclaredLicense"),
+        ("Source: installed metadata | Package: m", "hasDeclaredLicense"),
+        ("Field: license", "hasConcludedLicense"),  # no source: nobody's
     ],
+    ids=["own", "pypi", "installed", "no-source"],
 )
 def test_a_models_licence_relationship_follows_its_source(
     source: str | None, expected: str

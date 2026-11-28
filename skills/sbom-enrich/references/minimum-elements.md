@@ -119,7 +119,7 @@ checked with `loom model`/`loom project` and `sbomcheck -c fsct3` on
 | COMP-004 | Unique Identifier | `software_packageUrl`, `software_contentIdentifier` or a packageUrl/cpe/swid/swhid/gitoid `externalIdentifier` | fills (a PURL on every package with a known version or a hashed model file; a dataset needs an http(s) download URL) | yes |
 | COMP-005 | Cryptographic Hash | `verifiedUsing` | see CISA's hash row | no |
 | COMP-006 | Relationship (per component, with completeness) | -- | Pitloom writes no `completeness` | no |
-| COMP-007 | License | `hasConcludedLicense` only (not `NoAssertionLicense`) | a dependency's licence from PyPI or its installed copy; the main package's only when it states a licence and the LicenseID database (`licenseid update --source packaged`) detects one in its licence files -- the stated licence itself is `hasDeclaredLicense`, which does not count, and with no stated licence the detection becomes the declared one; not the licence a model's or dataset's own source states, which is declared (models and datasets were `missing` in every test run): the user can conclude one by fragment | yes |
+| COMP-007 | License | `hasConcludedLicense` only (not `NoAssertionLicense`) | the main package's only when it states a licence and the LicenseID database (`licenseid update --source packaged`) detects one in its licence files -- the stated licence itself is `hasDeclaredLicense`, which does not count, and with no stated licence the detection becomes the declared one; not a dependency's licence (from its installed copy, its licence files or PyPI: declared, its originator's statement), nor the licence a model's or dataset's own source states, which is declared (dependencies, models and datasets are `missing`; for dependencies that is expected since #569, not a defect in the SBOM): the user can conclude one by fragment | yes |
 | COMP-008 | Copyright Notice | `software_copyrightText` (`NOASSERTION` counts as missing) | the main package when its licence files carry copyright lines (else `NOASSERTION`); a dependency when its installed copy's licence files do; a model or dataset none | yes |
 
 ## CISA 2026 (current baseline; 10 metadata + 7 component fields + 6 practices)
@@ -151,7 +151,7 @@ value and hash algorithm are two) and 6 practices.
 | Component Dependency Relationship | `Relationship`/`LifecycleScopedRelationship` (what counts: NTIA's "Dependency Relationship" row above) | covered for a project; **gap** for a single-model SBOM |
 | Component Hash Value / Algorithm | `verifiedUsing` (`{"algorithm": "sha256", "hashValue": ...}`, plus a `sha512` entry on a file Pitloom reads itself); set on every `software_File` (dataset and model files too), on dependencies from a supported lock file's SHA-256 (online and offline), else PyPI's (`deps_pypi.py`). The main package carries a SHA-256 Merkle root over its payload files, commented as not a single-artefact hash, in a project, wheel and embed SBOM; **not** on an sdist SBOM, a Hugging Face model, or a `dataset_DatasetPackage` outside `loom.run` | conditional -- deps only when a definite version resolves; the main package's is a Merkle root, not an artefact hash; AI/dataset package-level gaps: `minimum-elements-g7.md` |
 | Component Identifiers | `software_packageUrl` (PURL) | conditional, same as NTIA's "Other Unique Identifiers" |
-| Component License | `simplelicensing_LicenseExpression` (a valid SPDX expression, or a `LicenseRef-loom-text-<hash>` whose `customIdToUri` maps to a `simplelicensing_SimpleLicensingText` holding other text) + `hasDeclaredLicense`/`hasConcludedLicense` relationship (main package, from `project.license`, then its `License ::` classifiers: declared when the package states it, including a `loom env` package's own metadata, concluded when a third-party record says it -- PyPI, a dependency's installed copy; beside a stated licence, the licence-file detection and a library caller's `license_concluded` are concluded); deps from installed metadata, then classifiers, then the PyPI JSON API. No licence stated = **no relationship**; `NoAssertionLicense`/`NoneLicense` individuals only when a source said `NOASSERTION`/`UNKNOWN`/`NONE` | conditional (deps: installed or PyPI-resolvable only); main package usually covered when `pyproject.toml` declares a licence; a missing relationship is a **gap** |
+| Component License | `simplelicensing_LicenseExpression` (a valid SPDX expression, or a `LicenseRef-loom-text-<hash>` whose `customIdToUri` maps to a `simplelicensing_SimpleLicensingText` holding other text) + `hasDeclaredLicense`/`hasConcludedLicense` relationship (main package, from `project.license`, then its `License ::` classifiers: declared when the package states it, including a `loom env` package's own metadata; beside a stated licence, the licence-file detection and a library caller's `license_concluded` are concluded); deps from installed metadata, then classifiers, then their installed licence files, then the PyPI JSON API, each declared (the dependency's own statement; a stated text and a different file licence are both declared, with a conflict annotation). No licence stated = **no relationship**; `NoAssertionLicense`/`NoneLicense` individuals only when a source said `NOASSERTION`/`UNKNOWN`/`NONE` | conditional (deps: installed or PyPI-resolvable only); main package usually covered when `pyproject.toml` declares a licence; a missing relationship is a **gap** |
 | Component Name | `software_Package.name` | covered |
 | Component Version | `software_packageVersion` | covered |
 
@@ -175,13 +175,13 @@ default software agent passes), META-003/-004 format name and version
 name (`createdUsing`), COMP-001 producer (`originatedBy` on every package),
 COMP-002 dependency relationship (document-level), COMP-003/-004 hash (any
 `Hash` with a value, so the main package's Merkle root passes), COMP-005
-identifiers, COMP-006 licence (`hasDeclaredLicense` only: a dependency with only
-a PyPI-concluded licence is missing), COMP-007 name, COMP-008 version.
+identifiers, COMP-006 licence (`hasDeclaredLicense` only; a dependency's
+licence from PyPI or its installed copy is declared), COMP-007 name, COMP-008 version.
 `out-of-scope`: META-002 signature, META-008 tool version, META-009 SBOM
 version, PP-001 to PP-006. Usual misses (all in `cisa2026-expected.tsv`):
 COMP-001 for every dataset and for a model whose source names no producer,
-COMP-002 for a single-model SBOM, COMP-006 for dependencies (their licence is
-concluded) and for a model whose source states no licence, COMP-008 for a model
+COMP-002 for a single-model SBOM, COMP-006 for a model whose source states no
+licence, COMP-008 for a model
 file that states no version, and COMP-003/-004 for a Hugging Face model or any
 dataset outside `loom.run` (no hash).
 

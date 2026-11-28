@@ -34,6 +34,13 @@
     "stated": "MIT",
     "unstated": "MIT"
   },
+  "fickling-0.1.13-LICENSE": {
+    "license": "LGPL-3.0-or-later",
+    "note": "verbatim LGPL 3: -only and -or-later both 1.0; the text cannot tell them apart",
+    "source": "fickling==0.1.13: fickling-0.1.13.dist-info/licenses/LICENSE",
+    "stated": "LGPL-3.0-or-later",
+    "unstated": "LGPL-3.0-only"
+  },
   "iniconfig-2.3.0-LICENSE": {
     "license": "MIT",
     "note": "FSL-1.1-MIT ranked first with the notice",

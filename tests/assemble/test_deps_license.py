@@ -96,14 +96,14 @@ def test_get_or_create_license_element_names_it_short(value: str, name: str) -> 
         ),
         ("Source: demo-1.0.dist-info | File: METADATA", False),
         ("Source: deployed package metadata | Package: dep", False),
-        ("Source: installed metadata | Package: dep", True),
-        ("Source: installed metadata | Package: dep | Field: Classifier", True),
-        ("Source: PyPI JSON API | Package: dep", True),
-        ("Source: PyPI JSON API (cached) | Package: dep", True),
+        ("Source: installed metadata | Package: dep", False),
+        ("Source: installed metadata | Package: dep | Field: Classifier", False),
+        ("Source: PyPI JSON API | Package: dep", False),
+        ("Source: PyPI JSON API (cached) | Package: dep", False),
         ("Field: license", True),  # no source: nobody's statement
     ],
 )
-def test_is_license_concluded_only_for_a_third_party_record(
+def test_is_license_concluded_only_without_a_source(
     provenance: str, concluded: bool
 ) -> None:
     assert is_license_concluded(parse_provenance_value(provenance)) is concluded

@@ -238,16 +238,12 @@ def test_add_dependencies_dedupes_separator_canonicalization() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_enrich_from_installed_adds_concluded_license_relationship(
+def test_enrich_from_installed_adds_declared_license_relationship(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """``build_license_elements`` in single-candidate mode returns one of
-    (declared, concluded) depending on whether the source is "transparent";
-    "installed metadata" is not, so it returns the *concluded* slot, and the
-    caller must keep that relationship: a dependency enriched from installed
-    metadata gets a licence relationship when ``License-Expression`` is
-    present.
-    """
+    """A dependency enriched from installed metadata gets one licence
+    relationship when ``License-Expression`` is present: declared, the
+    originator's own statement."""
     monkeypatch.setattr(
         deps_mod,
         "get_pkg_metadata",
@@ -282,9 +278,7 @@ def test_enrich_from_installed_adds_concluded_license_relationship(
         )
     ]
     assert len(license_rels) == 1
-    assert (
-        license_rels[0].relationshipType == spdx3.RelationshipType.hasConcludedLicense
-    )
+    assert license_rels[0].relationshipType == spdx3.RelationshipType.hasDeclaredLicense
 
 
 def test_enrich_from_installed_skips_license_when_absent(

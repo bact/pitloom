@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-02
-Last-Modified: 2026-11-27
+Last-Modified: 2026-11-28
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -133,6 +133,68 @@ entries come first; fixed entries stay in the last section for history.
   rule keeps it as text, as for `\n`; `main` read it as an expression.
   Consistent, but a value from a CR-only file would lose its reading.
   *Found 2026-11-04, review of #440.*
+- [ ] **A dependency's Apache 2.0 file with no licence stated stays
+  unread (S, upstream).** The licence-file fallback for a dependency whose
+  metadata names no SPDX licence (`_deps_license_files.py`) gives none for
+  rfc8785 0.1.4, rfc3161-client and sigstore-rekor-types: their verbatim
+  Apache 2.0 texts score `Apache-2.0` 1.0 and `Pixar` 0.995, a near-tie the
+  reader refuses with nothing stated, and the `Apache Software License`
+  classifier names no version to break it. 8 of the 11 installed packages
+  whose metadata named no SPDX licence (a 101-package environment) were
+  identified. The near-variant ranking is LicenseID's
+  ([licenseid-handoff.md](../licenseid-handoff.md)); a family hint from a
+  versionless classifier (`Apache-*`) is another way, not built; a licence
+  the SBOM creator states is a third
+  ([#570](https://github.com/bact/pitloom/issues/570), in the roadmap).
+  *Found 2026-11-27, post-publish verification of 0.25.0.*
+- [ ] **A dependency's copyright notices match `License-File` by base name
+  (S-M).** `_find_license_copyright` (`assemble/spdx3/deps_originator.py`)
+  compares each `License-File` value with a `.dist-info` file's base name:
+  a nested value (numpy lists nine, `numpy/_core/.../LICENSE.txt`) matches
+  nothing, and `LICENSE` matches every `.dist-info` file of that name, at
+  any depth. With no `License-File` header (rfc8785's root `LICENSE`) no file
+  is read. `dist_license_files` (`_deps_license_files.py`) resolves the exact
+  paths for the licence; reusing it here changes the copyright text of
+  such packages, so it needs a before/after sweep.
+  *Found 2026-11-27, review of the dependency licence-file fallback.*
+- [ ] **A G2 conflict where a generic licence name narrows to its file's
+  licence (S, upstream).** With #569 a dependency's stated licence text
+  and its licence file's detection are both declared, the originator's
+  claims, with a conflict annotation when they differ. A generic trove
+  classifier name the file narrows to one member of (`BSD License` ->
+  `BSD-3-Clause`, `Apache Software License` -> `Apache-2.0`) is no conflict but still gets a conflict annotation: 10 of
+  14 such packages in Pitloom's own environment, 4 stated by the
+  classifier, 6 by a short `License` header (`BSD`, `Apache Software
+  License`, `Expat license`, `PSFL`) whose package's classifier narrows
+  the same way or, for mccabe, names `MIT`. Waits on LicenseID relation API
+  (narrowing): `trovenames` reads these generic names as `none` today; the
+  ask is
+  [licence-families-handoff.md](../../implementation/licenseid/licence-families-handoff.md).
+  Narrowing then needs a Pitloom record (perhaps `Relation: narrowing` in
+  provenance, not decided); widening (`-only` stated, `-or-later`
+  detected) and a different family stay conflicts.
+  *Found 2026-11-27, before/after sweep of the #569 G2 change.*
+- [ ] **A licence with no source is concluded (S-M, to rule).**
+  `is_license_concluded` (`assemble/spdx3/_provenance_encoders.py`)
+  classes a licence whose provenance names no `Source:` as
+  `hasConcludedLicense`; since #569 that is its only concluded case. The
+  "Licence paths" table of
+  [asserter-licence.md](../provenance-taxonomy/asserter-licence.md) calls
+  such a value a bug at the reader, not a concluded licence. Start with an
+  inventory of the readers that can leave the source empty (a library
+  caller's value, a fragment, a dataset or model with no provenance), then
+  decide between raising `InternalError` for a missing source and fixing
+  each reader. Kept as is in #569 by the user's
+  ruling (2026-11-28): a separate follow-up.
+  *Found 2026-11-28, #569 dependency licences declared.*
+- [ ] **An `SPDX-License-Identifier` line in a licence file is read as
+  text (S).** A licence file holding only `SPDX-License-Identifier: MIT OR
+  Apache-2.0` (a dependency's installed licence file, or a project's) is
+  read as the whole line, recorded as a `LicenseRef-loom-text-...` custom
+  text with a `license-expression-invalid` warning. Such a line should be
+  read as its expression, as a source file's own tag is
+  (`build_file_declared_license`). The same before #569.
+  *Found 2026-11-28, review of #569.*
 
 ## Fixed
 
@@ -203,9 +265,22 @@ release ships.
 - [x] **Installed-dependency and local PT2 model licences are always concluded
   (S).** Decided by #276 ("Declared or concluded" in `license-typing.md`): a
   model file's own metadata is declared, a dependency's installed copy stays
-  concluded (`THIRD_PARTY_SOURCES`).
+  concluded (`THIRD_PARTY_SOURCES`). Reversed in #569 (2026-11-28): a dependency's
+  installed copy and PyPI record are declared too, and `THIRD_PARTY_SOURCES`
+  is gone.
 
 ### Fixed, Found in review rounds, not yet prioritised
+
+- [x] **A G2 conflict on a dependency whose `License` header holds the
+  licence body its file is detected as (S).** With #569 such a header
+  (fickling, pyshacl, html5rdf, isodate) stayed declared beside its file's
+  detection, with a conflict annotation. Fixed in #569:
+  `stated_text_agrees` reads the whole stated text with LicenseID (the
+  classifier's licence breaking a near-tie, so fickling's LGPLv3+ decides
+  `LGPL-3.0-or-later`) and a text read as the detected id is that id: one
+  declared licence, the text kept as `Normalized-From` (ruled 2026-11-28,
+  with dependency licences declared); 4 of 14 annotations gone. The short names stay
+  open above. *Found 2026-11-27, before/after sweep of the #569 G2 change.*
 
 - [x] **Catalogue 18, the licence families, was later (S), fixed (#498).**
   Decided 2026-10-30: it follows the adoption; it ships in 0.25.0.

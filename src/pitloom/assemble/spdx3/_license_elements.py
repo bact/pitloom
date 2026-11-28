@@ -29,7 +29,7 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 from pitloom.assemble.spdx3.provenance import ProvenanceEncoder, emit_provenance
 from pitloom.core.license_individuals import INDIVIDUAL_BY_KIND
 from pitloom.core.models import generate_spdx_id
-from pitloom.core.provenance import ProvenanceConfig
+from pitloom.core.provenance import ProvenanceConfig, parse_provenance_value
 from pitloom.export.spdx3_json import (
     Spdx3JsonExporter,
     is_text_wrapper,
@@ -315,6 +315,17 @@ def _classifier_and(
     )
 
 
+def _is_noted(provenance: str, source_provenance: str) -> bool:
+    """Whether *provenance* carries a note of this source's, which a
+    relationship to an element made for another source repeats: added here
+    (it differs from *source_provenance*: a normalisation, a deprecated id),
+    or by the caller before (``Normalized-From``, the stated text a matched
+    licence body keeps)."""
+    return provenance != source_provenance or (
+        "normalized-from" in parse_provenance_value(source_provenance)
+    )
+
+
 # pylint: disable=too-many-arguments,too-many-positional-arguments
 def get_or_create_license_element(
     license_id: str,
@@ -376,7 +387,7 @@ def get_or_create_license_element(
         return _get_or_create_expression(
             classified.value,
             provenance,
-            provenance != license_provenance,
+            _is_noted(provenance, license_provenance),
             creation_info,
             doc_name,
             doc_uuid,
@@ -388,7 +399,7 @@ def get_or_create_license_element(
         classified.value,
         classified.raw,
         provenance,
-        provenance != license_provenance,
+        _is_noted(provenance, license_provenance),
         creation_info,
         doc_name,
         doc_uuid,

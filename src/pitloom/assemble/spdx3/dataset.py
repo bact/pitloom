@@ -213,8 +213,8 @@ def add_dataset_license(
     provenance_config: ProvenanceConfig | None = None,
     encoder: ProvenanceEncoder | None = None,
 ) -> list[tuple[str, spdx3.Element]]:
-    """The ``hasDeclaredLicense`` (``hasConcludedLicense`` for a
-    third-party record) from *dataset_pkg* to each licence *meta* states,
+    """The ``hasDeclaredLicense`` (``hasConcludedLicense`` for a value
+    with no source) from *dataset_pkg* to each licence *meta* states,
     in order, with the provenance its reader recorded; the licence
     elements, labelled for the display-text warning. Nothing when *meta*
     states no licence. *doc* is the creation info, document name and

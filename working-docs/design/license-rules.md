@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-05
-Last-Modified: 2026-11-11
+Last-Modified: 2026-11-28
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -186,8 +186,9 @@ order table and no test that checks the readers against one.
 
 A single value: `is_license_concluded()`
 (`assemble/spdx3/_provenance_encoders.py`) by the `Source:` label alone.
-Concluded when the source is in `THIRD_PARTY_SOURCES` (`pypi json api`,
-`installed metadata`) or there is no source; declared otherwise. A
+Concluded only when there is no source; declared otherwise (since #569,
+2026-11-28: `pypi json api` and `installed metadata`, once
+`THIRD_PARTY_SOURCES`, are declared too). A
 `Method` (e.g. `licenseid_detection`) does not change whose statement it
 is. So in-package files, model cards, the Hugging Face repository, an AI
 model file and the package's own installed copy are declared.

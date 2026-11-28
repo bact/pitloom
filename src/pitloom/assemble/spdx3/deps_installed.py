@@ -22,6 +22,7 @@ from packaging.specifiers import InvalidSpecifier
 from packaging.utils import canonicalize_name
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
+from pitloom.assemble.spdx3._deps_license_files import with_dist_license_files
 from pitloom.assemble.spdx3._deps_pin_checks import (
     is_exact_pin_conflict,
     satisfies_constraint,
@@ -395,8 +396,8 @@ def _enrich_from_installed(
 
     *weak* holds an ``UNKNOWN``/``NOASSERTION`` licence for the caller to emit
     last (see :class:`~pitloom.assemble.spdx3.deps_license.WeakLicense`).
-    *installed_source* names the record in provenance; it decides whether
-    the licence is declared or concluded (see
+    *installed_source* names the record in provenance; a licence from it is
+    declared, the package's own statement (see
     :func:`~pitloom.assemble.spdx3.provenance.is_license_concluded`)."""
     try:
         pkg_meta = get_pkg_metadata(dep_name)
@@ -463,8 +464,10 @@ def _enrich_from_installed(
         dep_package.software_copyrightText = copyright_text
         filled.add("copyright")
 
-    license_id, provenance = core_metadata_license_with_source(
-        pkg_meta, package_provenance_source(installed_source, dep_name)
+    source = package_provenance_source(installed_source, dep_name)
+    license_id, provenance = core_metadata_license_with_source(pkg_meta, source)
+    license_id, provenance, other = with_dist_license_files(
+        dep_name, pkg_meta, (license_id, provenance), source
     )
     if _apply_license(
         license_id,
@@ -475,6 +478,8 @@ def _enrich_from_installed(
         doc_uuid,
         exporter,
         weak=weak,
+        other_declared_id=other[0],
+        other_declared_provenance=other[1],
         provenance_config=provenance_config,
         encoder=encoder,
     ):

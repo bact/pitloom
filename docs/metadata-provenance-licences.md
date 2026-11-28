@@ -74,7 +74,9 @@ conflict.
   what the `sbom-enrich` Skill's agent-authored fragments use for a value
   the agent derived itself rather than one the SBOM author stated.
   `externalReported` remains reserved for a future candidate source (a
-  linked GitHub/Hugging Face Hub API) -- not built yet.
+  linked GitHub/Hugging Face Hub API) -- not built yet. A dependency's licence conflict (its stated licence text against the
+  licence its installed licence files name; see below) has two `declared`
+  candidates: both are the dependency's own statements.
 
 - A `NOASSERTION` (or `UNKNOWN`) candidate is not a disagreement: it only
   says "not known". Both relationships are still recorded and no `conflict`
@@ -228,6 +230,34 @@ that states a licence wins, and the `NoAssertionLicense` individual is
 recorded, with the first source's provenance, only if none does. `NONE`
 ends the lookup.
 
+When the installed metadata names no SPDX licence (absent,
+`NOASSERTION`/`UNKNOWN`, or text such as the classifier name `Apache
+Software License`, which names no version), the dependency's installed
+licence files are read: those its `License-File` headers list, each under
+`.dist-info/licenses/` or else at the `.dist-info` root, or, with no
+header, the licence files at the `.dist-info` root by name. They are not
+read when its `License ::` classifiers name several licences (a dual
+licence such as `BSD License` and `Apache Software License`, which one
+file would narrow). The rule that reads them is the one for a project's
+own licence files: the first file LicenseID identifies gives the licence
+(provenance `File: <RECORD entry>`, `Method: licenseid_detection`); a file
+holding the texts of several licences ends the search with none, and the
+licence its `License ::` classifiers name wins a near-tie (`LGPLv3+` makes
+a verbatim LGPL 3 text `LGPL-3.0-or-later`). The files are the
+dependency's own statement, as its metadata is, so what they give is
+declared. In place of an absent value or `NOASSERTION`/`UNKNOWN`, it is
+the licence. A stated text LicenseID reads as the same licence (a
+`License` header holding the licence body, the classifiers' licence
+winning a near-tie) gives one declared licence, its provenance keeping
+the text as `Normalized-From`. Other stated text stays declared beside
+the files' licence, with a conflict annotation: a short name LicenseID
+reads as nothing (`Apache Software License` is no SPDX List name, so it
+differs from `Apache-2.0`) is such a text. When no file is identified,
+the metadata value is
+recorded as before. With no LicenseID database the files give no licence,
+said once (`license-db-missing`): `INFO:` when a classifier names an SPDX
+licence, else `WARNING:`, as for a project.
+
 The project's own `License ::` classifiers are read the same way: after
 `project.license` in `pyproject.toml` (`Field: project.classifiers`, also in the
 Hatchling build hook), `license` in `setup.cfg` (`Field: metadata.classifiers`),
@@ -266,10 +296,10 @@ over 1 MiB: no version is read from it.
 
 Whose statement a licence is decides the relationship. The package's own --
 its manifest, a file it ships, an AI model file's own metadata, a model card,
-its own installed metadata (the project, or a `loom env` package) -- is
-`hasDeclaredLicense`. A third-party record -- the PyPI JSON API, or a
-dependency's installed copy read for a project SBOM -- is
-`hasConcludedLicense`, as is the directory's second opinion above.
+its installed metadata or licence files (the project, a `loom env` package,
+or a dependency's installed copy read for a project SBOM), its PyPI JSON API
+record -- is `hasDeclaredLicense`. A licence with no source named, and the
+project directory's second opinion above, are `hasConcludedLicense`.
 
 ## How the copyright text is found
 

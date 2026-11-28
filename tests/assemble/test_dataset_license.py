@@ -101,11 +101,19 @@ def test_no_licence_makes_no_element_or_relationship(licence: str | None) -> Non
     assert not [e for e in graph if "icens" in e["type"]]
 
 
-def test_a_third_party_record_is_concluded() -> None:
-    graph = _graph("MIT", provenance={"license": "Source: PyPI JSON API"})
-    assert _licence_links(graph) == [
-        ("dataset_DatasetPackage", "hasConcludedLicense", "MIT")
-    ]
+@pytest.mark.parametrize(
+    ("provenance", "relationship"),
+    [
+        ("Source: PyPI JSON API", "hasDeclaredLicense"),  # the originator's
+        ("Field: license", "hasConcludedLicense"),  # no source: nobody's
+    ],
+    ids=["pypi", "no-source"],
+)
+def test_a_licence_is_declared_unless_it_has_no_source(
+    provenance: str, relationship: str
+) -> None:
+    graph = _graph("MIT", provenance={"license": provenance})
+    assert _licence_links(graph) == [("dataset_DatasetPackage", relationship, "MIT")]
 
 
 def test_dataset_and_model_with_one_licence_share_its_element() -> None:

@@ -156,6 +156,8 @@ def build_license_elements(
     *,
     concluded_license_id: str | None = None,
     concluded_license_provenance: str | None = None,
+    other_declared_id: str | None = None,
+    other_declared_provenance: str | None = None,
     provenance_config: ProvenanceConfig | None = None,
     encoder: ProvenanceEncoder | None = None,
 ) -> tuple[spdx3.Relationship | None, spdx3.Relationship | None]:
@@ -165,17 +167,18 @@ def build_license_elements(
     Single-candidate mode (*concluded_license_id* falsy, the default):
     one element, declared XOR concluded by its source
     (:func:`~pitloom.assemble.spdx3.provenance.is_license_concluded` on
-    *license_provenance*): the package's own statement is declared, a
-    third-party record concluded.
+    *license_provenance*): a source is the package's own statement, so
+    declared; a value with no source concluded.
 
-    Two-candidate mode (G2, *concluded_license_id* given -- only the main project
-    package path supplies this, since it's the only one with a local
-    directory to independently detect a second opinion from): *license_id*
-    is always the declared value, *concluded_license_id* the independently
-    detected one. Both relationships are built unconditionally, whether or not
-    the two agree -- when they *do* agree, both point at the same deduped
-    license element. When they disagree, an additional G2 conflict Annotation
-    is emitted on *package_spdx_id* recording both candidates; see
+    Two-candidate mode (G2, *concluded_license_id* given -- only the main
+    project package path supplies this, since it's the only one with a
+    local directory to independently detect a second opinion from):
+    *license_id* is always the declared value, *concluded_license_id* the
+    independently detected one. Both relationships are built
+    unconditionally, whether or not the two agree -- when they *do* agree,
+    both point at the same deduped license element. When they disagree, an
+    additional G2 conflict Annotation is emitted on *package_spdx_id*
+    recording both candidates; see
     :func:`~pitloom.assemble.spdx3.provenance.build_conflict_annotation`.
     ``NOASSERTION`` (also ``UNKNOWN``) only says "not known", so it never
     conflicts: against a real licence both relationships stay, the real
@@ -184,6 +187,14 @@ def build_license_elements(
     (``MIT License`` and ``MIT``, a deprecated id's too:
     :func:`pitloom.extract._license_names.same_licence`) is the same
     licence, not a conflict.
+
+    Two-declared mode (*other_declared_id* given: an installed dependency's
+    licence file beside its stated licence text, both the originator's
+    claims --
+    :func:`~pitloom.assemble.spdx3._deps_license_files.with_dist_license_files`):
+    as two-candidate mode, but the second licence is declared too and its
+    conflict candidate's role is ``declared``. The second wins over
+    *concluded_license_id* when both are given.
 
     Dispatches on truthiness, not just ``is None`` -- unlike ``requires_python``,
     a license id is never meaningfully ``""``, so that must not route into
@@ -199,7 +210,7 @@ def build_license_elements(
         provenance_config=provenance_config,
         encoder=encoder,
     )
-    if not concluded_license_id:
+    if not (concluded_license_id or other_declared_id):
         if declared is None:
             return None, None
         if is_license_concluded(parse_provenance_value(license_provenance)):
@@ -233,9 +244,14 @@ def build_license_elements(
     # spelling difference ("mit" vs "MIT", "MIT AND MIT" vs "MIT") is one
     # licence element and no conflict; the element's provenance records a
     # normalisation (see get_or_create_license_element).
+    second_type, second_role = (
+        (spdx3.RelationshipType.hasDeclaredLicense, "declared")
+        if other_declared_id
+        else (spdx3.RelationshipType.hasConcludedLicense, "detected")
+    )
     concluded = get_or_create_license_element(
-        concluded_license_id,
-        concluded_license_provenance or license_provenance,
+        other_declared_id or concluded_license_id or "",
+        other_declared_provenance or concluded_license_provenance or license_provenance,
         creation_info,
         doc_name,
         doc_uuid,
@@ -260,7 +276,7 @@ def build_license_elements(
         rel_concluded = _build_license_relationship(
             package_spdx_id,
             concluded,
-            spdx3.RelationshipType.hasConcludedLicense,
+            second_type,
             creation_info,
             doc_name,
             doc_uuid,
@@ -283,7 +299,7 @@ def build_license_elements(
             },
             {
                 "value": concluded.value,
-                "role": "detected",
+                "role": second_role,
                 "source": concluded.provenance,
                 "ref": concluded.spdx_id,
             },
@@ -385,11 +401,14 @@ def _apply_license(
     exporter: Spdx3JsonExporter,
     *,
     weak: WeakLicense | None = None,
+    other_declared_id: str | None = None,
+    other_declared_provenance: str | None = None,
     provenance_config: ProvenanceConfig | None = None,
     encoder: ProvenanceEncoder | None = None,
 ) -> bool:
     """Build and add whichever declared/concluded license relationship(s)
-    *license_id* resolves to (see :func:`build_license_elements`). Returns
+    *license_id* resolves to (see :func:`build_license_elements`; with
+    *other_declared_id*, its two-declared mode). Returns
     whether a relationship was added: ``False`` for a value that states no
     licence, so the caller falls back to the next source or leaves the
     package without one.
@@ -412,6 +431,8 @@ def _apply_license(
         doc_name=doc_name,
         doc_uuid=doc_uuid,
         exporter=exporter,
+        other_declared_id=other_declared_id,
+        other_declared_provenance=other_declared_provenance,
         provenance_config=provenance_config,
         encoder=encoder,
     )

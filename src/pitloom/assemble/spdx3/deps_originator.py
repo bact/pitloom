@@ -17,15 +17,14 @@ import re
 import urllib.request
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import distribution as get_pkg_distribution
-from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from urllib.error import URLError
 from urllib.parse import urlparse
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
+from pitloom.assemble.spdx3._deps_license_files import read_dist_info_text
 from pitloom.assemble.spdx3.provenance import ProvenanceEncoder, emit_provenance
-from pitloom.core._models_wheel_types import is_dist_info_path
 from pitloom.core.internal_error import reraise_internal
 from pitloom.core.models import generate_spdx_id
 from pitloom.core.provenance import (
@@ -42,10 +41,7 @@ from pitloom.extract._core_metadata import parse_project_urls
 from pitloom.extract._extract_utils import close_http_error, pkg_meta_get
 from pitloom.extract._file_headers import guess_content_type
 from pitloom.extract.authors import is_contributor_group
-from pitloom.extract.copyright_notices import (
-    join_copyright_notices,
-    read_license_text,
-)
+from pitloom.extract.copyright_notices import join_copyright_notices
 from pitloom.extract.dependency_authors import dependency_originator_pairs
 
 if TYPE_CHECKING:
@@ -69,21 +65,6 @@ def _resolve_author_or_maintainer(
     )
 
 
-def _read_candidate_text(candidate: Any, dist: Any) -> str | None:
-    """The text of the installed file *candidate* (an
-    :class:`importlib.metadata.PackagePath` of the distribution *dist*)
-    when it is under a ``.dist-info`` and resolves inside it, whatever its
-    ``RECORD`` entry spells (``..``, a symlink out)
-    (:func:`~pitloom.extract.copyright_notices.read_license_text`: capped, a
-    present file that is not read warned about, by its ``RECORD`` entry);
-    else ``None``."""
-    entry = str(candidate)
-    if not is_dist_info_path(entry):
-        return None
-    dist_info = Path(dist.locate_file(entry.split("/", 1)[0]))
-    return read_license_text(Path(candidate.locate()), dist_info, shown=entry)
-
-
 def _find_license_copyright(dist_name: str, pkg_meta: CoreMetadata) -> str | None:
     """The copyright notices in the dependency's installed ``License-File``
     files (:func:`~pitloom.extract.copyright_notices.join_copyright_notices`,
@@ -102,7 +83,7 @@ def _find_license_copyright(dist_name: str, pkg_meta: CoreMetadata) -> str | Non
         for license_file in license_files
         for candidate in package_files
         if candidate.name == license_file
-        and (text := _read_candidate_text(candidate, dist)) is not None
+        and (text := read_dist_info_text(candidate, dist)) is not None
     )
     found = join_copyright_notices(texts)
     return None if found is None else found[0]

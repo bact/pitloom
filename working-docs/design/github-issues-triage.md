@@ -47,6 +47,7 @@ old row.
 | [#154] Provenance vocabularies | Open | Parked draft | To design: Provenance vocabulary |
 | [#170] Known organisations | Open | Decided 2026-11-27, not built: exact name/address list types `Organization`, an untyped author is an `Agent` | To design: Author strings |
 | [#186] Sigstore model signing | Open | Not built; Sigstore signs only Pitloom's own release files (#180) | Long-term: PEP 740 |
+| [#570] Creator-supplied known values | Open | Not built: a value the SBOM creator knows (a dependency's licence, its supplier) has no input; a fragment value beating a read one is open (#349) | Next: Creator-supplied known values |
 
 [#30]: https://github.com/bact/pitloom/issues/30
 [#41]: https://github.com/bact/pitloom/issues/41
@@ -74,3 +75,4 @@ old row.
 [#154]: https://github.com/bact/pitloom/issues/154
 [#170]: https://github.com/bact/pitloom/issues/170
 [#186]: https://github.com/bact/pitloom/issues/186
+[#570]: https://github.com/bact/pitloom/issues/570

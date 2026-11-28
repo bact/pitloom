@@ -38,15 +38,6 @@ INSTALLED_DEPENDENCY_SOURCE = "installed metadata"
 #: the package the SBOM describes.
 DEPLOYED_PACKAGE_SOURCE = "deployed package metadata"
 
-#: Records kept about a package by someone other than the package: a licence
-#: read from one is concluded. Every other source -- a manifest, an
-#: in-package file (``LICENSE``, ``CITATION.cff``, a model card), an AI model
-#: file's own metadata, the package's own installed metadata -- is the
-#: package's own statement, so declared, however it was read.
-THIRD_PARTY_SOURCES: frozenset[str] = frozenset(
-    {"pypi json api", INSTALLED_DEPENDENCY_SOURCE}
-)
-
 
 def _source_name(entry: dict[str, str]) -> str:
     """The lower-case source of a parsed provenance entry, without a
@@ -78,13 +69,14 @@ def _is_high_signal(entry: dict[str, str]) -> bool:
 
 def is_license_concluded(entry: dict[str, str]) -> bool:
     """Whether a licence from the parsed provenance *entry* is concluded,
-    not declared: its source is a third-party record
-    (:data:`THIRD_PARTY_SOURCES`) or unknown. How the value was read (a
-    ``Method``, such as LicenseID detection of a ``LICENSE`` file) does
-    not change whose statement it is.
+    not declared: only when its source is unknown. Every source -- a
+    manifest, an in-package file (``LICENSE``, ``CITATION.cff``, a model
+    card), an AI model file's own metadata, a dependency's PyPI record or
+    installed metadata -- is the package's own statement, so declared,
+    however it was read (a ``Method``, such as LicenseID detection of a
+    ``LICENSE`` file, does not change whose statement it is).
     """
-    source = _source_name(entry)
-    return not source or source in THIRD_PARTY_SOURCES
+    return not _source_name(entry)
 
 
 def filter_high_signal(provenance: dict[str, str]) -> dict[str, str]:

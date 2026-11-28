@@ -283,12 +283,12 @@ def test_a_lone_surrogate_in_a_licence_still_serialises() -> None:
     ("source", "relationship"),
     [
         ("", "hasConcludedLicense"),  # no source named: unknown, so concluded
-        ("Source: PyPI JSON API", "hasConcludedLicense"),  # a third-party record
+        ("Source: PyPI JSON API", "hasDeclaredLicense"),  # the originator's
         ("Source: model file", "hasDeclaredLicense"),  # the model's own statement
     ],
-    ids=["empty", "third-party", "own-file"],
+    ids=["empty", "pypi", "own-file"],
 )
-def test_ai_model_licence_is_concluded_unless_its_own_source_states_it(
+def test_ai_model_licence_is_concluded_only_without_a_source(
     source: str, relationship: str
 ) -> None:
     exporter = Spdx3JsonExporter()

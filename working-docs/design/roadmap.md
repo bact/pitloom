@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-11-27
+Last-Modified: 2026-11-28
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -175,6 +175,12 @@ and counts are in
   provenance annotations and verbatim source metadata off by default, a
   flag each. Plan written 2026-11-11, **deferred**: see
   [provenance-off-by-default.md](provenance-off-by-default.md).
+- [ ] **Creator-supplied known values** ([#570](https://github.com/bact/pitloom/issues/570),
+  to design): a way for the SBOM creator to state values it knows for a
+  package (a data file or `pyproject.toml`, beside the creation info there
+  today), such as a dependency's licence where its files do not decide it
+  (rfc8785's Apache 2.0 text near-ties `Pixar`, #569) or its supplier.
+  Related: a fragment value beating a read one (#349, above).
 - [ ] **Action builds the LicenseID database** (to decide): the Action
   installs only Pitloom, so a fresh runner matches no `LICENSE` text (a
   declared licence is still read). `pitloom-install.sh` could run
@@ -187,11 +193,24 @@ and counts are in
 
 Seen in Pitloom's own published wheel SBOM. The first two are priority.
 
-- [ ] **Priority: a dependency's licence is declared, not concluded**: a
-  licence read from a dependency's metadata or licence file is the
-  originator's claim (`hasDeclaredLicense`); Pitloom concludes nothing about
-  it. The provenance taxonomy code stage. See
+- [x] **Priority: a dependency's licence is declared, not concluded**: done
+  in #569 (2026-11-28): PyPI, the installed copy and its licence files are
+  the originator's claims (`hasDeclaredLicense`); Pitloom concludes nothing
+  about a dependency. The project's own G2 path and a licence with no source
+  are not changed: separate follow-ups, the next bullet and the ledger entry
+  "A licence with no source is concluded"
+  ([licences-and-licenseid.md](known-bugs/licences-and-licenseid.md)). See
   [asserter-licence.md](provenance-taxonomy/asserter-licence.md).
+- [ ] **The project's own licence file is declared, not concluded** (follow-up
+  of #569, ruled separate 2026-11-28): per
+  [asserter-licence.md](provenance-taxonomy/asserter-licence.md) ("LICENSE
+  text matched, manifest states a licence": "today concluded"), the
+  project's licence-file detection beside its manifest licence is the
+  originator's declaration, so the main package's G2 pair (declared manifest
+  plus concluded detection) becomes declared plus declared (equal: one
+  declared; different: both declared and a conflict). It changes every project SBOM's main package, so it
+  needs its own before/after. The empty-source rule is a ledger entry
+  ([licences-and-licenseid.md](known-bugs/licences-and-licenseid.md)).
 - [ ] **Priority: author typing (#170)**: an exact known list of
   organisation names and addresses gives `Organization`; an author not
   typed by it is `Agent`, not `Person` (decided 2026-11-27). See
