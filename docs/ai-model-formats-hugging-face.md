@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-26
-Last-Modified: 2026-11-27
+Last-Modified: 2026-11-28
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -35,6 +35,13 @@ or another page kind: `blob`, `resolve`, `commit`, `commits`, `discussions`,
 here `gpt2`; with nothing after the page kind it is read as a two-part id. A
 bare ID is `owner/name`, and is read as one only when no local path of that
 name exists (a dangling symbolic link is a local path).
+
+An ID follows the Hub's own rule (as `huggingface_hub` checks it): each part
+is 1 to 96 of `A-Z`, `a-z`, `0-9`, `_`, `.`, `-`, starts with a letter or
+digit, ends with a letter, digit or `_`, holds no `--` or `..`, and does not
+end in `.git`. A URL naming another ID is refused before any request
+([`hf-url-invalid`](message-codes-targets.md#hf-url-invalid)); a bare name
+breaking the rule (`a/b--c`) is read as a local path.
 
 A model the Hub does not know is an error: nothing is fetched, no SBOM is
 written, exit 1
@@ -125,6 +132,14 @@ not said, with the Hub refused (`--offline`, a refused `HF_ENDPOINT`) or
 `HF_HUB_OFFLINE` set. There is no option to pin the revision: for a repeatable
 result, download the repository at a commit and run `loom model` on the local
 copy.
+
+A URL naming a revision other than `main` (`/tree/<rev>`, `/blob/<rev>/<file>`,
+`/commit/<sha>` and the other page kinds but `discussions` and `settings`) is
+still read at the default branch: the revision is not honoured yet. One
+`WARNING:` says so before anything is fetched, online or offline
+([`hub-revision-unpinned/url`](message-codes-network.md#hub-revision-unpinnedurl)):
+`WARNING: URL=<url>: the URL names the revision <ref>; files are read at the
+default branch [hub-revision-unpinned/url]`.
 
 It never opens a model file of the repository, so it reads no per-file
 metadata and no hash: a repository whose weights are a `.keras` file gets an

@@ -63,7 +63,7 @@ the table of prefixes.
 - [Lock files](messages-lock-files.md): 7 codes
 - [Dependencies](messages-dependencies.md): 7 codes
 - [PyPI](messages-pypi.md): 13 codes
-- [Network](messages-network.md): 11 codes
+- [Network](messages-network.md): 12 codes
 - [Git URLs](messages-git.md): 8 codes
 - [URL credentials](messages-url-credentials.md): 8 codes
 - [ID registry](messages-id-registry.md): 5 codes
@@ -155,6 +155,7 @@ the table of prefixes.
 | [`hook-no-effect`](messages-build.md#hook-no-effect) | INFO | 0.25.0 |
 | [`hub-response-invalid`](messages-network.md#hub-response-invalid) | WARNING | 0.25.0 |
 | [`hub-revision-unpinned`](messages-network.md#hub-revision-unpinned) | WARNING | 0.25.0 |
+| [`hub-revision-unpinned/url`](messages-network.md#hub-revision-unpinnedurl) | WARNING | 0.25.1 |
 | [`hyperparameter-conflict`](messages-model-fields.md#hyperparameter-conflict) | WARNING | 0.22.0 |
 | [`index-path-no-effect`](messages-id-registry-ids.md#index-path-no-effect) | WARNING | 0.25.0 |
 | [`input-not-found`](messages-targets.md#input-not-found) | ERROR, WARNING | 0.23.4 |

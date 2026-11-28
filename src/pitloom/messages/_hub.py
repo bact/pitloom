@@ -4,7 +4,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """The Hugging Face Hub's own conditions: a model read without a revision
-(``hub-revision-unpinned``) and an answer of the Hub API
+(``hub-revision-unpinned``) or at the default branch though its URL names
+another (``hub-revision-unpinned/url``), and an answer of the Hub API
 (``model_info()``, ``dataset_info()``) that could not be read
 (``hub-response-invalid``). A failed, timed-out or offline Hub API request
 is said by the families every remote route shares.
@@ -52,6 +53,35 @@ HUB_REVISION_UNPINNED: Final = Message(
     since=_SINCE,
 )
 
+#: A model URL that names a revision the files are not read at.
+HUB_URL_REVISION_LINE: Final = Line(
+    level="WARNING",
+    template="URL=%(url)s: the URL names the revision %(ref)s; files are read "
+    "at the default branch",
+)
+
+#: A model URL whose revision is not read.
+HUB_REVISION_UNPINNED_URL: Final = Message(
+    code="hub-revision-unpinned/url",
+    condition="unpinned",
+    lines=(HUB_URL_REVISION_LINE,),
+    summary="The Hugging Face model URL given names a revision after a page "
+    "kind (/tree/<rev>, /blob/<rev>/<file>, /commit/<sha>) other than main. "
+    "Pitloom reads a model's files at its default branch only, so they can "
+    "differ from that revision's.",
+    did="Read the model's files at the default branch, said before anything "
+    "is fetched; the SBOM records the revision the Hub states for that "
+    "branch.",
+    effect="weaker",
+    actor="user",
+    advice="Tell the user the SBOM describes the default branch, not the "
+    "revision their URL names. For that revision they download the "
+    "repository at it and run Pitloom on the local copy. Do not download it "
+    f"for them; {ASK_FIRST}",
+    subject_key="URL",
+    since="0.25.1",
+)
+
 #: An answer of the Hub API that could not be read.
 HUB_RESPONSE_LINE: Final = Line(
     level="WARNING",
@@ -78,4 +108,8 @@ HUB_RESPONSE_INVALID: Final = Message(
     since=_SINCE,
 )
 
-ENTRIES: Final = (HUB_REVISION_UNPINNED, HUB_RESPONSE_INVALID)
+ENTRIES: Final = (
+    HUB_REVISION_UNPINNED,
+    HUB_REVISION_UNPINNED_URL,
+    HUB_RESPONSE_INVALID,
+)

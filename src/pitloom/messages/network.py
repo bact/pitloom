@@ -17,7 +17,9 @@ from pitloom.messages._hub import (
     HUB_RESPONSE_INVALID,
     HUB_RESPONSE_LINE,
     HUB_REVISION_UNPINNED,
+    HUB_REVISION_UNPINNED_URL,
     HUB_UNPINNED_LINE,
+    HUB_URL_REVISION_LINE,
 )
 from pitloom.messages._pypi_info import (
     QUERY_LINE,
@@ -72,7 +74,9 @@ __all__ = [
     "HUB_RESPONSE_INVALID",
     "HUB_RESPONSE_LINE",
     "HUB_REVISION_UNPINNED",
+    "HUB_REVISION_UNPINNED_URL",
     "HUB_UNPINNED_LINE",
+    "HUB_URL_REVISION_LINE",
     "OFFLINE_LINE",
     "OFFLINE_UNUSABLE",
     "OFFLINE_WARNING_LINE",

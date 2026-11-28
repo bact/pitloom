@@ -39,7 +39,7 @@ __all__ = [
     "dataset_key",
     "distinct_dataset_names",
     "distinct_datasets",
-    "is_hub_dataset_id",
+    "is_hub_repo_id",
     "log_one_dataset",
 ]
 
@@ -51,16 +51,18 @@ CARD_DATASETS_CAP = Cap(MAX_CARD_DATASETS, "dataset", "model-card-datasets")
 #: A Hub repository id: an optional owner and a name, each 1-96 of
 #: ``[A-Za-z0-9_.-]`` starting with a letter or digit and ending with a
 #: letter, digit or ``_``, as ``huggingface_hub`` validates them (a legacy
-#: dataset such as ``c4`` has no owner).
+#: dataset or model such as ``c4`` or ``gpt2`` has no owner).
 _PART = r"[A-Za-z0-9](?:[A-Za-z0-9_.-]{0,94}[A-Za-z0-9_])?"
-_DATASET_ID_RE = re.compile(rf"(?:{_PART}/)?{_PART}")
+_HUB_REPO_ID_RE = re.compile(rf"(?:{_PART}/)?{_PART}")
 
 
-def is_hub_dataset_id(name: str) -> bool:
-    """Whether *name* is a Hub repository id; a model card's ``datasets:``
-    also holds plain names, which are not looked up (nor warned of)."""
+def is_hub_repo_id(name: str) -> bool:
+    """Whether *name* is a Hub repository id (a dataset's or a model's), as
+    ``huggingface_hub.utils.validate_repo_id`` accepts one; a model card's
+    ``datasets:`` also holds plain names, which are not looked up (nor
+    warned of)."""
     return (
-        _DATASET_ID_RE.fullmatch(name) is not None
+        _HUB_REPO_ID_RE.fullmatch(name) is not None
         and "--" not in name
         and ".." not in name
         and not name.endswith(".git")
@@ -71,7 +73,7 @@ def dataset_key(name: str) -> str:
     """What names one dataset: *name* with each whitespace run one space,
     in lower case when it is a Hub repository id."""
     collapsed = " ".join(name.split())
-    return collapsed.lower() if is_hub_dataset_id(collapsed) else collapsed
+    return collapsed.lower() if is_hub_repo_id(collapsed) else collapsed
 
 
 #: What tells two dataset entries apart: the name's

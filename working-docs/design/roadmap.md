@@ -145,15 +145,17 @@ and counts are in
 - [ ] **Unexplained CI hang** (2026-11-21, PR #507's first 3.14 ubuntu run):
   the first test was fixed in #538; the second is unexplained. See
   [ci-hang-link-loop-guard.md](../implementation/ci-hang-link-loop-guard.md#roadmap-entry-moved-2026-11-26).
-- [ ] **Hub id and revision URL follow-ups** (a malformed repo id gets "not
-  found" advice since #561; a revision URL is read at the default branch
-  with no message): moved to the next-release list of
+- [ ] **Honour a Hub URL's revision** (user, 2026-11-28): a model URL naming
+  a revision (`/tree/<rev>`, `/blob/<rev>/<file>`, `/commit/<sha>`) is read
+  at the default branch and warned of (`hub-revision-unpinned/url`, 0.25.1);
+  read it at that revision instead (`model_info(revision=)` and the file
+  downloads), then drop the warning. See
   [pre-release-review-0.25.0.md](../implementation/pre-release-review-0.25.0.md#next-release).
 - [ ] **The hook accepts an `sbom-basename` that cannot be a file on Windows**
   (found in PR 14c round 1): a `"` in `sbom-basename` passes
   `sbom_base_name`, then `write_text_lf` fails late with a bare `OSError` on
   Win32. Refuse it where the basename is read (`core/file_names.py`).
-- [ ] **Mutation backfill, second PR**: `export/_spdx3_credentials` (32
+- [ ] **Mutation backfill, second PR** (target 0.25.2): `export/_spdx3_credentials` (32
   survivors untriaged), then the `id_registry` modules and the rest changed
   since `v0.24.0` with no pass. See
   [mutation-backfill.md](../implementation/mutation-backfill.md#backlog).

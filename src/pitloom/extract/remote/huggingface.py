@@ -73,6 +73,7 @@ from pitloom.core.ai_metadata import (
     AiModelMetadata,
     AiModelUsage,
 )
+from pitloom.core.dataset_names import is_hub_repo_id
 from pitloom.core.fetch_policy import RemoteFetchPolicy
 from pitloom.core.internal_error import reraise_internal
 from pitloom.core.optional_libraries import HUB, import_failed
@@ -101,6 +102,7 @@ from pitloom.extract.remote.huggingface_field import (
 )
 from pitloom.messages import CodedValueError, emit, url_text
 from pitloom.messages.network import (
+    HUB_REVISION_UNPINNED_URL,
     OFFLINE_LINE,
     OFFLINE_UNUSABLE,
 )
@@ -152,12 +154,12 @@ _PAGE_SEGMENTS: Final = frozenset(
 )
 #: The path segment that starts the rest of a Hub URL after ``owner/name``.
 _NEXT_SEGMENT_RE: Final = re.compile(r"/([^/?#]+)")
-
-# Loose model-ID pattern: two segments separated by exactly one slash,
-# each segment matching HF naming conventions. A one-character name is valid
-# on the Hub, and :data:`_HF_URL_RE` takes one, so this must too: a URL's id
-# goes back through :func:`is_huggingface_source`.
-_HF_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]*/[A-Za-z0-9][A-Za-z0-9_.\-]*$")
+#: The page kinds whose next segment is a revision (a branch, tag or
+#: commit): ``<id>/tree/<rev>``, ``<id>/blob/<rev>/<file>``,
+#: ``<id>/commit/<sha>``.
+_REVISION_PAGES: Final = _PAGE_SEGMENTS - {"discussions", "settings"}
+#: The Hub's default branch: a URL naming it asks for what is read anyway.
+_DEFAULT_BRANCH: Final = "main"
 
 
 def log_hf_url_rewrite(source: str, model_id: str) -> None:
@@ -194,17 +196,60 @@ def parse_hf_model_id(source: str) -> str | None:
     (:func:`_legacy_page_id`). One with no part after the page kind is read
     as the two parts (``https://huggingface.co/gpt2/settings``, a page that
     needs a login; the Hub itself answers ``gpt2/tree`` with a 401).
+
+    An id no Hub repository can have (``a/b--c``, ``a/b.git``, a name over
+    96 characters: :func:`~pitloom.core.dataset_names.is_hub_repo_id`) is
+    none: a URL holding one is refused (``hf-url-invalid``), a bare one is a
+    path.
     """
     source = source.strip()
     url_match = _HF_URL_RE.match(source)
     if url_match:
-        return _legacy_page_id(url_match) or url_match.group(1)
+        model_id = _legacy_page_id(url_match) or url_match.group(1)
+        return model_id if is_hub_repo_id(model_id) else None
 
     # Accept bare owner/name that has no local counterpart
-    if _HF_ID_RE.match(source) and not os.path.lexists(source):
+    if (
+        source.count("/") == 1
+        and is_hub_repo_id(source)
+        and not os.path.lexists(source)
+    ):
         return source
 
     return None
+
+
+def url_revision(source: str) -> str | None:
+    """The revision a Hub model URL names after a page kind
+    (``<id>/tree/<rev>``, ``<id>/blob/<rev>/<file>``, ``<id>/commit/<sha>``,
+    a one-part id's ``gpt2/tree/<rev>`` too), as written; ``None`` when it
+    names none, or ``main``, the Hub's default branch."""
+    url_match = _HF_URL_RE.match(source.strip())
+    if url_match is None:
+        return None
+    rest = re.split(r"[?#]", url_match.string[url_match.end(1) :], maxsplit=1)[0]
+    segments = [part for part in rest.split("/") if part]
+    if _legacy_page_id(url_match) is not None:
+        segments = [url_match.group(1).split("/")[1], *segments]
+    if len(segments) < 2 or segments[0] not in _REVISION_PAGES:
+        return None
+    return None if segments[1] == _DEFAULT_BRANCH else segments[1]
+
+
+def log_hf_url_revision(source: str) -> None:
+    """One ``WARNING:`` when the Hub model URL *source* names a revision
+    (:func:`url_revision`): its files are read at the default branch, not
+    at that revision. Said by :func:`read_huggingface` before anything is
+    fetched (offline too)."""
+    revision = url_revision(source)
+    if revision is not None:
+        emit(
+            log,
+            HUB_REVISION_UNPINNED_URL,
+            logging.WARNING,
+            url=shown_url(source.strip()),
+            ref=revision,
+        )
 
 
 def _legacy_page_id(url_match: re.Match[str]) -> str | None:
@@ -334,6 +379,7 @@ def read_huggingface(
     model_id = require_hf_model_id(source)
     hf_url = f"{_CANONICAL_PREFIX}{model_id}"
     log_hf_url_rewrite(source, model_id)
+    log_hf_url_revision(source)
     if policy.offline:
         raise remote_error(
             f"{ROUTE}.offline", OFFLINE_UNUSABLE, OFFLINE_LINE, url=shown_url(hf_url)

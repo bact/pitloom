@@ -271,17 +271,16 @@ def test_read_huggingface_reads_a_padded_url_as_a_url(refusing_hub: Path) -> Non
     assert str(raised.value) == _text(HUB_URL_NOT_FOUND_LINE)
 
 
-def test_an_id_no_model_can_have_is_refused(
+def test_an_id_no_repository_can_have_is_no_hub_lookup(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    """``huggingface_hub`` refuses ``a/b--c`` before any request (the real
-    ``model_info()``; no socket is opened): no model has that id, and it is
-    no local path either."""
+    """``a/b--c`` breaks the Hub's id rule, so it is read as a local path
+    and refused as one, without a Hub request or "not found" advice."""
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(_hub_files, "fetch_capped", _fetched)
-    with pytest.raises(RemoteSourceError) as raised:
+    with pytest.raises(FileNotFoundError, match="model file not found") as raised:
         generate_model_sbom("a/b--c")
-    assert str(raised.value) == _text(HUB_ID_NOT_FOUND_LINE, "a/b--c")
+    assert "Hugging Face" not in str(raised.value)
 
 
 def test_a_dataset_the_hub_does_not_know_still_warns(

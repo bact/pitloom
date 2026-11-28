@@ -54,7 +54,7 @@ from pitloom.core.dataset_names import (
     dataset_identity,
     dataset_key,
     distinct_datasets,
-    is_hub_dataset_id,
+    is_hub_repo_id,
 )
 from pitloom.core.provenance import provenance_segment
 from pitloom.extract.ai_model._stated_text import stated_text
@@ -139,7 +139,7 @@ def hub_dataset_page(url: str) -> str | None:
         return None
     area, _, hub_id = parts.path.strip("/").partition("/")
     # a Hub id has at most one "/": a deeper path is no Hub id
-    return hub_id if area == "datasets" and is_hub_dataset_id(hub_id) else None
+    return hub_id if area == "datasets" and is_hub_repo_id(hub_id) else None
 
 
 def _gguf_py_id(repo_url: str, name: str | None) -> GgufPyId | None:
@@ -186,7 +186,7 @@ def _named_entry(
             return _hub_entry(page_id, repo_url, url_field), written
         if written is not None and written.owner not in _HUB_AREAS:
             hub_id = "/".join(written)
-            if is_hub_dataset_id(hub_id):
+            if is_hub_repo_id(hub_id):
                 return _hub_entry(hub_id, None, url_field), written
     if name is not None:
         meta = DatasetMetadata(

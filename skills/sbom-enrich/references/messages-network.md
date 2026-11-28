@@ -23,6 +23,7 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
 | [`download-timeout`](#download-timeout) | ERROR, WARNING | A request to PyPI, to the host that serves a file (a Croissant document a library caller names by URL included) or to the Hugging Face Hub (a file, or the API's model_info() or dataset_info()), or the git calls that fetch a repository, did not finish within the time Pitloom allows. | 0.24.0 |
 | [`hub-response-invalid`](#hub-response-invalid) | WARNING | The Hugging Face Hub answered model_info() or dataset_info() with something huggingface_hub or Pitloom could not read: not JSON, or JSON without the shape the API gives. | 0.25.0 |
 | [`hub-revision-unpinned`](#hub-revision-unpinned) | WARNING | model_info() stated no revision (commit hash) of a Hugging Face model: the request failed, or the Hub (a mirror, a private Hub) sent none. Its files (config.json, the model card, a licence file) are read at the default branch as it is at the time of the run, which can change between runs. | 0.25.0 |
+| [`hub-revision-unpinned/url`](#hub-revision-unpinnedurl) | WARNING | The Hugging Face model URL given names a revision after a page kind (/tree/<rev>, /blob/<rev>/<file>, /commit/<sha>) other than main. Pitloom reads a model's files at its default branch only, so they can differ from that revision's. | 0.25.1 |
 | [`offline-unusable`](#offline-unusable) | ERROR, WARNING | Offline mode is on and the target must be fetched: a Git URL, a PyPI URL or a Hugging Face repository. Offline mode is --offline, the offline key of --config, or offline=True; for a file of a Hugging Face repository, or the Hub API's model_info() and dataset_info(), also huggingface_hub's own HF_HUB_OFFLINE. | 0.24.0 |
 | [`query-no-effect`](#query-no-effect) | INFO | The PyPI or Git URL given holds a query or a fragment (a tab of the page) that names no project, release, branch, tag or commit; or a Git page URL's version query names none of them. | 0.24.0 |
 | [`url-moved`](#url-moved) | INFO | PyPI, or the host serving a file, redirected a request to another URL on a host Pitloom reads PyPI from (a renamed project, a normalised name); or a Git URL, asked before git is run, redirects to another https URL of a repository (a renamed or moved repository). | 0.24.0 |
@@ -132,6 +133,27 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
 
   ```text
   WARNING: URL=<url>: the Hub stated no revision; files are read at the default branch as it is now [hub-revision-unpinned]
+  ```
+
+### `hub-revision-unpinned/url`
+
+- **Level**: WARNING.
+- **Means**: The Hugging Face model URL given names a revision after a page kind
+  (/tree/<rev>, /blob/<rev>/<file>, /commit/<sha>) other than main. Pitloom
+  reads a model's files at its default branch only, so they can differ from that
+  revision's.
+- **SBOM effect**: weaker: what the SBOM says is less sure.
+- **Pitloom did**: Read the model's files at the default branch, said before
+  anything is fetched; the SBOM records the revision the Hub states for that
+  branch.
+- **Tell the user**: the SBOM describes the default branch, not the revision
+  their URL names. For that revision they download the repository at it and run
+  Pitloom on the local copy. Do not download it for them; ask first, and with
+  nobody to ask, report it only.
+- **Lines**:
+
+  ```text
+  WARNING: URL=<url>: the URL names the revision <ref>; files are read at the default branch [hub-revision-unpinned/url]
   ```
 
 ### `offline-unusable`
