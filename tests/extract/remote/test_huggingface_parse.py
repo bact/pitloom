@@ -352,6 +352,8 @@ _HF = "https://huggingface.co"
         pytest.param(f"{_HF}/o/m/commit/deadbeef", "deadbeef", id="commit"),
         pytest.param(f"{_HF}/o/m/resolve/dev/config.json", "dev", id="resolve"),
         pytest.param(f"{_HF}/o/m/tree/0123abc?x=1#y", "0123abc", id="query"),
+        pytest.param(f"{_HF}/o/m/tree/0123abc#y", "0123abc", id="fragment"),
+        pytest.param(f"{_HF}/o/m/tree//0123abc", "0123abc", id="double-slash"),
         pytest.param(f"{_HF}/gpt2/tree/0123abc", "0123abc", id="one-part-id"),
         pytest.param(f"{_HF}/o/m/tree/refs/pr/1/sub", "refs/pr/1", id="hub-ref"),
         pytest.param(f"{_HF}/o/m/tree/refs%2Fpr%2F1", "refs%2Fpr%2F1", id="encoded"),
