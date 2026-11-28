@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-16
-Last-Modified: 2026-11-23
+Last-Modified: 2026-11-28
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -23,7 +23,7 @@ One right answer; any correct tool gives the same.
 | # | Element | Input | Value | Today |
 | --- | --- | --- | --- | --- |
 | SM-1 | `pkg:pypi/aiofiles@25.1.0`, `aiofiles-25.1.0.tar.gz` | the file's bytes | SHA-256 `a8d728f0...4d23d5b2` | yes |
-| SM-2 | same | the file system's size of the file | 46,354 bytes | yes |
+| SM-2 | same | the file system's size of the file | 46,354 bytes | the technique, yes; for this sdist, no (note) |
 | SM-3 | `AdamCodd/vit-base-nsfw-detector`, `model.safetensors` | the header's tensor shapes; 23,192 bytes read of a file of 344,391,328 | 86,092,034 parameters | yes |
 | SM-4 | `pkg:pypi/magika@0.6.1`, `models/standard_v3_2/model.onnx` | `graph.initializer`, `graph.sparse_initializer` | 784,519 parameters | yes |
 | SM-5 | `agentionai/Qwen3.8-27B-AP-GGUF`, `Qwen3.8-27B-AP-IQ2_S.gguf` | `tensor_infos`; 16,777,216 bytes read of a file of 9,607,980,896 | 27,320,697,856 parameters | yes |
@@ -38,6 +38,14 @@ SM-5  Source: Qwen3.8-27B-AP-IQ2_S.gguf | Kind: artifact-content | Location: ten
 
 Notes:
 
+- **SM-2**, read at dfa11c14 (2026-11-28): the technique exists, for a
+  dataset of `loom` only (`count_fact(found.size, MEASURED_STAT, ...)`,
+  `_loom_dataset_keys.py:183`, written `Evidence: measured_stat`). The
+  size of a package's archive is not recorded: the record of a file
+  read from a PyPI URL holds no size
+  (`assemble/spdx3/provenance_acquisition.py:94-128`). So the row's
+  value is the case the technique would serve, not one Pitloom writes
+  today; the same at the base 257b7260.
 - **SM-1** equals the digest PyPI states for the file
   ([other-party.md](other-party.md#other-party-detected), PT-1). Two
   claims, one value: agreement, recorded once.
@@ -154,11 +162,12 @@ Notes:
 - **SN-1** is the same repository as SM-3: one file measured, its sibling
   not. The claim is per file.
 - **SN-2**: `download-network-failed` says "the fetch was refused or
-  broke". A gate is neither a fault nor a cap; a reader of the SBOM
+  broke". A refusal of access is neither a fault nor a cap; a reader of the SBOM
   can act on it (ask for access). A code of its own (`access-denied`)
-  would say so; ruled 2026-11-23 that the one code stays, as the
-  message catalogue has it
-  ([../basis.md](../basis.md#reason-codes)).
+  would say so. Ruled 2026-11-23 that the one code stays, as the
+  message catalogue has it; open again since 2026-11-28, when the
+  reason list became the taxonomy's own
+  ([../reason.md](../reason.md)).
 - **Not in this cell**: the sdist of `pkg:pypi/pyspark@4.3.0`
   (455,910,862 bytes) is over a download cap, so Pitloom computes no hash;
   but PyPI states one, so the claim is PyPI's

@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-14
-Last-Modified: 2026-11-23
+Last-Modified: 2026-11-28
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -191,8 +191,9 @@ tells a reader so.
 What the asserter decides for a licence is on its own page,
 [asserter-licence.md](asserter-licence.md): the table from asserter to
 `hasDeclaredLicense` and `hasConcludedLicense`, the licence file as the
-originator's declaration, the gate and the form of a text match, and the
-licence points that were parked, each with its ruling.
+originator's declaration, the gate and the form of a text match. The
+licence points that were parked, each with its ruling, are on
+[asserter-licence-points.md](asserter-licence-points.md).
 
 ## Mappings (loose)
 

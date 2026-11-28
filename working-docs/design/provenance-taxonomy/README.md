@@ -9,11 +9,18 @@ SPDX-License-Identifier: CC0-1.0
 # Provenance taxonomy: the claim model
 
 See also: [asserter.md](asserter.md) (with
-[asserter-licence.md](asserter-licence.md) for the licence field),
+[asserter-licence.md](asserter-licence.md) for the licence field, its
+points in [asserter-licence-points.md](asserter-licence-points.md) and
+its measurement in
+[asserter-licence-measurement.md](asserter-licence-measurement.md)),
 [source.md](source.md),
-[method.md](method.md), [basis.md](basis.md),
+[method.md](method.md), [basis.md](basis.md) (with
+[basis-mappings.md](basis-mappings.md)),
+[reason.md](reason.md) (why a source gave nothing),
 [value-strength.md](value-strength.md), [change.md](change.md),
 [conflict.md](conflict.md),
+[resweep-rulings.md](resweep-rulings.md) (the rulings of 2026-11-28,
+C1 to C10),
 [alignment.md](alignment.md) (the model in PROV-O, SOSA, SSN and SIO;
 ODRL for licence claims),
 [vocabularies-considered.md](vocabularies-considered.md) and
@@ -36,7 +43,9 @@ replaces: [provenance-enrichment-vocabulary.md](../provenance-enrichment-vocabul
 design documents; drafted from 2026-11-14). "Draft" in the status line of
 another page of this folder is from before that day. Not built: the code
 still emits the old vocabulary. Nothing here changes the output until the
-code stage, which is not started and needs its own agreement.
+code stage, which is not started and needs its own agreement. Ten
+rulings of 2026-11-28 changed the draft; their open points are in
+[resweep-rulings.md](resweep-rulings.md#open-under-these-rulings).
 
 Ruled on 2026-11-23, after a last look before the code stage: the
 names stand. They are the facet `Asserter` and its five values;
@@ -120,11 +129,12 @@ mapping targets; none is written into an SBOM.
    words joined by one hyphen, matching `^[a-z0-9]+(-[a-z0-9]+)*$`, so an
    abbreviation has one spelling (`ai-agent`, `sbom-author`). They are
    spelled as identifiers are, the American way (`synthesized`,
-   `artifact-content`). A `Reason` code is a message catalogue code and
-   has the same casing, so the SBOM, stderr and the skills use one string
-   (changed 2026-11-28: the reason list is the taxonomy's own and a
-   catalogue code maps to it, [reason.md](reason.md); this sentence is
-   not yet rewritten).
+   `artifact-content`). A `Reason` is a term of the taxonomy's own
+   closed list, kebab-case like every value; a message catalogue code
+   maps to it, by one table held by a test, and a catalogue variant
+   never enters the SBOM (ruled 2026-11-28,
+   [resweep-rulings.md](resweep-rulings.md), C2;
+   [reason.md](reason.md)).
    Keys are one capitalised word; a key of a JSON record is kebab-case
    too (`value-type`). A term of another vocabulary keeps its own spelling
    (`hasDeclaredLicense`, `trainedOn`). In Python the member name is the
@@ -153,6 +163,13 @@ mapping targets; none is written into an SBOM.
    the released word stays. `concluded` is an SPDX word only.
 9. **The grammar stays.** `Key: value | Key: value` strings and the
    Annotation envelopes keep their shape. Keys and values change.
+10. **A released term is never renamed or reused.** A term that can no
+    longer occur is marked retired and stays in its list, with its
+    definition. This holds from the first release that writes the new
+    vocabulary (ruled 2026-11-28,
+    [resweep-rulings.md](resweep-rulings.md), C10); until then the
+    renames of [renames-and-migration.md](renames-and-migration.md)
+    apply.
 
 ## Keys
 
@@ -166,7 +183,7 @@ mapping targets; none is written into an SBOM.
 | `Method` | method class | `Method` |
 | `Technique` | registered technique | `Method` |
 | `Tool` | tool and version that did it | `Tool` |
-| `Basis`, `Reason` | how the asserter came to the value; catalogue code | `Evidence`; `Role` (`declared`, `detected`, `inferred`) |
+| `Basis`, `Reason` | how the asserter came to the value; why a source gave nothing ([reason.md](reason.md)) | `Evidence`; `Role` (`declared`, `detected`, `inferred`) |
 | `Written`, `Change` | value as written; step kinds | `Normalized-From`; `Resolution-n`, `Expansion-n` stay for licence operands |
 | `Superseded` | a retired identifier the source used, with its successor | `Deprecated-License-Id` |
 | `Rule` | selection rule, when a claim stands because others were passed over | `Method: latest-release`, `Note: supersedes ...` |
@@ -175,18 +192,20 @@ mapping targets; none is written into an SBOM.
 ## Worked examples
 
 Old and new form of the same claim. The new strings are illustrations of the
-vocabulary; the final string layout is a code-stage decision.
+vocabulary; the final string layout is a code-stage decision. A tool
+version is an illustration too: `main` at dfa11c14 pins
+`licenseid>=0.10.0,<0.11` (`pyproject.toml:68`, read).
 
 | Claim | Old | New |
 | --- | --- | --- |
 | Licence from the manifest | `Source: pyproject.toml \| Field: project.license` | `Source: pyproject.toml \| Kind: manifest \| Location: project.license \| Asserter: originator \| Basis: declared` |
-| Licence matched from `LICENSE` | `Source: LICENSE \| Method: licenseid_detection \| Tool: licenseid==0.8.4` | `Source: LICENSE \| Kind: package-file \| Asserter: originator \| Method: matched \| Technique: license-text \| Tool: licenseid==0.8.4 \| Basis: declared` (form ruled 2026-11-21: [asserter-licence.md](asserter-licence.md)) |
+| Licence matched from `LICENSE` | `Source: LICENSE \| Method: licenseid_detection \| Tool: licenseid==0.10.0` | `Source: LICENSE \| Kind: package-file \| Asserter: originator \| Method: matched \| Technique: license-text \| Tool: licenseid==0.10.0 \| Basis: declared` (form ruled 2026-11-21: [asserter-licence.md](asserter-licence.md)) |
 | Dependency licence from PyPI | `Source: PyPI JSON API \| Package: requests` | `Source: PyPI JSON API \| Kind: registry \| Package: requests \| Asserter: originator \| Basis: declared` |
 | Parameter count summed from tensors | `Source: model.safetensors \| Method: tensor_element_sum` | `Source: model.safetensors \| Kind: artifact-content \| Asserter: sbom-tool \| Method: derived \| Technique: tensor-element-sum \| Basis: measured` |
 | Hash from a Git LFS pointer | `Source: weights.bin \| Method: lfs_pointer` | `Source: weights.bin \| Kind: pointer \| Location: oid \| Asserter: originator \| Basis: declared` |
 | Hash not computed, file over the cap | `Source: data.bin \| Evidence: not_measured \| Reason: over-cap` | `Source: data.bin \| Kind: artifact-content \| Asserter: sbom-tool \| Method: derived \| Technique: content-hash \| Basis: not-measured \| Reason: over-cap` |
 | Dataset named by an agent from README prose | `Source: AI agent \| Role: inferred` | `Source: README.md \| Kind: card \| Asserter: ai-agent \| Tool: <agent> <version> \| Basis: inferred` |
-| Parameter total the Hub reports | `Source: Hugging Face Hub \| Method: tensor_element_sum` | `Source: Hugging Face Hub API \| Kind: registry \| Location: safetensors.total \| Asserter: other-party \| Basis: detected` (the Hub computed it; Pitloom did not) |
+| Parameter total the Hub reports | `Source: Hugging Face Hub \| Field: model_info safetensors.total \| Method: tensor_element_sum` (read at dfa11c14: `extract/remote/huggingface_field.py:350-363`) | `Source: Hugging Face Hub API \| Kind: registry \| Location: safetensors.total \| Asserter: other-party \| Basis: detected` (the Hub computed it; Pitloom did not) |
 | Content type from `[tool.pitloom]` | `Source: a.bin \| Role: sbomAuthorSupplied` | `Source: pyproject.toml \| Kind: config \| Location: tool.pitloom.content-type.override \| Asserter: sbom-author \| Basis: declared` |
 
 ## Use cases the model serves
@@ -205,8 +224,13 @@ vocabulary; the final string layout is a code-stage decision.
   list of "transparent" source labels.
 - **Skills:** read `Asserter` and `Basis` to choose what to enrich; write
   `Asserter: ai-agent` or `sbom-author`.
-- **Minimum-elements reports:** `not-measured` with a reason is a known
-  unknown that says why.
+- **Minimum-elements reports:** a known unknown that says why:
+  `not-measured` with a reason for a content fact, and, for any
+  field, the recorded outcome of a source that `failed` or was
+  `refused`, with its reason (ruled 2026-11-28,
+  [resweep-rulings.md](resweep-rulings.md), C1;
+  [basis.md](basis.md#outcome-of-a-source); not built). A field with
+  no claim stays silent.
 - **An SPDX proposal** (issue #110): the facets are the properties a
   provenance profile would need.
 
@@ -233,7 +257,7 @@ deferred; [conflict.md](conflict.md) reserves its slot.
 4. A library caller's metadata is ruled (2026-11-23: `originator`;
    [asserter.md](asserter.md)). Closed 2026-11-23: the licence work
    parked on 2026-11-16; every point has a ruling in
-   [asserter-licence.md](asserter-licence.md), one of them a
+   [asserter-licence-points.md](asserter-licence-points.md), one of them a
    deferral (the scope of a licence file). Closed
    2026-11-23: the open point of [basis.md](basis.md) (`Basis` is
    always written) and that of
@@ -248,6 +272,7 @@ deferred; [conflict.md](conflict.md) reserves its slot.
    gate, an owner's namespace) stays `other-party`, `declared`.
 7. Closed 2026-11-23: the review points the examples raised
    ([examples/README.md](examples/README.md), "What the examples show").
-   Nine of the fourteen have an answer there (1 to 5, 10, 12 to 14).
+   Eight of the fourteen have an answer there (1 to 4, 10, 12 to 14);
+   point 5 is open again since 2026-11-28.
    Points 6 to 9 and 11 ask for no ruling: each is a note for the field
    table or for the code stage.

@@ -23,8 +23,8 @@ Ruled by the user on 2026-11-28, after the sweep against `main` dfa11c14
 (release 0.25.1) and a reading of the message catalogue as a second
 opinion on this draft. It replaces the first sentence of the section
 "Reason codes" of [basis.md](basis.md#reason-codes) and its paragraph
-on a gated repository; that section and its table are not yet
-rewritten to it.
+on a gated repository; that section is written to it since
+2026-11-28 and keeps the codes that are written today.
 
 - **The taxonomy owns a small closed list of reasons.** It is cut by
   what a reader of the SBOM has to tell apart, not by what a user at
@@ -60,10 +60,10 @@ not the other way. It is work after the code stage, not a condition
 of it. First candidates: a family of its own for a refusal by policy
 (out of `file-unreadable`), and one for access denied.
 
-Also to restate: rule 3 of [README.md](README.md) ("A `Reason` code is
-a message catalogue code") and rule 8 of
-`working-docs/design/evidence-levels.md` ("The same code in both
-places").
+Restated to it on 2026-11-28: rule 3 of [README.md](README.md), which
+said "A `Reason` code is a message catalogue code". Still to restate:
+rule 8 of `working-docs/design/evidence-levels.md` ("The same code in
+both places").
 
 **Not ruled.** Asked on 2026-11-28, no answer yet:
 
@@ -74,17 +74,27 @@ places").
   | --- | --- | --- |
   | fault | the read was tried and broke | `file-unreadable`, `dir-unlistable`, `download-network-failed`, a malformed source |
   | limit | a cap or a time bound stopped it | `over-cap`, `download-timeout` |
-  | gate | Pitloom's safety policy did not allow the read; an option could | a reader not run, a file outside the project, a configuration not trusted |
+  | policy | Pitloom's safety policy did not allow the read; an option could | a reader not run, a file outside the project, a configuration not trusted |
   | denied | the other side refused access | HTTP 401 and 403; a private repository where it can be told |
-  | stand-in | what was read is a pointer, not the content | `lfs-pointer` |
+  | reference | what was read points to the content and is not it | `lfs-pointer` |
   | not able | the means to read is missing | a library or the licence database is missing |
 
-- Whether the class itself is recorded (a key of its own, or the
-  `Outcome`), with the reason under it, or the reason alone.
+- Whether the class itself is recorded (a key of its own, or a level
+  under the outcome; it cannot be a value of `Outcome`, which is a
+  closed list of its own), with the reason under it, or the reason
+  alone. The outcome `refused` (Pitloom did not read) and the class
+  `denied` (the other side refused access) need definitions that
+  cannot be confused.
 - Whether `denied` is kept for the cases that can be told (401, 403),
   given that the Hub answers 404 for a private repository.
 
 The list has to serve more than content facts: by another ruling of
 the same day the outcome of a source is recorded for any field, per
-source ([basis.md](basis.md#outcome-of-a-source); not yet written
-there).
+source ([basis.md](basis.md#outcome-of-a-source)).
+
+The class names are provisional. Two were renamed on 2026-11-28
+because their first names are taken in this draft: "stand-in" by
+ruling C7 ([resweep-rulings.md](resweep-rulings.md)), "pointer" by
+the source kind of that name, and "gate" by the gate for a text match.
+Each name has to be checked against rule 2 of [README.md](README.md)
+(no word in two vocabularies) before the list is agreed.

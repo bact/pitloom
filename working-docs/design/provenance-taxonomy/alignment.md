@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-16
-Last-Modified: 2026-11-23
+Last-Modified: 2026-11-28
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -229,7 +229,7 @@ Limits of these three:
 `odrl:partOf` (an asset as a member of a collection) could describe the
 scope of a licence file (the project, a folder), deferred
 (ruled 2026-11-23) in
-[asserter-licence.md](asserter-licence.md).
+[asserter-licence-points.md](asserter-licence-points.md).
 
 What ODRL does not cover:
 
@@ -251,7 +251,8 @@ What ODRL does not cover:
   revision. It
   tells a known act from an unknown one, no more.
 - Nothing in the four says a value was not obtained and why
-  (`not-measured` with its reason). These stay Pitloom's own.
+  (`not-measured` with its reason, and, since 2026-11-28, the outcome
+  of a source). These stay Pitloom's own.
 - SOSA and SSN have no stated value; `declared` is described by PROV-O,
   with SIO's `statement` as a loose match.
 - SIO's three evidence relations run from a proposition to anything that

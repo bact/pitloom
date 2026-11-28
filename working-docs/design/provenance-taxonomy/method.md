@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-14
-Last-Modified: 2026-11-23
+Last-Modified: 2026-11-28
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -11,12 +11,14 @@ SPDX-License-Identifier: CC0-1.0
 See also: [README.md](README.md) (the claim model),
 [basis.md](basis.md), [change.md](change.md),
 [renames-and-migration.md](renames-and-migration.md) (every old `Method`
-value). Replaces section 1 of
+value), [resweep-rulings.md](resweep-rulings.md) (rulings C4 and C7 of
+2026-11-28, written in here). Replaces section 1 of
 [provenance-enrichment-vocabulary.md](../provenance-enrichment-vocabulary.md).
 
 **Status:** draft. Two levels, as ruled 2026-11-14. Five classes: the
 class `inferred` was dropped 2026-11-16 (it is an
-[basis](basis.md) value).
+[basis](basis.md) value). Re-based on `main` dfa11c14 on 2026-11-28;
+nothing here is built.
 
 ## Definition
 
@@ -31,7 +33,8 @@ Pitloom's method, so their claims have none. It has two levels:
 
 The tool and its version go in `Tool`, never in either name.
 
-Today's 29 `Method` values (31 on `main` since:
+Today's 31 `Method` values (29 at the base 257b7260; 31 on `main`
+dfa11c14, by grep, each with a row in the tables below;
 [renames-and-migration.md](renames-and-migration.md), the sweep) are
 flat and mix four things: how a value was
 read, what it is (`repository_owner`), how sure it is (`lfs_pointer`) and
@@ -77,6 +80,35 @@ stands for it only. A content type from a file extension is `synthesized`
 too: the extension stands for the content and can be wrong, where a matcher
 on the bytes is `matched`. A domain a format implies is `synthesized`: the
 format fixes that the model handles text, the wording is Pitloom's.
+
+**A split by a rule that can be wrong stays `parsed`** (ruled
+2026-11-28, C4 of [resweep-rulings.md](resweep-rulings.md)). An author
+field split into several authors by a rule that cannot tell `Doe, Jane`
+from a list is still the originator's statement, cut up; nothing is
+added, and the value does not move to `synthesized`. The doubt is shown
+in two places: the technique names the rule (`list-split`, or a name of
+its own: open), and a [Change](change.md) step says the value was
+divided. What the code does today (read at dfa11c14, not built to this
+rule):
+
+- The rule: an address field (`Author-email`) is split on `,` and
+  `;`; a name field (`Author`) is one author, cut only next to the
+  complete mailboxes it holds (`field_parts`,
+  `extract/_author_parts.py:213-224`; `_field_entries`,
+  `extract/authors.py:256-275`, which notes each split field).
+- The warning: `author-ambiguous`, whose summary calls the read "a
+  guess" (`messages/_authors.py:73-101`), said through
+  `warn_author_splits` (`extract/_author_warnings.py:80-98`), called from
+  `extract/authors.py:381`, `_embed_build_sbom.py:419` and
+  `_embed_generate.py:342`. Stderr only: nothing in the SBOM says a
+  project's authors were split; a wheel's `authors` entry is its plain
+  `Source` (`extract/wheel.py:150`).
+- A dependency's originators, when its fields name more than one, get
+  `Method: parsed_author_list` (`assemble/spdx3/deps_originator.py:304-308`);
+  an ONNX `model_author` split on commas gets `comma_list`
+  (`core/model_originators.py:31`). Both become `list-split` (the
+  mapping of 2026-11-14 to 2026-11-23; the technique names are open
+  again under C4).
 
 Rules that hang on the class:
 
@@ -135,6 +167,35 @@ Old values that need no technique, because another facet already says it:
 `caller-frame` drops the embedded tool and function: `Tool: pitloom.loom`,
 `Location: <function>`.
 
+## Stand-ins
+
+Ruled 2026-11-28 (C7 of [resweep-rulings.md](resweep-rulings.md)): **a
+stand-in is no claim.** Where a format requires a value that no source
+gives, Pitloom writes a stand-in; it says nothing about the world, so it
+has no asserter's statement behind it and no basis, as `placeholder-root`
+already has none (above, "Rules that hang on the class"). The stand-ins
+form one small closed list, marked as such in the output; the members
+are open. A default source label (`Unknown source`, rule 5 of
+[source.md](source.md)) is not a stand-in: it is a missing source, a
+fault to fix at the reader.
+
+Stand-ins in the code at dfa11c14 (read; none is marked as a stand-in
+today):
+
+| Stand-in | Where | What the code does |
+| --- | --- | --- |
+| the root of an environment | `extract/env.py:125-133` | name `deployed-environment`, version `0.0.0`, provenance `Source: Pitloom generator \| Method: synthetic environment root`: today's `placeholder-root` |
+| the name `unknown` of a wheel | `extract/wheel.py:254` | `ProjectMetadata(name="unknown")` before the `.dist-info` is chosen; it stays when there is no own `.dist-info` or `METADATA` (`dist-info-missing`, `dist-info-ambiguous`, as a `WARNING:`: the `did` text, `messages/_wheels.py:180-186`; that the name survives into the SBOM was taken from that text, not traced) |
+| the name `unknown` of an sdist | `extract/project/sdist.py:383`; `extract/project/_sdist_pyproject.py:106` | no `PKG-INFO` and no `pyproject.toml`; or a `pyproject.toml` with no `name`. The `config-malformed` `did` text says an sdist whose `pyproject.toml` does not parse and that has no `PKG-INFO` "is named unknown" (`messages/_config.py:192-215`) |
+| the version `unknown` | `assemble/spdx3/_document_main_package.py:90` | `metadata.version or "unknown"` (and the same at other call sites, grep) |
+| a creation time of 1970 | `assemble/spdx3/_fragments_envelope.py:45,118-119` | `_NO_CREATED`, the start of 1970, when neither `SOURCE_DATE_EPOCH` nor a fragment gives one, with the `WARNING:` `datetime-missing` |
+
+Not a stand-in: `Source: unknown | Method: inspect_caller (tool:
+pitloom.loom)` (`_loom_caller.py:138`, read), written when the call stack
+cannot be read (`caller-info-unreadable`). The value is real (a caller
+exists); its source label is a default, so rule 5 of
+[source.md](source.md) applies.
+
 ## Adding a technique
 
 A code change that adds a reader adds a row here and in the user docs, in
@@ -148,6 +209,15 @@ Before adding one, ask: is it the same operation as an existing technique on
 another format? Then reuse it (`element-count` serves GGUF arrays and ZIP
 members). Does the name say who, how sure or which candidate? Then it is not
 a technique.
+
+## Open points (2026-11-28)
+
+1. Ruling C4: the technique name of a split by a rule that can be
+   wrong (`list-split` for every one, or one per rule), and whether its
+   step is a new kind of [Change](change.md) or an existing one.
+2. Ruling C7: the members of the list of stand-ins, and how a stand-in
+   is marked (a technique of its own beside `placeholder-root`, or one
+   name for all).
 
 ## Mappings (loose)
 

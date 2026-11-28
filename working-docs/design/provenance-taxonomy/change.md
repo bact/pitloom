@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-14
-Last-Modified: 2026-11-23
+Last-Modified: 2026-11-28
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -14,7 +14,8 @@ licence categories, owned by LicenseID),
 [licence-resolution-provenance.md](../licence-resolution-provenance.md)
 (T14, which waits on this page),
 [canonical-output-followups.md](../canonical-output-followups.md)
-(normalisation rules themselves).
+(normalisation rules themselves),
+[resweep-rulings.md](resweep-rulings.md) (C4 and C5, ruled 2026-11-28).
 
 **Status:** draft.
 
@@ -53,14 +54,36 @@ which the source did not write.
 
 ## Step kinds
 
-Four kinds, by how much the tool decided. Closed.
+Five kinds, by how much the tool decided. Closed. `escaped` was added,
+and the log of `cut` raised to `WARNING:`, on 2026-11-28
+([resweep-rulings.md](resweep-rulings.md), C5). Ruling C5 decided only
+those two things; the `WARNING:` log, the missing `Written` and the
+Trust value of `escaped` below are this page's reading, not ruled.
 
 | Kind | Definition | Decision question | Trust | Log |
 | --- | --- | --- | --- | --- |
 | `form` | Spelling that the format itself makes equal: case, blank space, brackets, order, duplicates. | Would the format's own comparison rule call the two equal? | as written | `DEBUG:` |
 | `respelled` | The tool read a non-canonical spelling as one canonical value, from reference data or by a rule of the tool, with one candidate. | Is there exactly one listed value this can be? | the tool's reading | `INFO:` |
 | `expanded` | The tool added a qualifier or an operator the canonical form needs. | Did the value gain meaning it did not spell out? | the tool's reading, kept apart | `INFO:` or `DEBUG:` by rule; `WARNING:` for an operator |
-| `cut` | The value was shortened to a limit. | Is part of the written value missing? | incomplete | `INFO:` |
+| `cut` | The value was shortened to a limit. | Is part of the written value missing? | incomplete | `WARNING:` |
+| `escaped` | The written form cannot hold the text as read, so part of it is written as an escape or a replacement character (`\uXXXX`, U+FFFD). | Does the recorded text differ from the text read only where the format, or a safety rule for display, cannot hold the character? | as written, but not the same text | `WARNING:` |
+
+An `escaped` claim has no `Written` (this page's reading, not ruled):
+the raw text is exactly what the written form cannot hold. `Change: escaped` says that the recorded
+text is not the text read. `cut` is a `WARNING:` because a value of
+which part is missing is a deviation from what the source wrote.
+
+`cut` and `lower-bound` ([basis.md](basis.md)) part by what was
+stopped (this page's reading, not ruled): `cut` is a text shortened,
+and the part kept is recorded with the step; `lower-bound` is a count
+or a size whose read stopped at a limit, and the partial value is never
+recorded.
+
+A split by a rule that can be wrong (an author field read "by a
+guess") stays the originator's statement, `parsed` (ruled 2026-11-28,
+[resweep-rulings.md](resweep-rulings.md), C4). Its doubt is shown by
+naming the technique ([method.md](method.md)) and by a `Change` step.
+Whether that step is a new kind or one of the five is open (below).
 
 Not changes, so not kinds: a value the tool could not read (`unresolved`,
 `malformed`) is recorded as written, with a `WARNING:`. LicenseID has no
@@ -74,9 +97,13 @@ category for a guess: a value it will not read gets no expression, and a
 | licence | LicenseID categories | `form`, `respelled`, `expanded` (table below) |
 | package name | PEP 503 normalisation | `form` |
 | version | PEP 440 normalisation; a version as a URL spelled it | `form` |
-| a model name over 1,024 characters | cut (`Note: cut to 1024 characters` today) | `cut` |
+| a model name over 1,024 characters | cut (`Note: cut to 1024 characters` today; a related name's cut is said as an `over-cap` `WARNING:`, `assemble/spdx3/_ai_package.py:214-218`, read at dfa11c14) | `cut` |
 | source metadata blob | keys dropped to a byte budget (`truncated` in the statement) | `cut` |
 | a placeholder spelling (`UNKNOWN` to `NOASSERTION`) | recorded as the format's term | `respelled` |
+| display text of a model's or a loom dataset's elements | invisible, bidi or other control characters written as `\uXXXX` (`core/untrusted_text.py:135`, read at dfa11c14) | `escaped` |
+| any text of the SBOM, a licence value apart | a lone surrogate written as the six characters `\udXXX` (`export/spdx3_json.py:137`, read at dfa11c14) | `escaped` |
+| a licence value | a lone surrogate replaced by U+FFFD (`extract/_license_classify.py:79`, read at dfa11c14) | `escaped` |
+| a dependency's stated licence text that LicenseID reads as the licence of its licence files (a `License` header holding the licence body) | recorded as that licence, the text kept as `Normalized-From` (`assemble/spdx3/_deps_license_files.py:146-183`, read at dfa11c14) | not yet mapped: on this page's reading `respelled`, unless the reading is taken as a match, which has no `Written` |
 | the location of a GGUF training dataset (on `main`) | a `repo_url` in the model-path form that `gguf-py` writes (`https://huggingface.co/owner/name`), recorded as the dataset's page (`https://huggingface.co/datasets/owner/name`); ruled 2026-11-23 | `respelled`; `Written` holds the stated URL |
 
 ## Licence categories
@@ -126,8 +153,8 @@ A variant the tool chose for a licence text is `expanded` too (ruled
 2026-11-19): a bare GPL text recorded as `GPL-3.0-only` gained a
 qualifier it does not spell out. `expanded` alone does not say "guess",
 so LicenseID's `variant_stated` (false here) is quoted beside it
-([asserter-licence.md](asserter-licence.md), "Licence work: the points
-and their rulings").
+([asserter-licence-points.md](asserter-licence-points.md),
+"The points").
 
 An operator the tool chose is `expanded` as well (ruled 2026-11-23):
 several licence classifiers recorded as one expression joined by
@@ -146,6 +173,7 @@ LicenseID's category names are snake_case. They stay so inside
 | `respelled` | `semapv:LexicalMatching` | `pav:importedFrom` | P459 determination method or standard |
 | `expanded` | `semapv:BackgroundKnowledgeBasedMatching` | `pav:derivedFrom` (meaning added) | P887 based on heuristic |
 | `cut` | - | - | - |
+| `escaped` | - | - | - |
 
 SSSOM's `subject_preprocessing` slot is the nearest existing home for a
 list of step kinds.
@@ -155,3 +183,19 @@ written ("a derivation that revises an entity into a revised version").
 PROV-O does not name kinds of revision; the step kinds stay Pitloom's own
 ([alignment.md](alignment.md), "Limits"). SIO's `is subsequent version
 of` is a loose match.
+
+## Open points
+
+1. Under C4 (ruled 2026-11-28,
+   [resweep-rulings.md](resweep-rulings.md)): the `Change` step that
+   marks a split by a rule that can be wrong, a new kind or one of the
+   five. The technique names go to [method.md](method.md). Not built:
+   the author split was read in the code on 2026-11-28, see the
+   paragraph on the author split in [method.md](method.md).
+2. The line between `cut` and `lower-bound` above is this page's
+   reading, not ruled.
+3. The kind of a stated licence text read as its licence file's licence
+   (the row above): `respelled`, or a match.
+4. For `escaped`, three things on this page are its reading and not
+   ruled: that it logs at `WARNING:`, that such a claim has no
+   `Written`, and its trust.
