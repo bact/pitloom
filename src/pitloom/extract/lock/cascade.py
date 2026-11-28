@@ -32,12 +32,9 @@ from typing import NamedTuple
 
 from pitloom.core.file_identity import file_id
 from pitloom.core.internal_error import InternalError
+from pitloom.core.lock_origin import LockOrigin
 from pitloom.core.project import ProjectMetadata
-from pitloom.core.provenance import (
-    parse_provenance_value,
-    provenance_segment,
-    provenance_source,
-)
+from pitloom.core.provenance import parse_provenance_value
 from pitloom.extract.lock._extra_pins import ExtraPinExtractor, apply_extra_pins
 from pitloom.extract.lock.common import POETRY_LOCK_SOURCE_NAME
 from pitloom.extract.lock.pdm import (
@@ -271,18 +268,12 @@ def apply_locked_dependencies(metadata: ProjectMetadata, project_dir: Path) -> N
         if dependencies is None:
             continue
 
-        provenance = provenance_segment(
-            provenance_source(source.name), "Method", source.method
-        )
-        if previous is not None:
-            superseded = str(previous_source)
+        superseded = None if previous is None else str(previous_source)
+        if superseded is not None:
             say_lock_file(log, LOCK_CONFLICT_LINE, kept=source.name, dropped=superseded)
-            provenance = provenance_segment(
-                provenance, "Note", f"supersedes {superseded}"
-            )
 
         metadata.locked_dependencies = dependencies
-        metadata.provenance["locked_dependencies"] = provenance
+        metadata.record_lock_origin(LockOrigin(source.name, source.method, superseded))
         # Always reset, even to `{}`: hashes from an earlier or lower-priority
         # source must not survive beside a different winning
         # `locked_dependencies`. An empty result is authoritative, not "no

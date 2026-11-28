@@ -16,6 +16,7 @@ from typing import Any, ClassVar, NamedTuple, TypedDict
 from pitloom.core.file_hash import FileDigests, HexDigests
 from pitloom.core.internal_error import InternalError
 from pitloom.core.lfs_pointer import LfsPointer
+from pitloom.core.lock_origin import LockOrigin, lock_provenance, lock_seed_text
 
 # The archive extensions an sdist is distributed as.
 SDIST_EXTENSIONS = (".tar.gz", ".tgz", ".tar.bz2", ".tar.xz", ".zip")
@@ -277,6 +278,9 @@ class ProjectMetadata:
     dependency_files: list[str] = field(default_factory=list)
     locked_dependencies: list[str] = field(default_factory=list)
     locked_dependency_hashes: dict[str, str] = field(default_factory=dict)
+    #: Which lock gave ``locked_dependencies``, set with its provenance by
+    #: :meth:`record_lock_origin` only; ``None`` when no reader set it.
+    locked_dependencies_origin: LockOrigin | None = None
     provenance: dict[str, str] = field(default_factory=dict)
     files: list[ProjectFile] = field(default_factory=list)
     field_conflicts: dict[str, list[ConflictCandidate]] = field(default_factory=dict)
@@ -316,6 +320,24 @@ class ProjectMetadata:
         }
         return dataclasses.replace(self, **fresh_containers, **changes)
 
+    def record_lock_origin(self, origin: LockOrigin) -> None:
+        """Record *origin* as the source of ``locked_dependencies``: the
+        typed fact and its provenance string, together."""
+        self.locked_dependencies_origin = origin
+        self.provenance["locked_dependencies"] = lock_provenance(origin)
+
+    def locked_dependencies_seed(self) -> str | None:
+        """What the lock source adds to the seed of the document id
+        (:func:`~pitloom.core.models.compute_doc_uuid`), ``None`` for none.
+
+        From the typed origin when a reader recorded one, so the wording of
+        the provenance string is no id input. A caller-built instance with
+        a provenance string and no origin seeds from that string as given.
+        """
+        if self.locked_dependencies_origin is not None:
+            return lock_seed_text(self.locked_dependencies_origin)
+        return self.provenance.get("locked_dependencies")
+
 
 #: Maps a :class:`ProjectMetadata` field name to the literal provenance key
 #: its extractors actually record it under, for the cases where they differ:
@@ -325,6 +347,7 @@ class ProjectMetadata:
 #: - ``locked_dependency_hashes``: companion to ``locked_dependencies``,
 #:   sharing its ``provenance["locked_dependencies"]`` record so hashes stay
 #:   bound to the winning lock-derived dependency set and never drift.
+#: - ``locked_dependencies_origin``: the same record as typed facts.
 #:
 #: Consulted by :func:`merge_project_metadata`'s "explicitly declared" check
 #: so it looks up the key extractors actually use instead of a field name
@@ -332,6 +355,7 @@ class ProjectMetadata:
 _PROVENANCE_KEY_ALIASES: dict[str, str] = {
     "license_name": "license",
     "locked_dependency_hashes": "locked_dependencies",
+    "locked_dependencies_origin": "locked_dependencies",
 }
 
 

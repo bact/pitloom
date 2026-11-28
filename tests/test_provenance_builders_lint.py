@@ -89,6 +89,11 @@ _ALLOWED: dict[tuple[str, str], str] = {
     # its closed vocabulary before they are written.
     ("core/evidence.py", "level"): "a level of the closed vocabulary",
     ("core/evidence.py", "reason"): "a reason code of the closed vocabulary",
+    # lock_seed_text(): the seed text of the document id, no provenance
+    # string. It is frozen, so it must not follow the builders' wording.
+    ("core/lock_origin.py", "origin.source"): "seed text of the document id",
+    ("core/lock_origin.py", "origin.method"): "seed text of the document id",
+    ("core/lock_origin.py", "origin.supersedes"): "seed text of the document id",
 }
 
 

@@ -192,9 +192,7 @@ def _doc_identity_of(
         dependencies=project_metadata.dependencies,
         merkle_root=merkle_root,
         locked_dependencies=project_metadata.locked_dependencies,
-        locked_dependencies_provenance=project_metadata.provenance.get(
-            "locked_dependencies"
-        ),
+        locked_dependencies_seed=project_metadata.locked_dependencies_seed(),
     )
     return project_metadata.name, doc_uuid
 

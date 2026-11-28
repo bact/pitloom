@@ -167,7 +167,7 @@ def compute_doc_uuid(
     # pylint: disable-next=redefined-outer-name
     merkle_root: str | None = None,
     locked_dependencies: list[str] | None = None,
-    locked_dependencies_provenance: str | None = None,
+    locked_dependencies_seed: str | None = None,
     identity_seed: str | None = None,
 ) -> str:
     """Compute a deterministic UUIDv5 for the SPDX document.
@@ -177,26 +177,27 @@ def compute_doc_uuid(
     leaves the seed unchanged.
 
     *locked_dependencies* (e.g. ``poetry.lock``-resolved transitive
-    dependencies) and *locked_dependencies_provenance* (the resolved
-    ``ProjectMetadata.provenance["locked_dependencies"]`` string, e.g.
-    ``"Source: pylock.toml | Method: resolved_lockfile"``) are folded in when
-    either is given, so documents with equal direct dependencies but different
-    lock-resolved graphs, or different lock sources, get different UUIDs. The
-    gate is "either given", not "*locked_dependencies* non-empty": a real
-    lock that resolves to zero dependencies still differs, by its provenance,
-    from no lock. With both omitted the seed is that of a document without
-    locked dependencies.
+    dependencies) and *locked_dependencies_seed* (the text naming their lock
+    source, from
+    :meth:`pitloom.core.project.ProjectMetadata.locked_dependencies_seed`,
+    e.g. ``"Source: pylock.toml | Method: resolved_lockfile"``) are folded in
+    when either is given, so documents with equal direct dependencies but
+    different lock-resolved graphs, or different lock sources, get different
+    UUIDs. The gate is "either given", not "*locked_dependencies* non-empty":
+    a real lock that resolves to zero dependencies still differs, by its seed
+    text, from no lock. With both omitted the seed is that of a document
+    without locked dependencies.
     """
     normalized_deps = sorted(_normalize_dep(dep) for dep in dependencies)
     seed = "\x00".join([name, version, "\x00".join(normalized_deps)])
-    if locked_dependencies or locked_dependencies_provenance:
-        # Either argument: a lock with no dependencies still has a provenance.
+    if locked_dependencies or locked_dependencies_seed:
+        # Either argument: a lock with no dependencies still has a seed text.
         normalized_locked = sorted(
             _normalize_dep(dep) for dep in (locked_dependencies or [])
         )
         seed += "\x00" + "\x00".join(normalized_locked)
-        if locked_dependencies_provenance:
-            seed += "\x00" + locked_dependencies_provenance
+        if locked_dependencies_seed:
+            seed += "\x00" + locked_dependencies_seed
     if merkle_root is not None:
         seed += "\x00" + merkle_root
     if identity_seed is not None:

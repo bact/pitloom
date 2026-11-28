@@ -281,7 +281,7 @@ def test_locked_dependencies_same_content_different_provenance_changes_doc_uuid(
         "1.0.0",
         ["requests>=2.0"],
         locked_dependencies=same_content,
-        locked_dependencies_provenance=(
+        locked_dependencies_seed=(
             "Source: poetry.lock | Method: resolved_lockfile"
         ),
     )
@@ -290,7 +290,7 @@ def test_locked_dependencies_same_content_different_provenance_changes_doc_uuid(
         "1.0.0",
         ["requests>=2.0"],
         locked_dependencies=same_content,
-        locked_dependencies_provenance=(
+        locked_dependencies_seed=(
             "Source: pylock.toml | Method: resolved_lockfile"
         ),
     )
@@ -301,8 +301,8 @@ def test_locked_dependencies_same_content_different_provenance_changes_doc_uuid(
     assert len({from_poetry, from_pylock, unattributed}) == 3
 
 
-def test_locked_dependencies_provenance_omitted_matches_empty_string() -> None:
-    """Omitting ``locked_dependencies_provenance`` (every pre-existing
+def test_locked_dependencies_seed_omitted_matches_empty_string() -> None:
+    """Omitting ``locked_dependencies_seed`` (every pre-existing
     call site) must produce the same UUID as every caller that predates
     this parameter -- purely additive, no behaviour change for callers
     that don't know about it."""
@@ -314,7 +314,7 @@ def test_locked_dependencies_provenance_omitted_matches_empty_string() -> None:
         "1.0.0",
         ["requests>=2.0"],
         locked_dependencies=["idna==3.7"],
-        locked_dependencies_provenance=None,
+        locked_dependencies_seed=None,
     )
 
     assert omitted == explicit_none
@@ -346,7 +346,7 @@ def test_valid_empty_lock_does_not_collide_with_no_lock_or_a_different_empty_loc
         "1.0.0",
         ["requests>=2.0"],
         locked_dependencies=[],
-        locked_dependencies_provenance=(
+        locked_dependencies_seed=(
             "Source: pylock.toml | Method: resolved_lockfile"
         ),
     )
@@ -355,7 +355,7 @@ def test_valid_empty_lock_does_not_collide_with_no_lock_or_a_different_empty_loc
         "1.0.0",
         ["requests>=2.0"],
         locked_dependencies=[],
-        locked_dependencies_provenance=("Source: uv.lock | Method: resolved_lockfile"),
+        locked_dependencies_seed=("Source: uv.lock | Method: resolved_lockfile"),
     )
 
     assert len({no_lock_at_all, empty_from_pylock, empty_from_uv}) == 3
