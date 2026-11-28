@@ -155,6 +155,17 @@ The key `Evidence` (JSON `evidence`) becomes `Basis` (JSON `basis`; ruled
    at dfa11c14 (read): `core/models.py:192-199`; the strings come from
    `extract/lock/cascade.py:274-285` and the hand-built
    `extract/project/pyproject.py:358`.
+   Ruled 2026-11-28, in two steps. (a) Groundwork, with no change of
+   output: one function seeds the id from typed facts (which lock,
+   which method, which lock it supersedes) for every route of
+   Pitloom's own readers, and gives today's text; a provenance text
+   that a library caller set by hand still counts, as today. The rule
+   "no change of output" is a tool there: it makes the change provable
+   by one comparison. (b) The target, built in the code stage: the id
+   is seeded from typed facts only, never from a provenance text,
+   whoever wrote the text. The ids of documents that (a) left on a
+   text change once, in the release of the code stage, and the
+   CHANGELOG says so.
 2. **Provenance strings used as data.** Each site needs a typed value
    carried beside the string first. At dfa11c14 (read), the five of the
    base: `extract/project/_setuptools_options.py:225,307` (re-parse) and
