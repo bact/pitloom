@@ -40,8 +40,8 @@ User-facing documentation is in `docs/` ([index](../../docs/index.md)).
 
 Order (2026-11-04): 0.21.0 -> 0.21.1 -> 0.22.0 -> 0.22.1 -> 0.23.0 -> 0.24.0 ->
 1.0; 0.25.0 was added for the catalogue work. Every release up to 0.24.0
-(2026-11-11) has shipped, 0.25.0 too (2026-11-27), and 0.25.1 is cut
-(2026-11-28: #566 to #574, a hardening release); what each built,
+(2026-11-11) has shipped, 0.25.0 too (2026-11-27), and 0.25.1 (2026-11-28:
+#566 to #576, a hardening release, with LicenseID 0.10.0); what each built,
 and what it requires, is in
 [roadmap-completed.md](../implementation/roadmap-completed.md), the procedure
 in [release-checklist.md](../implementation/release-checklist.md). What is
@@ -219,6 +219,16 @@ Seen in Pitloom's own published wheel SBOM. The first two are priority.
   unless its creator states one (#570, item above). The empty-source rule
   is a ledger entry
   ([licences-and-licenseid.md](known-bugs/licences-and-licenseid.md)).
+- [ ] **A shared licence element names one package** (seen in the 0.25.1
+  verification): the `MIT` element serves 13 dependencies, but its
+  provenance comment says only `Package: auditwheel`, the first. Name every
+  package, or move the package to the relationship. See
+  [wheel-sbom-verification.md](../implementation/wheel-sbom-verification.md).
+- [ ] **A Hub model with every request refused still gets an SBOM** (seen
+  in the 0.25.1 verification): `loom model https://huggingface.co/a/b` with
+  no network gives six `[download-network-failed]` warnings and a
+  7-element SBOM, exit 0, for an id that may not exist. Documented
+  warnings; decide whether "nothing read" should refuse.
 - [ ] **Priority: author typing (#170)**: an exact known list of
   organisation names and addresses gives `Organization`; an author not
   typed by it is `Agent`, not `Person` (decided 2026-11-27). See
