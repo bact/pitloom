@@ -41,11 +41,14 @@ and this project adheres to
   refused before any probe or `git` process ([#571])
 - A dependency's copyright notices come from the exact `License-File` paths,
   nested ones included, each file once ([#572])
+- A Hub URL naming an id no repository can have (`a/b--c`) is refused before
+  any request; a URL's revision other than `main` is warned of, not read ([#574])
 
 [#566]: https://github.com/bact/pitloom/pull/566
 [#568]: https://github.com/bact/pitloom/pull/568
 [#571]: https://github.com/bact/pitloom/pull/571
 [#572]: https://github.com/bact/pitloom/pull/572
+[#574]: https://github.com/bact/pitloom/pull/574
 
 ## [0.25.0] - 2026-11-27
 

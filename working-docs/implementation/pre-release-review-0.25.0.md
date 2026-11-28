@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-27
-Last-Modified: 2026-11-27
+Last-Modified: 2026-11-28
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -126,7 +126,7 @@ and TRY-8 (ruled: next release), TRY-12. The roadmap points here ([roadmap.md](.
 
 Also for the next release (user, 2026-11-27; moved from the roadmap):
 
-- **A malformed Hub repo id gets "not found" advice.** `_HF_ID_RE` accepts
+- [x] **A malformed Hub repo id gets "not found" advice.** `_HF_ID_RE` accepts
   `a/b--c`, `a/b..c`, `a/b.git`, `a/b-`, `a/b.` and names over 96
   characters, which `huggingface_hub.validate_repo_id` rejects before any
   request. Before #561 this was said as `hub-response-invalid`; since #561
@@ -134,10 +134,16 @@ Also for the next release (user, 2026-11-27; moved from the roadmap):
   set HF_TOKEN ...") does not fit an id no repository can have. Refuse
   these ids in `parse_hf_model_id` with `hf-url-invalid`, reusing the
   dataset rule (`core/dataset_names.is_hub_dataset_id`), and test it.
-- **A revision URL is read at the default branch with no message.**
+  Done for 0.25.1: one rule, `core/dataset_names.is_hub_repo_id`, for both
+  (tested against `validate_repo_id`); a bare id breaking it is read as a
+  local path.
+- [x] **A revision URL is read at the default branch with no message.**
   `https://huggingface.co/o/m/tree/<sha>` parses to `o/m` and the revision
   is dropped (checked on #562's tree): a silent deviation from the URL as
   given. Say it (`INFO:`) or honour the revision.
+  Done for 0.25.1 (user: warn now, honour later): `WARNING:`
+  `hub-revision-unpinned/url`, `main` excepted; honouring it is on the
+  roadmap.
 
 Shared root causes to fix as one change each:
 

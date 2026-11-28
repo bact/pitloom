@@ -40,7 +40,7 @@ the table of prefixes.
 - [Lock files](message-codes-lock-files.md): 7 codes
 - [Dependencies](message-codes-dependencies.md): 7 codes
 - [PyPI](message-codes-pypi.md): 13 codes
-- [Network](message-codes-network.md): 11 codes
+- [Network](message-codes-network.md): 12 codes
 - [Git URLs](message-codes-git.md): 8 codes
 - [URL credentials](message-codes-url-credentials.md): 8 codes
 - [ID registry](message-codes-id-registry.md): 5 codes
@@ -132,6 +132,7 @@ the table of prefixes.
 | [`hook-no-effect`](message-codes-build.md#hook-no-effect) | INFO | 0.25.0 |
 | [`hub-response-invalid`](message-codes-network.md#hub-response-invalid) | WARNING | 0.25.0 |
 | [`hub-revision-unpinned`](message-codes-network.md#hub-revision-unpinned) | WARNING | 0.25.0 |
+| [`hub-revision-unpinned/url`](message-codes-network.md#hub-revision-unpinnedurl) | WARNING | 0.25.1 |
 | [`hyperparameter-conflict`](message-codes-model-fields.md#hyperparameter-conflict) | WARNING | 0.22.0 |
 | [`index-path-no-effect`](message-codes-id-registry-ids.md#index-path-no-effect) | WARNING | 0.25.0 |
 | [`input-not-found`](message-codes-targets.md#input-not-found) | ERROR, WARNING | 0.23.4 |

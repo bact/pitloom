@@ -8,16 +8,26 @@
 from __future__ import annotations
 
 import logging
+import sys
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
 
+from pitloom import __main__
+from pitloom.assemble import generate, generate_model_sbom
+from pitloom.core.dataset_names import is_hub_repo_id
+from pitloom.core.fetch_policy import RemoteFetchPolicy
 from pitloom.extract.remote import is_git_url
+from pitloom.extract.remote.errors import RemoteSourceError
 from pitloom.extract.remote.huggingface import (
     is_huggingface_source,
     parse_hf_model_id,
     read_huggingface,
+    require_hf_model_id,
+    url_revision,
 )
+from pitloom.messages import CodedValueError
 from tests.extract.remote.hf_patches._hf_patches_base import _patch_hf_calls
 
 _SPELLINGS = [
@@ -278,3 +288,155 @@ def test_a_query_or_fragment_is_no_part_of_the_model_id(url: str) -> None:
     """A model id holds no ``?`` or ``#``: a token in the query must not end up
     in the id, and so in a message or a request."""
     assert parse_hf_model_id(url) == "o/m"
+
+
+#: Ids at each edge of the Hub's rule, and whether ``huggingface_hub`` takes
+#: each.
+_IDS = [
+    pytest.param("a/b--c", False, id="dashes"),
+    pytest.param("a/b..c", False, id="dots"),
+    pytest.param("a/b.git", False, id="git"),
+    pytest.param("a/b-", False, id="dash-end"),
+    pytest.param("a/b.", False, id="dot-end"),
+    pytest.param("-a/b", False, id="dash-start"),
+    pytest.param("a/" + "x" * 97, False, id="long"),
+    pytest.param("a/b_", True, id="underscore-end"),
+    pytest.param("_a/b", True, id="underscore-owner"),
+    pytest.param("a/_b", True, id="underscore-name"),
+    pytest.param("a/b.c", True, id="dot-inside"),
+    pytest.param("a-b/c", True, id="dash-inside"),
+    pytest.param("a/" + "x" * 96, True, id="longest"),
+]
+
+
+@pytest.mark.parametrize(("model_id", "valid"), _IDS)
+def test_a_url_names_a_model_only_by_an_id_the_hub_can_hold(
+    model_id: str, valid: bool
+) -> None:
+    """A Hub URL whose id the Hub itself refuses names no model:
+    ``hf-url-invalid`` before any request, not "not found" advice; a bare
+    one is a path, not a model."""
+    url = f"https://huggingface.co/{model_id}"
+    assert parse_hf_model_id(url) == (model_id if valid else None)
+    assert parse_hf_model_id(model_id) == (model_id if valid else None)
+    if not valid:
+        with pytest.raises(CodedValueError) as raised:
+            require_hf_model_id(url)
+        assert raised.value.pitloom_code == "hf-url-invalid"
+
+
+@pytest.mark.parametrize(
+    "repo_id", [*(p.values[0] for p in _IDS), "gpt2", "_", "a/b/c", "a b/c"]
+)
+def test_the_id_rule_agrees_with_huggingface_hub(repo_id: str) -> None:
+    """Drift guard: Pitloom refuses exactly the ids ``huggingface_hub``
+    refuses, so no model the Hub can hold is refused."""
+    hub_utils = pytest.importorskip("huggingface_hub.utils")
+    try:
+        hub_utils.validate_repo_id(repo_id)
+    except hub_utils.HFValidationError:
+        hub_takes = False
+    else:
+        hub_takes = True
+    assert is_hub_repo_id(repo_id) is hub_takes
+
+
+_HF = "https://huggingface.co"
+
+
+@pytest.mark.parametrize(
+    ("url", "revision"),
+    [
+        pytest.param(f"{_HF}/o/m/tree/0123abc", "0123abc", id="tree"),
+        pytest.param(f"{_HF}/o/m/blob/v1.0/README.md", "v1.0", id="blob"),
+        pytest.param(f"{_HF}/o/m/commit/deadbeef", "deadbeef", id="commit"),
+        pytest.param(f"{_HF}/o/m/resolve/dev/config.json", "dev", id="resolve"),
+        pytest.param(f"{_HF}/o/m/tree/0123abc?x=1#y", "0123abc", id="query"),
+        pytest.param(f"{_HF}/o/m/tree/0123abc#y", "0123abc", id="fragment"),
+        pytest.param(f"{_HF}/o/m/tree//0123abc", "0123abc", id="double-slash"),
+        pytest.param(f"{_HF}/gpt2/tree/0123abc", "0123abc", id="one-part-id"),
+        pytest.param(f"{_HF}/o/m/tree/refs/pr/1/sub", "refs/pr/1", id="hub-ref"),
+        pytest.param(f"{_HF}/o/m/tree/refs%2Fpr%2F1", "refs%2Fpr%2F1", id="encoded"),
+        pytest.param(f"{_HF}/o/m/tree/Main", "Main", id="case"),
+        pytest.param(f"{_HF}/o/m/tree/refs/pr", "refs", id="refs-short"),
+        pytest.param(f"{_HF}/o/m/tree/refs/heads/main", None, id="main-ref"),
+        pytest.param(f"{_HF}/o/m/tree/refs%2Fheads%2Fmain", None, id="main-ref-enc"),
+        pytest.param(f"{_HF}/o/m/tree/main", None, id="main"),
+        pytest.param(f"{_HF}/o/m/tree/%6Dain", None, id="encoded-main"),
+        pytest.param(f"{_HF}/o/m/tree/main/sub", None, id="main-folder"),
+        pytest.param(f"{_HF}/o/m/discussions/3", None, id="discussions"),
+        pytest.param(f"{_HF}/o/m/tree", None, id="page-only"),
+        pytest.param(f"{_HF}/o/m?tab=files", None, id="tab"),
+        pytest.param("o/m", None, id="bare-id"),
+    ],
+)
+def test_the_revision_a_url_names(url: str, revision: str | None) -> None:
+    assert url_revision(url) == revision
+
+
+def _read_online(url: str) -> None:
+    assert read_huggingface(url).name == "m"
+
+
+def _read_offline(url: str) -> None:
+    with pytest.raises(RemoteSourceError):
+        read_huggingface(url, policy=RemoteFetchPolicy(offline=True))
+
+
+def _model_sbom(url: str) -> None:
+    with pytest.raises(RemoteSourceError):
+        generate_model_sbom(url, offline=True)
+
+
+def _generate(url: str) -> None:
+    with pytest.raises(RemoteSourceError):
+        generate(url, offline=True)
+
+
+def _cli(url: str) -> None:
+    with pytest.MonkeyPatch.context() as patched:
+        patched.setattr(sys, "argv", ["loom", "model", url, "--offline"])
+        assert __main__.main() == 1
+
+
+@pytest.mark.parametrize(
+    "read",
+    [_read_online, _read_offline, _model_sbom, _generate, _cli],
+    ids=["read", "read-offline", "generate_model_sbom", "generate", "cli"],
+)
+@pytest.mark.parametrize(
+    ("url", "said"),
+    [
+        pytest.param(
+            f"{_HF}/o/m/tree/0123abc",
+            f"URL={_HF}/o/m/tree/0123abc: the URL names the revision 0123abc",
+            id="revision",
+        ),
+        pytest.param(
+            f"{_HF}/o/m/blob/v1/README.md?token=S3CRET",
+            f"URL={_HF}/o/m/blob/v1/README.md?token=***: the URL names the revision v1",
+            id="credential",
+        ),
+        pytest.param(f"{_HF}/o/m/tree/main", None, id="main"),
+        pytest.param(f"{_HF}/o/m", None, id="no-revision"),
+    ],
+)
+def test_a_revision_the_files_are_not_read_at_is_said_once(
+    caplog: pytest.LogCaptureFixture,
+    read: Callable[[str], None],
+    url: str,
+    said: str | None,
+) -> None:
+    """One WARNING names the URL, its revision and that the default branch is
+    read, before anything is fetched (offline too), on every route;
+    none for ``main`` or no revision."""
+    with _patch_hf_calls(), caplog.at_level(logging.INFO, logger="pitloom"):
+        read(url)
+    warnings = [
+        (r.levelno, r.getMessage())
+        for r in caplog.records
+        if getattr(r, "pitloom_code", None) == "hub-revision-unpinned/url"
+    ]
+    tail = "; files are read at the default branch"
+    assert warnings == ([(logging.WARNING, said + tail)] if said else [])
+    assert "S3CRET" not in caplog.text

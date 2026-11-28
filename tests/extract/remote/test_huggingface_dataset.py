@@ -25,7 +25,7 @@ from unittest.mock import MagicMock, call, patch
 import pytest
 
 from pitloom.core.dataset_metadata import DatasetMetadata, FurtherLicences
-from pitloom.core.dataset_names import is_hub_dataset_id
+from pitloom.core.dataset_names import is_hub_repo_id
 from pitloom.extract.remote import huggingface_dataset as hub_dataset
 from pitloom.extract.remote import read_huggingface
 from pitloom.extract.remote._hub_files import FileKind
@@ -362,7 +362,7 @@ def test_a_licence_of_the_wrong_shape_warns_naming_the_dataset(
     ],
 )  # fmt: skip
 def test_only_a_repository_id_is_looked_up(name: str, looked_up: bool) -> None:
-    assert is_hub_dataset_id(name) is looked_up
+    assert is_hub_repo_id(name) is looked_up
 
 
 @pytest.mark.parametrize(

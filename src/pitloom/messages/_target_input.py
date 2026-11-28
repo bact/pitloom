@@ -61,7 +61,8 @@ HF_URL_INVALID: Final = Message(
     condition="invalid",
     lines=(HF_URL_LINE,),
     summary="A Hugging Face target is neither a Hub model URL "
-    "(https://huggingface.co/<owner>/<name>) nor a model id (<owner>/<name>).",
+    "(https://huggingface.co/<owner>/<name>) nor a model id (<owner>/<name>), "
+    "or a Hub URL of an id no repository can have (/a/b--c).",
     did="Read nothing and sent no request: 'loom model', 'loom project' and "
     "'loom generate' exit 1; generate, generate_model_sbom, "
     "generate_project_sbom, generate_git_project_sbom and read_huggingface "

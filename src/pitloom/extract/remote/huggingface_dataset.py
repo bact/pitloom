@@ -41,7 +41,7 @@ from pitloom.core.dataset_metadata import (
     DatasetMetadata,
     DatasetReference,
 )
-from pitloom.core.dataset_names import dataset_key, is_hub_dataset_id
+from pitloom.core.dataset_names import dataset_key, is_hub_repo_id
 from pitloom.core.internal_error import reraise_internal
 from pitloom.core.model_originators import REPOSITORY_OWNER_METHOD, originator_names
 from pitloom.core.purl import commit_hash
@@ -215,7 +215,7 @@ def add_hub_dataset_metadata(
     if not hub.asks_hub:
         return
     ids = list(dict.fromkeys(dataset_key(r.metadata.name) for r in datasets))
-    ids = [i for i in ids if is_hub_dataset_id(i)]
+    ids = [i for i in ids if is_hub_repo_id(i)]
     if len(ids) > MAX_HUB_DATASET_LOOKUPS:
         skipped = len(ids) - MAX_HUB_DATASET_LOOKUPS
         outcome = f"the first {MAX_HUB_DATASET_LOOKUPS} looked up, {skipped} not"

@@ -190,20 +190,21 @@ def test_the_owner_and_count_reach_the_sbom() -> None:
     assert f"{SUPPLIER_PROVENANCE_KEY}: {_OWNER_PROVENANCE}" in lines[1]
 
 
-def test_the_warning_names_the_model_url_masked_before_it_is_escaped(
+def test_a_url_whose_name_holds_a_split_token_is_refused_masked(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     """A Hub URL whose model name holds a token split by a zero-width space
-    is named with the token masked, in the count warning and the G7 notice:
-    escaped first, the token would be two runs of letters the masker cannot
-    read as one."""
+    names no repository (the Hub's id rule) and is refused before any
+    request, with the token masked: escaped first, the token would be two
+    runs of letters the masker cannot read as one."""
     caplog.set_level(logging.INFO, logger="pitloom")
     half = "T0KENaB3aB3aB3aB3a"
     url = f"https://huggingface.co/o/ghp_{half}\u200bB3aB3aB3aB3aB3aB3x"
-    with _patch_hf_calls(hub_info={"author": "o", "sha": "x", "safetensors_total": -1}):
+    with (
+        _patch_hf_calls(hub_info={"author": "o", "sha": "x"}),
+        pytest.raises(ValueError, match="not a valid Hugging Face URL") as raised,
+    ):
         read_huggingface(url)
-    (message,) = logged_warnings(caplog)
-    assert "ghp_***" in message
-    infos = [r.getMessage() for r in caplog.records if r.levelno == logging.INFO]
-    assert any("ghp_***" in info for info in infos)
+    assert "ghp_***" in str(raised.value)
+    assert half not in str(raised.value)
     assert not any(half in r.getMessage() for r in caplog.records)

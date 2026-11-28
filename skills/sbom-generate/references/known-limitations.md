@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-29
-Last-Modified: 2026-11-27
+Last-Modified: 2026-11-28
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -156,6 +156,10 @@ from a scan and from `loom model FILE` (exit 0). Beyond that:
   `[download-timeout]`, `[offline-unusable]` or `[hub-response-invalid]`); a
   model read with no revision says `the Hub stated no revision`
   (`[hub-revision-unpinned]`) once per read, and a later run can read other files.
+  A URL naming a revision other than `main` (`/tree/<rev>`, `/blob/<rev>/...`)
+  is read at the default branch, said by `[hub-revision-unpinned/url]`: tell
+  the user the SBOM is not of that revision. An id breaking the Hub's rule
+  (`a/b--c`) is refused in a URL (`[hf-url-invalid]`) and is a local path bare.
 - Producer and parameter count (`ai_AIPackage`): `originatedBy` holds one
   generic `Agent` (name only) per name a structured field states (ONNX
   `model_author`, split on commas, so `Doe, Jane` becomes two; PT2
