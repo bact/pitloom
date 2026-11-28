@@ -115,7 +115,9 @@ def test_resolve_name_caps_a_long_name(own: bool, extra: int) -> None:
     assert (model.own_name if own else model.file_name_stem) == resolved
     assert model.name_cut_length() == (len(long) if cut else None)
     base = source if own else FILE_NAME_STEM_PROVENANCE
-    assert provenance["name"] == base + (MODEL_NAME_CUT_NOTE if cut else "")
+    assert provenance["name"] == base + (
+        f" | Note: {MODEL_NAME_CUT_NOTE}" if cut else ""
+    )
     assert model.name == (f" {long} " if own else None)
     assert model.provenance == ({"name": source} if own else {})
 

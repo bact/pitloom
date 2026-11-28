@@ -22,7 +22,7 @@ from pitloom.core.ai_metadata import (
 )
 from pitloom.core.internal_error import reraise_internal
 from pitloom.core.model_originators import ORIGINATORS_PROVENANCE_KEY, originator_names
-from pitloom.core.provenance import provenance_source
+from pitloom.core.provenance import provenance_segment, provenance_source
 from pitloom.core.quote_source import quote_source
 from pitloom.extract._extract_utils import record_dict_field_provenance
 from pitloom.extract.ai_model._stated_text import first_stated_text
@@ -151,8 +151,8 @@ def _originators(
     so it is not split."""
     names = originator_names(metadata.get("modelspec.author"))
     if names:
-        provenance[ORIGINATORS_PROVENANCE_KEY] = (
-            f"{source} | Field: __metadata__.modelspec.author"
+        provenance[ORIGINATORS_PROVENANCE_KEY] = provenance_segment(
+            source, "Field", "__metadata__.modelspec.author"
         )
     return names
 
@@ -168,7 +168,9 @@ def _license(
     found = first_stated_text(metadata, _LICENSE_KEYS)
     if found is None:
         return None
-    provenance["license"] = f"{source} | Field: __metadata__.{found[0]}"
+    provenance["license"] = provenance_segment(
+        source, "Field", f"__metadata__.{found[0]}"
+    )
     return found[1]
 
 
@@ -184,7 +186,7 @@ def _stated_field(
     found = first_stated_text(metadata, keys)
     if found is None:
         return None
-    provenance[field] = f"{source} | Field: __metadata__.{found[0]}"
+    provenance[field] = provenance_segment(source, "Field", f"__metadata__.{found[0]}")
     return found[1]
 
 

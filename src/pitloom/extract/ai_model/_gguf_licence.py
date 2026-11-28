@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from pitloom.core.provenance import provenance_segment
 from pitloom.extract._license import warn_unless_expression
 from pitloom.extract._license_classify import is_vague_license_value, is_weak_licence
 from pitloom.extract.ai_model._stated_text import stated_text
@@ -43,9 +44,9 @@ def read_gguf_license(
     vague = not weak and is_vague_license_value(license_expr)
     if license_expr and not vague and not (name and weak):
         warn_unless_expression(license_expr, _GGUF_LICENSE_KEY)
-        provenance["license"] = f"{source} | Field: {_GGUF_LICENSE_KEY}"
+        provenance["license"] = provenance_segment(source, "Field", _GGUF_LICENSE_KEY)
         return license_expr
     if not name:
         return None
-    provenance["license"] = f"{source} | Field: {_GGUF_LICENSE_NAME_KEY}"
+    provenance["license"] = provenance_segment(source, "Field", _GGUF_LICENSE_NAME_KEY)
     return name

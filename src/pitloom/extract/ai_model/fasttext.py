@@ -21,7 +21,7 @@ from pitloom.core.ai_metadata import (
 )
 from pitloom.core.canonical_json import canonical_json
 from pitloom.core.internal_error import reraise_internal
-from pitloom.core.provenance import provenance_source
+from pitloom.core.provenance import provenance_segment, provenance_source
 from pitloom.core.quote_source import quote_source
 from pitloom.extract._extract_utils import record_dict_field_provenance
 from pitloom.extract.ai_model.formats import Limits
@@ -250,21 +250,28 @@ def read_fasttext(model_path: Path) -> AiModelMetadata:
         provenance, "hyperparameters", hyperparameters, source, location_prefix="args."
     )
     if type_of_model:
-        provenance["type_of_model"] = f"{source} | Field: args.model"
+        provenance["type_of_model"] = provenance_segment(source, "Field", "args.model")
     # Not stated in the file: derived from the format and the model kind.
-    provenance["domain"] = f"{source} | Field: args.model | Method: derived_from_format"
+    provenance["domain"] = provenance_segment(
+        provenance_segment(source, "Field", "args.model"),
+        "Method",
+        "derived_from_format",
+    )
 
     # Per-property exact provenance (distinct origins: args.loss vs the model's
     # own label list), rather than one shared note.
     if "lossName" in properties:
-        provenance["properties.lossName"] = f"{source} | Field: args.loss"
+        provenance["properties.lossName"] = provenance_segment(
+            source, "Field", "args.loss"
+        )
     if "labels" in properties:
-        provenance["properties.labels"] = f"{source} | Field: labels"
+        provenance["properties.labels"] = provenance_segment(source, "Field", "labels")
 
     if outputs:
-        provenance["outputs"] = (
-            f"{source} | Field: labels (supervised class count)"
-            " | Method: derived_from_format"
+        provenance["outputs"] = provenance_segment(
+            provenance_segment(source, "Field", "labels (supervised class count)"),
+            "Method",
+            "derived_from_format",
         )
     return AiModelMetadata(
         format_info=AiModelFormatInfo(

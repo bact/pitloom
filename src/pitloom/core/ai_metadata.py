@@ -23,6 +23,7 @@ from pitloom.core.canonical_json import canonical_json
 from pitloom.core.dataset_metadata import DatasetReference
 from pitloom.core.internal_error import reraise_internal
 from pitloom.core.model_usage import ModelUsage
+from pitloom.core.provenance import provenance_segment
 from pitloom.core.scalar_text import key_text, scalar_text, scalar_type, text_type
 from pitloom.messages.files import Cap
 
@@ -113,8 +114,8 @@ MODEL_NAME_CUT_MARK = "..."
 #: ``~``: two long names sharing their first characters still differ.
 MODEL_NAME_DIGEST_CHARS = 8
 
-#: Appended to the ``name`` provenance of a cut name.
-MODEL_NAME_CUT_NOTE = f" | Note: cut to {MAX_MODEL_NAME_CHARS} characters"
+#: The ``Note`` added to the ``name`` provenance of a cut name.
+MODEL_NAME_CUT_NOTE = f"cut to {MAX_MODEL_NAME_CHARS} characters"
 
 
 def cap_model_name(name: str) -> str:
@@ -526,5 +527,7 @@ class AiModelMetadata:
         if not self.own_name:
             provenance["name"] = FILE_NAME_STEM_PROVENANCE
         if self.name_cut_length() is not None and "name" in provenance:
-            provenance["name"] += MODEL_NAME_CUT_NOTE
+            provenance["name"] = provenance_segment(
+                provenance["name"], "Note", MODEL_NAME_CUT_NOTE
+            )
         return name, provenance

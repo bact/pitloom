@@ -34,7 +34,11 @@ from typing import Any
 
 from pitloom.core.internal_error import reraise_internal
 from pitloom.core.project import ProjectMetadata
-from pitloom.core.provenance import parse_provenance_value, provenance_source
+from pitloom.core.provenance import (
+    parse_provenance_value,
+    provenance_segment,
+    provenance_source,
+)
 from pitloom.core.requirements import normalize_dependency_specifier
 from pitloom.extract.project._optional_dependencies import (
     OPTIONAL_DEPENDENCIES_FIELD,
@@ -90,7 +94,9 @@ class SetuptoolsDynamic:
     dependencies: list[str] | None = None
     optional: dict[str, list[str]] | None = None
     files: tuple[str, ...] = ()
-    dependencies_source: str = f"{_PYPROJECT} | Field: {DYNAMIC_TABLE}.dependencies"
+    dependencies_source: str = provenance_segment(
+        _PYPROJECT, "Field", f"{DYNAMIC_TABLE}.dependencies"
+    )
     optional_source: tuple[str, str] = (
         _PYPROJECT,
         f"{DYNAMIC_TABLE}.optional-dependencies",

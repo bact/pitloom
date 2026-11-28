@@ -20,6 +20,7 @@ from typing import NamedTuple
 from zipfile import ZipFile
 
 from pitloom.core.internal_error import reraise_internal
+from pitloom.core.provenance import provenance_segment
 from pitloom.extract.ai_model._stated_text import stated_text
 from pitloom.extract.ai_model.archive_member import read_archive_member
 from pitloom.extract.ai_model.limits import ModelLimitExceeded
@@ -155,16 +156,16 @@ def read_pt2_graph(
     inputs = _spec_tensor_names(signature.get("input_specs"), "user_input")
     outputs = _spec_tensor_names(signature.get("output_specs"), "user_output")
     if inputs:
-        provenance["inputs"] = (
-            f"{source} | Field: {MODEL_JSON} signature.input_specs user_input"
+        provenance["inputs"] = provenance_segment(
+            source, "Field", f"{MODEL_JSON} signature.input_specs user_input"
         )
     if outputs:
-        provenance["outputs"] = (
-            f"{source} | Field: {MODEL_JSON} signature.output_specs user_output"
+        provenance["outputs"] = provenance_segment(
+            source, "Field", f"{MODEL_JSON} signature.output_specs user_output"
         )
     if torch_version:
-        provenance["framework_version"] = (
-            f"{source} | Field: {MODEL_JSON} torch_version"
+        provenance["framework_version"] = provenance_segment(
+            source, "Field", f"{MODEL_JSON} torch_version"
         )
     return Pt2Graph(inputs, outputs, torch_version)
 

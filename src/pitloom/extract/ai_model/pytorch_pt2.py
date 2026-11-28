@@ -213,30 +213,38 @@ def _read_pt2_extra_files(
 
     name = _read_text("extra/name", "name")
     if name:
-        provenance["name"] = f"{source} | Field: extra/name"
+        provenance["name"] = provenance_segment(source, "Field", "extra/name")
 
     description = _read_text("extra/description", "description")
     if description:
-        provenance["description"] = f"{source} | Field: extra/description"
+        provenance["description"] = provenance_segment(
+            source, "Field", "extra/description"
+        )
 
     version, version_key = _resolve_pt2_version(_read_text)
     if version:
-        provenance["version"] = f"{source} | Field: extra/{version_key}"
+        provenance["version"] = provenance_segment(
+            source, "Field", f"extra/{version_key}"
+        )
 
     license_expr = _read_text("extra/license", "license")
     if license_expr:
-        provenance["license"] = f"{source} | Field: extra/license"
+        provenance["license"] = provenance_segment(source, "Field", "extra/license")
 
     author = _read_text("extra/author", "properties.author")
     if author:
         properties["author"] = author
-        provenance["properties.author"] = f"{source} | Field: extra/author"
+        provenance["properties.author"] = provenance_segment(
+            source, "Field", "extra/author"
+        )
 
     tags: list[object] | None = None
     tags_raw = _read_text("extra/tags", "properties.tags")
     if tags_raw:
         properties["tags"], tags = _parse_pt2_tags(tags_raw)
-        provenance["properties.tags"] = f"{source} | Field: extra/tags"
+        provenance["properties.tags"] = provenance_segment(
+            source, "Field", "extra/tags"
+        )
 
     return name, description, version, license_expr, tags
 

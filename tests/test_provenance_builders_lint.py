@@ -11,16 +11,11 @@ are given, so a ``|`` in a file, label or archive name cannot add a segment.
 It reads the source of ``src/pitloom`` (not ``core/provenance.py``, where the
 helpers live) for f-strings and ``+`` concatenations:
 
-- R1 (strict): a string whose literal text holds a segment key other than
-  ``Field:`` and ``Method:`` (``Source:``, ``File:``, ``Package:``,
-  ``Normalized-From:``, ``Resolution-``, every other key of
+- R1: a string whose literal text holds a segment key (``Source:``,
+  ``Field:``, ``Method:``, ``File:``, ``Resolution-``, every other key of
   :data:`~pitloom.core.provenance.PROVENANCE_SEGMENT_KEYS`, ``Evidence:``,
   ``Reason:``) or ``Fetched from`` interpolates only a literal, an
   ``UPPER_CASE`` constant or a call of an approved builder.
-- R2 (heuristic): a string holding ``Field:`` or ``Method:`` interpolates no
-  name that looks like external text (``entry``, ``prefix``, ``member``,
-  ``label``, ``path``, ``raw``, ``url``, ``archive``, ``name``) outside an
-  approved call.
 - R3: a ``" | ".join(...)`` (a separator holding `` | ``, not a regex
   alternation's ``"|"``) joins only what a comprehension passes through
   the sanitiser or an approved builder.
@@ -40,8 +35,6 @@ from pitloom.core.provenance import PROVENANCE_SEGMENT_KEYS
 _SRC = Path(__file__).parent.parent / "src" / "pitloom"
 _HELPERS = "core/provenance.py"
 
-#: Literal text that makes a string a provenance segment (R2).
-_SEGMENT_MARKERS = ("Field:", "Method:")
 #: Literal text that makes a string a provenance source or a segment whose
 #: value names one (R1).
 _SOURCE_MARKERS = (
@@ -51,14 +44,8 @@ _SOURCE_MARKERS = (
     "Evidence:",
     "Reason:",
     "Fetched from",
-    *(
-        f"{key}:"
-        for key in sorted(PROVENANCE_SEGMENT_KEYS)
-        if key not in ("Field", "Method")
-    ),
+    *(f"{key}:" for key in sorted(PROVENANCE_SEGMENT_KEYS)),
 )
-#: Names that look like text read from outside (R2).
-_EXTERNAL = re.compile(r"entry|prefix|member|label|path|raw|url|archive|name")
 _CONSTANT = re.compile(r"^_*[A-Z][A-Z0-9_]*$")
 
 #: Calls whose result is a provenance string built from sanitised parts:
@@ -115,21 +102,6 @@ def _is_safe(node: ast.expr) -> bool:
     return _called_name(node) in _APPROVED
 
 
-def _external_names(node: ast.AST) -> list[str]:
-    """R2: the names and attributes in *node* that look like external text,
-    not counting what an approved call takes."""
-    if _called_name(node) in _APPROVED:
-        return []
-    found: list[str] = []
-    if isinstance(node, ast.Name) and _EXTERNAL.search(node.id):
-        found.append(node.id)
-    elif isinstance(node, ast.Attribute) and _EXTERNAL.search(node.attr):
-        found.append(node.attr)
-    for child in ast.iter_child_nodes(node):
-        found += _external_names(child)
-    return found
-
-
 def _operands(node: ast.expr) -> list[ast.expr]:
     """The operands of a ``+`` chain, left to right."""
     if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
@@ -183,7 +155,7 @@ def _unsanitised_join(node: ast.AST) -> str | None:
 
 
 def _flagged(node: ast.AST) -> list[str]:
-    """What *node* interpolates or joins against R1, R2 or R3."""
+    """What *node* interpolates or joins against R1 or R3."""
     joined = _unsanitised_join(node)
     if joined is not None:
         return [joined]
@@ -194,10 +166,6 @@ def _flagged(node: ast.AST) -> list[str]:
     flagged: list[str] = []
     if any(marker in text for marker in _SOURCE_MARKERS):
         flagged += [ast.unparse(v) for v in values if not _is_safe(v)]
-    if any(marker in text for marker in _SEGMENT_MARKERS):
-        flagged += [
-            ast.unparse(v) for v in values if _external_names(v) and not _is_safe(v)
-        ]
     return flagged
 
 
@@ -276,4 +244,4 @@ def test_the_guard_sees_a_raw_name() -> None:
         "a = ', '.join(names)\n"
     )
     found = {line.split(":")[1] for line in _offenders("x.py", ast.parse(source))}
-    assert found == {"1", "4", "6", "7", "9", "11", "12", "14", "17", "20"}
+    assert found == {"1", "4", "6", "7", "8", "9", "10", "11", "12", "14", "17", "20"}
