@@ -230,9 +230,13 @@ nothing may hang on today's wording when it lands.
   asserts the reverse on the pure function: keep its meaning
   for the function's argument, and say in its name that the argument
   is the seed text, not the provenance.
-  Ask first (ruling): a caller-built ProjectMetadata with a provenance
-  string of its own -- does its text stay an id input (today), or does
-  the seed fall back to the typed facts only?
+  Ruled 2026-11-28: a caller-built ProjectMetadata with a provenance
+  string of its own keeps that text as an id input in this PR (as
+  today: no change of output, so the PR is provable by one
+  comparison). The target is typed facts only, for every route; it is
+  built in the taxonomy code stage, where ids may change once
+  (renames-and-migration.md, hazard 1). Leave a comment at the seed
+  function that names the target, and no other trace.
 
 2b. PIT-1 [main 88ad620e, counted by a scan of the syntax tree].
   Provenance segments built by hand: 62 strings with an interpolated

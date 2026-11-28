@@ -165,6 +165,11 @@ and counts are in
   no response cap, and `huggingface_hub` follows redirects unchecked. Replace
   them with `fetch_json` through `HubFiles`. See
   [remote-fetch-policy.md](../implementation/remote-fetch-policy.md).
+- [ ] **Provenance taxonomy** (design agreed; no code yet): groundwork
+  with no change of output first, then the code stage, which seeds the
+  document id from typed facts only (ids change once, then). See
+  [README.md](provenance-taxonomy/README.md) and hazard 1 of
+  [renames-and-migration.md](provenance-taxonomy/renames-and-migration.md).
 - [ ] **Licence provenance mapping** (T14), after PR 18: per-operand
   `Resolution-<n>`, `License-List` and `Reason`, behind `--provenance`; waits
   for the flags item below and the provenance taxonomy. See
